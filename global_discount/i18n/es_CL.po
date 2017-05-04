@@ -1,0 +1,24 @@
+# Translation of Odoo Server.
+# This file contains the translation of the following modules:
+# * global_discount
+#
+# Translators:
+msgid ""
+msgstr ""
+"Project-Id-Version: Odoo 9.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2016-07-14 23:26+0000\n"
+"PO-Revision-Date: 2016-07-14 23:19-0400\n"
+"Last-Translator: Daniel Santibáñez Polanco\n"
+"Language-Team: Spanish (Chile) (http://www.transifex.com/odoo/odoo-9/language/es_CL/)\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: es_CL\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Generator: Poedit 1.8.7.1\n"
+
+#. module: global_discount
+#: model:ir.ui.view,arch_db:l10n_cl_dte_pdf.dte_external_layout_invoice
+msgid "<strong>Source:</strong>"
+msgstr "<strong>Origen:</strong>"

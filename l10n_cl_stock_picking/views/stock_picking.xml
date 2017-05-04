@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="utf-8"?>
+<openerp>
+    <data>
+      <record id="electronic_stock_picking_tree" model="ir.ui.view">
+            <field name="name">l10n_cl.stock_picking.tree</field>
+            <field name="model">stock.picking</field>
+            <field name="inherit_id" ref="stock.vpicktree"/>
+            <field name="arch" type="xml">
+                <field name="origin" position="after">
+                    <field name="reference"/>
+                </field>
+            </field>
+        </record>
+
+        <record id="view_electroinic_stock_picking_form" model="ir.ui.view">
+            <field name="name">l10n_cl.stock_picking.form</field>
+            <field name="model">stock.picking</field>
+            <field name="inherit_id" ref="stock.view_picking_form"/>
+            <field name="arch" type="xml">
+                <form>
+                    <field name="sii_document_number" invisible="1"/>
+                </form>
+                <field name="partner_id" position="after">
+                    <field name="activity_description" />
+                      <field name="partner_turn" domain="[('partner_ids', '=', partner_id)]" options="{'no_create': True}" invisible="True"/>
+                      <field name="currency_id"/>
+                </field>
+
+                <field name="origin" position="after">
+                  <field name="contact_id" />
+                  <field name="use_documents"/>
+                </field>
+
+                <xpath expr="//page/field[@name='pack_operation_product_ids']/tree/field[@name='qty_done']" position="after">
+                  <field name="name"/>
+                  <field name="price_unit"/>
+                  <field name="price_untaxed" invisible="True" />
+                  <field name="operation_line_tax_ids" widget="many2many_tags"  domain="[('type_tax_use','=','sale'),('company_id','=',parent.company_id)]"/>
+                  <field name="discount" />
+                  <field name="subtotal"/>
+                  <field name="currency_id" invisile="1"/>
+                </xpath>
+                <field name="pack_operation_ids" position="after">
+                  <group attres="{'invisible':{[('mover_reason','not in',['2','3','8','9'])]}}">
+                    <field name="amount_untaxed"/>
+                    <field name="amount_tax"/>
+                    <field name="amount_total" />
+                    <field name="currency_id" invisile="1"/>
+                  </group>
+                </field>
+                <page name="extra" position="inside">
+                    <field name="reference" mode="tree" attrs="{'readonly':[('state','in',['cancel','done'])]}">
+                      <form>
+                        <group>
+                          <field name="origen" />
+                          <field name="sii_referencia_TpoDocRef"/>
+                          <field name="date" />
+                        </group>
+                      </form>
+                      <tree>
+                        <field name="origen" />
+                        <field name="sii_referencia_TpoDocRef"/>
+                        <field name="date" />
+                      </tree>
+                    </field>
+                </page>
+
+                <field name="company_id" position="after">
+                    <field name="turn_issuer"
+                           options="{'no_create': True}"/>
+                </field>
+                <field name="name" position="after">
+                        <label string="- Next Number: " attrs="{'invisible': ['|',('name','!=',False),('state','!=','draft')]}" class="oe_inline"/>
+                        <field name="next_number" attrs="{'invisible': ['|',('name','!=',False),('state','!=','draft')]}" class="oe_inline"/>
+                </field>
+                <field name="move_type" position="after">
+                  <field name="transport_type" attrs="{'required':[('use_documents', '=', True)]}"/>
+                  <field name="move_reason" attrs="{'required':[('use_documents', '=', True)]}"/>
+                </field>
+                <field name="carrier_id" position="attributes">
+                  <attribute name="attrs">{'invisible':[('transport_type', '!=', '3')], 'required':[('transport_type', '=', '3'), ('use_documents', '=', True)]}</attribute>
+                </field>
+                <field name="carrier_id" position="after">
+                  <field name="vehicle" attrs="{'required':[('transport_type','=', '2'), ('use_documents', '=', True)], 'invisible':[('transport_type','!=','2')]}"/>
+                  <field name="chofer" attrs="{'required':[('transport_type','=', '2'), ('use_documents', '=', True)], 'invisible':[('transport_type','!=','2')]}"/>
+                  <field name="patente" attrs="{'required':[('transport_type','in', ['2']), ('use_documents', '=', True)]}"/>
+                </field>
+          </field>
+
+        </record>
+
+        <record id="view_move_picking_tree_valued" model="ir.ui.view">
+            <field name="name">stock.move.tree.valued</field>
+            <field name="model">stock.move</field>
+            <field name="inherit_id" ref="stock.view_move_picking_tree"/>
+            <field name="arch" type="xml">
+              <field name="product_uom" position="after">
+                <field name="name"/>
+                <field name="price_unit"/>
+                <field name="move_line_tax_ids" widget="many2many_tags"  domain="[('type_tax_use','=','sale'),('company_id','=',parent.company_id)]"/>
+                <field name="discount" />
+                <field name="subtotal"/>
+                <field name="currency_id" invisile="1"/>
+              </field>
+            </field>
+        </record>
+
+        <record id="view_move_picking_form_valued" model="ir.ui.view">
+            <field name="name">stock.move.form.valued</field>
+            <field name="model">stock.move</field>
+            <field name="inherit_id" ref="stock.view_move_picking_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//group/group[last()]" position="before">
+                    <group>
+                      <field name="name"/>
+                        <field name="price_unit"/>
+                        <field name="move_line_tax_ids" widget="many2many_tags" domain="[('type_tax_use','=','sale'),('company_id','=',parent.company_id)]"/>
+                        <field name="discount"/>
+                        <field name="currency_id" invisile="1"/>
+                    </group>
+                    <group>
+                        <field name="price_untaxed"/>
+                        <field name="subtotal"/>
+                        <field name="currency_id" invisile="1"/>
+                    </group>
+                </xpath>
+            </field>
+        </record>
+
+
+        <record id="view_stock_location_form_electronic_stock_picking_class" model="ir.ui.view">
+            <field name="name">l10n_cl.stock.location.tree</field>
+            <field name="model">stock.location</field>
+            <field name="inherit_id" ref="stock.view_location_form"/>
+            <field name="arch" type="xml">
+                <field name="usage" position="after">
+                    <field name="sii_code"/>
+                    <field name="sequence_id"/>
+                    <field name="sii_document_class_id" />
+                </field>
+            </field>
+        </record>
+
+        <record id="view_stock_quant_form_electronic_stock_picking" model="ir.ui.view">
+            <field name="name">l10n_cl.stock.quant.form</field>
+            <field name="model">stock.quant</field>
+            <field name="inherit_id" ref="stock.view_stock_quant_form"/>
+            <field name="arch" type="xml">
+                <field name="qty" position="after">
+                    <field name="name"/>
+                    <field name="price_unit"/>
+                    <field name="currency_id"/>
+                </field>
+            </field>
+        </record>
+
+        <record id="view_stock_quant_tree_electronic_stock_picking" model="ir.ui.view">
+            <field name="name">l10n_cl.stock.quant.form</field>
+            <field name="model">stock.quant</field>
+            <field name="inherit_id" ref="stock.view_stock_quant_tree"/>
+            <field name="arch" type="xml">
+                <field name="qty" position="after">
+                    <field name="name"/>
+                    <field name="price_unit"/>
+                    <field name="currency_id"/>
+                </field>
+            </field>
+        </record>
+    </data>
+</openerp>

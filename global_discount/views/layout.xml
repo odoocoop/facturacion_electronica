@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<openerp>
+  <template id="global_discount_layout" inherit_id="l10n_cl_dte.dte_external_layout">
+      <tr name="subtotal" position="after">
+        <tr t-if="o.global_discount > 0" class="border-black" style="max-height:11px; font-size:12px !important;">
+          <td><strong>Descuento Global</strong></td>
+          <td class="text-right">
+              <span t-esc="o.global_discount if o.global_discount_type=='amount' else o.amount_untaxed_global_discount" t-esc-options='{"widget": "monetary", "display_currency": "o.currency_id"}'/>
+          </td>
+        </tr>
+       </tr>
+   </template>
+</openerp>
