@@ -18,7 +18,7 @@ Facturación Electrónica para Chile.
             'purchase',
             'sale',
             'l10n_cl_chart_of_account',
-            'report_xlsx',
+            #'report_xlsx',
         ],
     'external_dependencies': {
         'python': [
