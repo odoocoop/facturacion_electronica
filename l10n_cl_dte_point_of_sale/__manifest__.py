@@ -15,7 +15,6 @@ Chile: API and GUI to access Electronic Invoicing webservices for Point of Sale.
     'depends': [
         'account',
         'point_of_sale',
-        'report',
         ],
     'external_dependencies': {
         'python': [
