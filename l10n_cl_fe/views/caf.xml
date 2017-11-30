@@ -129,7 +129,7 @@
         <menuitem name="SII CAF Files for DTE"
             id="menu_action_caf_files"
             action="action_caf_files"
-            parent="l10n_cl_partner_activities.menu_sii_config"
+            parent="l10n_cl_fe.menu_sii_config"
             sequence="26"/>
 
 <!--        <menuitem name="SII CAF Files for DTE"

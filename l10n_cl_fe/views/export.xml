@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<openerp>
+<odoo>
   <report
       id="libro_xlsx"
       model="account.move.book"
@@ -25,12 +25,12 @@
           id="action_print_libro"
           model="account.move.book"
           report_type="qweb-pdf"
-          name="l10n_cl_libro_compra_venta.libro_cv"
-          file="l10n_cl_libro_compra_venta.libro_cv"
+          name="l10n_cl_fe.libro_cv"
+          file="l10n_cl_fe.libro_cv"
           attachment_use="False"
           attachment="object.name.replace('/','')+'.pdf'"
     />
-          <template t-name="l10n_cl_libro_compra_venta.layout_libro">
+          <template t-name="l10n_cl_fe.layout_libro">
   		          <style>
   		            .table{
   		            margin-bottom:0px !important;
@@ -148,9 +148,9 @@
 
           <template id="libro_cv" >
               <t t-foreach="docs" t-as="o">
-                  <t t-call="l10n_cl_libro_compra_venta.layout_libro" t-lang="o.company_id.partner_id.lang"/>
+                  <t t-call="l10n_cl_fe.layout_libro" t-lang="o.company_id.partner_id.lang"/>
               </t>
           </template>
 
 
-</openerp>
+</odoo>

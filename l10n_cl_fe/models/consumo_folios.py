@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-from openerp import fields, models, api, _
-from openerp.exceptions import UserError
+from odoo import fields, models, api, _
+from odoo.exceptions import UserError
 from datetime import datetime, timedelta
 import dateutil.relativedelta as relativedelta
-from openerp.tools import DEFAULT_SERVER_DATETIME_FORMAT as DTF
+from odoo.tools import DEFAULT_SERVER_DATETIME_FORMAT as DTF
 import logging
 from lxml import etree
 from lxml.etree import Element, SubElement
@@ -12,15 +12,8 @@ from lxml.etree import XMLSyntaxError
 
 import xml.dom.minidom
 import pytz
-
-
 import socket
 import collections
-
-try:
-    from cStringIO import StringIO
-except:
-    from StringIO import StringIO
 
 import traceback as tb
 import suds.metrics as metrics
@@ -42,6 +35,15 @@ import textwrap
 _logger = logging.getLogger(__name__)
 
 try:
+    from cryptography.hazmat.backends import default_backend
+    from cryptography.hazmat.primitives.serialization import load_pem_private_key
+    import OpenSSL
+    from OpenSSL import crypto
+    type_ = crypto.FILETYPE_PEM
+except:
+    _logger.warning('Cannot import OpenSSL library')
+
+try:
     import xmltodict
 except ImportError:
     _logger.info('Cannot import xmltodict library')
@@ -51,11 +53,6 @@ try:
     dicttoxml.set_debug(False)
 except ImportError:
     _logger.info('Cannot import dicttoxml library')
-
-try:
-    import M2Crypto
-except ImportError:
-    _logger.info('Cannot import M2Crypto library')
 
 try:
     import base64
@@ -71,11 +68,6 @@ try:
     import cchardet
 except ImportError:
     _logger.info('Cannot import cchardet library')
-
-try:
-    from SOAPpy import SOAPProxy
-except ImportError:
-    _logger.info('Cannot import SOOAPpy')
 
 try:
     from signxml import xmldsig, methods
@@ -423,7 +415,7 @@ class ConsumoFolios(models.Model):
             pass
         url = server_url[company_id.dte_service_provider] + 'CrSeed.jws?WSDL'
         ns = 'urn:'+server_url[company_id.dte_service_provider] + 'CrSeed.jws'
-        _server = SOAPProxy(url, ns)
+        _server = Client(url, ns)
         root = etree.fromstring(_server.getSeed())
         semilla = root[0][0].text
         return semilla
@@ -489,7 +481,7 @@ version="1.0">
     def get_token(self, seed_file,company_id):
         url = server_url[company_id.dte_service_provider] + 'GetTokenFromSeed.jws?WSDL'
         ns = 'urn:'+ server_url[company_id.dte_service_provider] +'GetTokenFromSeed.jws'
-        _server = SOAPProxy(url, ns)
+        _server = Client(url, ns)
         tree = etree.fromstring(seed_file)
         ss = etree.tostring(tree, pretty_print=True, encoding='iso-8859-1')
         respuesta = etree.fromstring(_server.getToken(ss))
@@ -554,11 +546,6 @@ version="1.0">
         sig_root = Element("Signature",attrib={'xmlns':'http://www.w3.org/2000/09/xmldsig#'})
         sig_root.append(etree.fromstring(signed_info_c14n))
         signature_value = SubElement(sig_root, "SignatureValue")
-        from cryptography.hazmat.backends import default_backend
-        from cryptography.hazmat.primitives.serialization import load_pem_private_key
-        import OpenSSL
-        from OpenSSL.crypto import *
-        type_ = FILETYPE_PEM
         key=OpenSSL.crypto.load_privatekey(type_,privkey.encode('ascii'))
         signature= OpenSSL.crypto.sign(key,signed_info_c14n,'sha1')
         signature_value.text =textwrap.fill(base64.b64encode(signature),64)
@@ -1086,7 +1073,7 @@ version="1.0">
     def _get_send_status(self, track_id, signature_d,token):
         url = server_url[self.company_id.dte_service_provider] + 'QueryEstUp.jws?WSDL'
         ns = 'urn:'+ server_url[self.company_id.dte_service_provider] + 'QueryEstUp.jws'
-        _server = SOAPProxy(url, ns)
+        _server = Client(url, ns)
         respuesta = _server.getEstUp(self.company_id.vat[2:-1],self.company_id.vat[-1],track_id,token)
         self.sii_message = respuesta
         resp = xmltodict.parse(respuesta)
