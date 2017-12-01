@@ -424,24 +424,12 @@ class invoice(models.Model):
         readonly=True,
         states={'draft': [('readonly', False)]},
     )
-    invoice_turn = fields.Many2one(
-        'partner.activities',
-        'Giro',
-        readonly=True,
-        store=True,
-        states={'draft': [('readonly', False)]})
     activity_description = fields.Many2one(
         'sii.activity.description',
         string="Giro",
         related="partner_id.activity_description",
         readonly=True,
     )
-
-    @api.onchange('partner_id')
-    def _set_partner_activity(self):
-        for inv in self:
-            for act in inv.partner_id.partner_activities_ids:
-                inv.invoice_turn = act # El último giro, @TODO set default
 
     def _repairDiff(self, move_lines, dif):#usualmente es de 1 $ cuando se aplica descuentoo es valor iva incluido
         total = self.amount_total
@@ -596,18 +584,18 @@ class invoice(models.Model):
 
     def get_document_class_default(self, document_classes):
         document_class_id = None
-        if self.turn_issuer.vat_affected not in ['SI', 'ND']:
-            exempt_ids = [
-                self.env.ref('l10n_cl_fe.dc_y_f_dtn').id,
-                self.env.ref('l10n_cl_fe.dc_y_f_dte').id]
-            for document_class in document_classes:
-                if document_class.sii_document_class_id.id in exempt_ids:
-                    document_class_id = document_class.id
-                    break
-                else:
-                    document_class_id = document_classes.ids[0]
-        else:
-            document_class_id = document_classes.ids[0]
+        #if self.turn_issuer.vat_affected not in ['SI', 'ND']:
+        #    exempt_ids = [
+        #        self.env.ref('l10n_cl_fe.dc_y_f_dtn').id,
+        #        self.env.ref('l10n_cl_fe.dc_y_f_dte').id]
+        #    for document_class in document_classes:
+        #        if document_class.sii_document_class_id.id in exempt_ids:
+        #            document_class_id = document_class.id
+        #            break
+        #        else:
+        #            document_class_id = document_classes.ids[0]
+        #else:
+        document_class_id = document_classes.ids[0]
         return document_class_id
 
     @api.onchange('journal_id', 'company_id')
@@ -750,7 +738,7 @@ class invoice(models.Model):
                     # If not specific document type found, we choose another one
         return document_class_ids
 
-    @api.onchange('journal_id',  'turn_issuer', 'invoice_turn')
+    @api.onchange('journal_id')
     def update_domain_journal(self):
         document_classes = self._get_available_journal_document_class()
         result = {'domain':{
@@ -759,7 +747,7 @@ class invoice(models.Model):
         return result
 
     @api.depends('journal_id')
-    @api.onchange('journal_id', 'partner_id', 'turn_issuer', 'invoice_turn')
+    @api.onchange('journal_id', 'partner_id')
     def set_default_journal(self, default=None):
         if not self.journal_document_class_id or self.journal_document_class_id.journal_id != self.journal_id:
             query = []
@@ -863,7 +851,7 @@ a VAT."""))
             obj_inv.move_id.write(guardar)
         return True
 
-    def get_operation_type(self, cr, uid, invoice_type, context=None):
+    def get_operation_type(self, invoice_type):
         if invoice_type in ['in_invoice', 'in_refund']:
             operation_type = 'purchase'
         elif invoice_type in ['out_invoice', 'out_refund']:
@@ -952,7 +940,7 @@ a VAT."""))
             inv_types = inv_type if isinstance(inv_type, list) else [inv_type]
             domain = [
                 ('journal_document_class_ids.sii_document_class_id.document_letter_id.name','=','M'),
-                ('type', 'in', filter(None, map(TYPE2JOURNAL.get, inv_types))),
+                ('type', 'in', [TYPE2JOURNAL[ty] for ty in inv_types if ty in TYPE2JOURNAL])
                 ('company_id', '=', company_id.id),
             ]
             journal_id = self.env['account.journal'].search(domain, limit=1)
@@ -960,7 +948,7 @@ a VAT."""))
         inv_type = self._context.get('type', 'out_invoice')
         inv_types = inv_type if isinstance(inv_type, list) else [inv_type]
         domain = [
-            ('type', 'in', filter(None, map(TYPE2JOURNAL.get, inv_types))),
+            ('type', 'in', [TYPE2JOURNAL[ty] for ty in inv_types if ty in TYPE2JOURNAL]),
             ('company_id', '=', company_id.id),
         ]
         return self.env['account.journal'].search(domain, limit=1, order="sequence asc")
