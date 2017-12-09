@@ -1,18 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<openerp>
+<odoo>
     <data>
-<!--
-        <record id="view_electronic_stock_picking_filter" model="ir.ui.view">
-            <field name="name">l10n_cl.stock_picking.search</field>
-            <field name="model">stock.picking</field>
-            <field name="inherit_id" ref="stock.view_stock_picking_filter"/>
-            <field name="arch" type="xml">
-                <field name="number" position="attributes">
-                    <attribute name="filter_domain">['|','|','|','|', ('sii_document_number','ilike',self), ('number','ilike',self), ('origin','ilike',self), ('supplier_invoice_number', 'ilike', self), ('partner_id', 'child_of', self)]</attribute>
-                </field>
-            </field>
-        </record>
-      -->
         <record id="electronic_book_guias_tree" model="ir.ui.view">
             <field name="name">l10n_cl.libro_guias.tree</field>
             <field name="model">stock.picking.book</field>
@@ -92,6 +80,7 @@
             parent="stock.menu_stock_warehouse_mgmt"
             groups="stock.group_stock_manager"
             sequence="3"/>
+    <!--
         <record id="wkf" model="workflow">
             <field name="name">stock.picking.libro.basic</field>
             <field name="osv">stock.picking.book</field>
@@ -114,5 +103,6 @@ validar_libro()</field>
                 <field name="act_to" ref="act_open"/>
                 <field name="signal">validar_libro</field>
         </record>
+      -->
     </data>
-</openerp>
+</odoo>

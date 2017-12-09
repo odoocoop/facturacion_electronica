@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 {   'active': True,
-    'author': u'Daniel Santibáñez Polanco, Chilean Localization Team 9.0',
+    'author': u'Daniel Santibáñez Polanco, Cooperativa OdooCoop',
     'website': 'http://globalresponse.cl',
     'category': 'Stock/picking',
     'demo_xml': [],
@@ -8,6 +8,7 @@
         'stock',
         'fleet',
         'delivery',
+        'l10n_cl_fe',
         ],
     'description': u'''
 \n\nMódulo de Guías de Despacho de la localización Chilena.\n\n\nIncluye:\n
@@ -25,7 +26,8 @@
         'views/stock_picking.xml',
         'views/layout.xml',
         'views/libro_guias.xml',
+        "views/account_invoice.xml",
         'wizard/masive_send_dte.xml',
     ],
-    'version': '9.0.4.2',
+    'version': '11.0.7.2',
 }

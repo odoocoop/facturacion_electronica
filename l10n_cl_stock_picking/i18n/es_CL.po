@@ -4,18 +4,18 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: Odoo Server 9.0c-20170211\n"
+"Project-Id-Version: Odoo Server 9.0c-20171118\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-02-20 03:17+0000\n"
-"PO-Revision-Date: 2017-02-20 00:21-0300\n"
-"Last-Translator: <>\n"
+"POT-Creation-Date: 2017-11-27 03:50+0000\n"
+"PO-Revision-Date: 2017-11-27 22:56-0300\n"
+"Last-Translator: Daniel Santibáñez Polanco <dansanti@gmail.com>\n"
 "Language-Team: \n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: \n"
 "Language: es\n"
-"X-Generator: Poedit 1.8.7.1\n"
+"X-Generator: Poedit 2.0.4\n"
 
 #. module: l10n_cl_stock_picking
 #: model:ir.model.fields,help:l10n_cl_stock_picking.field_stock_picking_book_state
@@ -190,7 +190,7 @@ msgstr "Consultar estado Guía de Despacho"
 #. module: l10n_cl_stock_picking
 #: model:ir.model.fields,field_description:l10n_cl_stock_picking.field_stock_picking_sii_batch_number
 msgid "Batch Number"
-msgstr "Batch Number"
+msgstr "Posición en envío"
 
 #. module: l10n_cl_stock_picking
 #: model:ir.model.fields,help:l10n_cl_stock_picking.field_stock_picking_sii_batch_number
@@ -235,7 +235,7 @@ msgstr "Pulse para crear un asiento contable."
 #. module: l10n_cl_stock_picking
 #: model:ir.model.fields,field_description:l10n_cl_stock_picking.field_stock_picking_book_company_id
 msgid "Company id"
-msgstr "Company id"
+msgstr "Id Compañia"
 
 #. module: l10n_cl_stock_picking
 #: model:ir.ui.view,arch_db:l10n_cl_stock_picking.sii_dte_masive_send_wizard_form
@@ -258,12 +258,16 @@ msgid "Contacto"
 msgstr "Contacto"
 
 #. module: l10n_cl_stock_picking
+#: model:ir.model.fields,field_description:l10n_cl_stock_picking.field_sii_dte_stock_picking_masive_send_wizard_create_uid
 #: model:ir.model.fields,field_description:l10n_cl_stock_picking.field_stock_picking_book_create_uid
+#: model:ir.model.fields,field_description:l10n_cl_stock_picking.field_stock_picking_referencias_create_uid
 msgid "Created by"
 msgstr "Creado por"
 
 #. module: l10n_cl_stock_picking
+#: model:ir.model.fields,field_description:l10n_cl_stock_picking.field_sii_dte_stock_picking_masive_send_wizard_create_date
 #: model:ir.model.fields,field_description:l10n_cl_stock_picking.field_stock_picking_book_create_date
+#: model:ir.model.fields,field_description:l10n_cl_stock_picking.field_stock_picking_referencias_create_date
 msgid "Created on"
 msgstr "Creado en"
 
@@ -293,6 +297,11 @@ msgstr "Desc.(%)"
 #. module: l10n_cl_stock_picking
 #: model:ir.ui.view,arch_db:l10n_cl_stock_picking.dte_stock_picking
 msgid "Descripción"
+msgstr "Descripción"
+
+#. module: l10n_cl_stock_picking
+#: model:ir.model.fields,field_description:l10n_cl_stock_picking.field_stock_quant_description
+msgid "Description"
 msgstr "Descripción"
 
 #. module: l10n_cl_stock_picking
@@ -341,7 +350,12 @@ msgstr "Número de Documento"
 #. module: l10n_cl_stock_picking
 #: model:ir.model.fields,field_description:l10n_cl_stock_picking.field_stock_location_sii_document_class_id
 msgid "Document Type"
-msgstr "Tipo de Identificación"
+msgstr "Tipo de Documento SII"
+
+#. module: l10n_cl_stock_picking
+#: model:ir.model.fields,field_description:l10n_cl_stock_picking.field_stock_picking_referencias_stock_picking_id
+msgid "Documento"
+msgstr "Documento"
 
 #. module: l10n_cl_stock_picking
 #: model:ir.ui.view,arch_db:l10n_cl_stock_picking.view_electroinic_book_guias_form
@@ -395,29 +409,29 @@ msgid "Envio SII"
 msgstr "Envio SII"
 
 #. module: l10n_cl_stock_picking
-#: code:addons/l10n_cl_stock_picking/models/dte.py:1151
-#: code:addons/l10n_cl_stock_picking/models/libro.py:808
+#: code:addons/l10n_cl_stock_picking/models/dte.py:1149
+#: code:addons/l10n_cl_stock_picking/models/libro.py:804
 #, python-format
 msgid "Error -11"
 msgstr "Error -11"
 
 #. module: l10n_cl_stock_picking
-#: code:addons/l10n_cl_stock_picking/models/dte.py:1151
-#: code:addons/l10n_cl_stock_picking/models/libro.py:808
+#: code:addons/l10n_cl_stock_picking/models/dte.py:1149
+#: code:addons/l10n_cl_stock_picking/models/libro.py:804
 #, python-format
 msgid "Error -11: Espere a que sea aceptado por el SII, intente en 5s más"
 msgstr "Error -11: Espere a que sea aceptado por el SII, intente en 5s más"
 
 #. module: l10n_cl_stock_picking
-#: code:addons/l10n_cl_stock_picking/models/dte.py:1158
-#: code:addons/l10n_cl_stock_picking/models/libro.py:815
+#: code:addons/l10n_cl_stock_picking/models/dte.py:1156
+#: code:addons/l10n_cl_stock_picking/models/libro.py:811
 #, python-format
 msgid "Error RCT"
 msgstr "Error RCT"
 
 #. module: l10n_cl_stock_picking
-#: code:addons/l10n_cl_stock_picking/models/dte.py:1182
-#: code:addons/l10n_cl_stock_picking/models/libro.py:830
+#: code:addons/l10n_cl_stock_picking/models/dte.py:1181
+#: code:addons/l10n_cl_stock_picking/models/libro.py:826
 #, python-format
 msgid "Error code: 2"
 msgstr "Error code: 2"
@@ -448,7 +462,7 @@ msgid "Fecha de la referencia"
 msgstr "Fecha de la referencia"
 
 #. module: l10n_cl_stock_picking
-#: code:addons/l10n_cl_stock_picking/models/dte.py:894
+#: code:addons/l10n_cl_stock_picking/models/dte.py:891
 #, python-format
 msgid "Fill Partner VAT"
 msgstr "Fill Partner VAT"
@@ -475,9 +489,11 @@ msgid "Guía de Devolución"
 msgstr "Guía de Devolución"
 
 #. module: l10n_cl_stock_picking
+#: model:ir.model.fields,field_description:l10n_cl_stock_picking.field_sii_dte_stock_picking_masive_send_wizard_id
 #: model:ir.model.fields,field_description:l10n_cl_stock_picking.field_stock_picking_book_id
+#: model:ir.model.fields,field_description:l10n_cl_stock_picking.field_stock_picking_referencias_id
 msgid "ID"
-msgstr "ID"
+msgstr "ID (identificación)"
 
 #. module: l10n_cl_stock_picking
 #: model:ir.model.fields,field_description:l10n_cl_stock_picking.field_stock_picking_estado_recep_glosa
@@ -488,6 +504,16 @@ msgstr "Información Adicional del Estado de Recepción"
 #: model:ir.model,name:l10n_cl_stock_picking.model_stock_location
 msgid "Inventory Locations"
 msgstr "Ubicaciones de inventario"
+
+#. module: l10n_cl_stock_picking
+#: model:ir.model,name:l10n_cl_stock_picking.model_account_invoice
+msgid "Invoice"
+msgstr "Factura"
+
+#. module: l10n_cl_stock_picking
+#: model:ir.model.fields,field_description:l10n_cl_stock_picking.field_stock_picking_invoiced
+msgid "Invoiced?"
+msgstr "¿Facturado?"
 
 #. module: l10n_cl_stock_picking
 #: model:ir.model.fields,field_description:l10n_cl_stock_picking.field_stock_picking_canceled
@@ -502,14 +528,18 @@ msgid "Last Modified on"
 msgstr "Última modificación en"
 
 #. module: l10n_cl_stock_picking
+#: model:ir.model.fields,field_description:l10n_cl_stock_picking.field_sii_dte_stock_picking_masive_send_wizard_write_uid
 #: model:ir.model.fields,field_description:l10n_cl_stock_picking.field_stock_picking_book_write_uid
+#: model:ir.model.fields,field_description:l10n_cl_stock_picking.field_stock_picking_referencias_write_uid
 msgid "Last Updated by"
-msgstr "Ultima actualización por:"
+msgstr "Última actualización de"
 
 #. module: l10n_cl_stock_picking
+#: model:ir.model.fields,field_description:l10n_cl_stock_picking.field_sii_dte_stock_picking_masive_send_wizard_write_date
 #: model:ir.model.fields,field_description:l10n_cl_stock_picking.field_stock_picking_book_write_date
+#: model:ir.model.fields,field_description:l10n_cl_stock_picking.field_stock_picking_referencias_write_date
 msgid "Last Updated on"
-msgstr "Ultima actualización:"
+msgstr "Última actualización en"
 
 #. module: l10n_cl_stock_picking
 #: model:ir.actions.act_window,name:l10n_cl_stock_picking.action_move_books
@@ -529,7 +559,7 @@ msgid "Movimientos"
 msgstr "Movimientos"
 
 #. module: l10n_cl_stock_picking
-#: code:addons/l10n_cl_stock_picking/models/dte.py:908
+#: code:addons/l10n_cl_stock_picking/models/dte.py:906
 #, python-format
 msgid "NO coincide el Dueño del CAF : %s con el emisor Seleccionado: %s"
 msgstr "NO coincide el Dueño del CAF : %s con el emisor Seleccionado: %s"
@@ -555,14 +585,20 @@ msgid "No Revisado"
 msgstr "No Revisado"
 
 #. module: l10n_cl_stock_picking
+#: code:addons/l10n_cl_stock_picking/models/dte.py:994
+#, python-format
+msgid "No se puede emitir una guía sin líneas"
+msgstr "No se puede emitir una guía sin líneas"
+
+#. module: l10n_cl_stock_picking
 #: model:ir.model.fields,field_description:l10n_cl_stock_picking.field_stock_pack_operation_name
 #: model:ir.ui.view,arch_db:l10n_cl_stock_picking.dte_stock_picking
 msgid "Nombre"
 msgstr "Nombre"
 
 #. module: l10n_cl_stock_picking
-#: code:addons/l10n_cl_stock_picking/models/dte.py:469
-#: code:addons/l10n_cl_stock_picking/models/libro.py:446
+#: code:addons/l10n_cl_stock_picking/models/dte.py:468
+#: code:addons/l10n_cl_stock_picking/models/libro.py:441
 #, python-format
 msgid "Not Service provider selected!"
 msgstr "Not Service provider selected!"
@@ -617,6 +653,11 @@ msgid "Patente"
 msgstr "Patente"
 
 #. module: l10n_cl_stock_picking
+#: model:ir.model.fields,field_description:l10n_cl_stock_picking.field_account_invoice_has_pending_pickings
+msgid "Pending Pickings"
+msgstr "Guías Pendientes"
+
+#. module: l10n_cl_stock_picking
 #: model:ir.model.fields,field_description:l10n_cl_stock_picking.field_stock_picking_book_periodo_tributario
 msgid "Periodo Tributario"
 msgstr "Periodo Tributario"
@@ -638,6 +679,7 @@ msgid "Precio Unitario"
 msgstr "Precio Unitario"
 
 #. module: l10n_cl_stock_picking
+#: model:ir.model.fields,field_description:l10n_cl_stock_picking.field_stock_move_price_unit_sales
 #: model:ir.model.fields,field_description:l10n_cl_stock_picking.field_stock_pack_operation_price_unit
 #: model:ir.model.fields,field_description:l10n_cl_stock_picking.field_stock_quant_price_unit
 msgid "Price"
@@ -726,14 +768,14 @@ msgid "SII -"
 msgstr "SII -"
 
 #. module: l10n_cl_stock_picking
-#: code:addons/l10n_cl_stock_picking/models/dte.py:677
+#: code:addons/l10n_cl_stock_picking/models/dte.py:667
 #: model:ir.model.fields,field_description:l10n_cl_stock_picking.field_stock_picking_sii_barcode
 #, python-format
 msgid "SII Barcode"
 msgstr "Código de barras SII"
 
 #. module: l10n_cl_stock_picking
-#: code:addons/l10n_cl_stock_picking/models/dte.py:682
+#: code:addons/l10n_cl_stock_picking/models/dte.py:672
 #: model:ir.model.fields,field_description:l10n_cl_stock_picking.field_stock_picking_sii_barcode_img
 #, python-format
 msgid "SII Barcode Image"
@@ -799,21 +841,21 @@ msgid "SII request result"
 msgstr "SII request result"
 
 #. module: l10n_cl_stock_picking
-#: code:addons/l10n_cl_stock_picking/models/dte.py:1158
-#: code:addons/l10n_cl_stock_picking/models/libro.py:815
+#: code:addons/l10n_cl_stock_picking/models/dte.py:1156
+#: code:addons/l10n_cl_stock_picking/models/libro.py:811
 #, python-format
 msgid "SII:RESPUESTAGLOSA"
 msgstr "SII:RESPUESTAGLOSA"
 
 #. module: l10n_cl_stock_picking
-#: code:addons/l10n_cl_stock_picking/models/dte.py:1182
-#: code:addons/l10n_cl_stock_picking/models/libro.py:830
+#: code:addons/l10n_cl_stock_picking/models/dte.py:1181
+#: code:addons/l10n_cl_stock_picking/models/libro.py:826
 #, python-format
 msgid "SII:RESPUESTASII:RESP_HDRGLOSA"
 msgstr "SII:RESPUESTASII:RESP_HDRGLOSA"
 
 #. module: l10n_cl_stock_picking
-#: code:addons/l10n_cl_stock_picking/models/dte.py:824
+#: code:addons/l10n_cl_stock_picking/models/dte.py:819
 #, python-format
 msgid "Seleccione giro del partner"
 msgstr "Seleccione giro del partner"
@@ -849,6 +891,7 @@ msgstr "Subtotal"
 #: model:ir.model.fields,field_description:l10n_cl_stock_picking.field_stock_move_move_line_tax_ids
 #: model:ir.model.fields,field_description:l10n_cl_stock_picking.field_stock_pack_operation_operation_line_tax_ids
 #: model:ir.model.fields,field_description:l10n_cl_stock_picking.field_stock_picking_amount_tax
+#: model:ir.model.fields,field_description:l10n_cl_stock_picking.field_stock_quant_quant_line_tax_ids
 msgid "Taxes"
 msgstr "Impuestos"
 
@@ -858,32 +901,32 @@ msgid "Teléfono:"
 msgstr "Teléfono:"
 
 #. module: l10n_cl_stock_picking
-#: code:addons/l10n_cl_stock_picking/models/stock_picking.py:216
+#: code:addons/l10n_cl_stock_picking/models/stock_picking.py:234
 #, python-format
 msgid "The destination location must be the same for all the moves of the picking."
 msgstr "The destination location must be the same for all the moves of the picking."
 
 #. module: l10n_cl_stock_picking
-#: code:addons/l10n_cl_stock_picking/models/stock_picking.py:219
+#: code:addons/l10n_cl_stock_picking/models/stock_picking.py:237
 #, python-format
 msgid "The source location must be the same for all the moves of the picking."
 msgstr "The source location must be the same for all the moves of the picking."
 
 #. module: l10n_cl_stock_picking
-#: code:addons/l10n_cl_stock_picking/models/dte.py:561
+#: code:addons/l10n_cl_stock_picking/models/dte.py:560
 #, python-format
 msgid "There is no CAF file available or in use for this Document. Please enable one."
 msgstr "There is no CAF file available or in use for this Document. Please enable one."
 
 #. module: l10n_cl_stock_picking
-#: code:addons/l10n_cl_stock_picking/models/dte.py:1092
+#: code:addons/l10n_cl_stock_picking/models/dte.py:1090
 #, python-format
 msgid "There is no Signer Person with an             authorized signature for you in the system. Please make sure that             'user_signature_key' module has been installed and enable a digital             signature, for you or make the signer to authorize you to use his             signature."
 msgstr "There is no Signer Person with an             authorized signature for you in the system. Please make sure that             'user_signature_key' module has been installed and enable a digital             signature, for you or make the signer to authorize you to use his             signature."
 
 #. module: l10n_cl_stock_picking
-#: code:addons/l10n_cl_stock_picking/models/dte.py:1057
-#: code:addons/l10n_cl_stock_picking/models/libro.py:744
+#: code:addons/l10n_cl_stock_picking/models/dte.py:1055
+#: code:addons/l10n_cl_stock_picking/models/libro.py:740
 #, python-format
 msgid "There is no Signer Person with an         authorized signature for you in the system. Please make sure that         'user_signature_key' module has been installed and enable a digital         signature, for you or make the signer to authorize you to use his         signature."
 msgstr "There is no Signer Person with an         authorized signature for you in the system. Please make sure that         'user_signature_key' module has been installed and enable a digital         signature, for you or make the signer to authorize you to use his         signature."
@@ -976,17 +1019,28 @@ msgid "Ventas por efectuar"
 msgstr "Ventas por efectuar"
 
 #. module: l10n_cl_stock_picking
-#: code:addons/l10n_cl_stock_picking/models/dte.py:199
-#: code:addons/l10n_cl_stock_picking/models/libro.py:208
+#: code:addons/l10n_cl_stock_picking/models/dte.py:198
+#: code:addons/l10n_cl_stock_picking/models/libro.py:203
 #, python-format
 msgid "XML Malformed Error:  %s"
 msgstr "XML Malformed Error:  %s"
 
 #. module: l10n_cl_stock_picking
-#: code:addons/l10n_cl_stock_picking/models/libro.py:143
+#: code:addons/l10n_cl_stock_picking/models/libro.py:138
 #, python-format
 msgid "You cannot delete a Validated book."
 msgstr "You cannot delete a Validated book."
+
+#. module: l10n_cl_stock_picking
+#: model:ir.ui.view,arch_db:l10n_cl_stock_picking.invoice
+msgid "You have"
+msgstr "Tiene"
+
+#. module: l10n_cl_stock_picking
+#: code:addons/l10n_cl_stock_picking/models/stock_picking.py:607
+#, python-format
+msgid "You should only receive by the piece with the same serial number"
+msgstr "You should only receive by the piece with the same serial number"
 
 #. module: l10n_cl_stock_picking
 #: code:addons/l10n_cl_stock_picking/wizard/journal_config_wizard.py:77
@@ -995,9 +1049,19 @@ msgid "Your company has not setted any responsability"
 msgstr "Your company has not setted any responsability"
 
 #. module: l10n_cl_stock_picking
+#: model:ir.ui.view,arch_db:l10n_cl_stock_picking.invoice
+msgid "for this customer. You can allocate them to add as reference on Other Info."
+msgstr "para este cliente. Puede agregarlos como referencias en la pestaña Otra Información."
+
+#. module: l10n_cl_stock_picking
 #: selection:stock.picking,sii_result:0
 msgid "n/a"
 msgstr "n/a"
+
+#. module: l10n_cl_stock_picking
+#: model:ir.ui.view,arch_db:l10n_cl_stock_picking.invoice
+msgid "not invoiced pickings"
+msgstr "guías de despacho sin facturar"
 
 #. module: l10n_cl_stock_picking
 #: model:ir.ui.view,arch_db:l10n_cl_stock_picking.sii_dte_masive_send_wizard_form

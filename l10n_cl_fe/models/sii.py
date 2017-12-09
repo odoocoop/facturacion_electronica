@@ -12,33 +12,6 @@ class SIISucursal(models.Model):
         default=lambda self: self.env.user.company_id.id,
         )
 
-class sii_point_of_sale(models.Model):
-    _name = 'sii.point_of_sale'
-    _description = 'SII Point Of Sale'
-
-    @api.one
-    @api.depends('number')
-    def _get_code(self):
-        code = False
-        if self.number:
-            # TODO rellenar el number a cuatro
-            code = str(self.number)
-        self.code = code
-    name = fields.Char(
-        'Name', required=True)
-    number = fields.Integer(
-        'Number', required=True)
-    code = fields.Char(
-        'Code', compute="_get_code")
-    company_id = fields.Many2one(
-        'res.company', 'Company', required=True,
-        default=lambda self: self.env.user.company_id.id,
-        )
-
-    _sql_constraints = [('number_unique', 'unique(number, company_id)',
-                         'Number Must be Unique per Company!'), ]
-
-
 class sii_document_class(models.Model):
     _name = 'sii.document_class'
     _description = 'SII Document Class'
@@ -151,14 +124,14 @@ class sii_concept_type(models.Model):
         consu and service separated by commas.',
         required=True)
 
-    @api.one
     @api.constrains('product_types')
     def _check_product_types(self):
-        if self.product_types:
-            types = set(self.product_types.split(','))
-            if not types.issubset(['adjust', 'consu', 'service']):
-                raise Warning(_('You provided an invalid list of product types.\
-                Must been separated by commas'))
+        for r in self:
+            if r.product_types:
+                types = set(r.product_types.split(','))
+                if not types.issubset(['adjust', 'consu', 'service']):
+                    raise Warning(_('You provided an invalid list of product types.\
+                    Must been separated by commas'))
 
 
 class sii_optional_type(models.Model):

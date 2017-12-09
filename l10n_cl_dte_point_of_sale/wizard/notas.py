@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-from openerp import models, fields, api, _
-from openerp.tools.safe_eval import safe_eval as eval
-from openerp.exceptions import UserError
+from odoo import models, fields, api, _
+from odoo.tools.safe_eval import safe_eval as eval
+from odoo.exceptions import UserError
 import time
 import logging
 _logger = logging.getLogger(__name__)
@@ -53,7 +53,7 @@ class AccountInvoiceRefund(models.TransientModel):
                 'session_id': current_session_ids[0].id,
                 'date_order': time.strftime('%Y-%m-%d %H:%M:%S'),
                 'journal_document_class_id': journal_document_class_id.id,
-                'sii_document_class_id':journal_document_class_id.sii_document_class_id.id,
+                'document_class_id': journal_document_class_id.sii_document_class_id.id,
                 'sii_document_number': 0,
                 'signature': False,
                 'referencias':[[5,],[0,0, {
@@ -71,8 +71,6 @@ class AccountInvoiceRefund(models.TransientModel):
                 order_line.write( {
                     'qty': -order_line.qty
                 })
-        _logger.info(clone_list)
-
         abs = {
             'name': _('Return Products'),
             'view_type': 'form',

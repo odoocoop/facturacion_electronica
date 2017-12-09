@@ -109,12 +109,12 @@ except ImportError:
     _logger.warning('Cannot import xmltodict library')
 
 server_url = {
-    'SIIHOMO':'https://maullin.sii.cl/DTEWS/',
+    'SIICERT':'https://maullin.sii.cl/DTEWS/',
     'SII':'https://palena.sii.cl/DTEWS/',
 }
 
 claim_url = {
-    'SIIHOMO': 'https://ws2.sii.cl/WSREGISTRORECLAMODTECERT/registroreclamodteservice',
+    'SIICERT': 'https://ws2.sii.cl/WSREGISTRORECLAMODTECERT/registroreclamodteservice',
     'SII':'https://ws1.sii.cl/WSREGISTRORECLAMODTE/registroreclamodteservice',
 }
 
@@ -148,25 +148,25 @@ TYPE2JOURNAL = {
 class AccountInvoiceLine(models.Model):
     _inherit = 'account.invoice.line'
 
-    @api.one
     @api.depends('price_unit', 'discount', 'invoice_line_tax_ids', 'quantity',
         'product_id', 'invoice_id.partner_id', 'invoice_id.currency_id', 'invoice_id.company_id')
     def _compute_price(self):
-        currency = self.invoice_id and self.invoice_id.currency_id or None
-        taxes = False
-        total = self.quantity * self.price_unit
-        if self.invoice_line_tax_ids:
-            taxes = self.invoice_line_tax_ids.compute_all(self.price_unit, currency, self.quantity, product=self.product_id, partner=self.invoice_id.partner_id, discount=self.discount)
-        if taxes:
-            self.price_subtotal = price_subtotal_signed = taxes['total_excluded']
-        else:
-            total_discount = total * ((self.discount or 0.0) / 100.0)
-            self.price_subtotal = price_subtotal_signed = total - total_discount
-        if self.invoice_id.currency_id and self.invoice_id.currency_id != self.invoice_id.company_id.currency_id:
-            price_subtotal_signed = self.invoice_id.currency_id.compute(price_subtotal_signed, self.invoice_id.company_id.currency_id)
-        sign = self.invoice_id.type in ['in_refund', 'out_refund'] and -1 or 1
-        self.price_subtotal_signed = price_subtotal_signed * sign
-        self.price_tax_included = taxes['total_included'] if (taxes and taxes['total_included'] > total) else total
+        for line in self:
+            currency = line.invoice_id and line.invoice_id.currency_id or None
+            taxes = False
+            total = line.quantity * line.price_unit
+            if line.invoice_line_tax_ids:
+                taxes = line.invoice_line_tax_ids.compute_all(line.price_unit, currency, line.quantity, product=line.product_id, partner=line.invoice_id.partner_id, discount=line.discount)
+            if taxes:
+                line.price_subtotal = price_subtotal_signed = taxes['total_excluded']
+            else:
+                total_discount = total * ((line.discount or 0.0) / 100.0)
+                line.price_subtotal = price_subtotal_signed = total - total_discount
+            if line.invoice_id.currency_id and line.invoice_id.currency_id != line.invoice_id.company_id.currency_id:
+                price_subtotal_signed = line.invoice_id.currency_id.compute(price_subtotal_signed, line.invoice_id.company_id.currency_id)
+            sign = line.invoice_id.type in ['in_refund', 'out_refund'] and -1 or 1
+            line.price_subtotal_signed = price_subtotal_signed * sign
+            line.price_tax_included = taxes['total_included'] if (taxes and taxes['total_included'] > total) else total
 
     price_tax_included = fields.Monetary(string='Amount', readonly=True, compute='_compute_price')
 
@@ -294,56 +294,80 @@ class invoice(models.Model):
             readonly=True,
             states={'draft': [('readonly', False)]}
         ) # solamente para compras tratamiento del iva
-    no_rec_code = fields.Selection([
+    no_rec_code = fields.Selection(
+            [
                     ('1','Compras destinadas a IVA a generar operaciones no gravados o exentas.'),
                     ('2','Facturas de proveedores registrados fuera de plazo.'),
                     ('3','Gastos rechazados.'),
                     ('4','Entregas gratuitas (premios, bonificaciones, etc.) recibidos.'),
-                    ('9','Otros.')],
-                    string="Código No recuperable",
-                    readonly=True, states={'draft': [('readonly', False)]})# @TODO select 1 automático si es emisor 2Categoría
+                    ('9','Otros.')
+            ],
+            string="Código No recuperable",
+            readonly=True, states={'draft': [('readonly', False)]},
+        )# @TODO select 1 automático si es emisor 2Categoría
 
     document_number = fields.Char(
-        compute='_get_document_number',
-        string='Document Number',
-        readonly=True,
-    )
+            compute='_get_document_number',
+            string='Document Number',
+            readonly=True,
+        )
     next_invoice_number = fields.Integer(
-        related='journal_document_class_id.sequence_id.number_next_actual',
-        string='Next Document Number',
-        readonly=True)
+            related='journal_document_class_id.sequence_id.number_next_actual',
+            string='Next Document Number',
+            readonly=True,
+        )
     use_documents = fields.Boolean(
-        related='journal_id.use_documents',
-        string='Use Documents?',
-        readonly=True)
-    referencias = fields.One2many('account.invoice.referencias','invoice_id', readonly=True, states={'draft': [('readonly', False)]})
-    forma_pago = fields.Selection([('1','Contado'),('2','Crédito'),('3','Gratuito')],string="Forma de pago", readonly=True, states={'draft': [('readonly', False)]},
-                    default='1')
-    contact_id = fields.Many2one('res.partner', string="Contacto")
-    amount_retencion = fields.Monetary(string="Retención",
-        default=0.00,
-        compute='_compute_amount')
-
+            related='journal_id.use_documents',
+            string='Use Documents?',
+            readonly=True,
+        )
+    referencias = fields.One2many(
+            'account.invoice.referencias',
+            'invoice_id',
+            readonly=True,
+            states={'draft': [('readonly', False)]},
+    )
+    forma_pago = fields.Selection(
+            [
+                    ('1','Contado'),
+                    ('2','Crédito'),
+                    ('3','Gratuito')
+            ]
+            ,string="Forma de pago",
+            readonly=True,
+            states={'draft': [('readonly', False)]},
+            default='1',
+        )
+    contact_id = fields.Many2one(
+            'res.partner',
+            string="Contacto",
+        )
+    amount_retencion = fields.Monetary(
+            string="Retención",
+            default=0.00,
+            compute='_compute_amount',
+        )
     sii_batch_number = fields.Integer(
-        copy=False,
-        string='Batch Number',
-        readonly=True,
-        help='Batch number for processing multiple invoices together')
-
+            copy=False,
+            string='Batch Number',
+            readonly=True,
+            help='Batch number for processing multiple invoices together',
+        )
     sii_barcode = fields.Char(
-        copy=False,
-        string=_('SII Barcode'),
-        readonly=True,
-        help='SII Barcode Name')
-
+            copy=False,
+            string=_('SII Barcode'),
+            readonly=True,
+            help='SII Barcode Name',
+        )
     sii_barcode_img = fields.Binary(
-        copy=False,
-        string=_('SII Barcode Image'),
-        help='SII Barcode Image in PDF417 format')
-
+            copy=False,
+            string=_('SII Barcode Image'),
+            help='SII Barcode Image in PDF417 format',
+        )
     sii_receipt = fields.Text(
-        string='SII Mensaje de recepción',
-        copy=False)
+            string='SII Mensaje de recepción',
+            copy=False,
+        )
     sii_message = fields.Text(
         string='SII Message',
         copy=False)
@@ -362,24 +386,28 @@ class invoice(models.Model):
     sii_send_ident = fields.Text(
         string='SII Send Identification',
         copy=False)
-    sii_result = fields.Selection([
-        ('', 'n/a'),
-        ('NoEnviado', 'No Enviado'),
-        ('EnCola','En cola de envío'),
-        ('Enviado', 'Enviado'),
-        ('Aceptado', 'Aceptado'),
-        ('Rechazado', 'Rechazado'),
-        ('Reparo', 'Reparo'),
-        ('Proceso', 'Procesado'),
-        ('Reenviar', 'Reenviar'),
-        ('Anulado', 'Anulado')],
-        'Resultado',
+    sii_result = fields.Selection(
+        [
+            ('', 'n/a'),
+            ('NoEnviado', 'No Enviado'),
+            ('EnCola','En cola de envío'),
+            ('Enviado', 'Enviado'),
+            ('Aceptado', 'Aceptado'),
+            ('Rechazado', 'Rechazado'),
+            ('Reparo', 'Reparo'),
+            ('Proceso', 'Procesado'),
+            ('Reenviar', 'Reenviar'),
+            ('Anulado', 'Anulado')
+        ],
+        string='Resultado',
         readonly=True,
         states={'draft': [('readonly', False)]},
         copy=False,
         help="SII request result",
         default = '')
-    canceled = fields.Boolean(string="Canceled?")
+    canceled = fields.Boolean(
+            string="Canceled?",
+        )
     estado_recep_dte = fields.Selection(
         [
             ('recibido', 'Recibido en DTE'),
@@ -418,18 +446,44 @@ class invoice(models.Model):
         readonly=True,
     )
     purchase_to_done = fields.Many2many(
-        'purchase.order',
-        string="Ordenes de Compra a validar",
-        domain=[('state', 'not in',['done', 'cancel'] )],
-        readonly=True,
-        states={'draft': [('readonly', False)]},
+            'purchase.order',
+            string="Ordenes de Compra a validar",
+            domain=[('state', 'not in',['done', 'cancel'] )],
+            readonly=True,
+            states={'draft': [('readonly', False)]},
     )
     activity_description = fields.Many2one(
-        'sii.activity.description',
-        string="Giro",
-        related="partner_id.activity_description",
-        readonly=True,
+            'sii.activity.description',
+            string="Giro",
+            related="partner_id.activity_description",
+            readonly=True,
     )
+    global_discount = fields.Float(
+            string="Descuento Global",
+            default=0.00,
+            readonly=True,
+            states={'draft': [('readonly', False)]},
+        )
+    global_discount_type = fields.Selection(
+            [
+                ('amount','Monto'),
+                ('percent','Porcentaje'),
+            ],
+            string="Tipo de descuento",
+            readonly=True,
+            states={'draft': [('readonly', False)]},
+        )
+    global_discount_detail = fields.Char(
+            string="Razón del descuento",
+            readonly=True,
+            states={'draft': [('readonly', False)]},
+        )
+    amount_untaxed_global_discount = fields.Float(
+            string="Global Discount Amount",
+            store=True,
+            default=0.00,
+            compute='_compute_amount',
+        )
 
     def _repairDiff(self, move_lines, dif):#usualmente es de 1 $ cuando se aplica descuentoo es valor iva incluido
         total = self.amount_total
@@ -461,8 +515,53 @@ class invoice(models.Model):
             new_lines = self._repairDiff(new_lines, dif)
         return new_lines
 
+    def _gd_move_lines(self, move_lines):
+        new_lines = []
+        discount = self.global_discount
+        if self.global_discount_type == 'amount':
+            afecto = 0
+            for line in self.invoice_line_ids:
+                for t in line.invoice_line_tax_ids:
+                    if t.amount > 0:
+                        afecto += line.price_subtotal
+            discount = ((self.global_discount * 100) / afecto )
+        hold = False
+        total = 0
+        for line in move_lines:
+            if line[2]['tax_ids'] and not line[2]['tax_line_id']:#iva ya viene con descuento
+                if line[2]['tax_ids']:
+                    for t in line[2]['tax_ids']:
+                        imp = self.env['account.tax'].browse(t[1])
+                        if imp.amount > 0  and line[2]['debit'] > 0:
+                            line[2]['debit'] -= int(round((line[2]['debit'] * (discount / 100))))
+                            total += line[2]['debit']
+                        elif imp.amount > 0:
+                            line[2]['credit'] -= int(round((line[2]['credit'] * (discount /100))))
+                            total += line[2]['credit']
+                        elif line[2]['debit'] > 0:
+                            total += line[2]['debit']
+                        else:
+                            total += line[2]['credit']
+            elif line[2]['tax_line_id']:
+                if line[2]['debit'] > 0:
+                    total += line[2]['debit']
+                else:
+                    total += line[2]['credit']
+            if line[2]['name'] != '/' and line[2]['name'] != self.name:
+                new_lines.extend([line])
+            else:
+                hold = line
+        if hold and hold[2]['debit'] > 0:
+            hold[2]['debit'] = total
+        else:
+            hold[2]['credit'] = total
+        new_lines.extend([hold])
+        return new_lines
+
     @api.multi
     def finalize_invoice_move_lines(self, move_lines):
+        if self.global_discount > 0:
+            move_lines = self._gd_move_lines(move_lines)
         taxes = self.tax_line_move_line_get()
         retencion = 0
         for t in taxes:
@@ -481,8 +580,49 @@ class invoice(models.Model):
             move_lines = self._repairDiff( move_lines, dif)
         return move_lines
 
+    #@TODO Mejorar
+    def _compute_global_discount(self):
+        taxes_grouped = self.get_taxes_values()
+        tax_lines = self.tax_line_ids.browse([])
+        for tax in taxes_grouped.values():
+            tax_lines += tax_lines.new(tax)
+        self.tax_line_ids = tax_lines
+        discount = self.global_discount
+        amount_untaxed = round(sum(line.price_subtotal for line in self.invoice_line_ids))
+        afecto = 0
+        for line in self.invoice_line_ids:
+            for t in line.invoice_line_tax_ids:
+                if t.amount > 0:
+                    afecto += line.price_subtotal
+        if self.global_discount_type in ['amount'] and afecto > 0:
+            discount = ((self.global_discount * 100) / afecto )
+        self.amount_untaxed = amount_untaxed
+        if afecto > 0 and discount > 0:
+            self.amount_untaxed_global_discount = (afecto * (discount / 100))
+        amount_untaxed -= round(self.amount_untaxed_global_discount)
+        amount_tax = sum(line.amount for line in self.tax_line_ids)
+        self.amount_tax = amount_tax
+        amount_total = amount_untaxed + amount_tax
+        amount_total_company_signed = amount_total
+        self.amount_total = amount_total
+        amount_untaxed_signed = amount_untaxed
+        if self.currency_id and self.currency_id != self.company_id.currency_id:
+            amount_total_company_signed = self.currency_id.compute(amount_total, self.company_id.currency_id)
+            amount_untaxed_signed = self.currency_id.compute(amount_untaxed, self.company_id.currency_id)
+        sign = self.type in ['in_refund', 'out_refund'] and -1 or 1
+        self.amount_total_company_signed = amount_total_company_signed * sign
+        self.amount_total_signed = amount_total * sign
+        self.amount_untaxed_signed = amount_untaxed_signed * sign
+
+    @api.depends('invoice_line_ids.price_subtotal', 'tax_line_ids.amount', 'tax_line_ids.amount_rounding',
+                 'currency_id', 'company_id', 'date_invoice', 'type')
+    @api.onchange('global_discount','global_discount_type')
     def _compute_amount(self):
         for inv in self:
+            #@TODO Mejorar
+            if inv.global_discount > 0  and inv.global_discount_type:
+                inv._compute_global_discount()
+                continue
             amount_tax = 0
             amount_retencion = 0
             included = False
@@ -580,6 +720,26 @@ class invoice(models.Model):
                     tax_grouped[key]['amount'] += val['amount']
                     tax_grouped[key]['amount_retencion'] += val['amount_retencion']
                     tax_grouped[key]['base'] += val['base']
+        if self.global_discount > 0:
+            discount = self.global_discount
+            if self.global_discount_type in ['amount']:
+                discount = 0
+                afecto = 0
+                for line in self.invoice_line_ids:
+                    for tl in line.invoice_line_tax_ids:
+                        if tl.amount > 0:
+                            afecto += line.price_subtotal
+                if afecto > 0:
+                    discount = ((self.global_discount * 100) / afecto )
+            taxes = tax_grouped
+            tax_grouped = {}
+            for id, t in taxes.iteritems():
+                tax = self.env['account.tax'].browse(t['tax_id'])
+                if tax.amount > 0 and discount > 0:
+                    base = round(round(t['base']) * (1 - ((discount / 100.0) or 0.0)))
+                    t['base'] = base
+                    t['amount'] = tax._compute_amount(base, base, 1)
+                tax_grouped[id] = t
         return tax_grouped
 
     def get_document_class_default(self, document_classes):
@@ -777,7 +937,6 @@ class invoice(models.Model):
 defined. The type of invoicing document you selected requires you tu settle \
 a VAT."""))
 
-    @api.one
     @api.depends(
         'sii_document_class_id',
         'sii_document_class_id.document_letter_id',
@@ -785,37 +944,39 @@ a VAT."""))
         'company_id',
         'company_id.invoice_vat_discrimination_default',)
     def get_vat_discriminated(self):
-        vat_discriminated = False
-        # agregarle una condicion: si el giro es afecto a iva, debe seleccionar factura, de lo contrario boleta (to-do)
-        if self.sii_document_class_id.document_letter_id.vat_discriminated or self.company_id.invoice_vat_discrimination_default == 'discriminate_default':
-            vat_discriminated = True
-        self.vat_discriminated = vat_discriminated
+        for inv in self:
+            vat_discriminated = False
+            # agregarle una condicion: si el giro es afecto a iva, debe seleccionar factura, de lo contrario boleta (to-do)
+            if inv.sii_document_class_id.document_letter_id.vat_discriminated or inv.company_id.invoice_vat_discrimination_default == 'discriminate_default':
+                vat_discriminated = True
+            inv.vat_discriminated = vat_discriminated
 
-    @api.one
     @api.depends('sii_document_number', 'number')
     def _get_document_number(self):
-        if self.sii_document_number and self.sii_document_class_id:
-            document_number = (
-                self.sii_document_class_id.doc_code_prefix or '') + self.sii_document_number
-        else:
-            document_number = self.number
-        self.document_number = document_number
+        for inv in self:
+            if inv.sii_document_number and inv.sii_document_class_id:
+                document_number = (
+                    inv.sii_document_class_id.doc_code_prefix or '') + inv.sii_document_number
+            else:
+                document_number = inv.number
+            inv.document_number = document_number
 
-    @api.one
     @api.constrains('supplier_invoice_number', 'partner_id', 'company_id')
     def _check_reference(self):
-        if self.type in ['out_invoice', 'out_refund'] and self.reference and self.state == 'open':
-            domain = [('type', 'in', ('out_invoice', 'out_refund')),
-                      # ('reference', '=', self.reference),
-                      ('document_number', '=', self.document_number),
-                      ('journal_document_class_id.sii_document_class_id', '=',
-                       self.journal_document_class_id.sii_document_class_id.id),
-                      ('company_id', '=', self.company_id.id),
-                      ('id', '!=', self.id)]
-            invoice_ids = self.search(domain)
-            if invoice_ids:
-                raise UserError(
-                    _('Supplier Invoice Number must be unique per Supplier and Company!'))
+        for inv in self:
+            if inv.type in ['out_invoice', 'out_refund'] and inv.reference and inv.state == 'open':
+                domain = [
+                            ('type', 'in', ('out_invoice', 'out_refund')),
+                              # ('reference', '=', self.reference),
+                              ('document_number', '=', inv.document_number),
+                              ('journal_document_class_id.sii_document_class_id', '=', inv.journal_document_class_id.sii_document_class_id.id),
+                              ('company_id', '=', inv.company_id.id),
+                              ('id', '!=', inv.id),
+                        ]
+                invoice_ids = inv.search(domain)
+                if invoice_ids:
+                    raise UserError(
+                        _('Supplier Invoice Number must be unique per Supplier and Company!'))
 
     _sql_constraints = [
         ('number_supplier_invoice_number',
@@ -907,10 +1068,8 @@ a VAT."""))
         return document_letter_ids
 
     @api.multi
-    def invoice_validate(self):
+    def _check_duplicate_supplier_reference(self):
         for invoice in self:
-            #refuse to validate a vendor bill/refund if there already exists one with the same reference for the same partner,
-            #because it's probably a double encoding of the same bill/refund
             if invoice.type in ('in_invoice', 'in_refund') and invoice.reference:
                 if self.search(
                     [
@@ -921,7 +1080,28 @@ a VAT."""))
                         ('id', '!=', invoice.id),
                      ]):
                     raise UserError('El documento %s, Folio %s de la Empresa %s ya se en cuentra registrado' % ( invoice.journal_document_class_id.sii_document_class_id.name, invoice.reference, invoice.partner_id.name))
-        return self.write({'state': 'open'})
+
+    @api.multi
+    def invoice_validate(self):
+        for inv in self:
+            inv.sii_result = 'NoEnviado'
+            inv.responsable_envio = self.env.user.id
+            if inv.type in ['out_invoice', 'out_refund']:
+                if inv.journal_id.restore_mode:
+                    inv.sii_result = 'Proceso'
+                else:
+                    inv._timbrar()
+                    self.env['sii.cola_envio'].create({
+                                                'doc_ids':[inv.id],
+                                                'model':'account.invoice',
+                                                'user_id':self.env.user.id,
+                                                'tipo_trabajo': 'pasivo',
+                                                'date_time': (datetime.now() + timedelta(hours=12)),
+                                                })
+            if inv.purchase_to_done:
+                for ptd in inv.purchase_to_done:
+                    ptd.write({'state': 'done'})
+        return super(inv, self).invoice_validate()
 
     @api.model
     def create(self, vals):
@@ -959,11 +1139,6 @@ a VAT."""))
             certf += cert[76 * i:76 * (i + 1)] + '\n'
         return certf
 
-    '''
-    Funcion que permite crear una plantilla para el EnvioDTE
-     @author: Daniel Blanco Martin (daniel[at]blancomartin.cl)
-     @version: 2016-06-01
-    '''
     def create_template_envio(self, RutEmisor, RutReceptor, FchResol, NroResol,
                               TmstFirmaEnv, EnvioDTE,signature_d,SubTotDTE):
         xml = '''<SetDTE ID="SetDoc">
@@ -984,12 +1159,6 @@ a VAT."""))
         tz = pytz.timezone('America/Santiago')
         return datetime.now(tz).strftime(formato)
 
-    '''
-    Funcion auxiliar para conversion de codificacion de strings
-     proyecto experimentos_dte
-     @author: Daniel Blanco Martin (daniel[at]blancomartin.cl)
-     @version: 2014-12-01
-    '''
     def convert_encoding(self, data, new_coding = 'UTF-8'):
         encoding = cchardet.detect(data)['encoding']
         if new_coding.upper() != encoding.upper():
@@ -1027,16 +1196,7 @@ a VAT."""))
             _logger.warning(etree.tostring(xml_doc))
             raise UserError(_('XML Malformed Error:  %s') % e.args)
 
-    '''
-    Funcion usada en autenticacion en SII
-    Obtencion de la semilla desde el SII.
-    Basada en función de ejemplo mostrada en el sitio edreams.cl
-     @author: Daniel Blanco Martin (daniel[at]blancomartin.cl)
-     @version: 2015-04-01
-    '''
     def get_seed(self, company_id):
-        #En caso de que haya un problema con la validación de certificado del sii ( por una mala implementación de ellos)
-        #esto omite la validacion
         try:
             import ssl
             ssl._create_default_https_context = ssl._create_unverified_context
@@ -1049,13 +1209,6 @@ a VAT."""))
         semilla = root[0][0].text
         return semilla
 
-    '''
-    Funcion usada en autenticacion en SII
-    Creacion de plantilla xml para realizar el envio del token
-    Previo a realizar su firma
-     @author: Daniel Blanco Martin (daniel[at]blancomartin.cl)
-     @version: 2016-06-01
-    '''
     def create_template_seed(self, seed):
         xml = u'''<getToken>
 <item>
@@ -1065,26 +1218,12 @@ a VAT."""))
 '''.format(seed)
         return xml
 
-    '''
-    Funcion usada en autenticacion en SII
-    Creacion de plantilla xml para envolver el DTE
-    Previo a realizar su firma (1)
-     @author: Daniel Blanco Martin (daniel[at]blancomartin.cl)
-     @version: 2016-06-01
-    '''
     def create_template_doc(self, doc):
         xml = '''<DTE xmlns="http://www.sii.cl/SiiDte" version="1.0">
 {}
 </DTE>'''.format(doc)
         return xml
 
-    '''
-    Funcion usada en autenticacion en SII
-    Creacion de plantilla xml para envolver el Envio de DTEs
-    Previo a realizar su firma (2da)
-     @author: Daniel Blanco Martin (daniel[at]blancomartin.cl)
-     @version: 2016-06-01
-    '''
     def create_template_env(self, doc):
         xml = '''<?xml version="1.0" encoding="ISO-8859-1"?>
 <EnvioDTE xmlns="http://www.sii.cl/SiiDte" \
@@ -1105,24 +1244,10 @@ version="1.0">
 </EnvioBOLETA>'''.format(doc)
         return xml
 
-    '''
-    Funcion usada en autenticacion en SII
-    Insercion del nodo de firma (1ra) dentro del DTE
-    Una vez firmado.
-     @author: Daniel Blanco Martin (daniel[at]blancomartin.cl)
-     @version: 2016-06-01
-    '''
     def create_template_doc1(self, doc, sign):
         xml = doc.replace('</DTE>', '') + sign + '</DTE>'
         return xml
 
-    '''
-    Funcion usada en autenticacion en SII
-    Insercion del nodo de firma (2da) dentro del DTE
-    Una vez firmado.
-     @author: Daniel Blanco Martin (daniel[at]blancomartin.cl)
-     @version: 2016-06-01
-    '''
     def create_template_env1(self, doc, sign):
         xml = doc.replace('</EnvioDTE>', '') + sign + '</EnvioDTE>'
         return xml
@@ -1143,10 +1268,6 @@ version="1.0">
         xml = doc.replace('</EnvioBOLETA>', '') + sign + '</EnvioBOLETA>'
         return xml
 
-    '''
-     @author: Daniel Blanco Martin (daniel[at]blancomartin.cl)
-     @version: 2016-06-01
-    '''
     def sign_seed(self, message, privkey, cert):
         doc = etree.fromstring(message)
         signed_node = xmldsig(
@@ -1158,13 +1279,6 @@ version="1.0">
             signed_node, pretty_print=True).replace('ds:', '')
         return msg
 
-    '''
-    Funcion usada en autenticacion en SII
-    Obtencion del token a partir del envio de la semilla firmada
-    Basada en función de ejemplo mostrada en el sitio edreams.cl
-     @author: Daniel Blanco Martin (daniel[at]blancomartin.cl)
-     @version: 2016-06-01
-    '''
     def get_token(self, seed_file,company_id):
         url = server_url[company_id.dte_service_provider] + 'GetTokenFromSeed.jws?WSDL'
         ns = 'urn:'+ server_url[company_id.dte_service_provider] +'GetTokenFromSeed.jws'
@@ -1183,13 +1297,6 @@ version="1.0">
         return x
 
     def long_to_bytes(self, n, blocksize=0):
-        """long_to_bytes(n:long, blocksize:int) : string
-        Convert a long integer to a byte string.
-        If optional blocksize is given and greater than zero, pad the front of the
-        byte string with binary zeros so that the length is a multiple of
-        blocksize.
-        """
-        # after much testing, this algorithm was deemed to be the fastest
         s = b''
         n = long(n)  # noqa
         import struct
@@ -1309,13 +1416,6 @@ version="1.0">
             'cert': obj.cert}
         return signature_data
 
-    '''
-    Funcion usada en SII
-    Toma los datos referentes a la resolución SII que autoriza a
-    emitir DTE
-     @author: Daniel Blanco Martin (daniel[at]blancomartin.cl)
-     @version: 2016-06-01
-    '''
     def get_resolution_data(self, comp_id):
         resolution_data = {
             'dte_resolution_date': comp_id.dte_resolution_date,
@@ -1356,7 +1456,7 @@ version="1.0">
         #    return
 
         url = 'https://palena.sii.cl'
-        if company_id.dte_service_provider == 'SIIHOMO':
+        if company_id.dte_service_provider == 'SIICERT':
             url = 'https://maullin.sii.cl'
         headers = {
             'Accept': 'image/gif, image/x-xbitmap, image/jpeg, image/pjpeg, application/vnd.ms-powerpoint, application/ms-excel, application/msword, */*',
@@ -1465,11 +1565,6 @@ version="1.0">
             'context': ctx,
         }
 
-    '''
-    Funcion para descargar el xml en el sistema local del usuario
-     @author: Daniel Blanco Martin (daniel[at]blancomartin.cl)
-     @version: 2016-05-01
-    '''
     @api.multi
     def get_xml_file(self):
         filename = (self.document_number+'.xml').replace(' ','')
@@ -1492,22 +1587,10 @@ version="1.0">
             'target': 'self',
         }
 
-    '''
-    Funcion para descargar el folio tomando el valor desde la secuencia
-    correspondiente al tipo de documento.
-     @author: Daniel Blanco Martin (daniel[at]blancomartin.cl)
-     @version: 2016-05-01
-    '''
     def get_folio(self):
         # saca el folio directamente de la secuencia
         return int(self.sii_document_number)
 
-    '''
-         Se Retorna el CAF que corresponda a la secuencia, independiente del estado
-         ya que si se suben 2 CAF y uno está por terminar y se hace un evío masivo
-         Deja fuera Los del antiguo CAF, que son válidos aún, porque no se han enviado; y arroja Error
-         de que la secuencia no está en el rango del CAF
-    '''
     def get_caf_file(self):
         caffiles = self.journal_document_class_id.sequence_id.dte_caf_ids
         if not caffiles:
@@ -1556,23 +1639,10 @@ www.sii.cl'''.format(folio, folio_inicial, folio_final)
         )
         return image
 
-
-    '''
-    Funcion usada en SII
-    para firma del timbre (dio errores de firma para el resto de los doc)
-     @author: Daniel Blanco Martin (daniel[at]blancomartin.cl)
-     @version: 2015-03-01
-    '''
     def digest(self, data):
         sha1 = hashlib.new('sha1', data)
         return sha1.digest()
 
-    '''
-    Funcion usada en SII
-    para firma del timbre (dio errores de firma para el resto de los doc)
-     @author: Daniel Blanco Martin (daniel[at]blancomartin.cl)
-     @version: 2015-03-01
-    '''
     def signrsa(self, MESSAGE, KEY, digst=''):
         KEY = KEY.encode('ascii')
         rsa = M2Crypto.EVP.load_key_string(KEY)
@@ -1591,12 +1661,6 @@ www.sii.cl'''.format(folio, folio_inicial, folio_final)
                 'exponent': base64.b64encode(rsa_m.e),
                 'digest': base64.b64encode(self.digest(MESSAGE))}
 
-    '''
-    Funcion usada en SII
-    para firma del timbre (dio errores de firma para el resto de los doc)
-     @author: Daniel Blanco Martin (daniel[at]blancomartin.cl)
-     @version: 2015-03-01
-    '''
     def signmessage(self, MESSAGE, KEY, pubk='', digst=''):
         rsa = M2Crypto.EVP.load_key_string(KEY)
         rsa.reset_context(md='sha1')
@@ -1633,28 +1697,6 @@ www.sii.cl'''.format(folio, folio_inicial, folio_final)
             cadena += texto[c]
             c += 1
         return cadena
-
-    @api.multi
-    def invoice_validate(self):
-        for inv in self.with_context(lang='es_CL'):
-            inv.sii_result = 'NoEnviado'
-            inv.responsable_envio = self.env.user.id
-            if inv.type in ['out_invoice', 'out_refund']:
-                if inv.journal_id.restore_mode:
-                    inv.sii_result = 'Proceso'
-                else:
-                    inv._timbrar()
-                    self.env['sii.cola_envio'].create({
-                                                'doc_ids':[inv.id],
-                                                'model':'account.invoice',
-                                                'user_id':self.env.user.id,
-                                                'tipo_trabajo': 'pasivo',
-                                                'date_time': (datetime.now() + timedelta(hours=12)),
-                                                })
-            if inv.purchase_to_done:
-                for ptd in inv.purchase_to_done:
-                    ptd.write({'state': 'done'})
-        super(invoice,self).invoice_validate()
 
     @api.multi
     def do_dte_send_invoice(self, n_atencion=None):
@@ -1927,13 +1969,32 @@ www.sii.cl'''.format(folio, folio_inicial, folio_final)
                 'tax_include': taxInclude,
                 }
 
+    def _gd(self):
+        result = collections.OrderedDict()
+        lin_dr = 1
+        dr_line = {}
+        dr_line = collections.OrderedDict()
+        dr_line['NroLinDR'] = lin_dr
+        dr_line['TpoMov'] = 'D'
+        if self.global_discount_detail:
+            dr_line['GlosaDR'] = self.global_discount_detail
+        disc_type = "%"
+        if self.global_discount_type == "amount":
+            disc_type = "$"
+        dr_line['TpoValor'] = disc_type
+        dr_line['ValorDR'] = round(self.global_discount,2)
+        if self.sii_document_class_id.sii_code in [34] and (self.referencias and self.referencias[0].sii_referencia_TpoDocRef.sii_code == '34'):#solamente si es exento
+            dr_line['IndExeDR'] = 1
+        dr_lines= [{'DscRcgGlobal':dr_line}]
+        return dr_lines
+
     def _dte(self, n_atencion=None):
         dte = collections.OrderedDict()
         invoice_lines = self._invoice_lines()
         dte['Encabezado'] = self._encabezado(invoice_lines['MntExe'], invoice_lines['no_product'], invoice_lines['tax_include'])
         lin_ref = 1
         ref_lines = []
-        if self.company_id.dte_service_provider == 'SIIHOMO' and isinstance(n_atencion, unicode) and n_atencion != '' and not self._es_boleta():
+        if self.company_id.dte_service_provider == 'SIICERT' and isinstance(n_atencion, unicode) and n_atencion != '' and not self._es_boleta():
             ref_line = {}
             ref_line = collections.OrderedDict()
             ref_line['NroLinRef'] = lin_ref
@@ -1964,6 +2025,8 @@ www.sii.cl'''.format(folio, folio_inicial, folio_final)
         dte['item'] = invoice_lines['invoice_lines']
 
         dte['reflines'] = ref_lines
+        if self.global_discount > 0:
+            result['drlines'] = self._gd()
         dte['TEDd'] = self.get_barcode(invoice_lines['no_product'])
         return dte
 
@@ -1975,7 +2038,8 @@ www.sii.cl'''.format(folio, folio_inicial, folio_final)
             .replace('<item>','').replace('</item>','')\
             .replace('<reflines>','').replace('</reflines>','')\
             .replace('<TEDd>','').replace('</TEDd>','')\
-            .replace('</'+ tpo_dte + '_ID>','\n'+ted+'\n</'+ tpo_dte + '_ID>')
+            .replace('</'+ tpo_dte + '_ID>','\n'+ted+'\n</'+ tpo_dte + '_ID>')\
+            .replace('<drlines>','').replace('</drlines>','')
         return xml
 
     def _tpo_dte(self):
@@ -2038,7 +2102,7 @@ www.sii.cl'''.format(folio, folio_inicial, folio_final)
             signature.'''))
             certp = signature_d['cert'].replace(
                 BC, '').replace(EC, '').replace('\n', '')
-            if inv.company_id.dte_service_provider == 'SIIHOMO': #Retimbrar con número de atención y envío
+            if inv.company_id.dte_service_provider == 'SIICERT': #Retimbrar con número de atención y envío
                 inv._timbrar(n_atencion)
             #@TODO Mejarorar esto en lo posible
             if not inv.sii_document_class_id.sii_code in clases:

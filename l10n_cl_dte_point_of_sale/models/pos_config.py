@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
-from openerp import fields, models, api, _
-from openerp.exceptions import UserError
+from odoo import fields, models, api, _
+from odoo.exceptions import UserError
 from datetime import datetime, timedelta
 import logging
 
@@ -26,36 +26,45 @@ class PosConfig(models.Model):
                 r.left_number = r.journal_document_class_id.sequence_id.get_qty_available()
 
     available_journal_document_class_ids = fields.Many2many(
-        'account.journal.sii_document_class',
-    #    compute='_get_available_journal_document_class',
-        string='Available Journal Document Classes')
-
+            'account.journal.sii_document_class',
+        #    compute='_get_available_journal_document_class',
+            string='Available Journal Document Classes',
+        )
     sii_document_class_id = fields.Many2one(
-        'sii.document_class',
-        related='journal_document_class_id.sii_document_class_id',
-        string='Document Type',
-        copy=False,
-        store=True)
-
+            'sii.document_class',
+            related='journal_document_class_id.sii_document_class_id',
+            string='Document Type',
+            copy=False,
+            store=True,
+        )
     journal_document_class_id = fields.Many2one(
-        'account.journal.sii_document_class',
-        'Documents Type',)
-    ticket = fields.Boolean(string="¿Facturas en Formato Ticket?", default=False)
+            'account.journal.sii_document_class',
+            'Documents Type',
+        )
+    ticket = fields.Boolean(
+            string="¿Facturas en Formato Ticket?",
+            default=False,
+        )
     next_number = fields.Integer(
-        related="journal_document_class_id.sequence_id.number_next_actual",
-        string="Next Number")
+            related="journal_document_class_id.sequence_id.number_next_actual",
+            string="Next Number",
+        )
     left_number = fields.Integer(
-        compute="get_left_numbers",
-        string="Left Available Numbers")
+            compute="get_left_numbers",
+            string="Left Available Numbers",
+        )
+    marcar = fields.Selection(
+        [
+            ('boleta', 'Boletas'),
+            ('factura', 'Facturas'),
+        ],
+        string="Marcar por defecto",
+        default='boleta',
+    )
 
-    def get_valid_document_letters(
-            self, cr, uid, partner_id, operation_type='sale',
-            company_id=False, vat_affected='SI', invoice_type='out_invoice', context=None):
-        if context is None:
-            context = {}
-
+    def get_valid_document_letters(self, partner_id, operation_type='sale', company_id=False, vat_affected='SI', invoice_type='out_invoice'):
         document_letter_obj = self.pool.get('sii.document_letter')
-        user = self.pool.get('res.users').browse(cr, uid, uid, context=context)
+        user = self.env.uid
         partner = self.pool.get('res.partner').browse(
             cr, uid, partner_id, context=context)
 
@@ -95,7 +104,7 @@ class PosConfig(models.Model):
                 print('responsabilidad del partner')
                 if issuer_responsability_id == self.pool.get(
                         'ir.model.data').get_object_reference(
-                        cr, uid, 'l10n_cl_invoice', 'res_BH')[1]:
+                        cr, uid, 'l10n_cl_fe', 'res_BH')[1]:
                     print('el proveedor es de segunda categoria y emite boleta de honorarios')
                 else:
                     print('el proveedor es de primera categoria y emite facturas o facturas no afectas')

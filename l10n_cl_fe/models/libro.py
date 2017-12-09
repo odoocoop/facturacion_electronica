@@ -76,7 +76,7 @@ try:
 except ImportError:
     _logger.info('Cannot import signxml')
 
-server_url = {'SIIHOMO':'https://maullin.sii.cl/DTEWS/','SII':'https://palena.sii.cl/DTEWS/'}
+server_url = {'SIICERT':'https://maullin.sii.cl/DTEWS/','SII':'https://palena.sii.cl/DTEWS/'}
 
 BC = '''-----BEGIN CERTIFICATE-----\n'''
 EC = '''\n-----END CERTIFICATE-----\n'''
@@ -158,106 +158,126 @@ class Libro(models.Model):
                 readonly=True,
                 states={'draft': [('readonly', False)]}
             )
-    tipo_operacion = fields.Selection([
+    tipo_operacion = fields.Selection(
+            [
                 ('COMPRA','Compras'),
                 ('VENTA','Ventas'),
                 ('BOLETA','Boleta Electrónica'),
-                ],
-                string="Tipo de operación",
-                default="COMPRA",
-                required=True,
-                readonly=True,
-                states={'draft': [('readonly', False)]}
-            )
-    tipo_envio = fields.Selection([
+            ],
+            string="Tipo de operación",
+            default="COMPRA",
+            required=True,
+            readonly=True,
+            states={'draft': [('readonly', False)]},
+        )
+    tipo_envio = fields.Selection(
+            [
                 ('AJUSTE','Ajuste'),
                 ('TOTAL','Total'),
                 ('PARCIAL','Parcial'),
                 ('TOTAL','Total'),
-                ],
-                string="Tipo de Envío",
-                default="TOTAL",
-                required=True,
-                readonly=True,
-                states={'draft': [('readonly', False)]}
-            )
+            ],
+            string="Tipo de Envío",
+            default="TOTAL",
+            required=True,
+            readonly=True,
+            states={'draft': [('readonly', False)]},
+        )
     folio_notificacion = fields.Char(
-        string="Folio de Notificación",
-        readonly=True,
-        states={'draft': [('readonly', False)]})
-    impuestos = fields.One2many('account.move.book.tax',
-        'book_id',
-        string="Detalle Impuestos")
-    currency_id = fields.Many2one('res.currency',
-        string='Moneda',
-        default=lambda self: self.env.user.company_id.currency_id,
-        required=True,
-        track_visibility='always')
+            string="Folio de Notificación",
+            readonly=True,
+            states={'draft': [('readonly', False)]},
+        )
+    impuestos = fields.One2many(
+            'account.move.book.tax',
+            'book_id',
+            string="Detalle Impuestos",
+        )
+    currency_id = fields.Many2one(
+            'res.currency',
+            string='Moneda',
+            default=lambda self: self.env.user.company_id.currency_id,
+            required=True,
+            track_visibility='always',
+        )
     total_afecto = fields.Monetary(
-        string="Total Afecto",
-        readonly=True,
-        compute="set_resumen",
-        store=True,)
+            string="Total Afecto",
+            readonly=True,
+            compute="set_resumen",
+            store=True,
+        )
     total_exento = fields.Monetary(
-        string="Total Exento",
-        readonly=True,
-        compute='set_resumen',
-        store=True,)
+            string="Total Exento",
+            readonly=True,
+            compute='set_resumen',
+            store=True,
+        )
     total_iva = fields.Monetary(
-        string="Total IVA",
-        readonly=True,
-        compute='set_resumen',
-        store=True,)
+            string="Total IVA",
+            readonly=True,
+            compute='set_resumen',
+            store=True,
+        )
     total_otros_imps = fields.Monetary(
-        string="Total Otros Impuestos",
-        readonly=True,
-        compute='set_resumen',
-        store=True,)
+            string="Total Otros Impuestos",
+            readonly=True,
+            compute='set_resumen',
+            store=True,
+        )
     total = fields.Monetary(
-        string="Total Otros Impuestos",
-        readonly=True,
-        compute='set_resumen',
-        store=True,)
+            string="Total Otros Impuestos",
+            readonly=True,
+            compute='set_resumen',
+            store=True,
+        )
     periodo_tributario = fields.Char(
-        string='Periodo Tributario',
-        required=True,
-        readonly=True,
-        states={'draft': [('readonly', False)]})
-    company_id = fields.Many2one('res.company',
-        string="Compañía",
-        required=True,
-        default=lambda self: self.env.user.company_id.id,
-        readonly=True,
-        states={'draft': [('readonly', False)]})
+            string='Periodo Tributario',
+            required=True,
+            readonly=True,
+            states={'draft': [('readonly', False)]},
+            default=lambda *a: datetime.now().strftime('%Y-%m'),
+        )
+    company_id = fields.Many2one(
+            'res.company',
+            string="Compañía",
+            required=True,
+            default=lambda self: self.env.user.company_id.id,
+            readonly=True,
+            states={'draft': [('readonly', False)]},
+        )
     name = fields.Char(
-        string="Detalle",
-        required=True,
-        readonly=True,
-        states={'draft': [('readonly', False)]})
+            string="Detalle",
+            required=True,
+            readonly=True,
+            states={'draft': [('readonly', False)]},
+        )
     fact_prop = fields.Float(
-        string="Factor proporcionalidad",
-        readonly=True,
-        states={'draft': [('readonly', False)]})
+            string="Factor proporcionalidad",
+            readonly=True,
+            states={'draft': [('readonly', False)]},
+        )
     nro_segmento = fields.Integer(
-        string="Número de Segmento",
-        readonly=True,
-        states={'draft': [('readonly', False)]})
+            string="Número de Segmento",
+            readonly=True,
+            states={'draft': [('readonly', False)]},
+        )
     date = fields.Date(
-        string="Fecha",
-        required=True,
-        readonly=True,
-        states={'draft': [('readonly', False)]})
-    boletas = fields.One2many('account.move.book.boletas',
-        'book_id',
-        string="Boletas",
-        readonly=True,
-        states={'draft': [('readonly', False)]})
-    codigo_rectificacion = fields.Char(string="Código de Rectificación")
-
-    _defaults = {
-        'date' : datetime.now(),
-        'periodo_tributario': datetime.now().strftime('%Y-%m'),
-    }
+            string="Fecha",
+            required=True,
+            readonly=True,
+            states={'draft': [('readonly', False)]},
+            default=lambda *a: datetime.now(),
+        )
+    boletas = fields.One2many(
+            'account.move.book.boletas',
+            'book_id',
+            string="Boletas",
+            readonly=True,
+            states={'draft': [('readonly', False)]},
+        )
+    codigo_rectificacion = fields.Char(
+            string="Código de Rectificación",
+        )
 
     @api.onchange('periodo_tributario', 'tipo_operacion', 'company_id')
     def set_movimientos(self):
@@ -432,12 +452,6 @@ class Libro(models.Model):
         tz = pytz.timezone('America/Santiago')
         return datetime.now(tz).strftime(formato)
 
-    '''
-    Funcion auxiliar para conversion de codificacion de strings
-     proyecto experimentos_dte
-     @author: Daniel Blanco Martin (daniel[at]blancomartin.cl)
-     @version: 2014-12-01
-    '''
     def convert_encoding(self, data, new_coding = 'UTF-8'):
         encoding = cchardet.detect(data)['encoding']
         if new_coding.upper() != encoding.upper():
@@ -466,13 +480,6 @@ class Libro(models.Model):
             _logger.warning(some_xml_string)
             raise UserError(_('XML Malformed Error:  %s') % e.args)
 
-    '''
-    Funcion usada en autenticacion en SII
-    Obtencion de la semilla desde el SII.
-    Basada en función de ejemplo mostrada en el sitio edreams.cl
-     @author: Daniel Blanco Martin (daniel[at]blancomartin.cl)
-     @version: 2015-04-01
-    '''
     def get_seed(self, company_id):
         #En caso de que haya un problema con la validación de certificado del sii ( por una mala implementación de ellos)
         #esto omite la validacion
@@ -488,13 +495,6 @@ class Libro(models.Model):
         semilla = root[0][0].text
         return semilla
 
-    '''
-    Funcion usada en autenticacion en SII
-    Creacion de plantilla xml para realizar el envio del token
-    Previo a realizar su firma
-     @author: Daniel Blanco Martin (daniel[at]blancomartin.cl)
-     @version: 2016-06-01
-    '''
     def create_template_seed(self, seed):
         xml = u'''<getToken>
 <item>
@@ -524,14 +524,6 @@ version="1.0">
 {1}</LibroBoleta>'''.format(xsd, doc)
         return xml
 
-    '''
-    Funcion usada en autenticacion en SII
-    Firma de la semilla utilizando biblioteca signxml
-    De autoria de Andrei Kislyuk https://github.com/kislyuk/signxml
-    (en este caso particular esta probada la efectividad de la libreria)
-     @author: Daniel Blanco Martin (daniel[at]blancomartin.cl)
-     @version: 2016-06-01
-    '''
     def sign_seed(self, message, privkey, cert):
         doc = etree.fromstring(message)
         signed_node = xmldsig(
@@ -543,13 +535,6 @@ version="1.0">
             signed_node, pretty_print=True).replace('ds:', '')
         return msg
 
-    '''
-    Funcion usada en autenticacion en SII
-    Obtencion del token a partir del envio de la semilla firmada
-    Basada en función de ejemplo mostrada en el sitio edreams.cl
-     @author: Daniel Blanco Martin (daniel[at]blancomartin.cl)
-     @version: 2016-06-01
-    '''
     def get_token(self, seed_file,company_id):
         url = server_url[company_id.dte_service_provider] + 'GetTokenFromSeed.jws?WSDL'
         ns = 'urn:'+ server_url[company_id.dte_service_provider] +'GetTokenFromSeed.jws'
@@ -567,13 +552,6 @@ version="1.0">
             x = x.decode(encoding)
         return x
     def long_to_bytes(self, n, blocksize=0):
-        """long_to_bytes(n:long, blocksize:int) : string
-        Convert a long integer to a byte string.
-        If optional blocksize is given and greater than zero, pad the front of the
-        byte string with binary zeros so that the length is a multiple of
-        blocksize.
-        """
-        # after much testing, this algorithm was deemed to be the fastest
         s = b''
         n = long(n)  # noqa
         import struct
@@ -690,13 +668,6 @@ version="1.0">
             'cert': obj.cert}
         return signature_data
 
-    '''
-    Funcion usada en SII
-    Toma los datos referentes a la resolución SII que autoriza a
-    emitir DTE
-     @author: Daniel Blanco Martin (daniel[at]blancomartin.cl)
-     @version: 2016-06-01
-    '''
     def get_resolution_data(self, comp_id):
         resolution_data = {
             'dte_resolution_date': comp_id.dte_resolution_date,
@@ -721,7 +692,7 @@ version="1.0">
             raise UserError(connection_status)
 
         url = 'https://palena.sii.cl'
-        if company_id.dte_service_provider == 'SIIHOMO':
+        if company_id.dte_service_provider == 'SIICERT':
             url = 'https://maullin.sii.cl'
         post = '/cgi_dte/UPL/DTEUpload'
         headers = {
@@ -755,11 +726,6 @@ version="1.0">
             retorno.update({'sii_result': 'Enviado','sii_send_ident':respuesta_dict['RECEPCIONDTE']['TRACKID']})
         return retorno
 
-    '''
-    Funcion para descargar el xml en el sistema local del usuario
-     @author: Daniel Blanco Martin (daniel[at]blancomartin.cl)
-     @version: 2016-05-01
-    '''
     @api.multi
     def get_xml_file(self):
         file_name = self.name.replace(' ','_')
@@ -771,8 +737,6 @@ version="1.0">
         }
 
     def format_vat(self, value):
-        ''' Se Elimina el 0 para prevenir problemas con el sii, ya que las muestras no las toma si va con
-        el 0 , y tambien internamente se generan problemas'''
         if not value or value=='' or value == 0:
             value ="CL666666666"
             #@TODO opción de crear código de cliente en vez de rut genérico
@@ -780,12 +744,6 @@ version="1.0">
         rut = rut.replace('CL0','').replace('CL','')
         return rut
 
-    '''
-    Funcion usada en SII
-    para firma del timbre (dio errores de firma para el resto de los doc)
-     @author: Daniel Blanco Martin (daniel[at]blancomartin.cl)
-     @version: 2015-03-01
-    '''
     def digest(self, data):
         sha1 = hashlib.new('sha1', data)
         return sha1.digest()

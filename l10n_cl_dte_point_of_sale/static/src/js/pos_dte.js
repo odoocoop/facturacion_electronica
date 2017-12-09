@@ -9,7 +9,7 @@ odoo.define('l10n_cl_dte_point_of_sale.pos_dte', function (require) {
   var screens = require('point_of_sale.screens');
   var core = require('web.core');
   var _t = core._t;
-  var Model = require('web.DataModel');
+  var rpc = require('web.rpc');
 
   var modules = models.PosModel.prototype.models;
   var round_pr = utils.round_precision;
@@ -102,20 +102,19 @@ odoo.define('l10n_cl_dte_point_of_sale.pos_dte', function (require) {
         });
 
     },
-    click_invoice: function(){
-      this._super();
-      var order = this.pos.get_order();
-      if (order.es_boleta()){
-        this.click_boleta();
-      }
-    },
     click_boleta: function(){
           var order = this.pos.get_order();
-          if (order.es_boleta()) {
+          var no_caf = true;
+          if (this.pos.pos_session.caf_file){
+            no_caf = false;
+          }
+          if (order.es_boleta() || no_caf) {
             order.set_boleta(false);
             this.$('.js_boleta').removeClass('highlight');
           } else {
-            this.click_invoice();
+            if(order.is_to_invoice()){
+              this.click_invoice();
+            }
             order.set_boleta(true);
             this.$('.js_boleta').addClass('highlight');
           }
@@ -143,11 +142,23 @@ odoo.define('l10n_cl_dte_point_of_sale.pos_dte', function (require) {
            return;
        }
        if (fields.document_number ) {
-          fields.document_number = fields.document_number.toUppercase();
+          fields.document_number = fields.document_number.toUpperCase().replace('.','').replace('.','');
           var dv = fields.document_number.charAt(fields.document_number.length-1);
-          if (parseInt(fields.document_number.replace('-'+dv, '')) < 10000000 ){
-            fields.document_number = '0' + fields.document_number;
+          var entero = parseInt(fields.document_number.replace('-'+dv, ''));
+          if (entero < 10000000 ){
+            fields.document_number = '0' + entero;
           }
+          var rut = '';
+          for(var c = 0; c < fields.document_number.length ; c++){
+            if (c === 2 || c === 5){
+              rut += '.';
+            }
+            if (c === 8 ){
+              rut += '-';
+            }
+            rut += fields.document_number[c];
+          }
+          fields.document_number = rut;
            if (!this.validar_rut(fields.document_number))
             {return;}
        }
@@ -184,26 +195,46 @@ odoo.define('l10n_cl_dte_point_of_sale.pos_dte', function (require) {
         fields.vat = country[0].code + fields.document_number.replace('-','').replace('.','').replace('.','');
        }
 
+       if (fields.property_product_pricelist) {
+            fields.property_product_pricelist = parseInt(fields.property_product_pricelist, 10);
+        } else {
+            fields.property_product_pricelist = false;
+        }
+
        if (fields.activity_description && !parseInt(fields.activity_description)){
-         new Model('sii.activity.description').call('create_from_ui',[fields]).then(function(description){
-           fields.activity_description = description;
-           new Model('res.partner').call('create_from_ui',[fields]).then(function(partner_id){
-               self.saved_client_details(partner_id);
-           },function(err,event){
-               event.preventDefault();
-               if (err.data.message) {
-                self.gui.show_popup('error',{
+         rpc.query(
+           {
+              model:'sii.activity.description',
+              method:'create_from_ui',
+              args: [fields]
+            }).then(
+              function(description){
+                fields.activity_description = description;
+                rpc.query(
+                  {
+                    model:'res.partner',
+                    method: 'create_from_ui',
+                    args: [fields]
+                  }).then(
+                    function(partner_id){
+                      self.saved_client_details(partner_id);
+                    },
+                    function(err,event){
+                      event.preventDefault();
+                      if (err.data.message) {
+                        self.gui.show_popup('error',{
                          'title': _t('Error: Could not Save Changes partner'),
                          'body': err.data.message,
-                     });
-              }else{
-                self.gui.show_popup('error',{
+                        });
+                      }else{
+                        self.gui.show_popup('error',{
                          'title': _t('Error: Could not Save Changes'),
                          'body': _t('Your Internet connection is probably down.'),
-                     });
-              }
-           });
-         },function(err,event){
+                        });
+                      }
+                    });
+            },
+            function(err,event){
              event.preventDefault();
              if (err.data.message) {
                 self.gui.show_popup('error',{
@@ -218,27 +249,33 @@ odoo.define('l10n_cl_dte_point_of_sale.pos_dte', function (require) {
               }
             });
        }else{
-         new Model('res.partner').call('create_from_ui',[fields]).then(function(partner_id){
+         rpc.query(
+           {
+            model: 'res.partner',
+            method: 'create_from_ui',
+            args: [fields]
+          }).then(
+            function(partner_id){
              self.saved_client_details(partner_id);
-         },function(err,event){
+            },function(err,event){
              event.preventDefault();
-             if (err.data.message) {
-              self.gui.show_popup('error',{
+              if (err.data.message) {
+                self.gui.show_popup('error',{
                        'title': _t('Error: Could not Save Changes'),
                        'body': err.data.message,
                    });
-            }else{
-              self.gui.show_popup('error',{
+              }else{
+               self.gui.show_popup('error',{
                        'title': _t('Error: Could not Save Changes'),
                        'body': _t('Your Internet connection is probably down.'),
                    });
-            }
-         });
+              }
+            });
        }
    },
-   display_client_details: function(visibility,partner,clickpos){
+   display_client_details: function(visibility, partner, clickpos){
        var self = this;
-       this._super(visibility,partner,clickpos);
+       this._super(visibility, partner, clickpos);
        if (visibility === "edit"){
         var state_options = self.$("select[name='state_id']:visible option:not(:first)");
         var comuna_options = self.$("select[name='city_id']:visible option:not(:first)");
@@ -383,6 +420,7 @@ odoo.define('l10n_cl_dte_point_of_sale.pos_dte', function (require) {
   var PosModelSuper = models.PosModel.prototype.push_order;
   models.PosModel.prototype.push_order = function(order, opts) {
         if(order && order.es_boleta()){
+          var orden_numero = order.orden_numero -1;
           var caf_files = JSON.parse(this.pos_session.caf_file);
           var start_caf_file = false;
           for (var x in caf_files){
@@ -391,14 +429,19 @@ odoo.define('l10n_cl_dte_point_of_sale.pos_dte', function (require) {
               start_caf_file = caf_files[x];
             }
           }
+          var start_number = this.pos_session.start_number;
           var get_next_number = function(sii_document_number){
             var caf_file = false;
             var gived = 0;
             for (var x in caf_files){
-              if(parseInt(caf_files[x].AUTORIZACION.CAF.DA.RNG.D) >= sii_document_number && sii_document_number <= parseInt(caf_files[x].AUTORIZACION.CAF.DA.RNG.H)){
+              if(parseInt(caf_files[x].AUTORIZACION.CAF.DA.RNG.D) <= sii_document_number &&
+                sii_document_number >= parseInt(caf_files[x].AUTORIZACION.CAF.DA.RNG.H)){
                 caf_file = caf_files[x];
               }else if( !caf_file ||
-                ( sii_document_number <= parseInt(caf_files[x].AUTORIZACION.CAF.DA.RNG.H) && parseInt(caf_file.AUTORIZACION.CAF.DA.RNG.D) > parseInt(caf_files[x].AUTORIZACION.CAF.DA.RNG.D))){
+                ( sii_document_number < parseInt(caf_files[x].AUTORIZACION.CAF.DA.RNG.D) &&
+                sii_document_number < parseInt(caf_file.AUTORIZACION.CAF.DA.RNG.D) &&
+                parseInt(caf_file.AUTORIZACION.CAF.DA.RNG.D) < parseInt(caf_files[x].AUTORIZACION.CAF.DA.RNG.D)
+              )){//menor de los superiores caf
                 caf_file = caf_files[x];
               }
               if (sii_document_number > parseInt(caf_files[x].AUTORIZACION.CAF.DA.RNG.H) && caf_files[x] != start_caf_file){
@@ -409,7 +452,7 @@ odoo.define('l10n_cl_dte_point_of_sale.pos_dte', function (require) {
               return sii_document_number;
             }
             if(sii_document_number < parseInt(caf_file.AUTORIZACION.CAF.DA.RNG.D)){
-              var dif = order.orden_numero - ((parseInt(start_caf_file.AUTORIZACION.CAF.DA.RNG.H) - this.pos_session.start_number) + gived);
+              var dif = orden_numero - ((parseInt(start_caf_file.AUTORIZACION.CAF.DA.RNG.H) - start_number) + 1 + gived);
               sii_document_number = parseInt(caf_file.AUTORIZACION.CAF.DA.RNG.D) + dif;
               if (sii_document_number >  parseInt(caf_file.AUTORIZACION.CAF.DA.RNG.H)){
                 sii_document_number = get_next_number(sii_document_number);
@@ -417,7 +460,7 @@ odoo.define('l10n_cl_dte_point_of_sale.pos_dte', function (require) {
             }
             return sii_document_number;
           }
-          var sii_document_number = get_next_number(parseInt(order.orden_numero) + parseInt(this.pos_session.start_number));
+          var sii_document_number = get_next_number(parseInt(orden_numero) + parseInt(start_number));
 
           order.sii_document_number = sii_document_number;
           var amount = Math.round(order.get_total_with_tax());
@@ -432,10 +475,13 @@ odoo.define('l10n_cl_dte_point_of_sale.pos_dte', function (require) {
   models.Order = models.Order.extend({
     initialize: function(attr, options) {
           _super_order.initialize.call(this,attr,options);
-          if (this.pos.pos_session.caf_file){
-            this.set_boleta(true);
-          }else{
-            this.set_boleta(false);
+          this.set_boleta(false);
+          if (this.pos.config.marcar === 'boleta'){
+            if (this.pos.pos_session.caf_file){
+              this.set_boleta(true);
+            }
+          }else if (this.pos.config.marcar === 'factura'){
+            this.set_to_invoice(true);
           }
           this.signature = this.signature || false;
           this.sii_document_number = this.sii_document_number || false;
@@ -457,7 +503,9 @@ odoo.define('l10n_cl_dte_point_of_sale.pos_dte', function (require) {
     export_for_printing: function() {
           var json = _super_order.export_for_printing.apply(this,arguments);
           json.company.document_number = this.pos.company.document_number;
-          json.company.activity_description = this.pos.company.activity_description[1]
+          json.company.activity_description = this.pos.company.activity_description[1];
+          json.company.street = this.pos.company.street;
+          json.company.city = this.pos.company.city;
           json.sii_document_number = this.sii_document_number;
           json.orden_numero = this.orden_numero;
           json.journal_document_class_id = this.pos.config.journal_document_class_id[1];
@@ -551,7 +599,7 @@ odoo.define('l10n_cl_dte_point_of_sale.pos_dte', function (require) {
             }
           }
           if (!caf_file){
-            this.gui.show_popup('error',_t('No quedan más Folios Disponibles'));
+            this.pos.gui.show_popup('error',_t('No quedan más Folios Disponibles'));
             return false;
           }
           var priv_key = caf_file.AUTORIZACION.RSASK;
@@ -587,8 +635,12 @@ odoo.define('l10n_cl_dte_point_of_sale.pos_dte', function (require) {
           var seconds = d.getSeconds();
           var date = curr_year + '-' + curr_month + '-' + curr_date + 'T' +
                     this.completa_cero(hours) + ':' + this.completa_cero(minutes) + ':' + this.completa_cero(seconds);
+          var rut_emisor = this.pos.company.document_number.replace('.','').replace('.','');
+          if (rut_emisor.charAt(0) == "0"){
+            rut_emisor = rut_emisor.substr(1);
+          }
           var string='<DD>' +
-                '<RE>' + this.pos.company.document_number.replace('.','').replace('.','') + '</RE>' +
+                '<RE>' + rut_emisor + '</RE>' +
                 '<TD>' + this.pos.config.sii_document_class_id.sii_code + '</TD>' +
                 '<F>' + order.sii_document_number + '</F>' +
                 '<FE>' + curr_year + '-' + curr_month + '-' + curr_date + '</FE>' +
@@ -617,13 +669,14 @@ odoo.define('l10n_cl_dte_point_of_sale.pos_dte', function (require) {
         if (!this.pos.pos_session.caf_file || !order.sii_document_number){
           return false;
         }
-        PDF417.init(order.signature);
+        PDF417.ROWHEIGHT = 2;
+        PDF417.init(order.signature, 6);
         var barcode = PDF417.getBarcodeArray();
-        var bw = 1.2;
+        var bw = 2;
         var bh = 2;
         var canvas = document.createElement('canvas');
         canvas.width = bw * barcode['num_cols'];
-        canvas.height = "150"; //bh * barcode['num_rows'];
+        canvas.height = 255;
         var ctx = canvas.getContext('2d');
         var y = 0;
         for (var r = 0; r < barcode['num_rows']; ++r) {
@@ -657,4 +710,4 @@ PosBaseWidget.render_receipt = function() {
           _super_screen.render_receipt();
         }
     };
-})
+});

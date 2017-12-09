@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 
-from openerp import fields, models, api, _
-from openerp.exceptions import UserError
+from odoo import fields, models, api, _
+from odoo.exceptions import UserError
 from datetime import datetime, timedelta, date
 import logging
 from lxml import etree
 from lxml.etree import Element, SubElement
 from lxml import objectify
 from lxml.etree import XMLSyntaxError
-from openerp import SUPERUSER_ID
+from odoo import SUPERUSER_ID
 
 import xml.dom.minidom
 import pytz
@@ -18,9 +18,9 @@ import socket
 import collections
 
 try:
-    from cStringIO import StringIO
+    from io import BytesIO
 except:
-    from StringIO import StringIO
+    _logger.warning("no se ha cargado io")
 
 import traceback as tb
 import suds.metrics as metrics
@@ -68,11 +68,6 @@ except ImportError:
     _logger.info('Cannot import pdf417gen library')
 
 try:
-    import M2Crypto
-except ImportError:
-    _logger.info('Cannot import M2Crypto library')
-
-try:
     import base64
 except ImportError:
     _logger.info('Cannot import base64 library')
@@ -88,14 +83,18 @@ except ImportError:
     _logger.info('Cannot import cchardet library')
 
 try:
-    from SOAPpy import SOAPProxy
-except ImportError:
-    _logger.info('Cannot import SOOAPpy')
-
-try:
     from signxml import xmldsig, methods
 except ImportError:
     _logger.info('Cannot import signxml')
+
+try:
+    from cryptography.hazmat.backends import default_backend
+    from cryptography.hazmat.primitives.serialization import load_pem_private_key
+    import OpenSSL
+    from OpenSSL import crypto
+    type_ = crypto.FILETYPE_PEM
+except:
+    _logger.warning('Cannot import OpenSSL library')
 
 # timbre patrón. Permite parsear y formar el
 # ordered-dict patrón corespondiente al documento
@@ -112,7 +111,7 @@ afeqWjiRVMvV4+s4Q==</FRMA></CAF><TSTED>2014-04-24T12:02:20</TSTED></DD>\
 fHlAa7j08Xff95Yb2zg31sJt6lMjSKdOK+PQp25clZuECig==</FRMT></TED>"""
 result = xmltodict.parse(timbre)
 
-server_url = {'SIIHOMO':'https://maullin.sii.cl/DTEWS/','SII':'https://palena.sii.cl/DTEWS/'}
+server_url = {'SIICERT':'https://maullin.sii.cl/DTEWS/','SII':'https://palena.sii.cl/DTEWS/'}
 
 BC = '''-----BEGIN CERTIFICATE-----\n'''
 EC = '''\n-----END CERTIFICATE-----\n'''
@@ -214,7 +213,7 @@ class stock_picking(models.Model):
             pass
         url = server_url[company_id.dte_service_provider] + 'CrSeed.jws?WSDL'
         ns = 'urn:'+server_url[company_id.dte_service_provider] + 'CrSeed.jws'
-        _server = SOAPProxy(url, ns)
+        _server = Client(url, ns)
         root = etree.fromstring(_server.getSeed())
         semilla = root[0][0].text
         return semilla
@@ -307,7 +306,7 @@ version="1.0">
     def get_token(self, seed_file,company_id):
         url = server_url[company_id.dte_service_provider] + 'GetTokenFromSeed.jws?WSDL'
         ns = 'urn:'+ server_url[company_id.dte_service_provider] +'GetTokenFromSeed.jws'
-        _server = SOAPProxy(url, ns)
+        _server = Client(url, ns)
         tree = etree.fromstring(seed_file)
         ss = etree.tostring(tree, pretty_print=True, encoding='iso-8859-1')
         respuesta = etree.fromstring(_server.getToken(ss))
@@ -376,11 +375,6 @@ version="1.0">
         sig_root = Element("Signature",attrib={'xmlns':'http://www.w3.org/2000/09/xmldsig#'})
         sig_root.append(etree.fromstring(signed_info_c14n))
         signature_value = SubElement(sig_root, "SignatureValue")
-        from cryptography.hazmat.backends import default_backend
-        from cryptography.hazmat.primitives.serialization import load_pem_private_key
-        import OpenSSL
-        from OpenSSL.crypto import *
-        type_ = FILETYPE_PEM
         key=OpenSSL.crypto.load_privatekey(type_,privkey.encode('ascii'))
         signature= OpenSSL.crypto.sign(key,signed_info_c14n,'sha1')
         signature_value.text =textwrap.fill(base64.b64encode(signature),64)
@@ -479,7 +473,7 @@ version="1.0">
             _logger.info('error')
             return
         url = 'https://palena.sii.cl'
-        if company_id.dte_service_provider == 'SIIHOMO':
+        if company_id.dte_service_provider == 'SIICERT':
             url = 'https://maullin.sii.cl'
         post = '/cgi_dte/UPL/DTEUpload'
         headers = {
@@ -728,7 +722,8 @@ www.sii.cl'''.format(folio, folio_inicial, folio_final)
         return cadena
 
     @api.multi
-    def do_new_transfer(self):
+    def action_done(self):
+        res = super(stock_picking, self).action_done()
         for s in self:
             if not s.use_documents:
                 continue
@@ -747,7 +742,8 @@ www.sii.cl'''.format(folio, folio_inicial, folio_final)
                                             'tipo_trabajo': 'pasivo',
                                             'date_time': (datetime.now() + timedelta(hours=12)),
                                             })
-        super(stock_picking,self).do_new_transfer()
+        return res
+
 
     @api.multi
     def do_dte_send_picking(self, n_atencion=None):
@@ -786,7 +782,7 @@ www.sii.cl'''.format(folio, folio_inicial, folio_final)
         #if self.print_ticket:
         #    IdDoc['TpoImpresion'] = "N" #@TODO crear opcion de ticket
         if taxInclude and MntExe == 0 :
-        	IdDoc['MntBruto'] = 1
+            IdDoc['MntBruto'] = 1
         #IdDoc['FmaPago'] = self.forma_pago or 1
         #IdDoc['FchVenc'] = self.date_due or datetime.strftime(datetime.now(), '%Y-%m-%d')
         return IdDoc
@@ -808,20 +804,22 @@ www.sii.cl'''.format(folio, folio_inicial, folio_final)
 
     def _receptor(self):
         Receptor = collections.OrderedDict()
-        if not self.partner_id.commercial_partner_id.vat:
+        partner_id = self.partner_id or self.company_id.partner_id
+        if not partner_id.commercial_partner_id.vat :
             raise UserError("Debe Ingresar RUT Receptor")
-        Receptor['RUTRecep'] = self.format_vat(self.partner_id.commercial_partner_id.vat)
-        Receptor['RznSocRecep'] = self._acortar_str(self.partner_id.commercial_partner_id.name, 100)
-        if not self.activity_description:
+        Receptor['RUTRecep'] = self.format_vat(partner_id.commercial_partner_id.vat)
+        Receptor['RznSocRecep'] = self._acortar_str(partner_id.commercial_partner_id.name, 100)
+        activity_description = self.activity_description or partner_id.activity_description
+        if not activity_description:
             raise UserError(_('Seleccione giro del partner'))
-        Receptor['GiroRecep'] = self._acortar_str(self.activity_description.name, 40)
-        if self.partner_id.commercial_partner_id.phone:
-            Receptor['Contacto'] = self.partner_id.commercial_partner_id.phone
-        if self.partner_id.commercial_partner_id.dte_email:
-            Receptor['CorreoRecep'] = self.partner_id.commercial_partner_id.dte_email
-        Receptor['DirRecep'] = (self.partner_id.commercial_partner_id.street) + ' ' + ((self.partner_id.commercial_partner_id.street2) or '')
-        Receptor['CmnaRecep'] = self.partner_id.commercial_partner_id.city_id.name
-        Receptor['CiudadRecep'] = self.partner_id.commercial_partner_id.city
+        Receptor['GiroRecep'] = self._acortar_str(activity_description.name, 40)
+        if partner_id.commercial_partner_id.phone:
+            Receptor['Contacto'] = partner_id.commercial_partner_id.phone
+        if partner_id.commercial_partner_id.dte_email:
+            Receptor['CorreoRecep'] = partner_id.commercial_partner_id.dte_email
+        Receptor['DirRecep'] = (partner_id.commercial_partner_id.street) + ' ' + ((partner_id.commercial_partner_id.street2) or '')
+        Receptor['CmnaRecep'] = partner_id.commercial_partner_id.city_id.name
+        Receptor['CiudadRecep'] = partner_id.commercial_partner_id.city
         return Receptor
 
     def _transporte(self):
@@ -843,9 +841,10 @@ www.sii.cl'''.format(folio, folio_inicial, folio_final)
                 Transporte['Chofer'] = collections.OrderedDict()
                 Transporte['Chofer']['RUTChofer'] = self.format_vat(self.chofer.vat)
                 Transporte['Chofer']['NombreChofer'] = self.chofer.name[:30]
-        Transporte['DirDest'] = (self.partner_id.street or '')+ ' '+ (self.partner_id.street2 or '')
-        Transporte['CmnaDest'] = self.partner_id.state_id.name or ''
-        Transporte['CiudadDest'] = self.partner_id.city or ''
+        partner_id = self.partner_id or self.company_id.partner_id
+        Transporte['DirDest'] = (partner_id.street or '')+ ' '+ (partner_id.street2 or '')
+        Transporte['CmnaDest'] = partner_id.state_id.name or ''
+        Transporte['CiudadDest'] = partner_id.city or ''
         #@TODO SUb Area Aduana
         return Transporte
 
@@ -876,16 +875,17 @@ www.sii.cl'''.format(folio, folio_inicial, folio_final)
 
     @api.multi
     def get_barcode(self, no_product=False):
+        partner_id = self.partner_id or self.company_id.partner_id
         ted = False
         RutEmisor = self.format_vat(self.company_id.vat)
         result['TED']['DD']['RE'] = RutEmisor
         result['TED']['DD']['TD'] = self.location_id.sii_document_class_id.sii_code
         result['TED']['DD']['F']  = self.get_folio()
         result['TED']['DD']['FE'] = self.min_date[:10]
-        if not self.partner_id.commercial_partner_id.vat:
+        if not partner_id.commercial_partner_id.vat:
             raise UserError(_("Fill Partner VAT"))
-        result['TED']['DD']['RR'] = self.format_vat(self.partner_id.commercial_partner_id.vat)
-        result['TED']['DD']['RSR'] = self._acortar_str(self.partner_id.commercial_partner_id.name,40)
+        result['TED']['DD']['RR'] = self.format_vat(partner_id.commercial_partner_id.vat)
+        result['TED']['DD']['RSR'] = self._acortar_str(partner_id.commercial_partner_id.name,40)
         result['TED']['DD']['MNT'] = int(round(self.amount_total))
         if no_product:
             result['TED']['DD']['MNT'] = 0
@@ -966,12 +966,10 @@ www.sii.cl'''.format(folio, folio_inicial, folio_final)
             if line.product_id.default_code:
                 lines['NmbItem'] = self._acortar_str(line.product_id.name.replace('['+line.product_id.default_code+'] ',''),80)
             qty = round(line.qty_done, 4)
+            if qty <=0:
+                raise UserError("¡No puede ser menor o igual que 0!, tiene líneas con cantidad realiada 0")
             if not no_product:
                 lines['QtyItem'] = qty
-            if qty == 0 and not no_product:
-                lines['QtyItem'] = 1
-            elif qty < 0:
-                raise UserError("NO puede ser menor que 0")
             if not no_product:
                 lines['UnmdItem'] = line.product_uom_id.name[:4]
                 if line.price_unit > 0:
@@ -979,14 +977,16 @@ www.sii.cl'''.format(folio, folio_inicial, folio_final)
             if line.discount > 0:
                 lines['DescuentoPct'] = line.discount
                 lines['DescuentoMonto'] = int(round((((line.discount / 100) * lines['PrcItem'])* qty)))
-            elif not no_product :
+            if not no_product :
                 lines['MontoItem'] = int(round(line.subtotal,0))
             if no_product:
                 lines['MontoItem'] = 0
             line_number += 1
             picking_lines.extend([{'Detalle': lines}])
             if 'IndExe' in lines:
-            	taxInclude = False
+                taxInclude = False
+        if len(picking_lines) == 0:
+            raise UserError(_('No se puede emitir una guía sin líneas'))
         return {
                 'picking_lines': picking_lines,
                 'MntExe':MntExe,
@@ -1001,7 +1001,7 @@ www.sii.cl'''.format(folio, folio_inicial, folio_final)
         count = 0
         lin_ref = 1
         ref_lines = []
-        if self.company_id.dte_service_provider == 'SIIHOMO' and isinstance(n_atencion, unicode):
+        if self.company_id.dte_service_provider == 'SIICERT' and isinstance(n_atencion, unicode):
             ref_line = {}
             ref_line = collections.OrderedDict()
             ref_line['NroLinRef'] = lin_ref
@@ -1089,7 +1089,7 @@ www.sii.cl'''.format(folio, folio_inicial, folio_final)
             signature.'''))
             certp = signature_d['cert'].replace(
                 BC, '').replace(EC, '').replace('\n', '')
-            if rec.company_id.dte_service_provider == 'SIIHOMO': # si ha sido timbrado offline, no se puede volver a timbrar
+            if rec.company_id.dte_service_provider == 'SIICERT': # si ha sido timbrado offline, no se puede volver a timbrar
                 rec._timbrar(n_atencion)
             DTEs.update( {rec.id: rec.sii_xml_request})
             if not company_id:
@@ -1134,7 +1134,7 @@ www.sii.cl'''.format(folio, folio_inicial, folio_final)
     def _get_send_status(self, track_id, signature_d,token):
         url = server_url[self.company_id.dte_service_provider] + 'QueryEstUp.jws?WSDL'
         ns = 'urn:'+ server_url[self.company_id.dte_service_provider] + 'QueryEstUp.jws'
-        _server = SOAPProxy(url, ns)
+        _server = Client(url, ns)
         rut = self.format_vat(self.company_id.vat, True)
         respuesta = _server.getEstUp(rut[:8], str(rut[-1]),track_id,token)
         self.sii_receipt = respuesta
@@ -1152,10 +1152,11 @@ www.sii.cl'''.format(folio, folio_inicial, folio_final)
         return status
 
     def _get_dte_status(self, signature_d, token):
+        partner_id = self.partner_id or self.company_id.partner_id
         url = server_url[self.company_id.dte_service_provider] + 'QueryEstDte.jws?WSDL'
         ns = 'urn:'+ server_url[self.company_id.dte_service_provider] + 'QueryEstDte.jws'
-        _server = SOAPProxy(url, ns)
-        receptor = self.format_vat(self.partner_id.commercial_partner_id.vat, True)
+        _server = Client(url, ns)
+        receptor = self.format_vat(partner_id.commercial_partner_id.vat, True)
         min_date = datetime.strptime(self.min_date[:10], "%Y-%m-%d").strftime("%d-%m-%Y")
         total = str(int(round(self.amount_total,0)))
         sii_code = str(self.location_id.sii_document_class_id.sii_code)
@@ -1172,8 +1173,8 @@ www.sii.cl'''.format(folio, folio_inicial, folio_final)
         self.sii_message = respuesta
         resp = xmltodict.parse(respuesta)
         if resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] == '2':
-        	status = {'warning':{'title':_("Error code: 2"), 'message': _(resp['SII:RESPUESTA']['SII:RESP_HDR']['GLOSA'])}}
-        	return status
+            status = {'warning':{'title':_("Error code: 2"), 'message': _(resp['SII:RESPUESTA']['SII:RESP_HDR']['GLOSA'])}}
+            return status
         if resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] == "EPR":
             self.sii_result = "Proceso"
             if resp['SII:RESPUESTA']['SII:RESP_BODY']['RECHAZADOS'] == "1":

@@ -1,25 +1,13 @@
 # -*- encoding: utf-8 -*-
 from odoo import models, fields, api
+import re
+from odoo.exceptions import UserError
+import logging
+_logger = logging.getLogger(__name__)
 
 class ResPartner(models.Model):
     _inherit = 'res.partner'
 
-    state_id = fields.Many2one(
-            "res.country.state",
-            'Ubication',
-            domain="[('country_id','=',country_id),('type','=','normal')]",
-        )
-    partner_activities_ids = fields.Many2many(
-            'partner.activities',
-            id1='partner_id',
-            id2='activities_id',
-            string='Activities Names'
-        )
-    city_id = fields.Many2one(
-            "res.country.state.city",
-            'City',
-            domain="[('state_id','=',state_id),('type','=','normal')]"
-        )
     def _get_default_tp_type(self):
         try:
             return self.env.ref('l10n_cl_fe.res_IVARI')
@@ -32,6 +20,24 @@ class ResPartner(models.Model):
         except:
             return self.env['sii.document_type']
 
+    @api.model
+    def _get_default_country(self):
+        return self.env.user.company_id.country_id.id or self.env.user.partner_id.country_id.id
+
+    state_id = fields.Many2one(
+            "res.country.state",
+            'Ubication',
+        )
+    partner_activities_ids = fields.Many2many(
+            'partner.activities',
+            id1='partner_id',
+            id2='activities_id',
+            string='Activities Names'
+        )
+    city_id = fields.Many2one(
+            "res.country.state.city",
+            'City',
+        )
     responsability_id = fields.Many2one(
         'sii.responsability',
         string='Responsability',
@@ -55,8 +61,12 @@ class ResPartner(models.Model):
         readonly=True,
     )
     activity_description = fields.Many2one(
-        'sii.activity.description',
-        string='Glosa Giro', ondelete="restrict")
+            'sii.activity.description',
+            string='Glosa Giro', ondelete="restrict",
+        )
+    dte_email = fields.Char(
+            string='DTE Email',
+        )
 
     @api.multi
     @api.onchange('responsability_id')
@@ -112,17 +122,6 @@ class ResPartner(models.Model):
     def _asign_city(self, source):
         if self.city_id:
             return {'value':{'city': self.city_id.name}}
-
-    @api.model
-    def _get_default_country(self):
-        return self.env.user.company_id.country_id.id or self.env.user.partner_id.country_id.id
-
-
-    _defaults ={
-        'country_id' : lambda self, cr, uid, c: self.pool.get('res.partner')._get_default_country(cr, uid, context=c)
-    }
-
-    dte_email = fields.Char('DTE Email')
 
     @api.constrains('vat')
     def _rut_unique(self):

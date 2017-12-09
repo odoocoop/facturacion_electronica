@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<openerp>
-  <template id="dte_stock_picking" inherit_id="stock.report_picking" >
-      <t t-call="report.html_container" position="replace">
+<odoo>
+  <template id="dte_stock_picking" name="dte_stock_picking" inherit_id="stock.report_picking" >
+      <t t-call="web.html_container" position="replace">
           <t t-foreach="docs" t-as="o">
-              <t  t-lang="o.partner_id.lang">
+            <t t-set="partner_id" t-value="o.partner_id or o.company_id.partner_id" />
+              <t  t-lang="partner_id.lang">
                 <!-- Multicompany -->
                   <t t-if="not o and doc">
                         <t t-set="o" t-value="doc"/>
@@ -73,21 +74,21 @@
                         <tbody>
                           <tr>
                             <td style="border-top:0px !important;padding:4px !important;"><strong >Señor (es):</strong></td>
-                            <td style="border-top:0px !important;padding:4px !important;min-width:500px;max-width:500px;"><span t-field="o.partner_id.commercial_partner_id.name"/></td>
+                            <td style="border-top:0px !important;padding:4px !important;min-width:500px;max-width:500px;"><span t-field="partner_id.commercial_partner_id.name"/></td>
                             <td style="border-top:0px !important;padding:4px !important;"><strong>Fecha:</strong></td>
                             <td style="border-top:0px !important;padding:4px !important;"><t t-if="'min_date' in o and o.min_date"><span t-field="o.min_date"/></t></td>
                           </tr>
                           <tr>
                             <td style="border-top:0px !important;padding:4px !important;"><strong>RUT:</strong></td>
-                            <td style="border-top:0px !important;padding:4px !important;min-width:500px;max-width:500px;"><span t-field="o.partner_id.commercial_partner_id.document_number"/></td>
+                            <td style="border-top:0px !important;padding:4px !important;min-width:500px;max-width:500px;"><span t-field="partner_id.commercial_partner_id.document_number"/></td>
                             <td style="border-top:0px !important;padding:4px !important;"><strong >Comuna:</strong></td>
-                            <td style="border-top:0px !important;padding:4px !important;"><span t-field="o.partner_id.commercial_partner_id.city_id.name"/></td>
+                            <td style="border-top:0px !important;padding:4px !important;"><span t-field="partner_id.commercial_partner_id.city_id.name"/></td>
                           </tr>
                           <tr>
                             <td style="border-top:0px !important;padding:4px !important;"><strong>Domicilio:</strong></td>
-                            <td style="border-top:0px !important;padding:4px !important;min-width:500px;max-width:500px;"><span  t-field="o.partner_id.commercial_partner_id.street"/><span t-field="o.partner_id.commercial_partner_id.street2"/></td>
+                            <td style="border-top:0px !important;padding:4px !important;min-width:500px;max-width:500px;"><span  t-field="partner_id.commercial_partner_id.street"/><span t-field="partner_id.commercial_partner_id.street2"/></td>
                             <td style="border-top:0px !important;padding:4px !important;"><strong >Ciudad:</strong></td>
-                            <td style="border-top:0px !important;padding:4px !important;"><span t-field="o.partner_id.commercial_partner_id.city"/></td>
+                            <td style="border-top:0px !important;padding:4px !important;"><span t-field="partner_id.commercial_partner_id.city"/></td>
                           </tr>
                           <tr>
                             <td style="border-top:0px !important;padding:4px !important;"><strong>Giro:</strong></td>
@@ -148,7 +149,7 @@
                            </tr>
                        </thead>
                        <tbody class="invoice_tbody">
-                           <tr  t-foreach="o.pack_operation_ids" t-as="l">
+                           <tr t-foreach="o.move_lines.sorted(key=lambda m: m.product_id.id)" t-as="l">
                                <td>
                                    <span t-field="l.qty_done"/>
                                    <span t-field="l.product_uom_id"  groups="product.group_uom"/>
@@ -187,7 +188,7 @@
                              </tr>
                             </tbody>
                    </table>
-                   <table  t-if="o.partner_id.type in ['delivery', 'other']" class="table table-condensed" style="height:30px;">
+                   <table  t-if="partner_id.type in ['delivery', 'other']" class="table table-condensed" style="height:30px;">
                            <thead>
                              <tr style="max-height:10px; font-size:9px !important;">
                                <th>Dirección de Envío</th>
@@ -196,8 +197,8 @@
                            </thead>
                            <tbody>
                              <tr style="max-height:9px; font-size:8px !important;">
-                               <td><span t-field="o.partner_id.street"/></td>
-                               <td><span t-field="o.partner_id.city"/></td>
+                               <td><span t-field="partner_id.street"/></td>
+                               <td><span t-field="partner_id.city"/></td>
                              </tr>
                             </tbody>
                    </table>
@@ -306,4 +307,4 @@
                     attachment_use="True"
                     attachment="(object.state in ('open','paid')) and ('CED_'+(object.number or '').replace('/','')+'.pdf')"
           />
-</openerp>
+</odoo>
