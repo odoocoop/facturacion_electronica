@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+      <record id="view_order_form" model="ir.ui.view">
+          <field name="model">pos.order</field>
+          <field name="name">pos.order.sii.form</field>
+          <field name="inherit_id" ref="point_of_sale.view_pos_pos_form" />
+          <field name="arch" type="xml">
+            <button name="refund" position="replace">
+              <button name="%(action_pos_order_refund)d" string="Crear una Nota de Crédito" type="action"
+                            attrs="{'invisible':[('state','=','draft'), ('document_class_id', '=', False)]}"/>
+              <button name="refund" string="Return Products" type="object"
+                      attrs="{'invisible':[('state','=','draft'), ('document_class_id', '!=', False)]}"/>
+            </button>
+            <field name="name" position="after">
+              <field name="sii_document_number" />
+            </field>
+            <field name="sale_journal" position="after">
+              <field name="journal_document_class_id"
+                     options="{'no_create': True}"
+                     domain="[('id','in',available_journal_document_class_ids[0][2])]"/>
+              <field name="document_class_id" />
+              <field name="referencias" />
+             </field>
+
+              <notebook>
+                  <field name="available_journal_document_class_ids" invisible="1"/>
+                  <page string="Electronic Invoice" name="electronic_invoice" >
+                      <header>
+                          <button string="Download XML" type="object"  name="get_xml_file"  attrs="{'invisible':[('state', 'in', ['draft'])]}"/>
+                          <button string="Send XML" type="object" class="oe_highlight" name="do_dte_send_order" attrs="{'invisible': ['|', ('state', 'in', ['draft']),('sii_result', 'not in', ['','NoEnviado'])]}"/>
+                          <button string="Ask for DTE" type="object" class="oe_highlight" name="ask_for_dte_status" attrs="{'invisible':['|', ('state', 'in', ['draft']),('sii_result','in',['','NoEnviado'])]}"/>
+                          <field name='sii_result' widget="statusbar"/>
+                      </header>
+                      <group>
+                          <field name="responsable_envio" invisible="True" readonly="True"/>
+                          <field name='sii_batch_number' readonly="1"/>
+                          <field name='sii_barcode_img' widget="image" attrs="{'invisible':[('sii_result', '=', '')]}" readonly="1"/>
+                          <field name='sii_message' attrs="{'invisible':[('sii_result', 'in', ['','NoEnviado'])]}" readonly="1"/>
+                          <field name='sii_send_ident' attrs="{'invisible':[('sii_result', 'in', ['','NoEnviado'])]}" readonly="1"/>
+                          <field name='sii_xml_response' attrs="{'invisible':[('sii_result', 'in', ['','NoEnviado'])]}" readonly="1"/>
+                          <field name='sii_send_file_name' attrs="{'invisible':[('sii_result', 'in', ['','NoEnviado'])]}" readonly="1"/>
+                          <field name="signature" readonly="1"/>
+                          <field name='sii_xml_request' attrs="{'invisible':[('sii_result', '=', '')]}" readonly="1"/>
+                      </group>
+                  </page>
+              </notebook>
+          </field>
+      </record>
+
+      <!-- Inherit Form view -->
+      <record id="tree" model="ir.ui.view">
+        <field name="name">tree.form</field>
+        <field name="model">pos.order</field>
+        <field name="inherit_id" ref="point_of_sale.view_pos_order_tree"/>
+        <field name="arch" type="xml">
+          <field name="name" position="before">
+            <field name="document_class_id" />
+            <field name="sii_document_number" />
+          </field>
+        </field>
+      </record>
+
+      <record id="view_order_line_form" model="ir.ui.view">
+          <field name="model">pos.order.line</field>
+          <field name="name">pos.order.line.sii.form</field>
+          <field name="inherit_id" ref="point_of_sale.view_pos_order_line" />
+          <field name="arch" type="xml">
+            <field name="create_date" position="after">
+              <field name="pos_order_line_id" />
+            </field>
+          </field>
+      </record>
+      <menuitem
+              icon="STOCK_JUSTIFY_FILL"
+              action="l10n_cl_fe.action_move_consumo_folios"
+              id="menu_action_move_consumo_folios_form"
+              parent="point_of_sale.menu_point_rep"
+              groups="point_of_sale.group_pos_manager"
+              sequence="3"/>
+      <menuitem
+              icon="STOCK_JUSTIFY_FILL"
+              action="l10n_cl_fe.action_move_books"
+              id="menu_action_move_books_form"
+              parent="point_of_sale.menu_point_rep"
+              groups="point_of_sale.group_pos_manager"
+              sequence="3"/>
+</odoo>

@@ -6,7 +6,7 @@ _logger = logging.getLogger(__name__)
 
 
 class masive_send_dte_wizard(models.TransientModel):
-    _name = 'sii.dte.stock_picking.masive_send.wizard'
+    _name = 'sii.dte.pos.masive_send.wizard'
     _description = 'SII Masive send Wizard'
 
     @api.model
@@ -15,11 +15,13 @@ class masive_send_dte_wizard(models.TransientModel):
         active_ids = context.get('active_ids', []) or []
         return [(6, 0, active_ids)]
 
-    documentos = fields.Many2many('stock.picking',string="Movimientos", default=_getIDs)
-
-    numero_atencion = fields.Char(string="Número de atención")
+    documentos = fields.Many2many(
+            'pos.order',
+            string="Documentos",
+            default=_getIDs,
+        )
 
     @api.multi
     def confirm(self):
-        self.documentos.do_dte_send_picking(self.numero_atencion)
+        self.documentos.do_dte_send_order()
         return UserError("Enviado")

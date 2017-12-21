@@ -1,18 +1,19 @@
 # -*- coding: utf-8 -*-
-
-from odoo import _, api, fields, models
+from odoo import api, fields, models
 from odoo.exceptions import UserError
 from datetime import datetime, timedelta, date
 from lxml import etree
 from lxml.etree import Element, SubElement
 from odoo import SUPERUSER_ID
+from odoo.tools.translate import _
 
 import logging
 _logger = logging.getLogger(__name__)
 
 import xml.dom.minidom
 import pytz
-
+from six import string_types
+import struct
 
 import socket
 import collections
@@ -122,7 +123,8 @@ BC = '''-----BEGIN CERTIFICATE-----\n'''
 EC = '''\n-----END CERTIFICATE-----\n'''
 
 # hardcodeamos este valor por ahora
-import os
+import os, sys
+USING_PYTHON2 = True if sys.version_info < (3, 0) else False
 xsdpath = os.path.dirname(os.path.realpath(__file__)).replace('/models','/static/xsd/')
 
 connection_status = {
@@ -220,7 +222,7 @@ class Referencias(models.Model):
     invoice_id = fields.Many2one('account.invoice', ondelete='cascade',index=True,copy=False,string="Documento")
     fecha_documento = fields.Date(string="Fecha Documento", required=True)
 
-class invoice(models.Model):
+class AccountInvoice(models.Model):
     _inherit = "account.invoice"
 
     def _default_journal_document_class_id(self, default=None):
@@ -235,9 +237,7 @@ class invoice(models.Model):
         return default
 
     def _domain_journal_document_class_id(self):
-        domain = []
-        for rec in self:
-            domain = rec._get_available_journal_document_class()
+        domain = self._get_available_journal_document_class()
         return [('id', 'in', domain)]
 
     turn_issuer = fields.Many2one(
@@ -266,9 +266,9 @@ class invoice(models.Model):
         copy=False)
     journal_document_class_id = fields.Many2one(
         'account.journal.sii_document_class',
-        'Documents Type',
-        default=_default_journal_document_class_id,
-        domain=_domain_journal_document_class_id,
+        string='Documents Type',
+        default=lambda self: self._default_journal_document_class_id(),
+        domain=lambda self: self._domain_journal_document_class_id(),
         readonly=True,
         store=True,
         states={'draft': [('readonly', False)]})
@@ -303,7 +303,8 @@ class invoice(models.Model):
                     ('9','Otros.')
             ],
             string="Código No recuperable",
-            readonly=True, states={'draft': [('readonly', False)]},
+            readonly=True,
+            states={'draft': [('readonly', False)]},
         )# @TODO select 1 automático si es emisor 2Categoría
 
     document_number = fields.Char(
@@ -651,7 +652,7 @@ class invoice(models.Model):
             inv.amount_untaxed_signed = amount_untaxed_signed * sign
 
     def _prepare_tax_line_vals(self, line, tax):
-        vals = super(account_invoice, self)._prepare_tax_line_vals(line, tax)
+        vals = super(AccountInvoice, self)._prepare_tax_line_vals(line, tax)
         vals['amount_retencion'] = tax['retencion']
         vals['retencion_account_id'] = self.type in ('out_invoice', 'in_invoice') and (tax['refund_account_id'] or line.account_id.id) or (tax['account_id'] or line.account_id.id)
         return vals
@@ -733,7 +734,7 @@ class invoice(models.Model):
                     discount = ((self.global_discount * 100) / afecto )
             taxes = tax_grouped
             tax_grouped = {}
-            for id, t in taxes.iteritems():
+            for id, t in taxes.items():
                 tax = self.env['account.tax'].browse(t['tax_id'])
                 if tax.amount > 0 and discount > 0:
                     base = round(round(t['base']) * (1 - ((discount / 100.0) or 0.0)))
@@ -741,6 +742,57 @@ class invoice(models.Model):
                     t['amount'] = tax._compute_amount(base, base, 1)
                 tax_grouped[id] = t
         return tax_grouped
+
+    @api.model
+    def _prepare_refund(self, invoice, date_invoice=None, date=None, description=None, journal_id=None, tipo_nota=61, mode='1'):
+        values = super(AccountInvoice, self)._prepare_refund(invoice, date_invoice, date, description, journal_id)
+        document_type = self.env['account.journal.sii_document_class'].search(
+                [
+                    ('sii_document_class_id.sii_code','=', tipo_nota),
+                    ('journal_id','=', invoice.journal_id.id),
+                ],
+                limit=1,
+            )
+        if invoice.type == 'out_invoice':
+            type = 'out_refund'
+        elif invoice.type == 'out_refund':
+            type = 'out_invoice'
+        elif invoice.type == 'in_invoice':
+            type = 'in_refund'
+        elif invoice.type == 'in_refund':
+            type = 'in_invoice'
+        values.update({
+                'type': type,
+                'journal_document_class_id': document_type.id,
+                'turn_issuer': invoice.turn_issuer.id,
+                'referencias':[[0,0, {
+                        'origen': int(invoice.sii_document_number or invoice.reference),
+                        'sii_referencia_TpoDocRef': invoice.sii_document_class_id.id,
+                        'sii_referencia_CodRef': mode,
+                        'motivo': description,
+                        'fecha_documento': invoice.date_invoice
+                    }]],
+            })
+        return values
+
+    @api.multi
+    @api.returns('self')
+    def refund(self, date_invoice=None, date=None, description=None, journal_id=None, tipo_nota=61, mode='1'):
+        new_invoices = self.browse()
+        for invoice in self:
+            # create the new invoice
+            values = self._prepare_refund(invoice, date_invoice=date_invoice, date=date,
+                                    description=description, journal_id=journal_id,
+                                    tipo_nota=tipo_nota, mode=mode)
+            refund_invoice = self.create(values)
+            invoice_type = {'out_invoice': ('customer invoices credit note'),
+                            'out_refund': ('customer invoices debit note'),
+                            'in_invoice': ('vendor bill credit note'),
+                            'in_refund': ('vendor bill debit note')}
+            message = _("This %s has been created from: <a href=# data-oe-model=account.invoice data-oe-id=%d>%s</a>") % (invoice_type[invoice.type], invoice.id, invoice.number)
+            refund_invoice.message_post(body=message)
+            new_invoices += refund_invoice
+        return new_invoices
 
     def get_document_class_default(self, document_classes):
         document_class_id = None
@@ -868,7 +920,8 @@ class invoice(models.Model):
             line.invoice_line_tax_ids = tax_ids
 
     def _get_available_journal_document_class(self):
-        invoice_type = self.type
+        context = dict(self._context or {})
+        invoice_type = self.type or context.get('default_type', False)
         document_class_ids = []
         document_class_id = False
         nd = False
@@ -880,21 +933,25 @@ class invoice(models.Model):
         if invoice_type in [
                 'out_invoice', 'in_invoice', 'out_refund', 'in_refund']:
             operation_type = self.get_operation_type(invoice_type)
-
-            if self.use_documents:
+            journal_id = self.journal_id.id or context.get('default_journal_id', False)
+            if journal_id:
                 domain = [
-                    ('journal_id', '=', self.journal_id.id),
-                     ]
-                if invoice_type  in [ 'in_refund', 'out_refund']:
-                    domain += [('sii_document_class_id.document_type','in',['credit_note'] )]
-                else:
-                    options = ['invoice', 'invoice_in']
-                    if nd:
-                        options.append('debit_note')
-                    domain += [('sii_document_class_id.document_type','in', options )]
-                document_classes = self.env[
-                    'account.journal.sii_document_class'].search(domain)
-                document_class_ids = document_classes.ids
+                    ('journal_id.type', '=', journal_id),
+                 ]
+            else:
+                domain = [
+                    ('journal_id.type', '=', operation_type),
+                 ]
+            if invoice_type  in [ 'in_refund', 'out_refund']:
+                domain += [('sii_document_class_id.document_type','in',['credit_note'] )]
+            else:
+                options = ['invoice', 'invoice_in']
+                if nd:
+                    options.append('debit_note')
+                domain += [('sii_document_class_id.document_type','in', options )]
+            document_classes = self.env[
+                'account.journal.sii_document_class'].search(domain)
+            document_class_ids = document_classes.ids
                     # If not specific document type found, we choose another one
         return document_class_ids
 
@@ -999,7 +1056,7 @@ a VAT."""))
                     obj_inv.write({'move_name': move_name})
                 elif invtype in ('in_invoice', 'in_refund'):
                     sii_document_number = obj_inv.supplier_invoice_number
-        super(account_invoice, self).action_move_create()
+        super(AccountInvoice, self).action_move_create()
         for obj_inv in self:
             invtype = obj_inv.type
             if obj_inv.journal_document_class_id and not obj_inv.sii_document_number:
@@ -1101,11 +1158,11 @@ a VAT."""))
             if inv.purchase_to_done:
                 for ptd in inv.purchase_to_done:
                     ptd.write({'state': 'done'})
-        return super(inv, self).invoice_validate()
+        return super(AccountInvoice, self).invoice_validate()
 
     @api.model
     def create(self, vals):
-        inv = super(account_invoice, self).create(vals)
+        inv = super(AccountInvoice, self).create(vals)
         inv.update_domain_journal()
         inv.set_default_journal()
         return inv
@@ -1159,12 +1216,6 @@ a VAT."""))
         tz = pytz.timezone('America/Santiago')
         return datetime.now(tz).strftime(formato)
 
-    def convert_encoding(self, data, new_coding = 'UTF-8'):
-        encoding = cchardet.detect(data)['encoding']
-        if new_coding.upper() != encoding.upper():
-            data = data.decode(encoding, data).encode(new_coding)
-        return data
-
     def _get_xsd_types(self):
         return {
           'doc': 'DTE_v10.xsd',
@@ -1203,9 +1254,9 @@ a VAT."""))
         except:
             pass
         url = server_url[company_id.dte_service_provider] + 'CrSeed.jws?WSDL'
-        ns = 'urn:'+server_url[company_id.dte_service_provider] + 'CrSeed.jws'
-        _server = Client(url, ns)
-        root = etree.fromstring(_server.getSeed())
+        _server = Client(url)
+        resp = _server.service.getSeed().replace('<?xml version="1.0" encoding="UTF-8"?>','')
+        root = etree.fromstring(resp)
         semilla = root[0][0].text
         return semilla
 
@@ -1245,27 +1296,27 @@ version="1.0">
         return xml
 
     def create_template_doc1(self, doc, sign):
-        xml = doc.replace('</DTE>', '') + sign + '</DTE>'
+        xml = doc.replace('</DTE>', sign.decode() + '</DTE>')
         return xml
 
     def create_template_env1(self, doc, sign):
-        xml = doc.replace('</EnvioDTE>', '') + sign + '</EnvioDTE>'
+        xml = doc.replace('</EnvioDTE>', sign.decode() + '</EnvioDTE>')
         return xml
 
     def append_sign_recep(self, doc, sign):
-        xml = doc.replace('</Recibo>', '') + sign + '</Recibo>'
+        xml = doc.replace('</Recibo>', sign.decode() + '</Recibo>')
         return xml
 
     def append_sign_env_recep(self, doc, sign):
-        xml = doc.replace('</EnvioRecibos>', '') + sign + '</EnvioRecibos>'
+        xml = doc.replace('</EnvioRecibos>', sign.decode() + '</EnvioRecibos>')
         return xml
 
     def append_sign_env_resp(self, doc, sign):
-        xml = doc.replace('</RespuestaDTE>', '') + sign + '</RespuestaDTE>'
+        xml = doc.replace('</RespuestaDTE>', sign.decode() + '</RespuestaDTE>')
         return xml
 
     def append_sign_env_bol(self, doc, sign):
-        xml = doc.replace('</EnvioBOLETA>', '') + sign + '</EnvioBOLETA>'
+        xml = doc.replace('</EnvioBOLETA>', sign.decode() + '</EnvioBOLETA>')
         return xml
 
     def sign_seed(self, message, privkey, cert):
@@ -1276,16 +1327,16 @@ version="1.0">
             key=privkey.encode('ascii'),
             cert=cert)
         msg = etree.tostring(
-            signed_node, pretty_print=True).replace('ds:', '')
+            signed_node, pretty_print=True).decode().replace('ds:', '')
         return msg
 
-    def get_token(self, seed_file,company_id):
+    def get_token(self, seed_file, company_id):
         url = server_url[company_id.dte_service_provider] + 'GetTokenFromSeed.jws?WSDL'
-        ns = 'urn:'+ server_url[company_id.dte_service_provider] +'GetTokenFromSeed.jws'
-        _server = Client(url, ns)
+        _server = Client(url)
         tree = etree.fromstring(seed_file)
-        ss = etree.tostring(tree, pretty_print=True, encoding='iso-8859-1')
-        respuesta = etree.fromstring(_server.getToken(ss))
+        ss = etree.tostring(tree, pretty_print=True, encoding='iso-8859-1').decode()
+        resp = _server.service.getToken(ss).replace('<?xml version="1.0" encoding="UTF-8"?>','')
+        respuesta = etree.fromstring(resp)
         token = respuesta[0][0].text
         return token
 
@@ -1298,8 +1349,8 @@ version="1.0">
 
     def long_to_bytes(self, n, blocksize=0):
         s = b''
-        n = long(n)  # noqa
-        import struct
+        if USING_PYTHON2:
+            n = long(n)  # noqa
         pack = struct.pack
         while n > 0:
             s = pack(b'>I', n & 0xffffffff) + s
@@ -1355,19 +1406,19 @@ version="1.0">
         else:
             att = 'xmlns="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"'
         #@TODO Find better way to add xmlns:xsi attrib
-        signed_info_c14n = signed_info_c14n.replace("<SignedInfo>","<SignedInfo " + att + ">")
+        signed_info_c14n = signed_info_c14n.decode().replace("<SignedInfo>", "<SignedInfo %s>" % att )
         sig_root = Element("Signature",attrib={'xmlns':'http://www.w3.org/2000/09/xmldsig#'})
         sig_root.append(etree.fromstring(signed_info_c14n))
         signature_value = SubElement(sig_root, "SignatureValue")
-        key=OpenSSL.crypto.load_privatekey(type_,privkey.encode('ascii'))
-        signature= OpenSSL.crypto.sign(key,signed_info_c14n,'sha1')
-        signature_value.text =textwrap.fill(base64.b64encode(signature),64)
+        key = crypto.load_privatekey(type_,privkey.encode('ascii'))
+        signature = crypto.sign(key,signed_info_c14n,'sha1')
+        signature_value.text =textwrap.fill(base64.b64encode(signature).decode(),64)
         key_info = SubElement(sig_root, "KeyInfo")
         key_value = SubElement(key_info, "KeyValue")
         rsa_key_value = SubElement(key_value, "RSAKeyValue")
         modulus = SubElement(rsa_key_value, "Modulus")
-        key = load_pem_private_key(privkey.encode('ascii'),password=None, backend=default_backend())
-        modulus.text =  textwrap.fill(base64.b64encode(self.long_to_bytes(key.public_key().public_numbers().n)),64)
+        key = load_pem_private_key(privkey.encode('ascii'), password=None, backend=default_backend())
+        modulus.text =  textwrap.fill(base64.b64encode(self.long_to_bytes(key.public_key().public_numbers().n)).decode(),64)
         exponent = SubElement(rsa_key_value, "Exponent")
         exponent.text = self.ensure_str(base64.b64encode(self.long_to_bytes(key.public_key().public_numbers().e)))
         x509_data = SubElement(key_info, "X509Data")
@@ -1442,18 +1493,18 @@ version="1.0">
     def send_xml_file(self, envio_dte=None, file_name="envio", company_id=False, sii_result='NoEnviado', doc_ids='', post='/cgi_dte/UPL/DTEUpload'):
         if not company_id.dte_service_provider:
             raise UserError(_("Not Service provider selected!"))
-        #try:
-        signature_d = self.get_digital_signature_pem(
-            company_id)
-        seed = self.get_seed(company_id)
-        template_string = self.create_template_seed(seed)
-        seed_firmado = self.sign_seed(
-            template_string, signature_d['priv_key'],
-            signature_d['cert'])
-        token = self.get_token(seed_firmado,company_id)
-        #except:
-        #    _logger.info('error')
-        #    return
+        try:
+            signature_d = self.get_digital_signature_pem(
+                company_id)
+            seed = self.get_seed(company_id)
+            template_string = self.create_template_seed(seed)
+            seed_firmado = self.sign_seed(
+                template_string, signature_d['priv_key'],
+                signature_d['cert'])
+            token = self.get_token(seed_firmado,company_id)
+        except:
+            _logger.warning('error')
+            return
 
         url = 'https://palena.sii.cl'
         if company_id.dte_service_provider == 'SIICERT':
@@ -1472,7 +1523,7 @@ version="1.0">
             signature_d,
             company_id,
             file_name,
-            envio_dte,
+            '<?xml version="1.0" encoding="ISO-8859-1"?>\n'+envio_dte,
         )
         multi  = urllib3.filepost.encode_multipart_formdata(params)
         headers.update({'Content-Length': '{}'.format(len(multi[0]))})
@@ -1511,9 +1562,8 @@ version="1.0">
                     if envio:
                         self.sii_xml_dte = etree.tostring(envio.findall("{http://www.sii.cl/SiiDte}DTE")[0])
                 self.crear_intercambio()
-        filename = (self.document_number+'.xml').replace(' ','')
-        url_path = '/web/binary/download_document_exchange?model=account.invoice\
-    &field=sii_xml_exchange&id=%s&filename=%s' % (self.id, filename)
+        url_path = '/download/xml/invoice/%s' % (self.id)
+        filename = ('%s.xml' % self.document_number).replace(' ','_')
         att = self.env['ir.attachment'].search([('name','=', filename), ('res_id','=', self.id), ('res_model','=','account.invoice')], limit=1)
         if att:
             return att
@@ -1567,9 +1617,7 @@ version="1.0">
 
     @api.multi
     def get_xml_file(self):
-        filename = (self.document_number+'.xml').replace(' ','')
-        url_path = '/web/binary/download_document?model=account.invoice\
-&field=sii_xml_request&id=%s&filename=%s' % (self.id, filename)
+        url_path = '/download/xml/invoice/%s' % (self.id)
         return {
             'type' : 'ir.actions.act_url',
             'url': url_path,
@@ -1578,9 +1626,7 @@ version="1.0">
 
     @api.multi
     def get_xml_exchange_file(self):
-        filename = (self.document_number+'.xml').replace(' ','')
-        url_path = '/web/binary/download_document?model=account.invoice\
-&field=sii_xml_exchange&id=%s&filename=%s' % (self.id, filename)
+        url_path = '/download/xml/invoice_exchange/%s' % (self.id)
         return {
             'type' : 'ir.actions.act_url',
             'url': url_path,
@@ -1590,29 +1636,6 @@ version="1.0">
     def get_folio(self):
         # saca el folio directamente de la secuencia
         return int(self.sii_document_number)
-
-    def get_caf_file(self):
-        caffiles = self.journal_document_class_id.sequence_id.dte_caf_ids
-        if not caffiles:
-            raise UserError(_('''There is no CAF file available or in use \
-for this Document. Please enable one.'''))
-        folio = self.get_folio()
-        for caffile in caffiles:
-            post = base64.b64decode(caffile.caf_file)
-            post = xmltodict.parse(post.replace(
-                '<?xml version="1.0"?>','',1))
-            folio_inicial = post['AUTORIZACION']['CAF']['DA']['RNG']['D']
-            folio_final = post['AUTORIZACION']['CAF']['DA']['RNG']['H']
-            if folio in range(int(folio_inicial), (int(folio_final)+1)):
-                return post
-        if folio > int(folio_final):
-            msg = '''El folio de este documento: {} está fuera de rango \
-del CAF vigente (desde {} hasta {}). Solicite un nuevo CAF en el sitio \
-www.sii.cl'''.format(folio, folio_inicial, folio_final)
-            # defino el status como "spent"
-            caffile.status = 'spent'
-            raise UserError(_(msg))
-        return False
 
     def format_vat(self, value, con_cero=False):
         ''' Se Elimina el 0 para prevenir problemas con el sii, ya que las muestras no las toma si va con
@@ -1643,40 +1666,11 @@ www.sii.cl'''.format(folio, folio_inicial, folio_final)
         sha1 = hashlib.new('sha1', data)
         return sha1.digest()
 
-    def signrsa(self, MESSAGE, KEY, digst=''):
-        KEY = KEY.encode('ascii')
-        rsa = M2Crypto.EVP.load_key_string(KEY)
-        rsa.reset_context(md='sha1')
-        rsa_m = rsa.get_rsa()
-        rsa.sign_init()
-        rsa.sign_update(MESSAGE)
-        FRMT = base64.b64encode(rsa.sign_final())
-        if digst == '':
-            return {
-                'firma': FRMT, 'modulus': base64.b64encode(rsa_m.n),
-                'exponent': base64.b64eDigesncode(rsa_m.e)}
-        else:
-            return {
-                'firma': FRMT, 'modulus': base64.b64encode(rsa_m.n),
-                'exponent': base64.b64encode(rsa_m.e),
-                'digest': base64.b64encode(self.digest(MESSAGE))}
-
-    def signmessage(self, MESSAGE, KEY, pubk='', digst=''):
-        rsa = M2Crypto.EVP.load_key_string(KEY)
-        rsa.reset_context(md='sha1')
-        rsa_m = rsa.get_rsa()
-        rsa.sign_init()
-        rsa.sign_update(MESSAGE)
-        FRMT = base64.b64encode(rsa.sign_final())
-        if digst == '':
-            return {
-                'firma': FRMT, 'modulus': base64.b64encode(rsa_m.n),
-                'exponent': base64.b64encode(rsa_m.e)}
-        else:
-            return {
-                'firma': FRMT, 'modulus': base64.b64encode(rsa_m.n),
-                'exponent': base64.b64encode(rsa_m.e),
-                'digest': base64.b64encode(self.digest(MESSAGE))}
+    def signmessage(self, texto, key):
+        key = crypto.load_privatekey(type_, key)
+        signature = crypto.sign(key, texto, 'sha1')
+        text = base64.b64encode(signature).decode()
+        return textwrap.fill( text, 64)
 
     @api.multi
     def get_related_invoices_data(self):
@@ -1707,7 +1701,7 @@ www.sii.cl'''.format(folio, folio_inicial, folio_final)
                     inv._timbrar()
                 inv.sii_result = 'EnCola'
                 ids.append(inv.id)
-        if not isinstance(n_atencion, unicode):
+        if not isinstance(n_atencion, string_types):
             n_atencion = ''
         if ids:
             self.env['sii.cola_envio'].create({
@@ -1867,38 +1861,29 @@ www.sii.cl'''.format(folio, folio_inicial, folio_final)
                 result['TED']['DD']['IT1'] = self._acortar_str(line.product_id.name.replace('['+line.product_id.default_code+'] ',''),40)
             break
 
-        resultcaf = self.get_caf_file()
+        resultcaf = self.journal_document_class_id.sequence_id.get_caf_file(self.get_folio() )
         result['TED']['DD']['CAF'] = resultcaf['AUTORIZACION']['CAF']
         dte = result['TED']['DD']
+        timestamp = self.time_stamp()
+        if date( int(timestamp[:4]), int(timestamp[5:7]), int(timestamp[8:10])) < date(int(self.date[:4]), int(self.date[5:7]), int(self.date[8:10])):
+            raise UserError("La fecha de timbraje no puede ser menor a la fecha de emisión del documento")
+        dte['TSTED'] = timestamp
         dicttoxml.set_debug(False)
         ddxml = '<DD>'+dicttoxml.dicttoxml(
-            dte, root=False, attr_type=False).replace(
+            dte, root=False, attr_type=False).decode().replace(
             '<key name="@version">1.0</key>','',1).replace(
             '><key name="@version">1.0</key>',' version="1.0">',1).replace(
             '><key name="@algoritmo">SHA1withRSA</key>',
             ' algoritmo="SHA1withRSA">').replace(
             '<key name="#text">','').replace(
             '</key>','').replace('<CAF>','<CAF version="1.0">')+'</DD>'
-        ddxml = self.convert_encoding(ddxml, 'utf-8')
-        keypriv = (resultcaf['AUTORIZACION']['RSASK']).encode(
-            'latin-1').replace('\t','')
-        keypub = (resultcaf['AUTORIZACION']['RSAPUBK']).encode(
-            'latin-1').replace('\t','')
-        #####
-        ## antes de firmar, formatear
+        keypriv = resultcaf['AUTORIZACION']['RSASK'].replace('\t','')
         root = etree.XML( ddxml )
-        ##
-        # formateo sin remover indents
         ddxml = etree.tostring(root)
-        timestamp = self.time_stamp()
-        if date( int(timestamp[:4]), int(timestamp[5:7]), int(timestamp[8:10])) < date(int(self.date[:4]), int(self.date[5:7]), int(self.date[8:10])):
-            raise UserError("La fecha de timbraje no puede ser menor a la fecha de emisión del documento")
-        ddxml = ddxml.replace('2014-04-24T12:02:20', timestamp)
-        frmt = self.signmessage(ddxml, keypriv, keypub)['firma']
+        frmt = self.signmessage(ddxml, keypriv)
         ted = (
             '''<TED version="1.0">{}<FRMT algoritmo="SHA1withRSA">{}\
-</FRMT></TED>''').format(ddxml, frmt)
-        root = etree.XML(ted)
+</FRMT></TED>''').format(ddxml.decode(), frmt)
         self.sii_barcode = ted
         image = False
         if ted:
@@ -1970,9 +1955,7 @@ www.sii.cl'''.format(folio, folio_inicial, folio_final)
                 }
 
     def _gd(self):
-        result = collections.OrderedDict()
         lin_dr = 1
-        dr_line = {}
         dr_line = collections.OrderedDict()
         dr_line['NroLinDR'] = lin_dr
         dr_line['TpoMov'] = 'D'
@@ -1983,7 +1966,7 @@ www.sii.cl'''.format(folio, folio_inicial, folio_final)
             disc_type = "$"
         dr_line['TpoValor'] = disc_type
         dr_line['ValorDR'] = round(self.global_discount,2)
-        if self.sii_document_class_id.sii_code in [34] and (self.referencias and self.referencias[0].sii_referencia_TpoDocRef.sii_code == '34'):#solamente si es exento
+        if self.sii_document_class_id.sii_code in [34]:#solamente si es exento
             dr_line['IndExeDR'] = 1
         dr_lines= [{'DscRcgGlobal':dr_line}]
         return dr_lines
@@ -1994,7 +1977,7 @@ www.sii.cl'''.format(folio, folio_inicial, folio_final)
         dte['Encabezado'] = self._encabezado(invoice_lines['MntExe'], invoice_lines['no_product'], invoice_lines['tax_include'])
         lin_ref = 1
         ref_lines = []
-        if self.company_id.dte_service_provider == 'SIICERT' and isinstance(n_atencion, unicode) and n_atencion != '' and not self._es_boleta():
+        if self.company_id.dte_service_provider == 'SIICERT' and isinstance(n_atencion, string_types) and n_atencion != '' and not self._es_boleta():
             ref_line = {}
             ref_line = collections.OrderedDict()
             ref_line['NroLinRef'] = lin_ref
@@ -2023,10 +2006,9 @@ www.sii.cl'''.format(folio, folio_inicial, folio_final)
                 ref_lines.extend([{'Referencia':ref_line}])
                 lin_ref += 1
         dte['item'] = invoice_lines['invoice_lines']
-
-        dte['reflines'] = ref_lines
         if self.global_discount > 0:
-            result['drlines'] = self._gd()
+            dte['drlines'] = self._gd()
+        dte['reflines'] = ref_lines
         dte['TEDd'] = self.get_barcode(invoice_lines['no_product'])
         return dte
 
@@ -2034,7 +2016,7 @@ www.sii.cl'''.format(folio, folio_inicial, folio_final)
         ted = dte[tpo_dte + ' ID']['TEDd']
         dte[(tpo_dte + ' ID')]['TEDd'] = ''
         xml = dicttoxml.dicttoxml(
-            dte, root=False, attr_type=False) \
+            dte, root=False, attr_type=False).decode() \
             .replace('<item>','').replace('</item>','')\
             .replace('<reflines>','').replace('</reflines>','')\
             .replace('<TEDd>','').replace('</TEDd>','')\
@@ -2067,16 +2049,24 @@ www.sii.cl'''.format(folio, folio_inicial, folio_final)
         dte[(tpo_dte + ' ID')] = self._dte(n_atencion)
         xml = self._dte_to_xml(dte, tpo_dte)
         root = etree.XML( xml )
-        xml_pret = etree.tostring(root, pretty_print=True).replace(
-        '<' + tpo_dte + '_ID>', doc_id).replace('</' + tpo_dte + '_ID>', '</' + tpo_dte + '>')
-        envelope_efact = self.convert_encoding(xml_pret, 'ISO-8859-1')
-        envelope_efact = self.create_template_doc(envelope_efact)
+        xml_pret = etree.tostring(
+                root,
+                pretty_print=True
+            ).decode().replace(
+                    '<' + tpo_dte + '_ID>',
+                    doc_id
+                ).replace('</' + tpo_dte + '_ID>', '</' + tpo_dte + '>')
+        envelope_efact = self.create_template_doc(xml_pret)
         type = 'doc'
         if self._es_boleta():
             type = 'bol'
         einvoice = self.sign_full_xml(
-            envelope_efact, signature_d['priv_key'],
-            self.split_cert(certp), doc_id_number, type)
+                envelope_efact,
+                signature_d['priv_key'],
+                self.split_cert(certp),
+                doc_id_number,
+                type,
+            )
         self.sii_xml_dte = einvoice
 
 
@@ -2127,10 +2117,10 @@ www.sii.cl'''.format(folio, folio_inicial, folio_final)
         resol_data = self.get_resolution_data(company_id)
         signature_d = self.get_digital_signature(company_id)
         RUTEmisor = self.format_vat(company_id.vat)
-        for id_class_doc, classes in clases.iteritems():
+        for id_class_doc, classes in clases.items():
             NroDte = 0
             for documento in classes:
-                if documento['sii_batch_number'] in dtes.iterkeys():
+                if documento['sii_batch_number'] in dtes.keys():
                     raise UserErro("No se puede repetir el mismo número de orden")
                 dtes.update({str(documento['sii_batch_number']): documento['envio']})
                 NroDte += 1
@@ -2138,13 +2128,19 @@ www.sii.cl'''.format(folio, folio_inicial, folio_final)
             SubTotDTE += '<SubTotDTE>\n<TpoDTE>' + str(id_class_doc) + '</TpoDTE>\n<NroDTE>'+str(NroDte)+'</NroDTE>\n</SubTotDTE>\n'
         file_name += ".xml"
         documentos =""
-        for key in sorted(dtes.iterkeys(), key=lambda r: int(r[0])):
+        for key in sorted(dtes.keys(), key=lambda r: int(r[0])):
             documentos += '\n'+dtes[key]
         # firma del sobre
-        dtes = self.create_template_envio( RUTEmisor, RUTRecep,
-            resol_data['dte_resolution_date'],
-            resol_data['dte_resolution_number'],
-            self.time_stamp(), documentos, signature_d,SubTotDTE )
+        dtes = self.create_template_envio(
+                RUTEmisor,
+                RUTRecep,
+                resol_data['dte_resolution_date'],
+                resol_data['dte_resolution_number'],
+                self.time_stamp(),
+                documentos,
+                signature_d,
+                SubTotDTE,
+            )
         env = 'env'
         if es_boleta:
             envio_dte  = self.create_template_env_boleta(dtes)
@@ -2152,8 +2148,12 @@ www.sii.cl'''.format(folio, folio_inicial, folio_final)
         else:
             envio_dte  = self.create_template_env(dtes)
         envio_dte = self.sign_full_xml(
-            envio_dte, signature_d['priv_key'], certp,
-            'SetDoc', env)
+                envio_dte.replace('<?xml version="1.0" encoding="ISO-8859-1"?>\n', ''),
+                signature_d['priv_key'],
+                certp,
+                'SetDoc',
+                env,
+            )
         return envio_dte, file_name, company_id
 
     @api.multi
@@ -2170,10 +2170,9 @@ www.sii.cl'''.format(folio, folio_inicial, folio_final)
 
     def _get_send_status(self, track_id, signature_d,token):
         url = server_url[self.company_id.dte_service_provider] + 'QueryEstUp.jws?WSDL'
-        ns = 'urn:'+ server_url[self.company_id.dte_service_provider] + 'QueryEstUp.jws'
-        _server = Client(url, ns)
+        _server = Client(url)
         rut = self.format_vat(self.company_id.vat, con_cero=True)
-        respuesta = _server.getEstUp(
+        respuesta = _server.service.getEstUp(
             rut[:8],
             str(rut[-1]),
             track_id,
@@ -2190,20 +2189,19 @@ www.sii.cl'''.format(folio, folio_inicial, folio_final)
             self.sii_result = "Proceso"
             if resp['SII:RESPUESTA']['SII:RESP_BODY']['RECHAZADOS'] == "1":
                 self.sii_result = "Rechazado"
-        elif resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] == "RCT":
+        elif resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] in ["RCT", 'RFR']:
             self.sii_result = "Rechazado"
-            _logger.info(resp)
+            _logger.warning(resp)
             status = {'warning':{'title':_('Error RCT'), 'message': _(resp['SII:RESPUESTA']['SII:RESP_HDR']['GLOSA'])}}
         return status
 
     def _get_dte_status(self, signature_d, token):
         url = server_url[self.company_id.dte_service_provider] + 'QueryEstDte.jws?WSDL'
-        ns = 'urn:'+ server_url[self.company_id.dte_service_provider] + 'QueryEstDte.jws'
-        _server = Client(url, ns)
+        _server = Client(url)
         receptor = self.format_vat(self.commercial_partner_id.vat)
         date_invoice = datetime.strptime(self.date_invoice, "%Y-%m-%d").strftime("%d-%m-%Y")
         rut = signature_d['subject_serial_number']
-        respuesta = _server.getEstDte(
+        respuesta = _server.service.getEstDte(
             rut[:8],
             str(rut[-1]),
             self.company_id.vat[2:-1],
@@ -2364,19 +2362,18 @@ www.sii.cl'''.format(folio, folio_inicial, folio_final)
         self.ensure_one()
         self.sent = True
         if self.ticket:
-            return self.env['report'].get_action(self, 'l10n_cl_fe.report_ticket')
-        return self.env['report'].get_action(self, 'account.report_invoice')
+            return self.env.ref('l10n_cl_fe.action_print_ticket').report_action(self)
+        return self.env.ref('account.account_invoices').report_action(self)
 
     @api.multi
     def print_cedible(self):
         """ Print Cedible
         """
-        return self.env['report'].get_action(self, 'l10n_cl_fe.invoice_cedible')
+        return self.env.ref('l10n_cl_fe.action_print_cedible').report_action(self)
 
     @api.multi
     def getTotalDiscount(self):
         total_discount = 0
         for l in self.invoice_line_ids:
             total_discount +=  (((l.discount or 0.00) /100) * l.price_unit * l.quantity)
-        _logger.info(total_discount)
         return self.currency_id.round(total_discount)

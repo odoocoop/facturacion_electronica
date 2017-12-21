@@ -3,20 +3,17 @@
     <data>
         <record id="sii_dte_masive_send_wizard_form" model="ir.ui.view">
             <field name="name">SII WS Consult Wizard form</field>
-            <field name="model">sii.dte.stock_picking.masive_send.wizard</field>
+            <field name="model">sii.dte.pos.masive_send.wizard</field>
             <field name="arch" type="xml">
                 <form string="SII DTE masive send Wizard">
                     <group>
                         <field name="documentos" widget="one2many">
                           <tree string="DTes a enviar" editable="top/bottom">
-                            <field name="state" invisble="True" />
-                            <field name="name" />
-                            <field name="origin" />
+                            <field name="state" invisible="True"/>
+                            <field name="sii_document_number" />
                             <field name="amount_total" />
-                            <field name="sii_batch_number" readonly="False" />
                           </tree>
                         </field>
-                        <field name="numero_atencion" />
                     </group>
                     <footer>
                         <button string="Confirm" name="confirm" type="object" class="oe_highlight" />
@@ -27,10 +24,10 @@
             </field>
         </record>
 
-        <act_window id="action_stock_picking_masive_send"
+        <act_window id="action_account_invoice_send"
             multi="True"
-            key2="client_action_multi" name="Enviar Guías de despacho al sii"
-            res_model="sii.dte.stock_picking.masive_send.wizard" src_model="stock.picking"
+            key2="client_action_multi" name="Enviar Documentos al SII"
+            res_model="sii.dte.pos.masive_send.wizard" src_model="pos.order"
 view_mode="form" target="new" view_type="form" />
     </data>
 </odoo>

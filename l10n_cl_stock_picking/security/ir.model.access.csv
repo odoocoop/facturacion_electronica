@@ -1,5 +1,3 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_stock_picking_referencias_manager,stock_picking_referencias_manager,model_stock_picking_referencias,stock.group_stock_manager,1,1,1,1
-access_stock_picking_referencias_user,stock_picking_referencias_user,model_stock_picking_referencias,,1,0,0,0
-access_stock_picking_book_manager,stock_picking_book_manager,model_stock_picking_book,stock.group_stock_manager,1,1,1,1
-access_stock_picking_book_user,stock_picking_book_user,model_stock_picking_book,,1,0,0,0
+access_pos_order_referencias_manager,pos_order_referencias_manager,model_pos_order_referencias,account.group_account_manager,1,1,1,1
+access_pos_order_referencias_user,pos_order_referencias_user,model_pos_order_referencias,,1,1,1,1
