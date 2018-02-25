@@ -1,2 +1,1 @@
-from . import downloader
-from . import boleta
+from . import main

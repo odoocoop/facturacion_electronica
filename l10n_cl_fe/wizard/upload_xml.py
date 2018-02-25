@@ -8,13 +8,12 @@ import xmltodict
 from lxml import etree
 import collections
 import dicttoxml
+try:
+    from io import BytesIO
+except:
+    _logger.warning("no se ha cargado io")
 
 _logger = logging.getLogger(__name__)
-
-try:
-    from signxml import xmldsig, methods
-except ImportError:
-    _logger.warning('Cannot import signxml')
 
 BC = '''-----BEGIN CERTIFICATE-----\n'''
 EC = '''\n-----END CERTIFICATE-----\n'''
@@ -438,19 +437,19 @@ class UploadXMLWizard(models.TransientModel):
             } )
         return ((6,0, imp.ids))
 
-    def _create_prod(self, data):
-        product_id = self.env['product.product'].create({
+    def get_product_values(self, data):
+        values = {
             'sale_ok':False,
             'name': data['NmbItem'],
             'lst_price': float(data['PrcItem'] if 'PrcItem' in data else data['MontoItem']),
             'categ_id': self._default_category(),
-        })
+        }
         if 'CdgItem' in data:
             if 'TpoCodigo' in data['CdgItem']:
                 if data['CdgItem']['TpoCodigo'] == 'ean13':
-                    product_id.barcode = data['CdgItem']['VlrCodigo']
+                    values['barcode'] = data['CdgItem']['VlrCodigo']
                 else:
-                    product_id.default_code = data['CdgItem']['VlrCodigo']
+                    values['default_code'] = data['CdgItem']['VlrCodigo']
             else:
                 try:
                     Codes = data['CdgItem']['item']
@@ -458,9 +457,13 @@ class UploadXMLWizard(models.TransientModel):
                     Codes = data['CdgItem']
                 for c in Codes:
                     if c['TpoCodigo'] == 'ean13':
-                        product_id.barcode = c['VlrCodigo']
+                        values['barcode'] = c['VlrCodigo']
                     else:
-                        product_id.default_code = c['VlrCodigo']
+                        values['default_code'] = c['VlrCodigo']
+        return values
+
+    def _create_prod(self, data):
+        product_id = self.env['product.product'].create(self.get_product_values(data))
         return product_id
 
     def _buscar_producto(self, document_id, line):
@@ -571,28 +574,54 @@ class UploadXMLWizard(models.TransientModel):
             product_id = self.env['product.product'].browse(product_id)
             data.update({
                 'invoice_line_tax_ids': [(6, 0, product_id.supplier_taxes_id.ids)],
+                'uom_id': product_id.uom_id.id,
                 })
 
         return [0,0, data]
 
+    def _create_tpo_doc(self, ref):
+        vals = {
+                'name': ref.get('RazonRef', '') + ' ' + str(ref['TpoDocRef'])
+            }
+        if str(ref['TpoDocRef']).isdigit():
+            vals.update({
+                    'sii_code': ref['TpoDocRef'],
+                })
+        else:
+            vals.update({
+                    'doc_code_prefix': ref['TpoDocRef'],
+                    'sii_code': 801,
+                })
+        return self.env['sii.document_class'].create(vals)
+
     def _prepare_ref(self, ref):
-        try:
-            tpo = self.env['sii.document_class'].search([('sii_code', '=', ref['TpoDocRef'])])
-        except:
-            tpo = self.env['sii.document_class'].search([('sii_code', '=', 801)])
+        query = []
+        if str(ref['TpoDocRef']).isdigit():
+            query.append(('sii_code', '=', ref['TpoDocRef']))
+        else:
+            query.append(('doc_code_prefix', '=', ref['TpoDocRef']))
+        tpo = self.env['sii.document_class'].search(query)
         if not tpo:
-            raise UserError(_('No existe el tipo de documento'))
-        folio = ref['FolioRef']
-        fecha = ref['FchRef']
-        cod_ref = ref['CodRef'] if 'CodRef' in ref else None
-        motivo = ref['RazonRef'] if 'RazonRef' in ref else None
+            tpo = self._create_tpo_doc(ref)
         return [0,0,{
-            'origen' : folio,
+            'origen' : ref.get('FolioRef', None),
             'sii_referencia_TpoDocRef' : tpo.id,
-            'sii_referencia_CodRef' : cod_ref,
-            'motivo' : motivo,
-            'fecha_documento' : fecha,
+            'sii_referencia_CodRef' : ref.get('CodRef', False),
+            'motivo' : ref.get('RazonRef', False),
+            'fecha_documento' : ref.get('FchRef', False),
         }]
+
+    def process_dr(self, dr):
+        data = {
+                    'type': dr['TpoMov'],
+                }
+        disc_type = "percent"
+        if dr['TpoValor'] == '$':
+            disc_type = "amount"
+        data['gdr_type'] = disc_type
+        data['valor'] = dr['ValorDR']
+        data['gdr_dtail'] = dr.get('GlosaDR', 'Descuento globla')
+        return data
 
     def _prepare_invoice(self, dte, company_id, journal_document_class_id):
         data = {}
@@ -619,16 +648,37 @@ class UploadXMLWizard(models.TransientModel):
         except:
             name = self.filename.encode('UTF-8')
         xml =base64.b64decode(self.xml_file).decode('ISO-8859-1')
+        image = False
+        barcodefile = BytesIO()
+        image = self.env['account.invoice'].pdf417bc(dte['TED'])
+        image.save(barcodefile,'PNG')
+        data = barcodefile.getvalue()
+        sii_barcode_img = base64.b64encode(data)
         data.update( {
             'origin' : 'XML Envío: ' + name.decode(),
-            'date_invoice' :dte['Encabezado']['IdDoc']['FchEmis'],
+            'date_invoice' : dte['Encabezado']['IdDoc']['FchEmis'],
             'partner_id' : partner_id,
             'company_id' : company_id.id,
             'journal_id': journal_document_class_id.journal_id.id,
             'turn_issuer': company_id.company_activities_ids[0].id,
             'sii_xml_request': xml ,
             'sii_send_file_name': name,
+            'sii_barcode': dte['TED'],
+            'sii_barcode_img': sii_barcode_img,
         })
+
+        if 'DscRcgGlobal' in dte:
+            disc_type = "%"
+            DscRcgGlobal = dte['DscRcgGlobal']
+            drs = [(5,)]
+            if 'TpoMov' in DscRcgGlobal:
+                drs.append((0,0,self.process_dr(dte['DscRcgGlobal'])))
+            else:
+                for dr in DscRcgGlobal:
+                    drs.append((0,0,self.process_dr(dr)))
+            data.update({
+                    'global_descuentos_recargos': drs,
+                })
 
         if partner_id and not self.pre_process:
             data.update({
@@ -658,7 +708,6 @@ class UploadXMLWizard(models.TransientModel):
 
     def _get_data(self, dte, company_id):
         journal_document_class_id = self._get_journal(dte['Encabezado']['IdDoc']['TipoDTE'], company_id)
-        _logger.warning("%s" %company_id)
         if not journal_document_class_id:
             sii_document_class = self.env['sii.document_class'].search([('sii_code', '=', dte['Encabezado']['IdDoc']['TipoDTE'])])
             raise UserError('No existe Diario para el tipo de documento %s, por favor añada uno primero, o ignore el documento' % sii_document_class.name.encode('UTF-8'))
@@ -687,17 +736,22 @@ class UploadXMLWizard(models.TransientModel):
         ).id
         if 'ImptoReten' in dte['Encabezado']['Totales']:
             Totales = dte['Encabezado']['Totales']
-            imp = self._buscar_impuesto(name="OtrosImps_" + str(Totales['ImptoReten']['TipoImp']), sii_code=Totales['ImptoReten']['TipoImp'])
-            lines.append([0,0,{
-                'invoice_line_tax_ids': [ imp ],
-                'product_id': product_id,
-                'name': 'MontoImpuesto %s' % str(Totales['ImptoReten']['TipoImp']),
-                'price_unit': Totales['ImptoReten']['MontoImp'],
-                'quantity': 1,
-                'price_subtotal': Totales['ImptoReten']['MontoImp'],
-                'account_id':  journal_document_class_id.journal_id.default_debit_account_id.id
-                }]
-            )
+            if 'TipoImp' in Totales['ImptoReten']:
+                Totales = [Totales['ImptoReten']['TipoImp']]
+            else:
+                Totales = Totales['ImptoReten']
+            for i in Totales:
+                imp = [self._buscar_impuesto(name="OtrosImps_" + str(i['TipoImp']), sii_code=i['TipoImp'])]
+                lines.append([0,0,{
+                    'invoice_line_tax_ids': [ imp ],
+                    'product_id': product_id,
+                    'name': 'MontoImpuesto %s' % str(i['TipoImp']),
+                    'price_unit': i['MontoImp'],
+                    'quantity': 1,
+                    'price_subtotal': i['MontoImp'],
+                    'account_id':  journal_document_class_id.journal_id.default_debit_account_id.id
+                    }]
+                )
         #if 'IVATerc' in dte['Encabezado']['Totales']:
         #    imp = self._buscar_impuesto(name="IVATerc" )
         #    lines.append([0,0,{
@@ -786,7 +840,9 @@ class UploadXMLWizard(models.TransientModel):
     def _get_dtes(self):
         dtes = []
         envio = self._read_xml('parse')
-        if 'Documento' in envio['SetDTE']['DTE']:
+        if envio.get('DTE', False):
+            return [ envio['DTE'] ]
+        elif 'Documento' in envio['SetDTE']['DTE']:
             dte = envio['SetDTE']['DTE']
             dtes.append(dte)
         else:
@@ -828,28 +884,30 @@ class UploadXMLWizard(models.TransientModel):
 
     def do_create_inv(self):
         created = []
-        dte = self._read_xml('parse')
-        try:
-            company_id = self.document_id.company_id
-            if not company_id:
-                company_id = self.env['res.company'].search(
-                    [
-                        ('vat','=', self.format_rut(dte['DTE']['Documento']['Encabezado']['Receptor']['RUTRecep'])),
-                    ],
-                    limit=1,
+        dtes = self._get_dtes()
+        for dte in dtes:
+            try:
+                company_id = self.document_id.company_id
+                if not company_id:
+                    company_id = self.env['res.company'].search(
+                        [
+                            ('vat','=', self.format_rut(dte['Documento']['Encabezado']['Receptor']['RUTRecep'])),
+                        ],
+                        limit=1,
+                    )
+                inv = self._create_inv(
+                    dte['Documento'],
+                    company_id,
                 )
-            inv = self._create_inv(
-                dte['DTE']['Documento'],
-                company_id,
-            )
-            if self.document_id :
-                self.document_id.invoice_id = inv.id
-            if inv:
-                created.append(inv.id)
-            if not inv:
-                raise UserError('El archivo XML no contiene documentos para alguna empresa registrada en Odoo, o ya ha sido procesado anteriormente ')
-        except Exception as e:
-            _logger.warning('Error en 1 factura con error:  %s' % str(e))
+                if self.document_id :
+                    self.document_id.invoice_id = inv.id
+                if inv:
+                    created.append(inv.id)
+                if not inv:
+                    raise UserError('El archivo XML no contiene documentos para alguna empresa registrada en Odoo, o ya ha sido procesado anteriormente ')
+            except Exception as e:
+                raise
+                _logger.warning('Error en 1 factura con error:  %s' % str(e))
         if created and self.option not in [False, 'upload']:
             wiz_acept = self.env['sii.dte.validar.wizard'].create(
                 {
@@ -861,8 +919,23 @@ class UploadXMLWizard(models.TransientModel):
             wiz_acept.confirm()
         return created
 
+    def prepare_purchase_line(self, line, date_planned):
+        product = self.env['product.product'].search([('name','=',line['NmbItem'])], limit=1)
+        if not product:
+            product = self._create_prod(line)
+        values = {
+            'name': line['DescItem'] if 'DescItem' in line else line['NmbItem'],
+            'product_id': product.id,
+            'product_uom': product.uom_id.id,
+            'taxes_id': [(6, 0, product.supplier_taxes_id.ids)],
+            'price_unit': float(line['PrcItem'] if 'PrcItem' in line else line['MontoItem']),
+            'product_qty': line['QtyItem'],
+            'date_planned': date_planned,
+        }
+        return values
 
     def _create_po(self, dte):
+        purchase_model = self.env['purchase.order']
         partner_id = self.env['res.partner'].search([
             ('active','=', True),
             ('parent_id', '=', False),
@@ -883,18 +956,31 @@ class UploadXMLWizard(models.TransientModel):
             'partner_id' : partner_id.id,
             'company_id' : company_id.id,
         }
+        #antes de crear la OC, verificar que no exista otro documento con los mismos datos
+        other_orders = purchase_model.search([
+            ('partner_id','=', data['partner_id']),
+            ('partner_ref','=', data['partner_ref']),
+            ('company_id','=', data['company_id']),
+            ])
+        if other_orders:
+            raise UserError("Ya existe un Pedido de compra con Referencia: %s para el Proveedor: %s.\n" \
+                            "No se puede crear nuevamente, por favor verifique." %
+                            (data['partner_ref'], partner_id.name))
         lines =[(5,)]
-        for line in dte['Detalle']:
-            product_id = self.env['product.product'].search([('name','=',line['NmbItem'])])
-            if not product_id:
-                product_id = self._create_prod(line)
-            lines.append([0,0,{
-                'name': line['DescItem'] if 'DescItem' in line else line['NmbItem'],
-                'product_id': product_id,
-                'product_qty': line['QtyItem'],
-            }])
-        data['order_lines'] = lines
-        po = self.env['purchase.order'].create(data)
+        vals_line = {}
+        detalles = dte['Detalle']
+        #cuando es un solo producto, no viene una lista sino un diccionario
+        #asi que tratarlo como una lista de un solo elemento
+        #para evitar error en la esructura que siempre espera una lista
+        if isinstance(dte['Detalle'], dict):
+            detalles = [dte['Detalle']]
+        for line in detalles:
+            vals_line = self.prepare_purchase_line(line, dte['Encabezado']['IdDoc']['FchEmis'])
+            if vals_line:
+                lines.append([0, 0, vals_line])
+
+        data['order_line'] = lines
+        po = purchase_model.create(data)
         po.button_confirm()
         inv = self.env['account.invoice'].search([('purchase_id', '=', po.id)])
         #inv.sii_document_class_id = dte['Encabezado']['IdDoc']['TipoDTE']
@@ -902,9 +988,9 @@ class UploadXMLWizard(models.TransientModel):
 
     def do_create_po(self):
         #self.validate()
-        envio = self._read_xml('parse')
-        for dte in envio['SetDTE']['DTE']:
-            if dte['TipoDTE'] in ['34', '33']:
+        dtes = self._get_dtes()
+        for dte in dtes:
+            if dte['Documento']['Encabezado']['IdDoc']['TipoDTE'] in ['34', '33']:
                 self._create_po(dte['Documento'])
-            elif dte['56','61']: # es una nota
+            elif dte['Documento']['Encabezado']['IdDoc']['TipoDTE'] in ['56','61']: # es una nota
                 self._create_inv(dte['Documento'])

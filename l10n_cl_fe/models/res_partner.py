@@ -88,7 +88,10 @@ class ResPartner(models.Model):
                 re.sub('[^1234567890Kk]', '', str(
                     self.document_number))).zfill(9).upper()
             if not self.check_vat_cl(document_number):
-                raise UserError(_('Rut Erróneo'))
+                return {'warning': {'title': _('Rut Erróneo'),
+                                    'message': _('Rut Erróneo'),
+                                    }
+                        }
             vat = 'CL%s' % document_number
             exist = self.env['res.partner'].search(
                 [
@@ -101,10 +104,9 @@ class ResPartner(models.Model):
             if exist:
                 self.vat = ''
                 self.document_number = ''
-                raise UserError(
-                        title=_("El Rut ya está siendo usado"),
-                        message=_("El usuario %s está utilizando este documento" ) % exist.name,
-                    )
+                return {'warning': {'title': 'Informacion para el Usuario',
+                                    'message': _("El usuario %s está utilizando este documento" ) % exist.name,
+                                    }}
             self.vat = vat
             self.document_number = '%s.%s.%s-%s' % (
                                         document_number[0:2], document_number[2:5],
@@ -120,12 +122,12 @@ class ResPartner(models.Model):
         else:
             self.vat = ''
 
-    @api.multi
-    def _asign_city(self, source):
+    @api.onchange('city_id')
+    def _asign_city(self):
         if self.city_id:
-            return {'value':{'city': self.city_id.name}}
+            self.city = self.city_id.name
 
-    @api.constrains('vat')
+    @api.constrains('vat', 'commercial_partner_id')
     def _rut_unique(self):
         for r in self:
             if not r.vat or r.parent_id:
@@ -134,10 +136,10 @@ class ResPartner(models.Model):
                 [
                     ('vat','=', r.vat),
                     ('id','!=', r.id),
-                    ('parent_id', '!=', r.id),
+                    ('commercial_partner_id', '!=', r.commercial_partner_id.id),
                 ])
             if r.vat !="CL555555555" and partner:
-                raise UserError(_('El rut debe ser único'))
+                raise UserError(_('El rut: %s debe ser único') % r.vat)
                 return False
 
     def check_vat_cl(self, vat):

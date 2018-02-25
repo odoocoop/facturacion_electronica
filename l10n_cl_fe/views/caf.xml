@@ -9,7 +9,7 @@
             <field name="inherit_id" ref="base.sequence_view" />
             <field name="arch" type="xml">
                 <field name="number_next_actual" position="after">
-                    <field name="sii_document_class"/>
+                    <field name="sii_document_class_id" options="{'no_open': True, 'no_create': True}" required="True"/>
                     <field name="is_dte"/>
                     <field name="forced_by_caf"/>
                 </field>
@@ -52,14 +52,6 @@
             <field name="arch" type="xml">
                 <form string="SII CAF Files for DTE">
                     <header>
-                        <button string="Enable" type="object" name="action_enable"
-                                status="draft" class="oe_highlight"
-                                attrs="{'invisible':[('status','!=','draft')]}" />
-
-                        <button string="Cancel" type="object" name="action_cancel"
-                                status="in_use"
-                                attrs="{'invisible': [('status', '!=', 'in_use')]}" />
-
                         <field name="status" widget="statusbar"/>
                     </header>
                     <sheet>

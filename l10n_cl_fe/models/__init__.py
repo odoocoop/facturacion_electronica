@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from . import account_tax
 from . import account
 from . import caf
 from . import company_signature_key
@@ -23,3 +24,5 @@ from . import sii_cola_envio
 from . import sii_regional_offices
 from . import sii
 from . import user_signature_key
+from . import global_descuento_recargo
+from . import res_config_settings

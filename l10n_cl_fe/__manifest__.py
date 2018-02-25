@@ -2,7 +2,7 @@
 {
     "name": """Facturación Electrónica para Chile\
     """,
-    'version': '11.0.0.0.39',
+    'version': '11.0.0.0.83',
     'category': 'Localization/Chile',
     'sequence': 12,
     'author':  'Daniel Santibáñez Polanco, Cooperativa OdooCoop',
@@ -19,7 +19,7 @@ Facturación Electrónica para Chile.
             'purchase',
             'sale_management',
             'l10n_cl_chart_of_account',
-            'report_xlsx',
+            #'report_xlsx',
             'contacts',
         ],
     'external_dependencies': {
@@ -30,7 +30,7 @@ Facturación Electrónica para Chile.
             'base64',
             'hashlib',
             'cchardet',
-            'suds',
+            'suds',#use suds-py3
             'urllib3',
             'signxml',
             'ast',
@@ -43,7 +43,6 @@ Facturación Electrónica para Chile.
     'data': [
             'wizard/journal_config_wizard_view.xml',
             'views/sii_menuitem.xml',
-            'views/company_signature_tab.xml',
             'views/invoice_view.xml',
             'views/consumo_folios.xml',
             'views/caf.xml',
@@ -77,6 +76,9 @@ Facturación Electrónica para Chile.
             'views/sii_document_type_view.xml',
             'views/sii_optional_type_view.xml',
             'views/sii_responsability_view.xml',
+            'views/sii_sucursal_view.xml',
+            'views/global_descuento_recargo.xml',
+            'views/res_config_settings.xml',
             'wizard/masive_send_dte.xml',
             'wizard/masive_dte_process.xml',
             'wizard/notas.xml',
@@ -90,12 +92,12 @@ Facturación Electrónica para Chile.
             'data/partner.activities.csv',
             'data/partner.xml',
             'data/product.xml',
-            'data/res_currency.xml',
             'data/sequence.xml',
             'data/sii.concept_type.csv',
             'data/sii.document_letter.csv',
             'data/sii.document_class.csv',
             'data/sii.regional.offices.csv',
+            'data/res.currency.csv',
             'security/state_manager.xml',
             'security/ir.model.access.csv',
     ],

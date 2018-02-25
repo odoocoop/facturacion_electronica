@@ -85,7 +85,7 @@ except ImportError:
     _logger.warning('Cannot import cchardet library')
 
 try:
-    from signxml import xmldsig, methods
+    from signxml import XMLSigner, methods
 except ImportError:
     _logger.warning('Cannot import signxml')
 
@@ -156,16 +156,18 @@ class AccountInvoiceLine(models.Model):
         for line in self:
             currency = line.invoice_id and line.invoice_id.currency_id or None
             taxes = False
-            total = line.quantity * line.price_unit
+            total = 0
             if line.invoice_line_tax_ids:
                 taxes = line.invoice_line_tax_ids.compute_all(line.price_unit, currency, line.quantity, product=line.product_id, partner=line.invoice_id.partner_id, discount=line.discount)
             if taxes:
                 line.price_subtotal = price_subtotal_signed = taxes['total_excluded']
             else:
-                total_discount = total * ((line.discount or 0.0) / 100.0)
-                line.price_subtotal = price_subtotal_signed = total - total_discount
+                total = line.currency_id.round((line.quantity * line.price_unit))
+                total_discount = line.currency_id.round((total * ((line.discount or 0.0) / 100.0)))
+                total -= total_discount
+                line.price_subtotal = price_subtotal_signed = total
             if line.invoice_id.currency_id and line.invoice_id.currency_id != line.invoice_id.company_id.currency_id:
-                price_subtotal_signed = line.invoice_id.currency_id.compute(price_subtotal_signed, line.invoice_id.company_id.currency_id)
+                price_subtotal_signed = line.invoice_id.currency_id.with_context(date=line.invoice_id._get_currency_rate_date()).compute(price_subtotal_signed, line.invoice_id.company_id.currency_id)
             sign = line.invoice_id.type in ['in_refund', 'out_refund'] and -1 or 1
             line.price_subtotal_signed = price_subtotal_signed * sign
             line.price_tax_included = taxes['total_included'] if (taxes and taxes['total_included'] > total) else total
@@ -175,7 +177,7 @@ class AccountInvoiceLine(models.Model):
 class AccountInvoiceTax(models.Model):
     _inherit = "account.invoice.tax"
 
-    def _getNeto(self):
+    def _getNeto(self, currency):
         neto = 0
         for tax in self:
             base = tax.base
@@ -184,43 +186,56 @@ class AccountInvoiceTax(models.Model):
             for line in tax.invoice_id.invoice_line_ids:
                 if tax.tax_id in line.invoice_line_tax_ids and tax.tax_id.price_include:
                     price_tax_included += line.price_tax_included
-            if price_tax_included > 0 and  tax.tax_id.sii_type in ["R"]:
-                base = round(price_tax_included)
-            elif price_tax_included > 0:
-                base = round(price_tax_included / ( 1 + tax.tax_id.amount / 100.0))
+            if price_tax_included > 0 and  tax.tax_id.sii_type in ["R"] and tax.tax_id.amount > 0:
+                base = currency.round(price_tax_included)
+            elif price_tax_included > 0 and tax.tax_id.amount > 0:
+                base = currency.round(price_tax_included / ( 1 + tax.tax_id.amount / 100.0))
             neto += base
         return neto
 
-    def _compute_base_amount(self):
-        included = False
-        for tax in self:
-            if tax.tax_id.price_include:
-                included = True
-        if included:
-            neto = self._getNeto()
-            tax.base = neto
-        else:
-            super(AccountInvoiceTax, self)._compute_base_amount()
-
-    amount_retencion = fields.Monetary(string="Retención",
-        default=0.00,)
-    retencion_account_id = fields.Many2one('account.account',
-       string='Tax Account',
-       domain=[('deprecated', '=', False)])
+    amount_retencion = fields.Monetary(
+            string="Retención",
+            default=0.00,
+        )
+    retencion_account_id = fields.Many2one(
+            'account.account',
+            string='Tax Account',
+            domain=[('deprecated', '=', False)],
+        )
 
 
 class Referencias(models.Model):
     _name = 'account.invoice.referencias'
 
-    origen = fields.Char(string="Origin")
-    sii_referencia_TpoDocRef =  fields.Many2one('sii.document_class',
-        string="SII Reference Document Type")
+    origen = fields.Char(
+            string="Origin",
+            )
+    sii_referencia_TpoDocRef =  fields.Many2one(
+            'sii.document_class',
+            string="SII Reference Document Type",
+        )
     sii_referencia_CodRef = fields.Selection(
-        [('1','Anula Documento de Referencia'),('2','Corrige texto Documento Referencia'),('3','Corrige montos')],
-        string="SII Reference Code")
-    motivo = fields.Char(string="Motivo")
-    invoice_id = fields.Many2one('account.invoice', ondelete='cascade',index=True,copy=False,string="Documento")
-    fecha_documento = fields.Date(string="Fecha Documento", required=True)
+            [
+                ('1','Anula Documento de Referencia'),
+                ('2','Corrige texto Documento Referencia'),
+                ('3','Corrige montos')
+            ],
+            string="SII Reference Code",
+        )
+    motivo = fields.Char(
+            string="Motivo",
+        )
+    invoice_id = fields.Many2one(
+            'account.invoice',
+            ondelete='cascade',
+            index=True,
+            copy=False,
+            string="Documento",
+        )
+    fecha_documento = fields.Date(
+            string="Fecha Documento",
+            required=True,
+        )
 
 class AccountInvoice(models.Model):
     _inherit = "account.invoice"
@@ -249,36 +264,34 @@ class AccountInvoice(models.Model):
         states={'draft': [('readonly', False)]},
         )
     vat_discriminated = fields.Boolean(
-        'Discriminate VAT?',
-        compute="get_vat_discriminated",
-        store=True,
-        readonly=False,
-        help="Discriminate VAT on Quotations and Sale Orders?")
-    available_journals = fields.Many2one(
-        'account.journal',
-    #    compute='_get_available_journal_document_class',
-        string='Available Journals')
+            'Discriminate VAT?',
+            compute="get_vat_discriminated",
+            store=True,
+            readonly=False,
+            help="Discriminate VAT on Quotations and Sale Orders?",
+        )
     available_journal_document_class_ids = fields.Many2many(
-        'account.journal.sii_document_class',
-    #    compute='_get_available_journal_document_class',
-        string='Available Journal Document Classes')
-    supplier_invoice_number = fields.Char(
-        copy=False)
+            'account.journal.sii_document_class',
+            #    compute='_get_available_journal_document_class',
+            string='Available Journal Document Classes',
+        )
     journal_document_class_id = fields.Many2one(
-        'account.journal.sii_document_class',
-        string='Documents Type',
-        default=lambda self: self._default_journal_document_class_id(),
-        domain=lambda self: self._domain_journal_document_class_id(),
-        readonly=True,
-        store=True,
-        states={'draft': [('readonly', False)]})
+            'account.journal.sii_document_class',
+            string='Documents Type',
+            default=lambda self: self._default_journal_document_class_id(),
+            domain=_domain_journal_document_class_id,
+            readonly=True,
+            store=True,
+            states={'draft': [('readonly', False)]},
+        )
     sii_document_class_id = fields.Many2one(
-        'sii.document_class',
-        related='journal_document_class_id.sii_document_class_id',
-        string='Document Type',
-        copy=False,
-        readonly=True,
-        store=True)
+            'sii.document_class',
+            related='journal_document_class_id.sii_document_class_id',
+            string='Document Type',
+            copy=False,
+            readonly=True,
+            store=True,
+        )
     sii_document_number = fields.Char(
         string='Document Number',
         copy=False,
@@ -459,171 +472,108 @@ class AccountInvoice(models.Model):
             related="partner_id.activity_description",
             readonly=True,
     )
-    global_discount = fields.Float(
-            string="Descuento Global",
-            default=0.00,
-            readonly=True,
-            states={'draft': [('readonly', False)]},
-        )
-    global_discount_type = fields.Selection(
-            [
-                ('amount','Monto'),
-                ('percent','Porcentaje'),
-            ],
-            string="Tipo de descuento",
-            readonly=True,
-            states={'draft': [('readonly', False)]},
-        )
-    global_discount_detail = fields.Char(
-            string="Razón del descuento",
-            readonly=True,
-            states={'draft': [('readonly', False)]},
-        )
     amount_untaxed_global_discount = fields.Float(
             string="Global Discount Amount",
             store=True,
             default=0.00,
             compute='_compute_amount',
         )
-
-    def _repairDiff(self, move_lines, dif):#usualmente es de 1 $ cuando se aplica descuentoo es valor iva incluido
-        total = self.amount_total
-        new_lines = []
-        for line in move_lines:
-            if line[2]['tax_ids'] and not line[2]['tax_line_id']:#iva ya viene con descuento
-                if dif > 0:
-                    val = 1
-                    dif -= 1
-                elif dif < 0:
-                    val = -1
-                    dif += 1
-                else:
-                    val = 0
-                if line[2]['tax_ids']:
-                    for t in line[2]['tax_ids']:
-                        imp = self.env['account.tax'].browse(t[1])
-                        if imp.amount > 0  and line[2]['debit'] > 0:
-                            line[2]['debit'] += val
-                        elif imp.amount > 0:
-                            line[2]['credit'] += val
-            if line[2]['name'] == '/' or line[2]['name'] == self.name:
-                if line[2]['credit'] > 0:
-                    line[2]['credit'] = total
-                else:
-                    line[2]['debit'] = total
-            new_lines.append(line)
-        if dif != 0 :
-            new_lines = self._repairDiff(new_lines, dif)
-        return new_lines
-
-    def _gd_move_lines(self, move_lines):
-        new_lines = []
-        discount = self.global_discount
-        if self.global_discount_type == 'amount':
-            afecto = 0
-            for line in self.invoice_line_ids:
-                for t in line.invoice_line_tax_ids:
-                    if t.amount > 0:
-                        afecto += line.price_subtotal
-            discount = ((self.global_discount * 100) / afecto )
-        hold = False
-        total = 0
-        for line in move_lines:
-            if line[2]['tax_ids'] and not line[2]['tax_line_id']:#iva ya viene con descuento
-                if line[2]['tax_ids']:
-                    for t in line[2]['tax_ids']:
-                        imp = self.env['account.tax'].browse(t[1])
-                        if imp.amount > 0  and line[2]['debit'] > 0:
-                            line[2]['debit'] -= int(round((line[2]['debit'] * (discount / 100))))
-                            total += line[2]['debit']
-                        elif imp.amount > 0:
-                            line[2]['credit'] -= int(round((line[2]['credit'] * (discount /100))))
-                            total += line[2]['credit']
-                        elif line[2]['debit'] > 0:
-                            total += line[2]['debit']
-                        else:
-                            total += line[2]['credit']
-            elif line[2]['tax_line_id']:
-                if line[2]['debit'] > 0:
-                    total += line[2]['debit']
-                else:
-                    total += line[2]['credit']
-            if line[2]['name'] != '/' and line[2]['name'] != self.name:
-                new_lines.extend([line])
-            else:
-                hold = line
-        if hold and hold[2]['debit'] > 0:
-            hold[2]['debit'] = total
-        else:
-            hold[2]['credit'] = total
-        new_lines.extend([hold])
-        return new_lines
+    amount_untaxed_global_recargo = fields.Float(
+            string="Global Recargo Amount",
+            store=True,
+            default=0.00,
+            compute='_compute_amount',
+        )
+    global_descuentos_recargos = fields.One2many(
+            'account.invoice.gdr',
+            'invoice_id',
+            string="Descuentos / Recargos globales",
+            readonly=True,
+            states={'draft': [('readonly', False)]},
+        )
 
     @api.multi
-    def finalize_invoice_move_lines(self, move_lines):
-        if self.global_discount > 0:
-            move_lines = self._gd_move_lines(move_lines)
-        taxes = self.tax_line_move_line_get()
-        retencion = 0
-        for t in taxes:
-            if t['name'].find('RET - ', 0, 6) > -1:
-                retencion += t['price']
-        retencion = round(retencion)
-        dif = 0
-        total = self.amount_total
-        for line in move_lines:
-            if line[2]['name'] == '/' or line[2]['name'] == self.name:
-                if line[2]['credit'] > 0:
-                    dif = total - line[2]['credit']
-                else:
-                    dif = total - line[2]['debit']
-        if dif != 0:
-            move_lines = self._repairDiff( move_lines, dif)
-        return move_lines
+    def compute_invoice_totals(self, company_currency, invoice_move_lines):
+        '''
+            @TODO Agregar Descuento Global como Concepto a parte en el caso de que sea asociado a una aplicación
+        '''
+        total = 0
+        total_currency = 0
+        amount_diff = self.amount_total
+        amount_diff_currency = 0
+        gdr = self.porcentaje_dr()
+        if self.currency_id != company_currency:
+            currency = self.currency_id.with_context(date=self.date_invoice or fields.Date.context_today(self))
+            amount_diff = currency.compute(self.amount_total, company_currency)
+            amount_diff_currency = self.amount_total
+        for line in invoice_move_lines:
+            line['price'] *= gdr
+            if line.get('amount_currency', False):
+                line['amount_currency'] *= gdr
+            if self.currency_id != company_currency:
+                if not (line.get('currency_id') and line.get('amount_currency')):
+                    line['currency_id'] = currency.id
+                    line['amount_currency'] = currency.round(line['price'])
+                    line['price'] = currency.compute(line['price'], company_currency)
+            else:
+                line['currency_id'] = False
+                line['amount_currency'] = False
+                line['price'] = self.currency_id.round(line['price'])
+            ##para chequeo diferencia
+            amount_diff -= line['price']
+            if line.get('amount_currency', False):
+                amount_diff_currency -= line['amount_currency']
+            if self.type in ('out_invoice', 'in_refund'):
+                total += line['price']
+                total_currency += line['amount_currency'] or line['price']
+                line['price'] = - line['price']
+            else:
+                total -= line['price']
+                total_currency -= line['amount_currency'] or line['price']
+        if amount_diff != 0:
+            if self.type in ('out_invoice', 'in_refund'):
+                invoice_move_lines[0]['price'] -= amount_diff
+            else:
+                invoice_move_lines[0]['price'] += amount_diff
+            total += amount_diff
+        if amount_diff_currency !=0:
+            invoice_move_lines[0]['amount_currency'] += amount_diff_currency
+            total_currency += amount_diff_currency
+        return total, total_currency, invoice_move_lines
 
-    #@TODO Mejorar
-    def _compute_global_discount(self):
-        taxes_grouped = self.get_taxes_values()
-        tax_lines = self.tax_line_ids.browse([])
-        for tax in taxes_grouped.values():
-            tax_lines += tax_lines.new(tax)
-        self.tax_line_ids = tax_lines
-        discount = self.global_discount
-        amount_untaxed = round(sum(line.price_subtotal for line in self.invoice_line_ids))
-        afecto = 0
-        for line in self.invoice_line_ids:
-            for t in line.invoice_line_tax_ids:
-                if t.amount > 0:
-                    afecto += line.price_subtotal
-        if self.global_discount_type in ['amount'] and afecto > 0:
-            discount = ((self.global_discount * 100) / afecto )
-        self.amount_untaxed = amount_untaxed
-        if afecto > 0 and discount > 0:
-            self.amount_untaxed_global_discount = (afecto * (discount / 100))
-        amount_untaxed -= round(self.amount_untaxed_global_discount)
-        amount_tax = sum(line.amount for line in self.tax_line_ids)
-        self.amount_tax = amount_tax
-        amount_total = amount_untaxed + amount_tax
-        amount_total_company_signed = amount_total
-        self.amount_total = amount_total
-        amount_untaxed_signed = amount_untaxed
-        if self.currency_id and self.currency_id != self.company_id.currency_id:
-            amount_total_company_signed = self.currency_id.compute(amount_total, self.company_id.currency_id)
-            amount_untaxed_signed = self.currency_id.compute(amount_untaxed, self.company_id.currency_id)
-        sign = self.type in ['in_refund', 'out_refund'] and -1 or 1
-        self.amount_total_company_signed = amount_total_company_signed * sign
-        self.amount_total_signed = amount_total * sign
-        self.amount_untaxed_signed = amount_untaxed_signed * sign
+    #Se retomará en la próxima actualización para poder dar soporte a factura de compras
+    #@api.multi
+    #def finalize_invoice_move_lines(self, move_lines):
+    #    if self.global_descuentos_recargos:
+    #        move_lines = self._gd_move_lines(move_lines)
+    #    taxes = self.tax_line_move_line_get()
+    #    retencion = 0
+    #    for t in taxes:
+    #        if t['name'].find('RET - ', 0, 6) > -1:
+    #            retencion += t['price']
+    #    retencion = round(retencion)
+    #    dif = 0
+    #    total = self.amount_total
+    #    for line in move_lines:
+    #        if line[2]['name'] == '/' or line[2]['name'] == self.name:
+    #            if line[2]['credit'] > 0:
+    #                dif = total - line[2]['credit']
+    #            else:
+    #                dif = total - line[2]['debit']
+    #    if dif != 0:
+    #        move_lines = self._repairDiff( move_lines, dif)
+    #    return move_lines
 
     @api.depends('invoice_line_ids.price_subtotal', 'tax_line_ids.amount', 'tax_line_ids.amount_rounding',
-                 'currency_id', 'company_id', 'date_invoice', 'type')
-    @api.onchange('global_discount','global_discount_type')
+                 'currency_id', 'company_id', 'date_invoice', 'type', 'global_descuentos_recargos')
     def _compute_amount(self):
         for inv in self:
-            #@TODO Mejorar
-            if inv.global_discount > 0  and inv.global_discount_type:
-                inv._compute_global_discount()
-                continue
+            neto = 0
+            if inv.global_descuentos_recargos:
+                neto = inv.global_descuentos_recargos.get_monto_aplicar()
+                agrupados = inv.global_descuentos_recargos.get_agrupados()
+                inv.amount_untaxed_global_discount = agrupados['D']
+                inv.amount_untaxed_global_recargo = agrupados['R']
             amount_tax = 0
             amount_retencion = 0
             included = False
@@ -634,17 +584,18 @@ class AccountInvoice(models.Model):
                 amount_retencion  += tax.amount_retencion
             inv.amount_retencion = amount_retencion
             if included:
-                neto = inv.tax_line_ids._getNeto()
+                neto += inv.tax_line_ids._getNeto(inv.currency_id)
                 amount_retencion  += amount_retencion
             else:
-                neto = sum(line.price_subtotal for line in inv.invoice_line_ids)
+                neto += sum(line.price_subtotal for line in inv.invoice_line_ids)
             inv.amount_untaxed = neto
             inv.amount_tax = amount_tax
             inv.amount_total = inv.amount_untaxed + inv.amount_tax - amount_retencion
             amount_total_company_signed = inv.amount_total
             amount_untaxed_signed = inv.amount_untaxed
             if inv.currency_id and inv.currency_id != inv.company_id.currency_id:
-                amount_total_company_signed = inv.currency_id.compute(inv.amount_total, inv.company_id.currency_id)
+                currency_id = inv.currency_id.with_context(date=inv.date_invoice)
+                amount_total_company_signed = currency_id.compute(inv.amount_total, inv.company_id.currency_id)
                 amount_untaxed_signed = inv.currency_id.compute(inv.amount_untaxed, inv.company_id.currency_id)
             sign = inv.type in ['in_refund', 'out_refund'] and -1 or 1
             inv.amount_total_company_signed = amount_total_company_signed * sign
@@ -701,47 +652,79 @@ class AccountInvoice(models.Model):
                     })
         return res
 
+    def porcentaje_dr(self):
+        if not self.global_descuentos_recargos:
+            return 1
+        taxes = super(AccountInvoice,self).get_taxes_values()
+        afecto = 0.00
+        exento = 0.00
+        porcentaje = 0.00
+        total = 0.00
+        for id, t in taxes.items():
+            tax = self.env['account.tax'].browse(t['tax_id'])
+            total += t['base']
+            if tax.amount > 0:
+                afecto += t['base']
+            else:
+                exento += t['base']
+        agrupados = self.global_descuentos_recargos.get_agrupados()
+        monto = agrupados['R'] - agrupados['D']
+        if monto == 0:
+            return 1
+        porcentaje = (100.0 * monto) / afecto
+        return  1 + (porcentaje /100.0)
+
+    def _get_grouped_taxes(self, line, taxes,tax_grouped={}):
+        for tax in taxes:
+            val = self._prepare_tax_line_vals(line, tax)
+            # If the taxes generate moves on the same financial account as the invoice line,
+            # propagate the analytic account from the invoice line to the tax line.
+            # This is necessary in situations were (part of) the taxes cannot be reclaimed,
+            # to ensure the tax move is allocated to the proper analytic account.
+            if not val.get('account_analytic_id') and line.account_analytic_id and val['account_id'] == line.account_id.id:
+                val['account_analytic_id'] = line.account_analytic_id.id
+            key = self.env['account.tax'].browse(tax['id']).get_grouping_key(val)
+            if key not in tax_grouped:
+                tax_grouped[key] = val
+            else:
+                tax_grouped[key]['amount'] += val['amount']
+                tax_grouped[key]['amount_retencion'] += val['amount_retencion']
+                tax_grouped[key]['base'] += val['base']
+        return tax_grouped
+
     @api.multi
     def get_taxes_values(self):
         tax_grouped = {}
+        totales = {}
         for line in self.invoice_line_ids:
+            if line.invoice_line_tax_ids and line.invoice_line_tax_ids[0].price_include:# se asume todos losproductos vienen con precio incluido o no ( no hay mixes)
+                for t in line.invoice_line_tax_ids:
+                    if not t in totales:
+                        totales[t] = 0
+                    totales[t] += (self.currency_id.round(line.price_unit *line.quantity) * line.discount)
             taxes = line.invoice_line_tax_ids.compute_all(line.price_unit, self.currency_id, line.quantity, line.product_id, self.partner_id, discount=line.discount)['taxes']
-            for tax in taxes:
-                val = self._prepare_tax_line_vals(line, tax)
-                # If the taxes generate moves on the same financial account as the invoice line,
-                # propagate the analytic account from the invoice line to the tax line.
-                # This is necessary in situations were (part of) the taxes cannot be reclaimed,
-                # to ensure the tax move is allocated to the proper analytic account.
-                if not val.get('account_analytic_id') and line.account_analytic_id and val['account_id'] == line.account_id.id:
-                    val['account_analytic_id'] = line.account_analytic_id.id
-                key = self.env['account.tax'].browse(tax['id']).get_grouping_key(val)
-                if key not in tax_grouped:
-                    tax_grouped[key] = val
-                else:
-                    tax_grouped[key]['amount'] += val['amount']
-                    tax_grouped[key]['amount_retencion'] += val['amount_retencion']
-                    tax_grouped[key]['base'] += val['base']
-        if self.global_discount > 0:
-            discount = self.global_discount
-            if self.global_discount_type in ['amount']:
-                discount = 0
-                afecto = 0
-                for line in self.invoice_line_ids:
-                    for tl in line.invoice_line_tax_ids:
-                        if tl.amount > 0:
-                            afecto += line.price_subtotal
-                if afecto > 0:
-                    discount = ((self.global_discount * 100) / afecto )
-            taxes = tax_grouped
-            tax_grouped = {}
-            for id, t in taxes.items():
-                tax = self.env['account.tax'].browse(t['tax_id'])
-                if tax.amount > 0 and discount > 0:
-                    base = round(round(t['base']) * (1 - ((discount / 100.0) or 0.0)))
-                    t['base'] = base
-                    t['amount'] = tax._compute_amount(base, base, 1)
-                tax_grouped[id] = t
-        return tax_grouped
+            tax_grouped = self._get_grouped_taxes(line, taxes, tax_grouped)
+        if totales:
+            for line in self.invoice_line_ids:
+                for t in line.invoice_line_tax_ids:
+                    taxes = t.compute_all(totales[t], self.currency_id, 1)['taxes']
+                    tax_grouped = self._get_grouped_taxes(line, taxes, tax_grouped)
+        if not self.global_descuentos_recargos:
+            return tax_grouped
+        gdr = self.porcentaje_dr()
+        taxes = {}
+        for t, group in tax_grouped.items():
+            if t not in taxes:
+                taxes[t] = group
+            tax = self.env['account.tax'].browse(group['tax_id'])
+            if tax.amount > 0:
+                taxes[t]['amount'] *= gdr
+                taxes[t]['base'] *=  gdr
+        return taxes
+
+    @api.onchange('global_descuentos_recargos' )
+    def _onchange_descuentos(self):
+        self._onchange_invoice_line_ids()
 
     @api.model
     def _prepare_refund(self, invoice, date_invoice=None, date=None, description=None, journal_id=None, tipo_nota=61, mode='1'):
@@ -921,24 +904,26 @@ class AccountInvoice(models.Model):
 
     def _get_available_journal_document_class(self):
         context = dict(self._context or {})
+        journal_id = self.journal_id
+        if not journal_id and 'default_journal_id' in context:
+            journal_id = self.env['account.journal'].browse(context['default_journal_id'])
+        if not journal_id:
+            journal_id = self.env['account.journal'].search([('type','=','sale')],limit=1)
         invoice_type = self.type or context.get('default_type', False)
+        if not invoice_type:
+            invoice_type = 'in_invoice' if journal_id.type == 'purchase' else 'out_invoice'
         document_class_ids = []
-        document_class_id = False
         nd = False
         for ref in self.referencias:
             if not nd:
                 nd = ref.sii_referencia_CodRef
-        #self.available_journal_document_class_ids = self.env[
-        #    'account.journal.sii_document_class']
-        if invoice_type in [
-                'out_invoice', 'in_invoice', 'out_refund', 'in_refund']:
-            operation_type = self.get_operation_type(invoice_type)
-            journal_id = self.journal_id.id or context.get('default_journal_id', False)
+        if invoice_type in ['out_invoice', 'in_invoice', 'out_refund', 'in_refund']:
             if journal_id:
                 domain = [
-                    ('journal_id.type', '=', journal_id),
+                    ('journal_id', '=', journal_id.id),
                  ]
             else:
+                operation_type = self.get_operation_type(invoice_type)
                 domain = [
                     ('journal_id.type', '=', operation_type),
                  ]
@@ -952,10 +937,9 @@ class AccountInvoice(models.Model):
             document_classes = self.env[
                 'account.journal.sii_document_class'].search(domain)
             document_class_ids = document_classes.ids
-                    # If not specific document type found, we choose another one
         return document_class_ids
 
-    @api.onchange('journal_id')
+    @api.onchange('journal_id', 'partner_id')
     def update_domain_journal(self):
         document_classes = self._get_available_journal_document_class()
         result = {'domain':{
@@ -984,12 +968,9 @@ class AccountInvoice(models.Model):
                 ).id
             self.journal_document_class_id = self._default_journal_document_class_id(default)
 
-    @api.onchange('sii_document_class_id')
+    @api.onchange('sii_document_class_id', 'partner_id')
     def _check_vat(self):
-        boleta_ids = [
-            self.env.ref('l10n_cl_fe.dc_bzf_f_dtn').id,
-            self.env.ref('l10n_cl_fe.dc_b_f_dtm').id]
-        if self.sii_document_class_id not in boleta_ids and self.partner_id.document_number == '' or self.partner_id.document_number == '0':
+        if self.partner_id and not self._es_boleta() and not self.partner_id.commercial_partner_id.document_number:
             raise UserError(_("""The customer/supplier does not have a VAT \
 defined. The type of invoicing document you selected requires you tu settle \
 a VAT."""))
@@ -1018,28 +999,22 @@ a VAT."""))
                 document_number = inv.number
             inv.document_number = document_number
 
-    @api.constrains('supplier_invoice_number', 'partner_id', 'company_id')
-    def _check_reference(self):
-        for inv in self:
-            if inv.type in ['out_invoice', 'out_refund'] and inv.reference and inv.state == 'open':
-                domain = [
-                            ('type', 'in', ('out_invoice', 'out_refund')),
-                              # ('reference', '=', self.reference),
-                              ('document_number', '=', inv.document_number),
-                              ('journal_document_class_id.sii_document_class_id', '=', inv.journal_document_class_id.sii_document_class_id.id),
-                              ('company_id', '=', inv.company_id.id),
-                              ('id', '!=', inv.id),
-                        ]
-                invoice_ids = inv.search(domain)
-                if invoice_ids:
-                    raise UserError(
-                        _('Supplier Invoice Number must be unique per Supplier and Company!'))
-
-    _sql_constraints = [
-        ('number_supplier_invoice_number',
-            'unique(supplier_invoice_number, partner_id, company_id)',
-         'Supplier Invoice Number must be unique per Supplier and Company!'),
-    ]
+    @api.one
+    @api.constrains('reference', 'partner_id', 'company_id', 'type','journal_document_class_id')
+    def _check_reference_in_invoice(self):
+        if self.type in ['in_invoice', 'in_refund'] and self.reference:
+            domain = [('type', '=', self.type),
+                      ('reference', '=', self.reference),
+                      ('partner_id', '=', self.partner_id.id),
+                      ('journal_document_class_id.sii_document_class_id', '=',
+                       self.journal_document_class_id.sii_document_class_id.id),
+                      ('company_id', '=', self.company_id.id),
+                      ('id', '!=', self.id)]
+            invoice_ids = self.search(domain)
+            if invoice_ids:
+                raise UserError(u'El numero de factura debe ser unico por Proveedor.\n'\
+                                u'Ya existe otro documento con el numero: %s para el proveedor: %s' %
+                                (self.reference, self.partner_id.display_name))
 
     @api.multi
     def action_move_create(self):
@@ -1048,14 +1023,14 @@ a VAT."""))
             if obj_inv.journal_document_class_id and not obj_inv.sii_document_number:
                 if invtype in ('out_invoice', 'out_refund'):
                     if not obj_inv.journal_document_class_id.sequence_id:
-                        raise osv.except_osv(_('Error!'), _(
+                        raise UserError(_(
                             'Please define sequence on the journal related documents to this invoice.'))
                     sii_document_number = obj_inv.journal_document_class_id.sequence_id.next_by_id()
                     prefix = obj_inv.journal_document_class_id.sii_document_class_id.doc_code_prefix or ''
                     move_name = (prefix + str(sii_document_number)).replace(' ','')
                     obj_inv.write({'move_name': move_name})
                 elif invtype in ('in_invoice', 'in_refund'):
-                    sii_document_number = obj_inv.supplier_invoice_number
+                    sii_document_number = obj_inv.reference
         super(AccountInvoice, self).action_move_create()
         for obj_inv in self:
             invtype = obj_inv.type
@@ -1148,12 +1123,17 @@ a VAT."""))
                     inv.sii_result = 'Proceso'
                 else:
                     inv._timbrar()
+                    if inv._es_boleta() and not inv._nc_boleta():
+                        inv.sii_result = 'Proceso'
+                        continue
+                    tiempo_pasivo = (datetime.now() + timedelta(hours=int(self.env['ir.config_parameter'].sudo().get_param('account.auto_send_dte', default=12))))
                     self.env['sii.cola_envio'].create({
                                                 'doc_ids':[inv.id],
                                                 'model':'account.invoice',
                                                 'user_id':self.env.user.id,
                                                 'tipo_trabajo': 'pasivo',
-                                                'date_time': (datetime.now() + timedelta(hours=12)),
+                                                'date_time': tiempo_pasivo,
+                                                'send_email': False if inv.company_id.dte_service_provider=='SIICERT' or self.env['ir.config_parameter'].sudo().get_param('account.auto_send_email', default=True) else True,
                                                 })
             if inv.purchase_to_done:
                 for ptd in inv.purchase_to_done:
@@ -1321,11 +1301,8 @@ version="1.0">
 
     def sign_seed(self, message, privkey, cert):
         doc = etree.fromstring(message)
-        signed_node = xmldsig(
-            doc, digest_algorithm=u'sha1').sign(
-            method=methods.enveloped, algorithm=u'rsa-sha1',
-            key=privkey.encode('ascii'),
-            cert=cert)
+        signed_node = XMLSigner(method=methods.enveloped, digest_algorithm='sha1').sign(
+            doc, key=privkey.encode('ascii'), cert=cert)
         msg = etree.tostring(
             signed_node, pretty_print=True).decode().replace('ds:', '')
         return msg
@@ -1567,7 +1544,7 @@ version="1.0">
         att = self.env['ir.attachment'].search([('name','=', filename), ('res_id','=', self.id), ('res_model','=','account.invoice')], limit=1)
         if att:
             return att
-        data = base64.b64encode(self.sii_xml_exchange)
+        data = base64.b64encode(self.sii_xml_exchange.encode('ISO-8859-1'))
         values = dict(
                         name=filename,
                         datas_fname=filename,
@@ -1696,7 +1673,7 @@ version="1.0">
     def do_dte_send_invoice(self, n_atencion=None):
         ids = []
         for inv in self.with_context(lang='es_CL'):
-            if inv.sii_result in ['','NoEnviado','Rechazado']:
+            if inv.sii_result in ['','NoEnviado','Rechazado'] and not inv._es_boleta() and not inv._nc_boleta():
                 if inv.sii_result in ['Rechazado']:
                     inv._timbrar()
                 inv.sii_result = 'EnCola'
@@ -1709,16 +1686,25 @@ version="1.0">
                                     'model':'account.invoice',
                                     'user_id':self.env.user.id,
                                     'tipo_trabajo': 'envio',
-                                    'n_atencion': n_atencion
+                                    'n_atencion': n_atencion,
+                                    'send_email': False if self[0].company_id.dte_service_provider=='SIICERT' or self.env['ir.config_parameter'].sudo().get_param('account.auto_send_email', default=True) else True,
                                     })
     def _es_boleta(self):
         if self.sii_document_class_id.sii_code in [35, 38, 39, 41, 70, 71]:
             return True
         return False
 
+    def _nc_boleta(self):
+        if not self.referencias or self.type != "out_refund":
+            return False
+        for r in self.referencias:
+            if r.sii_referencia_TpoDocRef.sii_code in [35, 38, 39, 41, 70, 71]:
+                return True
+        return False
+
     def _giros_emisor(self):
         giros_emisor = []
-        for turn in self.company_id.company_activities_ids:
+        for turn in self.journal_id.journal_activities_ids:
             giros_emisor.extend([{'Acteco': turn.code}])
         return giros_emisor
 
@@ -1752,18 +1738,18 @@ version="1.0">
         Emisor= collections.OrderedDict()
         Emisor['RUTEmisor'] = self.format_vat(self.company_id.vat)
         if self._es_boleta():
-            Emisor['RznSocEmisor'] = self.company_id.partner_id.name
+            Emisor['RznSocEmisor'] = self._acortar_str(self.company_id.partner_id.name, 100)
             Emisor['GiroEmisor'] = self._acortar_str(self.company_id.activity_description.name, 80)
         else:
-            Emisor['RznSoc'] = self.company_id.partner_id.name
+            Emisor['RznSoc'] = self._acortar_str(self.company_id.partner_id.name, 100)
             Emisor['GiroEmis'] = self._acortar_str(self.company_id.activity_description.name, 80)
             if self.company_id.phone:
                 Emisor['Telefono'] = self._acortar_str(self.company_id.phone, 20)
             Emisor['CorreoEmisor'] = self.company_id.dte_email
             Emisor['item'] = self._giros_emisor()
-        if self.journal_id.sii_code:
-            Emisor['Sucursal'] = self._acortar_str(self.journal_id.sucursal.name, 20)
-            Emisor['CdgSIISucur'] = self._acortar_str(self.journal_id.sii_code, 9)
+        if self.journal_id.sucursal_id:
+            Emisor['Sucursal'] = self._acortar_str(self.journal_id.sucursal_id.name, 20)
+            Emisor['CdgSIISucur'] = self._acortar_str(self.journal_id.sucursal_id.sii_code, 9)
         Emisor['DirOrigen'] = self._acortar_str(self.company_id.street + ' ' +(self.company_id.street2 or ''), 70)
         Emisor['CmnaOrigen'] = self.company_id.city_id.name or ''
         Emisor['CiudadOrigen'] = self.company_id.city or ''
@@ -1785,17 +1771,77 @@ version="1.0">
             Receptor['Contacto'] = self._acortar_str(self.partner_id.phone or self.commercial_partner_id.phone or self.partner_id.email, 80)
         if (self.commercial_partner_id.email or self.commercial_partner_id.dte_email or self.partner_id.email or self.partner_id.dte_email) and not self._es_boleta():
             Receptor['CorreoRecep'] = self.commercial_partner_id.dte_email or self.partner_id.dte_email or self.commercial_partner_id.email or self.partner_id.email
-        Receptor['DirRecep'] = self._acortar_str((self.partner_id.street or self.commercial_partner_id.street) + ' ' + (self.partner_id.street2 or self.commercial_partner_id.street2 or ''),70)
+        street_recep = (self.partner_id.street or self.commercial_partner_id.street or False)
+        if not street_recep:
+            raise UserError('Debe Ingresar dirección del cliente')
+        street2_recep = (self.partner_id.street2 or self.commercial_partner_id.street2 or False)
+        Receptor['DirRecep'] = self._acortar_str(street_recep + (' ' + street2_recep if street2_recep else ''), 70)
         Receptor['CmnaRecep'] = self.partner_id.city_id.name or self.commercial_partner_id.city_id.name
+        if not Receptor['CmnaRecep']:
+            raise UserError('Debe Ingresar Comuna del cliente')
         Receptor['CiudadRecep'] = self.partner_id.city or self.commercial_partner_id.city
         return Receptor
 
-    def _totales(self, MntExe=0, no_product=False, taxInclude=False):
+    def _totales_otra_moneda(self, currency_id, MntExe, MntNeto, IVA, TasaIVA, ImptoReten, MntTotal=0):
         Totales = collections.OrderedDict()
+        Totales['TpoMoneda'] = self._acortar_str(currency_id.abreviatura, 15)
+        Totales['TpoCambio'] = currency_id.rate
+        if MntNeto:
+            if currency_id:
+                MntNeto = currency_id.compute(MntNeto, self.company_id.currency_id)
+            Totales['MntNetoOtrMnda'] = MntNeto
+        if MntExe:
+            if currency_id:
+                MntExe = currency_id.compute(MntExe, self.company_id.currency_id)
+            Totales['MntExeOtrMnda'] = MntExe
+        if TasaIVA:
+            if currency_id:
+                IVA = currency_id.compute(IVA, self.company_id.currency_id)
+            Totales['IVAOtrMnda'] = IVA
+        if ImptoReten:
+                Totales['ImptRetOtrMnda'] = collections.OrderedDict()
+                Totales['ImptRetOtrMnda']['TipoImpOtrMnda'] = ImptoReten['TpoImp']
+                Totales['ImptRetOtrMnda']['TasaImpOtrMnda'] = ImptoReten['TasaImp']
+                if currency_id:
+                    ImptoReten['MontoImp'] = currency_id.compute(ImptoReten['MontoImp'], self.company_id.currency_id)
+                Totales['ImptRetOtrMnda']['ValorImpOtrMnda'] = ImptoReten['MontoImp']
+        if currency_id:
+            MntTotal = currency_id.compute(MntTotal, self.company_id.currency_id)
+        Totales['MntTotOtrMnda'] = MntTotal
+        #Totales['MontoNF']
+        #Totales['TotalPeriodo']
+        #Totales['SaldoAnterior']
+        #Totales['VlrPagar']
+        return Totales
+
+    def _totales_normal(self, currency_id, MntExe, MntNeto, IVA, TasaIVA, ImptoReten, MntTotal=0):
+        Totales = collections.OrderedDict()
+        if MntNeto:
+            Totales['MntNeto'] = MntNeto
+        if MntExe:
+            Totales['MntExe'] = MntExe
+        if TasaIVA:
+            Totales['TasaIVA'] = TasaIVA
+            Totales['IVA'] = IVA
+        if ImptoReten:
+            Totales['ImptoReten'] = ImptoReten
+        Totales['MntTotal'] = MntTotal
+        #Totales['MontoNF']
+        #Totales['TotalPeriodo']
+        #Totales['SaldoAnterior']
+        #Totales['VlrPagar']
+        return Totales
+
+    def _totales(self, MntExe=0, no_product=False, taxInclude=False):
+        MntNeto = False
+        IVA = False
+        ImptoReten = False
+        TasaIVA = False
+        MntIVA = 0
         if self.sii_document_class_id.sii_code == 34 or (self.referencias and self.referencias[0].sii_referencia_TpoDocRef.sii_code == '34'):
-            Totales['MntExe'] = int(round(self.amount_total, 0))
+            MntExe = self.currency_id.round(self.amount_total)
             if  no_product:
-                Totales['MntExe'] = 0
+                MntExe = 0
         elif self.amount_untaxed and self.amount_untaxed != 0:
             if not self._es_boleta() or not taxInclude:
                 IVA = False
@@ -1803,41 +1849,42 @@ version="1.0">
                     if t.tax_id.sii_code in [14, 15]:
                         IVA = t
                 if IVA and IVA.base > 0 :
-                    Totales['MntNeto'] = int(round((IVA.base), 0))
-            if MntExe > 0:
-                Totales['MntExe'] = int(round( MntExe))
-            if not self._es_boleta() or not taxInclude:
-                if IVA:
-                    if not self._es_boleta():
-                        Totales['TasaIVA'] = round(IVA.tax_id.amount,2)
-                    Totales['IVA'] = int(round(IVA.amount, 0))
-                if no_product:
-                    Totales['MntNeto'] = 0
-                    if not self._es_boleta():
-                        Totales['TasaIVA'] = 0
-                    Totales['IVA'] = 0
-            if IVA and IVA.tax_id.sii_code in [15]:
-                Totales['ImptoReten'] = collections.OrderedDict()
-                Totales['ImptoReten']['TpoImp'] = IVA.tax_id.sii_code
-                Totales['ImptoReten']['TasaImp'] = round(IVA.tax_id.amount,2)
-                Totales['ImptoReten']['MontoImp'] = int(round(IVA.amount))
-        monto_total = int(round(self.amount_total, 0))
-        if no_product:
-            monto_total = 0
-        Totales['MntTotal'] = monto_total
+                    MntNeto = self.currency_id.round(IVA.base)
+        if MntExe > 0:
+            MntExe = self.currency_id.round( MntExe)
+        if not self._es_boleta() or not taxInclude:
+            if IVA:
+                if not self._es_boleta():
+                    TasaIVA = round(IVA.tax_id.amount, 2)
+                MntIVA = self.currency_id.round(IVA.amount)
+            if no_product:
+                MntNeto = 0
+                if not self._es_boleta():
+                    TasaIVA = 0
+                MntIVA = 0
+        if IVA and IVA.tax_id.sii_code in [15]:
+            ImptoReten = collections.OrderedDict()
+            ImptoReten['TpoImp'] = IVA.tax_id.sii_code
+            ImptoReten['TasaImp'] = round(IVA.tax_id.amount,2)
+            ImptoReten['MontoImp'] = self.currency_id.round(IVA.amount)
 
-        #Totales['MontoNF']
-        #Totales['TotalPeriodo']
-        #Totales['SaldoAnterior']
-        #Totales['VlrPagar']
-        return Totales
+        MntTotal = self.currency_id.round(self.amount_total)
+        if no_product:
+            MntTotal = 0
+        return MntExe, MntNeto, MntIVA, TasaIVA, ImptoReten, MntTotal
 
     def _encabezado(self, MntExe=0, no_product=False, taxInclude=False):
         Encabezado = collections.OrderedDict()
         Encabezado['IdDoc'] = self._id_doc(taxInclude, MntExe)
         Encabezado['Emisor'] = self._emisor()
         Encabezado['Receptor'] = self._receptor()
-        Encabezado['Totales'] = self._totales(MntExe, no_product)
+        currency_id = False
+        if self.currency_id and self.company_id and self.currency_id != self.company_id.currency_id:
+            currency_id = self.currency_id.with_context(date=self.date_invoice)
+        MntExe, MntNeto, IVA, TasaIVA, ImptoReten, MntTotal = self._totales(MntExe, no_product, taxInclude)
+        Encabezado['Totales'] = self._totales_normal( currency_id, MntExe, MntNeto, IVA, TasaIVA, ImptoReten, MntTotal)
+        if currency_id:
+            Encabezado['OtraMoneda'] = self._totales_otra_moneda( currency_id, MntExe, MntNeto, IVA, TasaIVA, ImptoReten, MntTotal)
         return Encabezado
 
     @api.multi
@@ -1852,7 +1899,7 @@ version="1.0">
             raise UserError(_("Fill Partner VAT"))
         result['TED']['DD']['RR'] = self.format_vat(self.commercial_partner_id.vat)
         result['TED']['DD']['RSR'] = self._acortar_str(self.commercial_partner_id.name,40)
-        result['TED']['DD']['MNT'] = int(round(self.amount_total))
+        result['TED']['DD']['MNT'] = self.currency_id.round(self.amount_total)
         if no_product:
             result['TED']['DD']['MNT'] = 0
         for line in self.invoice_line_ids:
@@ -1900,6 +1947,9 @@ version="1.0">
         invoice_lines = []
         no_product = False
         MntExe = 0
+        currency_id = False
+        if self.currency_id and self.company_id and self.currency_id != self.company_id.currency_id:
+            currency_id = self.currency_id.with_context(date=self.date_invoice)
         for line in self.invoice_line_ids:
             if line.product_id.default_code == 'NO_PRODUCT':
                 no_product = True
@@ -1914,7 +1964,7 @@ version="1.0">
                 taxInclude = t.price_include
                 if t.amount == 0 or t.sii_code in [0]:#@TODO mejor manera de identificar exento de afecto
                     lines['IndExe'] = 1
-                    MntExe += int(round(line.price_tax_included, 0))
+                    MntExe += self.currency_id.round(line.price_tax_included)
             #if line.product_id.type == 'events':
             #   lines['ItemEspectaculo'] =
 #            if self._es_boleta():
@@ -1933,14 +1983,28 @@ version="1.0">
                 raise UserError("NO puede ser menor que 0")
             if not no_product:
                 lines['UnmdItem'] = line.uom_id.name[:4]
-                lines['PrcItem'] = round(line.price_unit, 4)
+                lines['PrcItem'] = round(line.price_unit, 6)
+                if currency_id:
+                    lines['OtrMnda'] = collections.OrderedDict()
+                    lines['OtrMnda']['PrcOtrMon'] = round(currency_id.compute( line.price_unit, self.company_id.currency_id, round=False), 6)
+                    lines['OtrMnda']['Moneda'] = self._acortar_str(self.company_id.currency_id.name, 3)
+                    lines['OtrMnda']['FctConv'] = round(currency_id.rate, 4)
             if line.discount > 0:
+                if currency_id:
+                    lines['OtrMnda']['DctoOtrMnda'] = line.discount
                 lines['DescuentoPct'] = line.discount
-                lines['DescuentoMonto'] = int(round((((line.discount / 100) * lines['PrcItem'])* qty)))
+                DescMonto = (((line.discount / 100) * lines['PrcItem'])* qty)
+                lines['DescuentoMonto'] = self.currency_id.round( DescMonto )
+                if currency_id:
+                   lines['OtrMnda']['DctoOtrMnda'] = currency_id.compute(DescMonto, self.company_id.currency_id)
             if not no_product and not taxInclude:
-                lines['MontoItem'] = int(round(line.price_subtotal, 0))
+                if currency_id:
+                    lines['OtrMnda']['MontoItemOtrMnda'] = currency_id.compute( line.price_subtotal, self.company_id.currency_id)
+                lines['MontoItem'] = self.currency_id.round(line.price_subtotal)
             elif not no_product :
-                lines['MontoItem'] = int(round(line.price_tax_included,0))
+                if currency_id:
+                    lines['OtrMnda']['MontoItemOtrMnda'] = currency_id.compute( line.price_tax_included, self.company_id.currency_id)
+                lines['MontoItem'] = self.currency_id.round(line.price_tax_included)
             if no_product:
                 lines['MontoItem'] = 0
             line_number += 1
@@ -1954,22 +2018,29 @@ version="1.0">
                 'tax_include': taxInclude,
                 }
 
-    def _gd(self):
+    def _gdr(self):
+        result = []
         lin_dr = 1
-        dr_line = collections.OrderedDict()
-        dr_line['NroLinDR'] = lin_dr
-        dr_line['TpoMov'] = 'D'
-        if self.global_discount_detail:
-            dr_line['GlosaDR'] = self.global_discount_detail
-        disc_type = "%"
-        if self.global_discount_type == "amount":
-            disc_type = "$"
-        dr_line['TpoValor'] = disc_type
-        dr_line['ValorDR'] = round(self.global_discount,2)
-        if self.sii_document_class_id.sii_code in [34]:#solamente si es exento
-            dr_line['IndExeDR'] = 1
-        dr_lines= [{'DscRcgGlobal':dr_line}]
-        return dr_lines
+        for dr in self.global_descuentos_recargos:
+            dr_line = collections.OrderedDict()
+            dr_line['NroLinDR'] = lin_dr
+            dr_line['TpoMov'] = dr.type
+            if dr.gdr_dtail:
+                dr_line['GlosaDR'] = dr.gdr_dtail
+            disc_type = "%"
+            if dr.gdr_type == "amount":
+                disc_type = "$"
+            dr_line['TpoValor'] = disc_type
+            dr_line['ValorDR'] = self.currency_id.round(dr.valor)
+            if self.currency_id and self.company_id and self.currency_id != self.company_id.currency_id:
+                currency_id = self.currency_id.with_context(date=self.date_invoice)
+                dr_line['ValorDROtrMnda'] = currency_id.compute(dr.valor, self.company_id.currency_id)
+            if self.sii_document_class_id.sii_code in [34] and (self.referencias and self.referencias[0].sii_referencia_TpoDocRef.sii_code == '34'):#solamente si es exento
+                dr_line['IndExeDR'] = 1
+            dr_lines = [{'DscRcgGlobal':dr_line}]
+            result.append( dr_lines )
+            lin_dr += 1
+        return result
 
     def _dte(self, n_atencion=None):
         dte = collections.OrderedDict()
@@ -1994,7 +2065,7 @@ version="1.0">
                 ref_line['NroLinRef'] = lin_ref
                 if not self._es_boleta():
                     if  ref.sii_referencia_TpoDocRef:
-                        ref_line['TpoDocRef'] = ref.sii_referencia_TpoDocRef.sii_code
+                        ref_line['TpoDocRef'] = self._acortar_str(ref.sii_referencia_TpoDocRef.doc_code_prefix, 3) if ref.sii_referencia_TpoDocRef.use_prefix else ref.sii_referencia_TpoDocRef.sii_code
                         ref_line['FolioRef'] = ref.origen
                     ref_line['FchRef'] = ref.fecha_documento or datetime.strftime(datetime.now(), '%Y-%m-%d')
                 if ref.sii_referencia_CodRef not in ['','none', False]:
@@ -2006,8 +2077,8 @@ version="1.0">
                 ref_lines.extend([{'Referencia':ref_line}])
                 lin_ref += 1
         dte['item'] = invoice_lines['invoice_lines']
-        if self.global_discount > 0:
-            dte['drlines'] = self._gd()
+        if self.global_descuentos_recargos:
+            dte['drlines'] = self._gdr()
         dte['reflines'] = ref_lines
         dte['TEDd'] = self.get_barcode(invoice_lines['no_product'])
         return dte
@@ -2017,7 +2088,7 @@ version="1.0">
         dte[(tpo_dte + ' ID')]['TEDd'] = ''
         xml = dicttoxml.dicttoxml(
             dte, root=False, attr_type=False).decode() \
-            .replace('<item>','').replace('</item>','')\
+            .replace('<item >','').replace('<item>','').replace('</item>','')\
             .replace('<reflines>','').replace('</reflines>','')\
             .replace('<TEDd>','').replace('</TEDd>','')\
             .replace('</'+ tpo_dte + '_ID>','\n'+ted+'\n</'+ tpo_dte + '_ID>')\
@@ -2121,7 +2192,7 @@ version="1.0">
             NroDte = 0
             for documento in classes:
                 if documento['sii_batch_number'] in dtes.keys():
-                    raise UserErro("No se puede repetir el mismo número de orden")
+                    raise UserError("No se puede repetir el mismo número de orden")
                 dtes.update({str(documento['sii_batch_number']): documento['envio']})
                 NroDte += 1
                 file_name += 'F' + str(int(documento['sii_document_number'])) + 'T' + str(id_class_doc)

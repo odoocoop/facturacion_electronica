@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from odoo import fields, models, api
+from odoo import fields, models, api, tools
 from odoo.tools.translate import _
 from odoo.exceptions import UserError
 from datetime import datetime, timedelta
@@ -73,11 +73,6 @@ try:
 except ImportError:
     _logger.info('Cannot import cchardet library')
 
-try:
-    from signxml import xmldsig, methods
-except ImportError:
-    _logger.info('Cannot import signxml')
-
 server_url = {'SIICERT':'https://maullin.sii.cl/DTEWS/','SII':'https://palena.sii.cl/DTEWS/'}
 
 BC = '''-----BEGIN CERTIFICATE-----\n'''
@@ -150,13 +145,13 @@ class ConsumoFolios(models.Model):
             string="Fecha Inicio",
         	readonly=True,
             states={'draft': [('readonly', False)]},
-            default=lambda *a: datetime.now().strftime('%Y-%m-%d'),
+            default=lambda self: fields.Date.context_today(self),
         )
     fecha_final = fields.Date(
             string="Fecha Final",
         	readonly=True,
             states={'draft': [('readonly', False)]},
-            default=lambda *a: datetime.now().strftime('%Y-%m-%d'),
+            default=lambda self: fields.Date.context_today(self),
         )
     correlativo = fields.Integer(
             string="Correlativo",
@@ -283,7 +278,7 @@ class ConsumoFolios(models.Model):
                 total_exento += d.monto_exento
                 total += d.monto_total
             for d in r.detalles:
-                if d.tpo_doc.sii_code in [39, 41]:
+                if d.tpo_doc.sii_code in [39, 41] and d.tipo_operacion == "utilizados":
                     total_boletas += d.cantidad
             r.total_neto = total - total_iva - total_exento
             r.total_iva = total_iva
@@ -323,9 +318,10 @@ class ConsumoFolios(models.Model):
                     for rango in Rangos['itemAnulados']:
                         pushItem('RangoAnulados', rango, r)
         self.detalles = detalles
-        docs = {}
+        docs = collections.OrderedDict()
         for r, value in resumenes.items():
-            docs[r] = {
+            if value.get('FoliosUtilizados', False):
+                docs[r] = {
                        'tpo_doc': self.env['sii.document_class'].search([('sii_code','=', r)]).id,
                        'cantidad': value['FoliosUtilizados'],
                        'monto_neto': value['MntNeto'],
@@ -459,31 +455,31 @@ version="1.0">
         signed_info_c14n = etree.tostring(signed_info,method="c14n",exclusive=False,with_comments=False,inclusive_ns_prefixes=None)
         att = 'xmlns="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"'
         #@TODO Find better way to add xmlns:xsi attrib
-        signed_info_c14n = signed_info_c14n.replace("<SignedInfo>","<SignedInfo %s>" % att)
+        signed_info_c14n = signed_info_c14n.decode().replace("<SignedInfo>","<SignedInfo %s>" % att)
         sig_root = Element("Signature",attrib={'xmlns':'http://www.w3.org/2000/09/xmldsig#'})
         sig_root.append(etree.fromstring(signed_info_c14n))
         signature_value = SubElement(sig_root, "SignatureValue")
         key = crypto.load_privatekey(type_,privkey.encode('ascii'))
         signature = crypto.sign(key,signed_info_c14n,'sha1')
-        signature_value.text =textwrap.fill(base64.b64encode(signature),64)
+        signature_value.text =textwrap.fill(base64.b64encode(signature).decode(),64)
         key_info = SubElement(sig_root, "KeyInfo")
         key_value = SubElement(key_info, "KeyValue")
         rsa_key_value = SubElement(key_value, "RSAKeyValue")
         modulus = SubElement(rsa_key_value, "Modulus")
         key = load_pem_private_key(privkey.encode('ascii'),password=None, backend=default_backend())
         longs = self.env['account.move.book'].long_to_bytes(key.public_key().public_numbers().n)
-        modulus.text =  textwrap.fill(base64.b64encode(longs),64)
+        modulus.text =  textwrap.fill(base64.b64encode(longs).decode(),64)
         exponent = SubElement(rsa_key_value, "Exponent")
         longs = self.env['account.move.book'].long_to_bytes(key.public_key().public_numbers().e)
-        exponent.text = self.ensure_str(base64.b64encode(longs))
+        exponent.text = self.ensure_str(base64.b64encode(longs).decode())
         x509_data = SubElement(key_info, "X509Data")
         x509_certificate = SubElement(x509_data, "X509Certificate")
         x509_certificate.text = '\n'+textwrap.fill(cert,64)
-        msg = etree.tostring(sig_root)
+        msg = etree.tostring(sig_root).decode()
         msg = msg if self.xml_validator(msg, 'sig') else ''
         fulldoc = message.replace('</ConsumoFolios>',msg+'\n</ConsumoFolios>')
         fulldoc = fulldoc
-        fulldoc = fulldoc if self.xml_validator(fulldoc, type) else ''
+        fulldoc = '<?xml version="1.0" encoding="ISO-8859-1"?>\n'+fulldoc if self.xml_validator(fulldoc, type) else ''
         return fulldoc
 
     def get_digital_signature_pem(self, comp_id):
@@ -546,14 +542,6 @@ version="1.0">
         sha1 = hashlib.new('sha1', data)
         return sha1.digest()
 
-    @api.onchange('periodo_tributario','tipo_operacion')
-    def _setName(self):
-        if self.name:
-            return
-        self.name = self.tipo_operacion
-        if self.periodo_tributario:
-            self.name += " " + self.periodo_tributario
-
     @api.multi
     def validar_consumo_folios(self):
         self._validar()
@@ -567,22 +555,23 @@ version="1.0">
             c += 1
         return cadena
 
-    def _process_imps(self, tax_line_id, totales=0, currency=None, Neto=0, TaxMnt=0, MntExe=0, ivas={}, imp={}):
+    def _es_iva(self, tax):
+        if tax.sii_code in [14, 15, 17, 18, 19, 30,31, 32 ,33, 34, 36, 37, 38, 39, 41, 47, 48]:
+            return True
+        return False
+
+    def _process_imps(self, tax_line_id, totales=0, currency=None, Neto=0, TaxMnt=0, MntExe=0):
         mnt = tax_line_id.compute_all(totales,  currency, 1)['taxes'][0]
         if mnt['amount'] < 0:
             mnt['amount'] *= -1
             mnt['base'] *= -1
-        if tax_line_id.sii_code in [14, 15, 17, 18, 19, 30,31, 32 ,33, 34, 36, 37, 38, 39, 41, 47, 48]: # diferentes tipos de IVA retenidos o no
-            ivas.setdefault(tax_line_id.id, [ tax_line_id, 0])
-            ivas[tax_line_id.id][1] += mnt['amount']
+        if self._es_iva(tax_line_id): # diferentes tipos de IVA retenidos o no @TODO investigar si se aplican a boletas
             TaxMnt += mnt['amount']
             Neto += mnt['base']
         else:
-            imp.setdefault(tax_line_id.id, [tax_line_id, 0])
-            imp[tax_line_id.id][1] += mnt['amount']
             if tax_line_id.amount == 0:
                 MntExe += mnt['base']
-        return Neto, TaxMnt, MntExe, ivas, imp
+        return Neto, TaxMnt, MntExe
 
     def getResumen(self, rec):
         det = collections.OrderedDict()
@@ -598,37 +587,28 @@ version="1.0">
         Neto = 0
         MntExe = 0
         TaxMnt = 0
-        tasa = False
-        ivas = {}
-        imp = {}
+        Tasa = False
         impuestos = {}
         if 'lines' in rec:
-            for line in rec.lines:
+            for line in rec.lines:# agrupo las líneas para calcular iva global
                 if line.tax_ids:
                     for t in line.tax_ids:
+                        if not Tasa and self._es_iva(t):
+                            Tasa = t.amount
                         impuestos.setdefault(t.id, [t, 0])
                         impuestos[t.id][1] += line.price_subtotal_incl
             for key, t in impuestos.items():
-                Neto, TaxMnt, MntExe, ivas, imp = self._process_imps(t[0], t[1], rec.pricelist_id.currency_id, Neto, TaxMnt, MntExe, ivas, imp)
+                Neto, TaxMnt, MntExe = self._process_imps(t[0], t[1], rec.pricelist_id.currency_id, Neto, TaxMnt, MntExe)
         else:  # si la boleta fue hecha por contabilidad
             for l in rec.line_ids:
                 if l.tax_line_id:
                     if l.tax_line_id and l.tax_line_id.amount > 0: #supuesto iva único
-                        if l.tax_line_id.sii_code in [14, 15, 17, 18, 19, 30,31, 32 ,33, 34, 36, 37, 38, 39, 41, 47, 48]: # diferentes tipos de IVA retenidos o no
-                            if not l.tax_line_id.id in ivas:
-                                ivas[l.tax_line_id.id] = [l.tax_line_id, 0]
+                        if self._es_iva(l.tax_line_id): # diferentes tipos de IVA retenidos o no
+                            if not Tasa:
+                                Tasa = l.tax_line_id.amount
                             if l.credit > 0:
-                                ivas[l.tax_line_id.id][1] += l.credit
-                            else:
-                                ivas[l.tax_line_id.id][1] += l.debit
-                        else:
-                            if not l.tax_line_id.id in imp:
-                                imp[l.tax_line_id.id] = [l.tax_line_id, 0]
-                            if l.credit > 0:
-                                imp[l.tax_line_id.id][1] += l.credit
                                 TaxMnt += l.credit
                             else:
-                                imp[l.tax_line_id.id][1] += l.debit
                                 TaxMnt += l.debit
                 elif l.tax_ids and l.tax_ids[0].amount > 0:
                     if l.credit > 0:
@@ -644,8 +624,7 @@ version="1.0">
             det['MntExe'] = int(round(MntExe,0))
         if TaxMnt > 0:
             det['MntIVA'] = int(round(TaxMnt))
-            for key, t in ivas.items():
-                det['TasaIVA'] = t[0].amount
+            det['TasaIVA'] = Tasa
         monto_total = int(round((Neto + MntExe + TaxMnt), 0))
         det['MntNeto'] = int(round(Neto))
         det['MntTotal'] = monto_total
@@ -729,10 +708,10 @@ version="1.0">
                 resumenP['MntExento'] += resumen['MntExe']
             elif not 'MntExento' in resumenP:
                 resumenP['MntExento'] = 0
-            if not 'MntTotal' in resumenP:
-                resumenP['MntTotal'] = resumen['MntTotal']
-            else:
-                resumenP['MntTotal'] += resumen['MntTotal']
+        if not 'MntTotal' in resumenP:
+            resumenP['MntTotal'] = resumen.get('MntTotal', 0)
+        else:
+            resumenP['MntTotal'] += resumen.get('MntTotal', 0)
         if 'FoliosEmitidos' in resumenP:
             resumenP['FoliosEmitidos'] +=1
         else:
@@ -746,36 +725,33 @@ version="1.0">
             resumenP['FoliosUtilizados'] += 1
         else:
             resumenP['FoliosUtilizados'] = 1
+        if not resumenP.get('FoliosUtilizados', False):
+            resumenP['FoliosUtilizados'] = 0
         if not str(resumen['TpoDoc'])+'_folios' in resumenP:
             resumenP[str(resumen['TpoDoc'])+'_folios'] = collections.OrderedDict()
         resumenP[str(resumen['TpoDoc'])+'_folios'] = self._rangosU(resumen, resumenP[str(resumen['TpoDoc'])+'_folios'], continuado)
         return resumenP
 
     def _get_resumenes(self, marc=False):
-        resumenes = {}
+        resumenes = collections.OrderedDict()
         TpoDocs = []
         orders = []
-        recs = sorted(self.with_context(lang='es_CL').move_ids, key=lambda t: t.sii_document_number)
-        for rec in recs:
+        recs = []
+        for rec in self.with_context(lang='es_CL').move_ids:
             document_class_id = rec.document_class_id if 'document_class_id' in rec else rec.sii_document_class_id
             if not document_class_id or document_class_id.sii_code not in [39, 41, 61]:
                 _logger.info("Por este medio solamente e pueden declarar Boletas o Notas de crédito Electrónicas, por favor elimine el documento %s del listado" % rec.name)
                 continue
             if rec.sii_document_number:
-                resumen = self.getResumen(rec)
-                TpoDoc = resumen['TpoDoc']
-                TpoDocs.append(TpoDoc)
-                if not TpoDoc in resumenes:
-                    resumenes[TpoDoc] = collections.OrderedDict()
-                resumenes[TpoDoc] = self._setResumen(resumen, resumenes[TpoDoc])
+                recs.append(rec)
             #rec.sended = marc
-        if 'pos.order' in self.env:
+        if 'pos.order' in self.env: #@TODO mejor forma de verificar si está isntalado módulo POS
             current = self.fecha_inicio + ' 00:00:00'
             tz = pytz.timezone('America/Santiago')
             tz_current = tz.localize(datetime.strptime(current, DTF)).astimezone(pytz.utc)
             current = tz_current.strftime(DTF)
             next_day = (tz_current + relativedelta.relativedelta(days=1)).strftime(DTF)
-            orders_array = sorted(self.env['pos.order'].search(
+            orders_array = self.env['pos.order'].search(
                 [
                  ('invoice_id' , '=', False),
                  ('sii_document_number', 'not in', [False, '0']),
@@ -783,30 +759,39 @@ version="1.0">
                  ('date_order','>=', current),
                  ('date_order','<', next_day),
                 ]
-            ).with_context(lang='es_CL'), key=lambda t: t.sii_document_number)
-            ant = {}
+            ).with_context(lang='es_CL')
             for order in orders_array:
+                recs.append(order)
+        if recs:
+            recs = sorted(recs, key=lambda t: t.sii_document_number)
+            ant = {}
+            for order in recs:
+                canceled = (hasattr(order,'canceled') and order.canceled)
                 resumen = self.getResumen(order)
                 TpoDoc = str(resumen['TpoDoc'])
                 if not TpoDoc in ant:
-                    ant[TpoDoc] = [0, order.canceled]
+                    ant[TpoDoc] = [0, canceled]
+                if int(order.sii_document_number) == ant[TpoDoc][0]:
+                    raise UserError("¡El Folio %s está duplicado!" % order.sii_document_number)
                 if not TpoDoc in TpoDocs:
                     TpoDocs.append(TpoDoc)
                 if not TpoDoc in resumenes:
                     resumenes[TpoDoc] = collections.OrderedDict()
-                continuado = ((ant[TpoDoc][0]+1) == order.sii_document_number and (ant[TpoDoc][1]) == order.canceled)
+                continuado = ((ant[TpoDoc][0]+1) == int(order.sii_document_number) and (ant[TpoDoc][1]) == canceled)
                 resumenes[TpoDoc] = self._setResumen(resumen, resumenes[TpoDoc], continuado)
-                ant[TpoDoc] = [order.sii_document_number, order.canceled]
+                ant[TpoDoc] = [int(order.sii_document_number), canceled]
         for an in self.anulaciones:
             TpoDoc = str(an.tpo_doc.sii_code)
             if not TpoDoc in TpoDocs:
                 TpoDocs.append(TpoDoc)
+            if not TpoDoc in resumenes:
+                resumenes[TpoDoc] = collections.OrderedDict()
             i = an.rango_inicio
             while i <= an.rango_final:
                 continuado  = False
                 seted = False
                 for r, value in resumenes.items():
-                    Rangos = value[ str(r)+'_folios' ]
+                    Rangos = value.get(str(r)+'_folios', collections.OrderedDict())
                     if 'itemAnulados' in Rangos:
                         _logger.info(Rangos['itemAnulados'])
                         for rango in Rangos['itemAnulados']:
@@ -820,6 +805,8 @@ version="1.0">
                         'NroDoc': i,
                         'Anulado': 'A',
                     }
+                    if not resumenes.get(TpoDoc):
+                        resumenes[TpoDoc] = collections.OrderedDict()
                     resumenes[TpoDoc] = self._setResumen(resumen, resumenes[TpoDoc], continuado)
                 i += 1
         return resumenes, TpoDocs
@@ -831,7 +818,7 @@ version="1.0">
         try:
             signature_d = self.get_digital_signature(company_id)
         except:
-            raise Warning(_('''There is no Signer Person with an \
+            raise UserError(_('''There is no Signer Person with an \
         authorized signature for you in the system. Please make sure that \
         'user_signature_key' module has been installed and enable a digital \
         signature, for you or make the signer to authorize you to use his \
@@ -867,7 +854,7 @@ version="1.0">
             xml = dicttoxml.dicttoxml(
                 dte,
                 root=False,
-                attr_type=False)
+                attr_type=False).decode()
         resol_data = self.get_resolution_data(company_id)
         RUTEmisor = self.format_vat(company_id.vat)
         RUTRecep = "60803000-K" # RUT SII
@@ -955,8 +942,8 @@ version="1.0">
                 template_string, signature_d['priv_key'],
                 signature_d['cert'])
             token = self.get_token(seed_firmado,self.company_id)
-        except:
-            raise Warning(connection_status[response.e])
+        except Exception as e:
+            raise UserError(tools.ustr(e))
         xml_response = xmltodict.parse(self.sii_xml_response)
         if self.state == 'Enviado':
             status = self._get_send_status(self.sii_send_ident, signature_d, token)
@@ -997,12 +984,16 @@ class DetalleImpuestos(models.Model):
 class Anulaciones(models.Model):
     _name = 'account.move.consumo_folios.anulaciones'
 
-    cf_id = fields.Many2one('account.move.consumo_folios',
-                            string="Consumo de Folios")
-    tpo_doc = fields.Many2one('sii.document_class',
-        string="Tipo de documento",
-        required=True,
-        domain=[('sii_code','in',[ 39 , 41, 61])])
+    cf_id = fields.Many2one(
+            'account.move.consumo_folios',
+            string="Consumo de Folios",
+        )
+    tpo_doc = fields.Many2one(
+            'sii.document_class',
+            string="Tipo de documento",
+            required=True,
+            domain=[('sii_code','in',[ 39 , 41, 61])],
+        )
     rango_inicio = fields.Integer(
         required=True,
         string="Rango Inicio")

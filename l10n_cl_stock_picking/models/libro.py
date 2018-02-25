@@ -10,20 +10,11 @@ from lxml import objectify
 from lxml.etree import XMLSyntaxError
 from odoo import SUPERUSER_ID
 
-import xml.dom.minidom
 import pytz
 
-
-import socket
 import collections
 
-try:
-    from io import BytesIO
-except:
-    _logger.warning("no se ha cargado io")
-
-import traceback as tb
-import suds.metrics as metrics
+_logger = logging.getLogger(__name__)
 
 try:
     from suds.client import Client
@@ -37,8 +28,6 @@ except:
 
 pool = urllib3.PoolManager()
 import textwrap
-
-_logger = logging.getLogger(__name__)
 
 try:
     import xmltodict
@@ -65,11 +54,6 @@ try:
     import cchardet
 except ImportError:
     _logger.info('Cannot import cchardet library')
-
-try:
-    from signxml import xmldsig, methods
-except ImportError:
-    _logger.info('Cannot import signxml')
 
 try:
     from cryptography.hazmat.backends import default_backend
@@ -182,36 +166,9 @@ class LibroGuia(models.Model):
         except AssertionError as e:
             raise UserError(_('XML Malformed Error:  %s') % e.args)
 
-
-    '''
-    Funcion usada en autenticacion en SII
-    Obtencion de la semilla desde el SII.
-    Basada en función de ejemplo mostrada en el sitio edreams.cl
-     @author: Daniel Blanco Martin (daniel[at]blancomartin.cl)
-     @version: 2015-04-01
-    '''
     def get_seed(self, company_id):
-        #En caso de que haya un problema con la validación de certificado del sii ( por una mala implementación de ellos)
-        #esto omite la validacion
-        try:
-            import ssl
-            ssl._create_default_https_context = ssl._create_unverified_context
-        except:
-            pass
-        url = server_url[company_id.dte_service_provider] + 'CrSeed.jws?WSDL'
-        ns = 'urn:'+server_url[company_id.dte_service_provider] + 'CrSeed.jws'
-        _server = Client(url, ns)
-        root = etree.fromstring(_server.getSeed())
-        semilla = root[0][0].text
-        return semilla
+        return self.env['account.invoice'].get_seed(company_id)
 
-    '''
-    Funcion usada en autenticacion en SII
-    Creacion de plantilla xml para realizar el envio del token
-    Previo a realizar su firma
-     @author: Daniel Blanco Martin (daniel[at]blancomartin.cl)
-     @version: 2016-06-01
-    '''
     def create_template_seed(self, seed):
         xml = u'''<getToken>
 <item>
@@ -221,13 +178,6 @@ class LibroGuia(models.Model):
 '''.format(seed)
         return xml
 
-    '''
-    Funcion usada en autenticacion en SII
-    Creacion de plantilla xml para envolver el Envio de DTEs
-    Previo a realizar su firma (2da)
-     @author: Daniel Blanco Martin (daniel[at]blancomartin.cl)
-     @version: 2016-06-01
-    '''
     def create_template_env(self, doc,simplificado=False):
         simp = 'http://www.sii.cl/SiiDte LibroGuia_v10.xsd'
         if simplificado:
@@ -239,41 +189,11 @@ version="1.0">
 {1}</LibroGuia>'''.format(simp, doc)
         return xml
 
-    '''
-    Funcion usada en autenticacion en SII
-    Firma de la semilla utilizando biblioteca signxml
-    De autoria de Andrei Kislyuk https://github.com/kislyuk/signxml
-    (en este caso particular esta probada la efectividad de la libreria)
-     @author: Daniel Blanco Martin (daniel[at]blancomartin.cl)
-     @version: 2016-06-01
-    '''
     def sign_seed(self, message, privkey, cert):
-        doc = etree.fromstring(message)
-        signed_node = xmldsig(
-            doc, digest_algorithm=u'sha1').sign(
-            method=methods.enveloped, algorithm=u'rsa-sha1',
-            key=privkey.encode('ascii'),
-            cert=cert)
-        msg = etree.tostring(
-            signed_node, pretty_print=True).replace('ds:', '')
-        return msg
+        return self.env['account.invoice'].sign_seed(message, privkey, cert)
 
-    '''
-    Funcion usada en autenticacion en SII
-    Obtencion del token a partir del envio de la semilla firmada
-    Basada en función de ejemplo mostrada en el sitio edreams.cl
-     @author: Daniel Blanco Martin (daniel[at]blancomartin.cl)
-     @version: 2016-06-01
-    '''
-    def get_token(self, seed_file,company_id):
-        url = server_url[company_id.dte_service_provider] + 'GetTokenFromSeed.jws?WSDL'
-        ns = 'urn:'+ server_url[company_id.dte_service_provider] +'GetTokenFromSeed.jws'
-        _server = Client(url, ns)
-        tree = etree.fromstring(seed_file)
-        ss = etree.tostring(tree, pretty_print=True, encoding='iso-8859-1')
-        respuesta = etree.fromstring(_server.getToken(ss))
-        token = respuesta[0][0].text
-        return token
+    def get_token(self, seed_file, company_id):
+        return self.env['account.invoice'].get_token(seed_file, company_id)
 
     def ensure_str(self,x, encoding="utf-8", none_ok=False):
         if none_ok is True and x is None:
@@ -281,36 +201,6 @@ version="1.0">
         if not isinstance(x, str):
             x = x.decode(encoding)
         return x
-
-    def long_to_bytes(self, n, blocksize=0):
-        """long_to_bytes(n:long, blocksize:int) : string
-        Convert a long integer to a byte string.
-        If optional blocksize is given and greater than zero, pad the front of the
-        byte string with binary zeros so that the length is a multiple of
-        blocksize.
-        """
-        # after much testing, this algorithm was deemed to be the fastest
-        s = b''
-        n = long(n)  # noqa
-        import struct
-        pack = struct.pack
-        while n > 0:
-            s = pack(b'>I', n & 0xffffffff) + s
-            n = n >> 32
-        # strip off leading zeros
-        for i in range(len(s)):
-            if s[i] != b'\000'[0]:
-                break
-        else:
-            # only happens when n == 0
-            s = b'\000'
-            i = 0
-        s = s[i:]
-        # add back some pad bytes.  this could be done more efficiently w.r.t. the
-        # de-padding being done above, but sigh...
-        if blocksize > 0 and len(s) % blocksize:
-            s = (blocksize - len(s) % blocksize) * b'\000' + s
-        return s
 
     def sign_full_xml(self, message, privkey, cert, uri, type='libro'):
         doc = etree.fromstring(message)
@@ -330,29 +220,30 @@ version="1.0">
         signed_info_c14n = etree.tostring(signed_info,method="c14n",exclusive=False,with_comments=False,inclusive_ns_prefixes=None)
         att = 'xmlns="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"'
         #@TODO Find better way to add xmlns:xsi attrib
-        signed_info_c14n = signed_info_c14n.replace("<SignedInfo>","<SignedInfo " + att + ">")
+        signed_info_c14n = signed_info_c14n.decode().replace("<SignedInfo>", "<SignedInfo %s>" % att )
         xmlns = 'http://www.w3.org/2000/09/xmldsig#'
         sig_root = Element("Signature",attrib={'xmlns':xmlns})
         sig_root.append(etree.fromstring(signed_info_c14n))
         signature_value = SubElement(sig_root, "SignatureValue")
-        key=OpenSSL.crypto.load_privatekey(type_,privkey.encode('ascii'))
-        signature= OpenSSL.crypto.sign(key,signed_info_c14n,'sha1')
-        signature_value.text =textwrap.fill(base64.b64encode(signature),64)
+        key = crypto.load_privatekey(type_,privkey.encode('ascii'))
+        signature = crypto.sign(key,signed_info_c14n,'sha1')
+        signature_value.text =textwrap.fill(base64.b64encode(signature).decode(),64)
         key_info = SubElement(sig_root, "KeyInfo")
         key_value = SubElement(key_info, "KeyValue")
         rsa_key_value = SubElement(key_value, "RSAKeyValue")
         modulus = SubElement(rsa_key_value, "Modulus")
         key = load_pem_private_key(privkey.encode('ascii'),password=None, backend=default_backend())
-        modulus.text =  textwrap.fill(base64.b64encode(self.long_to_bytes(key.public_key().public_numbers().n)),64)
+        longs = self.env['account.invoice'].long_to_bytes(key.public_key().public_numbers().n)
+        modulus.text =  textwrap.fill(base64.b64encode(longs).decode(),64)
         exponent = SubElement(rsa_key_value, "Exponent")
-        exponent.text = self.ensure_str(base64.b64encode(self.long_to_bytes(key.public_key().public_numbers().e)))
+        longs = self.env['account.invoice'].long_to_bytes(key.public_key().public_numbers().e)
+        exponent.text = self.ensure_str(base64.b64encode(longs))
         x509_data = SubElement(key_info, "X509Data")
         x509_certificate = SubElement(x509_data, "X509Certificate")
         x509_certificate.text = '\n'+textwrap.fill(cert,64)
         msg = etree.tostring(sig_root)
         msg = msg if self.xml_validator(msg, 'sig') else ''
-        fulldoc = message.replace('</LibroGuia>',msg+'\n</LibroGuia>')
-        fulldoc = '<?xml version="1.0" encoding="ISO-8859-1"?>\n'+fulldoc
+        fulldoc = message.replace('</LibroGuia>','%s\n</LibroGuia>' % msg.decode())
         fulldoc = fulldoc if self.xml_validator(fulldoc, type) else ''
         return fulldoc
 
@@ -397,13 +288,6 @@ version="1.0">
             'cert': obj.cert}
         return signature_data
 
-    '''
-    Funcion usada en SII
-    Toma los datos referentes a la resolución SII que autoriza a
-    emitir DTE
-     @author: Daniel Blanco Martin (daniel[at]blancomartin.cl)
-     @version: 2016-06-01
-    '''
     def get_resolution_data(self, comp_id):
         resolution_data = {
             'dte_resolution_date': comp_id.dte_resolution_date,
@@ -414,13 +298,6 @@ version="1.0">
     def send_xml_file(self, envio_dte=None, file_name="envio",company_id=False):
         if not company_id.dte_service_provider:
             raise UserError(_("Not Service provider selected!"))
-        # en esta etapa el proceso de armado de XML me entrega el xml completo
-        # que debo enviar, y no hace falta construirlo
-        # Se puede dejar la autenticación completa en esta etapa más adelante
-        # estos comentarios eran antes... ahora vamos con un solo envio por invoice
-        #   ###### comienzo de bloque de autenticacion #########
-        #   ### Hipótesis: un envío por cada RUT de receptor ###
-        # all el código estaba indentado más adentro antes....
         try:
             signature_d = self.get_digital_signature_pem(
                 company_id)
@@ -453,7 +330,7 @@ version="1.0">
         params['rutCompany'] = company_id.vat[2:-1]
         params['dvCompany'] = company_id.vat[-1]
         file_name = file_name + '.xml'
-        params['archivo'] = (file_name,envio_dte,"text/xml")
+        params['archivo'] = (file_name,'<?xml version="1.0" encoding="ISO-8859-1"?>\n'+envio_dte,"text/xml")
         multi  = urllib3.filepost.encode_multipart_formdata(params)
         headers.update({'Content-Length': '{}'.format(len(multi[0]))})
         response = pool.request_encode_body('POST', url+post, params, headers)
@@ -468,65 +345,20 @@ version="1.0">
             retorno.update({'sii_result': 'Enviado','sii_send_ident':respuesta_dict['RECEPCIONDTE']['TRACKID']})
         return retorno
 
-    '''
-    Funcion para descargar el xml en el sistema local del usuario
-     @author: Daniel Blanco Martin (daniel[at]blancomartin.cl)
-     @version: 2016-05-01
-    '''
     @api.multi
     def get_xml_file(self):
         return {
             'type' : 'ir.actions.act_url',
-            'url': '/web/binary/download_document?model=stock.picking\
-&field=sii_xml_request&id=%s&filename=%s' % (self.id,filename),
+            'url': '/download/xml/libro_guia%s' % (self.id),
             'target': 'self',
         }
 
-    '''
-    Funcion para reformateo del vat desde modo Odoo (dos digitos pais sin guion)
-    a valor sin puntuacion con guion
-     @author: Daniel Blanco Martin (daniel[at]blancomartin.cl)
-     @version: 2016-05-01
-    '''
     def format_vat(self, value):
         return value[2:10] + '-' + value[10:]
 
-    '''
-    Funcion usada en SII
-    para firma del timbre (dio errores de firma para el resto de los doc)
-     @author: Daniel Blanco Martin (daniel[at]blancomartin.cl)
-     @version: 2015-03-01
-    '''
     def digest(self, data):
         sha1 = hashlib.new('sha1', data)
         return sha1.digest()
-
-    '''
-    Funcion usada en SII
-    para firma del timbre (dio errores de firma para el resto de los doc)
-     @author: Daniel Blanco Martin (daniel[at]blancomartin.cl)
-     @version: 2015-03-01
-    '''
-    def signrsa(self, MESSAGE, KEY, digst=''):
-        KEY = KEY.encode('ascii')
-        rsa = M2Crypto.EVP.load_key_string(KEY)
-        rsa.reset_context(md='sha1')
-        rsa_m = rsa.get_rsa()
-        rsa.sign_init()
-        rsa.sign_update(MESSAGE)
-        FRMT = base64.b64encode(rsa.sign_final())
-        if digst == '':
-            return {
-                'firma': FRMT, 'modulus': base64.b64encode(rsa_m.n),
-                'exponent': base64.b64eDigesncode(rsa_m.e)}
-        else:
-            _logger.info("""Signature verified! Returning signature, modulus, \
-exponent. AND DIGEST""")
-            return {
-                'firma': FRMT, 'modulus': base64.b64encode(rsa_m.n),
-                'exponent': base64.b64encode(rsa_m.e),
-                'digest': base64.b64encode(self.digest(MESSAGE))}
-
 
     @api.onchange('periodo_tributario','tipo_operacion')
     def _setName(self):
@@ -547,45 +379,61 @@ exponent. AND DIGEST""")
     sii_send_ident = fields.Text(
         string='SII Send Identification',
         copy=False)
-    state = fields.Selection([
-        ('draft', 'Borrador'),
-        ('NoEnviado', 'No Enviado'),
-        ('Enviado', 'Enviado'),
-        ('Aceptado', 'Aceptado'),
-        ('Rechazado', 'Rechazado'),
-        ('Reparo', 'Reparo'),
-        ('Proceso', 'Proceso'),
-        ('Reenviar', 'Reenviar'),
-        ('Anulado', 'Anulado')],
-        'Resultado'
-        , index=True, readonly=True, default='draft',
-        track_visibility='onchange', copy=False,
-        help=" * The 'Draft' status is used when a user is encoding a new and unconfirmed Invoice.\n"
+    state = fields.Selection(
+            [
+                ('draft', 'Borrador'),
+                ('NoEnviado', 'No Enviado'),
+                ('Enviado', 'Enviado'),
+                ('Aceptado', 'Aceptado'),
+                ('Rechazado', 'Rechazado'),
+                ('Reparo', 'Reparo'),
+                ('Proceso', 'Proceso'),
+                ('Reenviar', 'Reenviar'),
+                ('Anulado', 'Anulado')
+            ],
+            string='Resultado',
+            index=True,
+            readonly=True,
+            default='draft',
+            track_visibility='onchange', copy=False,
+            help=" * The 'Draft' status is used when a user is encoding a new and unconfirmed Invoice.\n"
              " * The 'Pro-forma' status is used the invoice does not have an invoice number.\n"
              " * The 'Open' status is used when user create invoice, an invoice number is generated. Its in open status till user does not pay invoice.\n"
              " * The 'Paid' status is set automatically when the invoice is paid. Its related journal entries may or may not be reconciled.\n"
-             " * The 'Cancelled' status is used when user cancel invoice.")
-    move_ids = fields.Many2many('stock.picking',
-        readonly=True,
-        states={'draft': [('readonly', False)]})
-
+             " * The 'Cancelled' status is used when user cancel invoice.",
+        )
+    move_ids = fields.Many2many(
+            'stock.picking',
+            readonly=True,
+            states={'draft': [('readonly', False)]},
+        )
     tipo_libro = fields.Selection(
-        [('ESPECIAL','Especial')],
-        string="Tipo de Libro",
-        default='ESPECIAL',
-        required=True,
-        readonly=True,
-        states={'draft': [('readonly', False)]})
+            [
+                    ('ESPECIAL','Especial'),
+            ],
+            string="Tipo de Libro",
+            default='ESPECIAL',
+            required=True,
+            readonly=True,
+            states={'draft': [('readonly', False)]},
+        )
     tipo_envio = fields.Selection(
-        [('AJUSTE','Ajuste'),('TOTAL','Total'),('PARCIAL','Parcial'),('TOTAL','Total')],
-        string="Tipo de Envío",
-        default="TOTAL",
-        required=True,
-        readonly=True,
-        states={'draft': [('readonly', False)]})
+            [
+                    ('AJUSTE','Ajuste'),
+                    ('TOTAL','Total'),
+                    ('PARCIAL','Parcial'),
+                    ('TOTAL','Total')
+            ],
+            string="Tipo de Envío",
+            default="TOTAL",
+            required=True,
+            readonly=True,
+            states={'draft': [('readonly', False)]},
+        )
     folio_notificacion = fields.Char(string="Folio de Notificación",
-        readonly=True,
-        states={'draft': [('readonly', False)]})
+            readonly=True,
+            states={'draft': [('readonly', False)]},
+        )
     #total_afecto = fields.Char(string="Total Afecto")
     #total_exento = fields.Char(string="Total Exento")
     periodo_tributario = fields.Char(
@@ -596,10 +444,11 @@ exponent. AND DIGEST""")
             default=lambda *a: datetime.now().strftime('%Y-%m'),
         )
     company_id = fields.Many2one('res.company',
-        required=True,
-        default=lambda self: self.env.user.company_id.id,
-        readonly=True,
-        states={'draft': [('readonly', False)]})
+            required=True,
+            default=lambda self: self.env.user.company_id.id,
+            readonly=True,
+            states={'draft': [('readonly', False)]},
+        )
     name = fields.Char(
             string="Detalle",
             required=True,
@@ -639,7 +488,8 @@ exponent. AND DIGEST""")
         name =  rec.partner_id.name or self.company_id.name
         det['RznSoc'] = name[:50]
         tasa = '19.00'
-
+        if rec.move_reason == '5':
+            rec.amount_untaxed = rec.amount_tax = rec.amount_total = 0
         if rec.amount_untaxed > 0:
             det['MntNeto'] = int(round(rec.amount_untaxed))
             det['TasaImp'] = tasa
@@ -741,7 +591,7 @@ exponent. AND DIGEST""")
         RUTEmisor = self.format_vat(company_id.vat)
         RUTRecep = "60803000-K" # RUT SII
         xml = dicttoxml.dicttoxml(
-            dte, root=False, attr_type=False)
+            dte, root=False, attr_type=False).decode()
         doc_id =  'GUIA_'+self.periodo_tributario
         libro = self.create_template_envio( RUTEmisor, self.periodo_tributario,
             resol_data['dte_resolution_date'],
@@ -749,11 +599,14 @@ exponent. AND DIGEST""")
             xml, signature_d,self.tipo_libro,self.tipo_envio,self.folio_notificacion, doc_id)
         xml  = self.create_template_env(libro)
         root = etree.XML( xml )
-        xml_pret = etree.tostring(root, pretty_print=True).replace('<item>','\n').replace('</item>','').replace('<itemTraslado>','').replace('</itemTraslado>','\n')
-        envio_dte = self.convert_encoding(xml_pret, 'ISO-8859-1')
+        envio_dte = etree.tostring(root, pretty_print=True).decode()\
+                .replace('<item>','\n').replace('</item>','').replace('<itemTraslado>','').replace('</itemTraslado>','\n')
         envio_dte = self.sign_full_xml(
-            envio_dte, signature_d['priv_key'], certp,
-            doc_id, 'libro')
+            envio_dte,
+            signature_d['priv_key'],
+            certp,
+            doc_id,
+            'libro')
         return envio_dte, doc_id
 
     @api.multi

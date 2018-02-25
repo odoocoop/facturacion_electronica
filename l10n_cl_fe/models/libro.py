@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from odoo import fields, models, api
+from odoo import fields, models, api, tools
 from odoo.tools.translate import _
 from odoo.exceptions import UserError
 from datetime import datetime, timedelta
@@ -72,11 +72,6 @@ try:
     import cchardet
 except ImportError:
     _logger.info('Cannot import cchardet library')
-
-try:
-    from signxml import xmldsig, methods
-except ImportError:
-    _logger.info('Cannot import signxml')
 
 server_url = {'SIICERT':'https://maullin.sii.cl/DTEWS/','SII':'https://palena.sii.cl/DTEWS/'}
 
@@ -649,9 +644,9 @@ version="1.0">
                 signature_d['priv_key'],
                 signature_d['cert'])
             token = self.get_token(seed_firmado,company_id)
-        except:
+        except Exception as e:
             _logger.info(connection_status)
-            raise UserError(connection_status)
+            raise UserError(tools.ustr(e))
 
         url = 'https://palena.sii.cl'
         if company_id.dte_service_provider == 'SIICERT':
@@ -683,7 +678,8 @@ version="1.0">
         respuesta_dict = xmltodict.parse(response.data)
         if respuesta_dict['RECEPCIONDTE']['STATUS'] != '0':
             _logger.info('l736-status no es 0')
-            _logger.info(connection_status)
+            _logger.info(respuesta_dict)
+            _logger.info(connection_status[respuesta_dict['RECEPCIONDTE']['STATUS']])
         else:
             retorno.update({'sii_result': 'Enviado','sii_send_ident':respuesta_dict['RECEPCIONDTE']['TRACKID']})
         return retorno
@@ -708,7 +704,7 @@ version="1.0">
         sha1 = hashlib.new('sha1', data)
         return sha1.digest()
 
-    @api.onchange('periodo_tributario','tipo_operacion')
+    @api.onchange('periodo_tributario', 'tipo_operacion')
     def _setName(self):
         self.name = self.tipo_operacion
         if self.periodo_tributario:
@@ -1272,10 +1268,11 @@ version="1.0">
         ResumenPeriodo=[]
         for r, value in resumenesPeriodo.items():
             total = collections.OrderedDict()
-            for v in lista:
-                if v in value:
-                    total[v] = value[v]
-            ResumenPeriodo.extend([{'TotalesPeriodo':total}])
+            if value:
+                for v in lista:
+                    if v in value:
+                        total[v] = value[v]
+                ResumenPeriodo.extend([{'TotalesPeriodo':total}])
         dte = collections.OrderedDict()
         if ResumenPeriodo:
             dte['ResumenPeriodo'] = ResumenPeriodo

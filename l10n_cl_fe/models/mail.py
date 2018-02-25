@@ -73,6 +73,7 @@ class ProccessMail(models.Model):
 
     @api.multi
     def process_message(self, pre=False, option=False):
+        created = False
         for r in self:
             for att in r.sudo().mail_id.attachment_ids:
                 if not att.name:
@@ -202,7 +203,7 @@ class ProcessMailsDocument(models.Model):
                 'option': 'acept'
             }
             val = self.env['sii.dte.upload_xml.wizard'].create(vals)
-            created.append(val.confirm(ret=True))
+            created.extend(val.confirm(ret=True))
             r.state = 'acepted'
         xml_id = 'account.action_invoice_tree2'
         result = self.env.ref('%s' % (xml_id)).read()[0]

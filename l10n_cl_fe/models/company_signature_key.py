@@ -6,6 +6,8 @@ from odoo.tools.translate import _
 from odoo.exceptions import Warning
 from odoo import SUPERUSER_ID
 import base64
+import logging
+_logger = logging.getLogger(__name__)
 try:
     from OpenSSL import crypto
     type_ = crypto.FILETYPE_PEM
@@ -99,8 +101,8 @@ class userSignature(models.Model):
 
         self.priv_key = crypto.dump_privatekey(type_, private_key)
         self.cert = crypto.dump_certificate(type_, certificate)
-
-        pubkey = cert.get_pubkey()
+        
+        self.dec_pass = False
 
     filename = fields.Char(string='File Name')
     key_file = fields.Binary(

@@ -86,16 +86,6 @@ try:
 except ImportError:
     _logger.info('Cannot import hashlib library')
 
-try:
-    import cchardet
-except ImportError:
-    _logger.info('Cannot import cchardet library')
-
-try:
-    from signxml import xmldsig, methods
-except ImportError:
-    _logger.info('Cannot import signxml')
-
 # timbre patrón. Permite parsear y formar el
 # ordered-dict patrón corespondiente al documento
 timbre  = """<TED version="1.0"><DD><RE>99999999-9</RE><TD>11</TD><F>1</F>\
@@ -145,31 +135,24 @@ class POS(models.Model):
     _inherit = 'pos.order'
 
     def _get_document_class_id(self):
-        if self.journal_document_class_id:
-            return self.journal_document_class_id.self.journal_document_class_id.id
+        if self.sequence_id:
+            return self.sequence_id.sii_document_class_id.id
         return self.env['sii.document_class']
 
     signature = fields.Char(
             string="Signature",
         )
-    available_journal_document_class_ids = fields.Many2many(
-            'account.journal.sii_document_class',
-            #compute='_get_available_journal_document_class',
-            string='Available Journal Document Classes',
+    sequence_id = fields.Many2one(
+            'ir.sequence',
+            string='Sequencia de Boleta',
+            states={'draft': [('readonly', False)]},
         )
     document_class_id = fields.Many2one(
             'sii.document_class',
+            related="sequence_id.sii_document_class_id",
             string='Document Type',
             copy=False,
             readonly=True,
-            states={'draft': [('readonly', False)]},
-            default=_get_document_class_id,
-        )
-    journal_document_class_id = fields.Many2one(
-            'account.journal.sii_document_class',
-            string='Documents Type',
-            readonly=True,
-            store=True,
             states={'draft': [('readonly', False)]},
         )
     sii_batch_number = fields.Integer(
@@ -325,8 +308,7 @@ class POS(models.Model):
         return xml
 
     def create_template_env(self, doc):
-        xml = '''<?xml version="1.0" encoding="ISO-8859-1"?>
-<EnvioDTE xmlns="http://www.sii.cl/SiiDte" \
+        xml = '''<EnvioDTE xmlns="http://www.sii.cl/SiiDte" \
 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
 xsi:schemaLocation="http://www.sii.cl/SiiDte EnvioDTE_v10.xsd" \
 version="1.0">
@@ -335,8 +317,7 @@ version="1.0">
         return xml
 
     def create_template_env_boleta(self, doc):
-        xml = '''<?xml version="1.0" encoding="ISO-8859-1"?>
-<EnvioBOLETA xmlns="http://www.sii.cl/SiiDte" \
+        xml = '''<EnvioBOLETA xmlns="http://www.sii.cl/SiiDte" \
 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
 xsi:schemaLocation="http://www.sii.cl/SiiDte EnvioBOLETA_v11.xsd" \
 version="1.0">
@@ -426,70 +407,6 @@ version="1.0">
         sha1 = hashlib.new('sha1', data)
         return sha1.digest()
 
-    @api.onchange('journal_id', 'partner_id', 'turn_issuer','invoice_turn')
-    def _get_available_journal_document_class(self, default=None):
-        for inv in self:
-            invoice_type = 'out_invoice'
-            document_class_ids = []
-            document_class_id = False
-
-            inv.available_journal_document_class_ids = self.env[
-                'account.journal.sii_document_class']
-            if invoice_type in [
-                    'out_invoice', 'in_invoice', 'out_refund', 'in_refund']:
-                operation_type = inv.get_operation_type(invoice_type)
-
-                if inv.use_documents:
-                    letter_ids = inv.get_valid_document_letters(
-                        inv.partner_id.id, operation_type, inv.company_id.id,
-                        inv.turn_issuer.vat_affected, invoice_type)
-
-                    domain = [
-                        ('journal_id', '=', inv.journal_id.id),
-                        '|', ('sii_document_class_id.document_letter_id',
-                              'in', letter_ids),
-                             ('sii_document_class_id.document_letter_id', '=', False)]
-
-                    # If document_type in context we try to serch specific document
-                    # document_type = self._context.get('document_type', False)
-                    # en este punto document_type siempre es falso.
-                    # TODO: revisar esta opcion
-                    #document_type = self._context.get('document_type', False)
-                    #if document_type:
-                    #    document_classes = self.env[
-                    #        'account.journal.sii_document_class'].search(
-                    #        domain + [('document_class_id.document_type', '=', document_type)])
-                    #    if document_classes.ids:
-                    #        # revisar si hay condicion de exento, para poner como primera alternativa estos
-                    #        document_class_id = self.get_document_class_default(document_classes)
-                    if invoice_type  in [ 'in_refund', 'out_refund']:
-                        domain += [('sii_document_class_id.document_type','in',['debit_note','credit_note'] )]
-                    else:
-                        domain += [('sii_document_class_id.document_type','in',['invoice','invoice_in'] )]
-
-                    # For domain, we search all documents
-                    document_classes = self.env[
-                        'account.journal.sii_document_class'].search(domain)
-                    document_class_ids = document_classes.ids
-
-                    # If not specific document type found, we choose another one
-                    if not document_class_id and document_class_ids:
-                        # revisar si hay condicion de exento, para poner como primera alternativa estos
-                        # to-do: manejar más fino el documento por defecto.
-                        document_class_id = inv.get_document_class_default(document_classes)
-                # incorporado nuevo, para la compra
-                if operation_type == 'purchase':
-                    inv.available_journals = []
-
-            inv.available_journal_document_class_ids = document_class_ids
-            if not inv.journal_document_class_id or default:
-                if default:
-                    for dc in document_classes:
-                        if dc.sii_document_class_id.id == default:
-                            document_class_id = dc
-                inv.journal_document_class_id = document_class_id.id
-                inv.document_class_id = document_class_id.sii_document_class_id
-
     def _acortar_str(self, texto, size=1):
         c = 0
         cadena = ""
@@ -507,17 +424,18 @@ version="1.0">
         order['lines'] = lines
         order_id = super(POS,self)._process_order(order)
         order_id.sequence_number = order['sequence_number'] #FIX odoo bug
-        if order['orden_numero']:
-            if order['orden_numero'] > order_id.session_id.numero_ordenes:
+        if order.get('orden_numero', False) and order.get('sequence_id', False):
+            order_id.sequence_id = order['sequence_id'].get('id', False)
+            if order_id.sequence_id and  order_id.sequence_id.sii_document_class_id.sii_code == 39 and  order['orden_numero'] > order_id.session_id.numero_ordenes:
                 order_id.session_id.numero_ordenes = order['orden_numero']
-            order_id.journal_document_class_id = order_id.session_id.journal_document_class_id
-            order_id.document_class_id = order_id.session_id.journal_document_class_id.sii_document_class_id
+            elif order_id.sequence_id and order_id.sequence_id.sii_document_class_id.sii_code == 41 and order['orden_numero'] > order_id.session_id.numero_ordenes_exentas:
+                order_id.session_id.numero_ordenes_exentas = order['orden_numero']
             order_id.sii_document_number = order['sii_document_number']
-            sign = self.get_digital_signature(self.env.uid.company_id)
-            if order_id.session_id.caf_file and sign:
+            sign = self.get_digital_signature(self.env.user.company_id)
+            if (order_id.session_id.caf_files or order_id.session_id.caf_files_exentas) and sign:
                 order_id.signature = order['signature']
                 order_id._timbrar()
-                order_id.journal_document_class_id.sequence_id.next_by_id()#consumo Folio
+                order_id.sequence_id.next_by_id()#consumo Folio
         return order_id
 
     def _prepare_invoice(self):
@@ -525,7 +443,7 @@ version="1.0">
         journal_document_class_id = self.env['account.journal.sii_document_class'].search(
                 [
                     ('journal_id','=', self.sale_journal.id),
-                    ('sii_document_class_id.sii_code', 'in', ['33', '34']),
+                    ('sii_document_class_id.sii_code', 'in', ['33']),
                 ],
             )
         if not journal_document_class_id:
@@ -538,10 +456,9 @@ version="1.0">
             'turn_issuer' : turn_issuer.id,
             'activity_description': self.partner_id.activity_description.id,
             'ticket':  self.session_id.config_id.ticket,
-            'available_journal_document_class_ids': self.session_id.config_id.available_journal_document_class_ids.ids,
             'sii_document_class_id': journal_document_class_id.sii_document_class_id.id,
             'journal_document_class_id': journal_document_class_id.id,
-            'responsable_envio': self.env.uid.id,
+            'responsable_envio': self.env.uid,
         })
         return result
 
@@ -563,7 +480,12 @@ version="1.0">
                 order.responsable_envio = self.env.user.id
         self.do_dte_send()
 
-    def _es_boleta(self):
+    def _es_boleta(self, id_doc=False):
+        if id_doc and id_doc in [35, 38, 39, 41, 70, 71]:
+            return True
+        elif id_doc:
+            return False
+
         if self.document_class_id.sii_code in [35, 38, 39, 41, 70, 71]:
             return True
         return False
@@ -613,9 +535,9 @@ version="1.0">
             Emisor['Telefono'] = self.company_id.phone or ''
             Emisor['CorreoEmisor'] = self.company_id.dte_email
             Emisor['item'] = self._giros_emisor()
-        if self.sale_journal.sii_code:
-            Emisor['Sucursal'] = self.sale_journal.sucursal.name
-            Emisor['CdgSIISucur'] = self.sale_journal.sii_code
+        if self.sale_journal.sucursal_id:
+            Emisor['Sucursal'] = self.sale_journal.sucursal_id.name
+            Emisor['CdgSIISucur'] = self.sale_journal.sucursal_id.sii_code
         Emisor['DirOrigen'] = self.company_id.street + ' ' +(self.company_id.street2 or '')
         Emisor['CmnaOrigen'] = self.company_id.city_id.name or ''
         Emisor['CiudadOrigen'] = self.company_id.city or ''
@@ -723,7 +645,7 @@ version="1.0">
         lines = self.lines
         sorted(lines, key=lambda e: e.pos_order_line_id)
         result['TED']['DD']['IT1'] = self._acortar_str(lines[0].product_id.with_context(display_default_code=False, lang='es_CL').name,40)
-        resultcaf = self.journal_document_class_id.sequence_id.get_caf_file(folio)
+        resultcaf = self.sequence_id.get_caf_file(folio)
         result['TED']['DD']['CAF'] = resultcaf['AUTORIZACION']['CAF']
         dte = result['TED']['DD']
         timestamp = date_order.replace(' ','T')
@@ -742,7 +664,7 @@ version="1.0">
         keypriv = resultcaf['AUTORIZACION']['RSASK'].replace('\t','')
         root = etree.XML( ddxml )
         ddxml = etree.tostring(root)
-        frmt = self.signmessage(ddxml, keypriv)
+        frmt = self.env['account.invoice'].signmessage(ddxml, keypriv)
         ted = (
             '''<TED version="1.0">{}<FRMT algoritmo="SHA1withRSA">{}\
 </FRMT></TED>''').format(ddxml.decode(), frmt)
@@ -855,7 +777,7 @@ version="1.0">
         ted = dte['Documento ID']['TEDd']
         dte['Documento ID']['TEDd'] = ''
         xml = dicttoxml.dicttoxml(
-            dte, root=False, attr_type=False) \
+            dte, root=False, attr_type=False).decode() \
             .replace('<item>','').replace('</item>','')\
             .replace('<reflines>','').replace('</reflines>','')\
             .replace('<TEDd>','').replace('</TEDd>','')\
@@ -879,10 +801,9 @@ version="1.0">
         dte['Documento ID'] = self._dte()
         xml = self._dte_to_xml(dte)
         root = etree.XML( xml )
-        xml_pret = etree.tostring(root, pretty_print=True).replace(
+        xml_pret = etree.tostring(root, pretty_print=True).decode().replace(
 '<Documento_ID>', doc_id).replace('</Documento_ID>', '</Documento>')
-        envelope_efact = self.convert_encoding(xml_pret, 'ISO-8859-1')
-        envelope_efact = self.create_template_doc(envelope_efact)
+        envelope_efact = self.create_template_doc(xml_pret)
         type = 'bol'
         einvoice = self.env['account.invoice'].sign_full_xml(
                 envelope_efact,
@@ -1238,9 +1159,9 @@ version="1.0">
     def action_pos_order_paid(self):
         if not self.test_paid():
             raise UserError(_("Order is not paid."))
-        if self.journal_document_class_id and not self.sii_xml_request:
+        if self.sequence_id and not self.sii_xml_request:
             if (not self.sii_document_number or self.sii_document_number == 0) and not self.signature:
-                self.sii_document_number = self.journal_document_class_id.sequence_id.next_by_id()
+                self.sii_document_number = self.sequence_id.next_by_id()
             self.do_validate()
         self.write({'state': 'paid'})
         return self.create_picking()
@@ -1263,6 +1184,18 @@ version="1.0">
             if l.tax_ids.amount == 0:
                 exento += l.price_subtotal
         return exento if exento > 0 else (exento * -1)
+
+    @api.multi
+    def print_nc(self):
+        """ Print NC
+        """
+        return self.env.ref('l10n_cl_dte_point_of_sale.action_print_nc').report_action(self)
+
+    @api.multi
+    def _get_printed_report_name(self):
+        self.ensure_one()
+        report_string = "%s %s" % (self.document_class_id.name, self.sii_document_number)
+        return report_string
 
 class Referencias(models.Model):
     _name = 'pos.order.referencias'

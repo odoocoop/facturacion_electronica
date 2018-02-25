@@ -65,13 +65,12 @@ class caf(models.Model):
                 ('draft', 'Draft'),
                 ('in_use', 'In Use'),
                 ('spent', 'Spent'),
-                ('cancelled', 'Cancelled')
             ],
             string='Status',
             default='draft',
             help='''Draft: means it has not been used yet. You must put in in used
 in order to make it available for use. Spent: means that the number interval
-has been exhausted. Cancelled means it has been deprecated by hand.''',
+has been exhausted.''',
         )
     rut_n = fields.Char(
             string='RUT',
@@ -82,16 +81,15 @@ has been exhausted. Cancelled means it has been deprecated by hand.''',
             'res.company',
             string='Company',
             required=False,
-            default=lambda self: self.env.uid.company_id,
+            default=lambda self: self.env.user.company_id,
         )
     sequence_id = fields.Many2one(
             'ir.sequence',
-            'Sequence',
-            required=True,
+            string='Sequence',
         )
     use_level = fields.Float(
             string="Use Level",
-            compute='_use_level',
+            compute='_used_level',
         )
     _sql_constraints = [
                 ('filename_unique','unique(filename)','Error! Filename Already Exist!'),
@@ -110,58 +108,42 @@ has been exhausted. Cancelled means it has been deprecated by hand.''',
         if self.rut_n != self.company_id.vat.replace('L0','L'):
             raise UserError(_(
                 'Company vat %s should be the same that assigned company\'s vat: %s!') % (self.rut_n, self.company_id.vat))
-        elif self.sii_document_class != self.sequence_id.sii_document_class:
+        elif self.sii_document_class != self.sequence_id.sii_document_class_id.sii_code:
             raise UserError(_(
-                '''SII Document Type for this CAF is %s and selected sequence associated document class is %s. This values should be equal for DTE Invoicing to work properly!''') % (self.sii_document_class, self.sequence_id.sii_document_class))
+                '''SII Document Type for this CAF is %s and selected sequence associated document class is %s. This values should be equal for DTE Invoicing to work properly!''') % (self.sii_document_class, self.sequence_id.sii_document_class_id.sii_code))
         if flags:
             return True
         self.status = 'in_use'
-        self._use_level()
+        self._used_level()
 
-    def _use_level(self):
+    def _used_level(self):
         for r in self:
-            if r.status not in ['draft','cancelled']:
+            if r.status not in [ 'draft' ]:
                 folio = r.sequence_id.number_next_actual
                 try:
-                    r.use_level = 100.0 * ((int(folio) - r.start_nm) / float(r.final_nm - r.start_nm + 1))
+                    if folio > r.final_nm:
+                        r.use_level = 100
+                    elif folio < r.start_nm:
+                        r.use_level = 0
+                    else:
+                        r.use_level = 100.0 * ((int(folio) - r.start_nm) / float(r.final_nm - r.start_nm + 1))
                 except ZeroDivisionError:
                     r.use_level = 0
             else:
                 r.use_level = 0
-
-    @api.multi
-    def action_enable(self):
-        #if self._check_caf():
-        if self.load_caf(flags=True):
-            self.status = 'in_use'
-
-    @api.multi
-    def action_cancel(self):
-        self.status = 'cancelled'
 
     def _get_filename(self):
         for r in self:
             r.name = r.filename
 
     def decode_caf(self):
-        post = base64.b64decode(self.caf_file).decode()
+        post = base64.b64decode(self.caf_file).decode('ISO-8859-1')
         post = xmltodict.parse(post.replace(
             '<?xml version="1.0"?>','',1))
         return post
 
 class sequence_caf(models.Model):
     _inherit = "ir.sequence"
-
-    def _check_dte(self):
-        for r in self:
-            obj = r.env['account.journal.sii_document_class'].search([('sequence_id', '=', r.id)], limit=1)
-            if obj:
-                r.is_dte = obj.sii_document_class_id.dte and obj.sii_document_class_id.document_type in ['invoice', 'debit_note', 'credit_note','stock_picking']
-
-    def _get_sii_document_class(self):
-        for r in self:
-            obj = self.env['account.journal.sii_document_class'].search([('sequence_id', '=', r.id)], limit=1)
-            r.sii_document_class = obj.sii_document_class_id.sii_code
 
     def get_qty_available(self, folio=None):
         folio = folio or self._get_folio()
@@ -176,7 +158,7 @@ class sequence_caf(models.Model):
                 if folio >= c.start_nm and folio <= c.final_nm:
                     available += c.final_nm - folio
                 elif folio <= c.final_nm:
-                    available +=  c.final_nm - c.start_nm
+                    available +=  (c.final_nm - c.start_nm) + 1
                 if folio > c.start_nm:
                     available +=1
         return available
@@ -185,27 +167,27 @@ class sequence_caf(models.Model):
         for i in self:
             i.qty_available = i.get_qty_available()
 
-    sii_document_class = fields.Integer('SII Code',
-        readonly=True,
-        compute='_get_sii_document_class')
-
-    is_dte = fields.Boolean('IS DTE?',
-        readonly=True,
-        compute='_check_dte')
-
+    sii_document_class_id = fields.Many2one(
+            'sii.document_class',
+            string='Tipo de Documento',
+        )
+    is_dte = fields.Boolean(
+            string='IS DTE?',
+            related='sii_document_class_id.dte',
+        )
     dte_caf_ids = fields.One2many(
-        'dte.caf',
-        'sequence_id',
-        'DTE Caf')
-
+            'dte.caf',
+            'sequence_id',
+            string='DTE Caf',
+        )
     qty_available = fields.Integer(
-        string="Quantity Available",
-        compute="_qty_available"
-    )
+            string="Quantity Available",
+            compute="_qty_available"
+        )
     forced_by_caf = fields.Boolean(
-        string="Forced By CAF",
-        default=True,
-    )
+            string="Forced By CAF",
+            default=True,
+        )
 
     def _get_folio(self):
         return self.number_next_actual
@@ -214,8 +196,7 @@ class sequence_caf(models.Model):
         folio = folio or self._get_folio()
         caffiles = self.get_caf_files(folio)
         if not caffiles:
-            raise UserError(_('''There is no CAF file available or in use \
-for this Document. Please enable one.'''))
+            raise UserError(_('''No hay caf disponible para el documento %s folio %s. Por favor solicite suba un CAF o solicite uno en el SII.''' % (self.name, folio)))
         for caffile in caffiles:
             if int(folio) >= caffile.start_nm and int(folio) <= caffile.final_nm:
                 return caffile.decode_caf()
@@ -229,8 +210,7 @@ www.sii.cl'''.format(folio)
         '''
         folio = folio or self._get_folio()
         if not self.dte_caf_ids:
-            raise UserError(_('''There is no CAF file available or in use \
-for this Document. Please enable one.'''))
+            raise UserError(_('''No hay CAFs disponibles para la secuencia de %s. Por favor suba un CAF o solicite uno en el SII.''' % (self.name)))
         cafs = self.dte_caf_ids
         sorted(cafs, key=lambda e: e.start_nm)
         result = []
@@ -246,7 +226,7 @@ for this Document. Please enable one.'''))
         menor = False
         cafs = self.get_caf_files(folio)
         if not cafs:
-            raise UserError(_('No quedan CAFs disponibles'))
+            raise UserError(_('No quedan CAFs para %s disponibles') % self.name)
         for c in cafs:
             if not menor or c.start_nm < menor.start_nm:
                 menor = c

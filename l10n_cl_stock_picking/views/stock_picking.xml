@@ -33,7 +33,7 @@
 
                 <xpath expr="//sheet/notebook/page/field[@name='move_lines']/tree/field[@name='product_uom']" position="after">
                   <field name="name"/>
-                  <field name="price_unit"/>
+                  <field name="precio_unitario"/>
                   <field name="price_untaxed" invisible="True" />
                   <field name="move_line_tax_ids" widget="many2many_tags"  domain="[('type_tax_use','=','sale'),('company_id','=',parent.company_id)]"/>
                   <field name="discount" />
@@ -96,7 +96,7 @@
             <field name="arch" type="xml">
               <field name="product_uom" position="after">
                 <field name="name"/>
-                <field name="price_unit"/>
+                <field name="precio_unitario"/>
                 <field name="move_line_tax_ids" widget="many2many_tags"  domain="[('type_tax_use','=','sale'),('company_id','=',parent.company_id)]"/>
                 <field name="discount" />
                 <field name="subtotal"/>
@@ -113,7 +113,7 @@
                 <xpath expr="//group/group[last()]" position="before">
                     <group>
                       <field name="name"/>
-                        <field name="price_unit"/>
+                        <field name="precio_unitario"/>
                         <field name="move_line_tax_ids" widget="many2many_tags" domain="[('type_tax_use','=','sale'),('company_id','=',parent.company_id)]"/>
                         <field name="discount"/>
                         <field name="currency_id" invisible="1"/>
@@ -136,33 +136,7 @@
                 <field name="usage" position="after">
                     <field name="sii_code"/>
                     <field name="sequence_id"/>
-                    <field name="sii_document_class_id" />
-                </field>
-            </field>
-        </record>
-
-        <record id="view_stock_quant_form_electronic_stock_picking" model="ir.ui.view">
-            <field name="name">l10n_cl.stock.quant.form</field>
-            <field name="model">stock.quant</field>
-            <field name="inherit_id" ref="stock.view_stock_quant_form"/>
-            <field name="arch" type="xml">
-                <field name="quantity" position="after">
-                    <field name="description"/>
-                    <field name="price_unit"/>
-                    <field name="currency_id"/>
-                </field>
-            </field>
-        </record>
-
-        <record id="view_stock_quant_tree_electronic_stock_picking" model="ir.ui.view">
-            <field name="name">l10n_cl.stock.quant.form</field>
-            <field name="model">stock.quant</field>
-            <field name="inherit_id" ref="stock.view_stock_quant_tree"/>
-            <field name="arch" type="xml">
-                <field name="quantity" position="after">
-                    <field name="description"/>
-                    <field name="price_unit"/>
-                    <field name="currency_id"/>
+                    <field name="sii_document_class_id" attrs="{'required': [('usage','=','internal')]}"/>
                 </field>
             </field>
         </record>

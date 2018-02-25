@@ -2,7 +2,7 @@
 <odoo>
     <data>
 
-	     <template id="pos_dte_extend" name="pos_dte" inherit_id="point_of_sale.index">
+	     <template id="pos_dte_extend" name="pos_dte" inherit_id="point_of_sale.assets">
             <xpath expr="." position="inside">
               <script src="/l10n_cl_dte_point_of_sale/static/src/lib/forge/util.js"></script>
               <script src="/l10n_cl_dte_point_of_sale/static/src/lib/forge/cipher.js"></script>
@@ -35,7 +35,9 @@
               <script src="/l10n_cl_dte_point_of_sale/static/src/lib/forge/pki.js"></script>
               <script src="/l10n_cl_dte_point_of_sale/static/src/lib/bcmath-min.js"></script>
               <script src="/l10n_cl_dte_point_of_sale/static/src/lib/pdf417-min.js"></script>
-              <script type="text/javascript" src="/l10n_cl_dte_point_of_sale/static/src/js/pos_dte.js"></script>
+              <script type="text/javascript" src="/l10n_cl_dte_point_of_sale/static/src/js/models.js"></script>
+              <script type="text/javascript" src="/l10n_cl_dte_point_of_sale/static/src/js/db.js"></script>
+              <script type="text/javascript" src="/l10n_cl_dte_point_of_sale/static/src/js/screens.js"></script>
             </xpath>
         </template>
 
