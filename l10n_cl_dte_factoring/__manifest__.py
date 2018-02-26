@@ -2,7 +2,7 @@
 {
     "name": """Cesión de Créditos Electrónica para Chile (factoring)\
     """,
-    'version': '11.0.5.1.0',
+    'version': '1.1.2',
     'category': 'Localization/Chile',
     'sequence': 12,
     'author':  'Daniel Santibáñez Polanco, Cooperativa OdooCoop',
