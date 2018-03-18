@@ -76,7 +76,7 @@ screens.PaymentScreenWidget.include({
 			if (!caf_file){
 				self.pos.gui.show_popup('error',{
 	        		'title': "Sin Folios disponibles",
-	                'body':  _.str.sprintf("No hay CAF para el folio de este documento: %(document_number)s " + 
+	                'body':  _.str.sprintf("No hay CAF para el folio de este documento: %(document_number)s " +
 	              		  "Solicite un nuevo CAF en el sitio www.sii.cl", {
 	                			document_number: next_number,
 	              		  })
@@ -129,7 +129,26 @@ screens.PaymentScreenWidget.include({
 		var order = this.pos.get_order();
 		this.unset_boleta(order);
 		var res = this._super();
-	}
+	},
+	finalize_validation: function() {
+		var self = this;
+    var order = self.pos.get_order();
+		if (order.es_boelta()){
+			var tax_amount = order.get_total_tax();
+			if (order.es_boleta_exenta() && tax_amount > 0){
+				self.gui.show_popup('error',{
+					'title': 'Boleta Exenta no Válida',
+					'body':  'No debe tener productos con Impuesto, por favor elimine los productos con Impuesto',
+				});
+			}else if(tax_amount <= 0){
+				self.gui.show_popup('error',{
+					'title': 'Boleta Afecta no Válida',
+					'body':  'La Boleta Afecta debe llevar almenos 1 producto con Impuesto, no puede ser solamente exentos, use Boleta Exenta en su lugar si va a usar solamente exentos',
+				});
+			}
+		}
+		self._super();
+	},
 });
 
 screens.ClientListScreenWidget.include({
@@ -392,7 +411,7 @@ screens.ClientListScreenWidget.include({
 		return true;
 	},
 });
-  
+
 screens.ReceiptScreenWidget.include({
 	render_receipt: function() {
 		var order = this.pos.get_order();

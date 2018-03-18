@@ -210,7 +210,7 @@ version="1.0">
         if type in ['dte_cedido']:
             tag = 'DTECedido'
         if tag:
-            xml = message.replace('</'+ tag + '>', '') + msg + '</'+ tag + '>'
+            xml = message.replace('</'+ tag + '>', msg.decode() + '</'+ tag + '>')
             return xml
         return super(CesionDTE, self)._append_sig(type, msg, message)
 
@@ -310,9 +310,9 @@ version="1.0">
         doc_cesion_xml =  self._crear_info_trans_elec_aec(xml, id)
         cesion_xml =  self._crear_info_cesion(doc_cesion_xml)
         root = etree.XML( cesion_xml )
-        xml_formated = etree.tostring(root)
+        xml_formated = etree.tostring(root).decode()
         cesion = self.sign_full_xml(
-            '<?xml version="1.0" encoding="ISO-8859-1"?>\n' + xml_formated,
+            xml_formated,
             priv_key,
             certp,
             id,
@@ -354,7 +354,7 @@ version="1.0">
         for inv in self.with_context(lang='es_CL'):
             inv.sii_cesion_result = 'NoEnviado'
             inv.responsable_envio = self.env.user.id
-            if inv.type in ['out_invoice' ] and inv.sii_document_class_id.sii_code in [ '33', '34']:
+            if inv.type in ['out_invoice' ] and inv.sii_document_class_id.sii_code in [ 33, 34]:
                 if inv.journal_id.restore_mode:
                     inv.sii_result = 'Proceso'
                 else:
@@ -382,7 +382,7 @@ version="1.0">
     def do_cesion_dte_send(self):
         ids = []
         for inv in self.with_context(lang='es_CL'):
-            if inv.sii_cesion_result in ['','NoEnviado','Rechazado'] and inv.type in ['out_invoice' ] and inv.sii_document_class_id.sii_code in [ '33', '34']:
+            if inv.sii_cesion_result in ['','NoEnviado','Rechazado'] and inv.type in ['out_invoice' ] and inv.sii_document_class_id.sii_code in [ 33, 34]:
                 if inv.sii_cesion_result in ['Rechazado']:
                     inv._crear_envio_cesion()
                 inv.sii_cesion_result = 'EnCola'

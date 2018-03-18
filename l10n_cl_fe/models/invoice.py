@@ -507,8 +507,9 @@ class AccountInvoice(models.Model):
             amount_diff = currency.compute(self.amount_total, company_currency)
             amount_diff_currency = self.amount_total
         for line in invoice_move_lines:
-            line['price'] *= gdr
-            if line.get('amount_currency', False):
+            if not line.get('tax_line_id'):
+                line['price'] *= gdr
+            if line.get('amount_currency', False) and not line.get('tax_line_id'):
                 line['amount_currency'] *= gdr
             if self.currency_id != company_currency:
                 if not (line.get('currency_id') and line.get('amount_currency')):
@@ -1964,7 +1965,8 @@ version="1.0">
                 taxInclude = t.price_include
                 if t.amount == 0 or t.sii_code in [0]:#@TODO mejor manera de identificar exento de afecto
                     lines['IndExe'] = 1
-                    MntExe += self.currency_id.round(line.price_tax_included)
+                    price_exe = line.price_tax_included
+                    MntExe += self.currency_id.round(price_exe)
             #if line.product_id.type == 'events':
             #   lines['ItemEspectaculo'] =
 #            if self._es_boleta():

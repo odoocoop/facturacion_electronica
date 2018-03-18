@@ -62,15 +62,6 @@ try:
 except ImportError:
     _logger.info('Cannot import base64 library')
 
-try:
-    from cryptography.hazmat.backends import default_backend
-    from cryptography.hazmat.primitives.serialization import load_pem_private_key
-    import OpenSSL
-    from OpenSSL import crypto
-    type_ = crypto.FILETYPE_PEM
-except:
-    _logger.warning('Cannot import OpenSSL library')
-
 # timbre patrón. Permite parsear y formar el
 # ordered-dict patrón corespondiente al documento
 timbre  = """<TED version="1.0"><DD><RE>99999999-9</RE><TD>11</TD><F>1</F>\

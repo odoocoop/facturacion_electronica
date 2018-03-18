@@ -10,7 +10,7 @@
                     <page string="Cesión de Documento" name="cesion_invoice"  attrs="{'invisible':['|', ('sii_result', 'not in', ['Proceso']), ('forma_pago', '!=', '2')]}">
                         <header>
                             <button string="Crear Cesión" type="object" name="validate_cesion"  attrs="{'invisible':[('sii_cesion_result', 'not in', [ False])]}"/>
-                            <button string="Download XML" type="object" name="get_cesion_xml_file"  attrs="{'invisible':[('sii_cesion_result', 'not in', [False, 'Rechazado'])]}"/>
+                            <button string="Download XML" type="object" name="get_cesion_xml_file"  attrs="{'invisible':[('sii_cesion_result', 'in', [ '', False ])]}"/>
                             <button string="Send XML Cesion" type="object" class="oe_highlight" name="do_cesion_dte_send" attrs="{'invisible': ['|', ('sii_cesion_result', 'not in', ['NoEnviado', 'Rechazado'])]}" />
                             <button string="Ask for DTE Cesion" type="object" class="oe_highlight" name="ask_for_cesion_dte_status" attrs="{'invisible':[('sii_cesion_send_ident','=', False)]}"/>
                             <field name='sii_cesion_result' widget="statusbar"/>

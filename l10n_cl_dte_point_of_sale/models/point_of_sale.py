@@ -18,15 +18,6 @@ import logging
 _logger = logging.getLogger(__name__)
 
 try:
-    from cryptography.hazmat.backends import default_backend
-    from cryptography.hazmat.primitives.serialization import load_pem_private_key
-    import OpenSSL
-    from OpenSSL import crypto
-    type_ = crypto.FILETYPE_PEM
-except:
-    _logger.warning('Cannot import OpenSSL library')
-
-try:
     from io import BytesIO
 except:
     _logger.warning("no se ha cargado io")
@@ -765,7 +756,7 @@ version="1.0">
                 ref_line['RazonRef'] = ref.motivo
                 if self._es_boleta():
                     ref_line['CodVndor'] = self.user_id.id
-                    ref_lines['CodCaja'] = self.location_id.name
+                    ref_line['CodCaja'] = self.location_id.name
                 ref_lines.extend([{'Referencia':ref_line}])
                 lin_ref += 1
         dte['item'] = invoice_lines['invoice_lines']
@@ -1196,6 +1187,10 @@ version="1.0">
         self.ensure_one()
         report_string = "%s %s" % (self.document_class_id.name, self.sii_document_number)
         return report_string
+
+    @api.multi
+    def get_invoice(self):
+        return self.invoice_id
 
 class Referencias(models.Model):
     _name = 'pos.order.referencias'
