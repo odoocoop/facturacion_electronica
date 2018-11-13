@@ -41,7 +41,7 @@
                     </div>
                 </div>
                 <div class="row">
-                    <div class="col-xs-5" style="width:420px !important; text-align:center;">
+                    <div class="col-xs-7" style="text-align:center;">
                         <img t-if="logo" t-att-src="'data:image/png;base64,%s' % to_text(logo)" style="max-height: 45px;"/>
                         <h4 style="text-align:lef;text-transform:uppercase;font-weight:900;font-size:18px;color:black;">
                             <span t-field="company.name"/>
@@ -162,7 +162,8 @@
                   </t>
                   <!-- Is there a discount on at least one line? -->
                    <t t-set="display_discount" t-value="any([l.discount for l in o.invoice_line_ids])"/>
-
+                   <t t-set="price_included" t-value="o.is_price_included()" />
+                   <div t-if="price_included">Valores IVA incluído</div>
                    <table class="table table-condensed">
                        <thead >
                            <tr style="max-height:8px; line-height:12px; font-size:12px !important; padding:0px;">
@@ -171,7 +172,7 @@
                               <th>Descripción</th>
                               <th class="text-teft">Precio Unitario</th>
                               <th t-if="display_discount" class="text-left" groups="sale.group_discount_per_so_line">Desc.(%)</th>
-                              <th class="text-leftt">Precio</th>
+                              <th class="text-left">Precio</th>
                            </tr>
                        </thead>
                        <tbody class="invoice_tbody">
@@ -189,7 +190,9 @@
                                    <span t-field="l.discount"/>
                                </td>
                                <td class="text-left" style="max-height:8px;line-height:10px !important;">
-                                    <span t-field="l.price_subtotal"
+                                    <span t-if="not price_included" t-field="l.price_subtotal"
+                                         t-field-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
+                                    <span t-if="price_included" t-field="l.price_tax_included"
                                          t-field-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
                                </td>
                            </tr>
@@ -209,7 +212,7 @@
                             <p style="text-align:center;color:red; font-size:8px;">
                               Timbre Electrónico SII
                               <br/>
-                              Resolución <t t-esc='o.company_id.dte_resolution_number'/> de <t t-esc='o.company_id.dte_resolution_date[:4]'/> Verifique documento: www.sii.cl
+                              Resolución <t t-esc='o.company_id.dte_resolution_number'/> de <t t-esc='o.company_id.dte_resolution_date[:4]'/> Verifique documento en: <t t-if="not o._es_boleta()">www.sii.cl</t><t t-if="o._es_boleta()" t-esc="o.company_id.website+'/boleta/'+o.sii_document_number"/>
                             </p>
                         </div>
                       </div>
@@ -223,7 +226,7 @@
                                   </td>
                                 </tr>
                               </t>
-                              <tr style="max-height:11px; font-size:12px !important;" name="subtotal">
+                              <tr style="max-height:11px; font-size:12px !important;" name="subtotal" t-if="not price_included">
                                   <td><strong>Subtotal</strong></td>
                                   <td class="text-right">
                                       <span t-field="o.amount_untaxed" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
@@ -235,12 +238,14 @@
                                    <span t-esc="o.getTotalDiscount()" t-esc-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
                                </td>
                               </tr>
-                              <tr t-foreach="o.tax_line_ids" t-as="t" style="max-height:11px; font-size:12px !important;">
+                              <t t-foreach="o.tax_line_ids" t-as="t" >
+                                <tr t-if="not o._es_boleta() or t.tax_id.sii_detailed or t.tax_id.amount == 0" style="max-height:11px; font-size:12px !important;">
                                  <td><span t-field="t.tax_id.description"/></td>
                                  <td class="text-right">
                                      <span t-esc="t.amount if t.amount > 0 else t.base" t-esc-options='{"widget": "monetary", "display_currency": "o.currency_id"}'/>
                                  </td>
-                              </tr>
+                                </tr>
+                              </t>
                               <tr class="border-black" style="max-height:12px; font-size:12px !important;">
                                   <td><strong>Total</strong></td>
                                   <td class="text-right">
@@ -250,38 +255,39 @@
                           </table>
                       </div>
                     </div>
-
-                    <div class="row">
-                        <div class="col-xs-12" style="border: 1px solid black;height:20px;font-size:15px !important;">
-                          <div class="col-xs-4">
-                              <strong>Nombre:</strong>
+                    <t t-if="cedible">
+                      <div class="row">
+                          <div class="col-xs-12" style="border: 1px solid black;height:20px;font-size:15px !important;">
+                            <div class="col-xs-4">
+                                <strong>Nombre:</strong>
+                            </div>
                           </div>
-                        </div>
-                        <div class="col-xs-12" style="border: 1px solid black;height:20px;font-size:15px !important;">
-                          <div class="col-xs-7">
-                              <strong>R.U.T.:</strong>
+                          <div class="col-xs-12" style="border: 1px solid black;height:20px;font-size:15px !important;">
+                            <div class="col-xs-7">
+                                <strong>R.U.T.:</strong>
+                            </div>
+                            <div class="col-xs-5">
+                                <strong>FECHA:</strong>
+                            </div>
                           </div>
-                          <div class="col-xs-5">
-                              <strong>FECHA:</strong>
+                          <div class="col-xs-12" style="border: 1px solid black;height:20px; font-size:15px !important;">
+                            <div class="col-xs-7">
+                                <strong>RECINTO:</strong>
+                            </div>
+                            <div class="col-xs-5">
+                                <strong>FIRMA:</strong>
+                            </div>
                           </div>
-                        </div>
-                        <div class="col-xs-12" style="border: 1px solid black;height:20px; font-size:15px !important;">
-                          <div class="col-xs-7">
-                              <strong>RECINTO:</strong>
+                          <div class="col-xs-12" style="border: 1px solid black;">
+                            <p style="font-size:8px">
+                              "El acuse de recibo que se declara en este acto, de acuerdo a lo dispuesto en la letra b) del Artículo 4°, y la letra c) del Artículo 5° de la Ley 19.983, acredita que la entrega de mercaderías o servicio(s) prestado(s) ha(n) sido recibido(s)"
+                            </p>
                           </div>
-                          <div class="col-xs-5">
-                              <strong>FIRMA:</strong>
-                          </div>
-                        </div>
-                        <div class="col-xs-12" style="border: 1px solid black;">
-                          <p style="font-size:8px">
-                            "El acuse de recibo que se declara en este acto, de acuerdo a lo dispuesto en la letra b) del Artículo 4°, y la letra c) del Artículo 5° de la Ley 19.983, acredita que la entrega de mercaderías o servicio(s) prestado(s) ha(n) sido recibido(s)"
-                          </p>
-                        </div>
-                   </div>
-                   <div class="row">
-                     <h6 class="pull-right" t-if="cedible"> CEDIBLE</h6>
-                   </div>
+                      </div>
+                      <div class="row">
+                        <h6 class="pull-right"> CEDIBLE</h6>
+                      </div>
+                    </t>
                 </div>
               </div>
           </template>
@@ -467,7 +473,7 @@
                       <p style="text-align:center;color:red; font-size:8px;">
                         Timbre Electrónico SII
                         <br/>
-                        Resolución 393/2016 Verifique documento: www.sii.cl
+                        Resolución <t t-esc='o.company_id.dte_resolution_number'/> de <t t-esc='o.company_id.dte_resolution_date[:4]'/> Verifique documento en: <t t-if="not o._es_boleta()">www.sii.cl</t><t t-if="o._es_boleta()" t-esc="o.company_id.website+'/boleta/'+o.sii_document_number"/>
                       </p>
                   </div>
                 </div>
@@ -574,7 +580,7 @@
                     <p style="text-align:center;color:red; font-size:8px;">
                       Timbre Electrónico SII
                       <br/>
-                      Resolución 393/2016 Verifique documento: www.sii.cl
+                      Resolución <t t-esc='o.company_id.dte_resolution_number'/> de <t t-esc='o.company_id.dte_resolution_date[:4]'/> Verifique documento en: <t t-if="not o._es_boleta()">www.sii.cl</t><t t-if="o._es_boleta()" t-esc="o.company_id.website+'/boleta/'+o.sii_document_number"/>
                     </p>
                 </div>
               </div>

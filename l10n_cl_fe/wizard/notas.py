@@ -17,7 +17,7 @@ class AccountInvoiceRefund(models.TransientModel):
             required=True,
             domain=[
                     ('document_type','in',['debit_note','credit_note']),
-                    ('dte','=',True),
+                    ('dte', '=', True),
                 ]
         )
     filter_refund = fields.Selection(
@@ -31,7 +31,7 @@ class AccountInvoiceRefund(models.TransientModel):
             required=True,
             help='Refund base on this type. You can not Modify and Cancel if the invoice is already reconciled',
         )
-    
+
     @api.onchange('filter_refund')
     def _set_template(self):
         if self.filter_refund == '2':
@@ -80,7 +80,7 @@ class AccountInvoiceRefund(models.TransientModel):
                     elif type == 'out_refund':
                         refund_type = 'out_invoice'
                     elif type == 'in_invoice':
-                        refund.type = 'in_refund'
+                        refund_type = 'in_refund'
                     elif type == 'in_refund':
                         refund_type = 'in_invoice'
                     account = inv.invoice_line_ids.get_invoice_line_account(inv.type, prod, inv.fiscal_position_id, inv.company_id)
@@ -92,7 +92,7 @@ class AccountInvoiceRefund(models.TransientModel):
                                             'product_id' : prod.id,
                                             'account_id': account.id,
                                             'name' : prod.name,
-                                            'quantity' : 0,
+                                            'quantity' : 1,
                                             'price_unit' : 0
                                         }
                                     ]
@@ -114,7 +114,6 @@ class AccountInvoiceRefund(models.TransientModel):
                                 'fiscal_position_id': inv.fiscal_position_id.id,
                                 'type': refund_type,
                                 'journal_document_class_id': document_type.id,
-                                'turn_issuer': inv.turn_issuer.id,
                                 'referencias': referencias,
                                 'invoice_line_ids': invoice_lines,
                                 'tax_line_ids': False,
@@ -129,7 +128,7 @@ class AccountInvoiceRefund(models.TransientModel):
                     refund = inv_obj.create(invoice)
                     if refund.payment_term_id.id:
                         refund._onchange_payment_term_date_invoice()
-                if mode in ['1','3']:
+                if mode in ['1', '3']:
                     refund = inv.refund(form.date_invoice, date, description, inv.journal_id.id, tipo_nota=self.tipo_nota.sii_code, mode=mode)
                 created_inv.append(refund.id)
                 xml_id = type == 'out_invoice' and 'action_invoice_out_refund' or \

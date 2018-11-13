@@ -39,6 +39,7 @@ connection_status = {
     'Otro': 'Error Interno.',
 }
 
+
 class SIIXMLEnvio(models.Model):
     _name = 'sii.xml.envio'
 
@@ -219,7 +220,7 @@ class SIIXMLEnvio(models.Model):
 
     def get_send_status(self, user_id=False):
         user_id = user_id or self.user_id
-        token = self.get_token( user_id, self.company_id )
+        token = self.get_token(user_id, self.company_id)
         url = server_url[self.company_id.dte_service_provider] + 'QueryEstUp.jws?WSDL'
         _server = Client(url)
         rut = self.invoice_ids.format_vat( self.company_id.vat, con_cero=True)
@@ -234,9 +235,9 @@ class SIIXMLEnvio(models.Model):
         result.update({ "state": "Enviado" })
         if resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] == "-11":
             if resp['SII:RESPUESTA']['SII:RESP_HDR']['ERR_CODE'] == "2":
-                status =  {'warning':{'title':_('Estado -11'), 'message': _("Estado -11: Espere a que sea aceptado por el SII, intente en 5s más")}}
+                status = {'warning':{'title':_('Estado -11'), 'message': _("Estado -11: Espere a que sea aceptado por el SII, intente en 5s más")}}
             else:
-                status =  {'warning':{'title':_('Estado -11'), 'message': _("Estado -11: error 1Algo a salido mal, revisar carátula")}}
+                status = {'warning':{'title':_('Estado -11'), 'message': _("Estado -11: error 1Algo a salido mal, revisar carátula")}}
         if resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] == "EPR":
             result.update({ "state": "Aceptado" })
             if resp['SII:RESPUESTA']['SII:RESP_BODY']['RECHAZADOS'] == "1":

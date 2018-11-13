@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from odoo import models, fields, api
+from odoo import models, fields, api, SUPERUSER_ID
 from odoo.tools.translate import _
 from odoo.exceptions import UserError
 import logging
@@ -31,8 +31,8 @@ class ValidarDTEWizard(models.TransientModel):
 
     action = fields.Selection(
         [
-            ('receipt','Recibo de mercaderías'),
-            ('validate','Aprobar comercialmente'),
+            ('receipt', 'Recibo de mercaderías'),
+            ('validate', 'Aprobar comercialmente'),
         ],
         string="Acción",
         default="validate",
@@ -63,14 +63,14 @@ class ValidarDTEWizard(models.TransientModel):
 
     def _create_attachment(self, xml, name, id=False, model='account.invoice'):
         data = base64.b64encode(xml.encode('ISO-8859-1'))
-        filename = (name + '.xml').replace(' ','')
-        url_path = '/web/binary/download_document?model='+ model +'\
+        filename = (name + '.xml').replace(' ', '')
+        url_path = '/web/binary/download_document?model=' + model + '\
     &field=sii_xml_request&id=%s&filename=%s' % (id, filename)
         att = self.env['ir.attachment'].search(
             [
-                ('name','=', filename),
-                ('res_id','=', id),
-                ('res_model','=',model)
+                ('name', '=', filename),
+                ('res_id', '=', id),
+                ('res_model', '=',model)
             ],
             limit=1,
         )
@@ -91,7 +91,7 @@ class ValidarDTEWizard(models.TransientModel):
     def _caratula_respuesta(self, RutResponde, RutRecibe, IdRespuesta="1", NroDetalles=0):
         caratula = collections.OrderedDict()
         caratula['RutResponde'] = RutResponde
-        caratula['RutRecibe'] =  RutRecibe
+        caratula['RutRecibe'] = RutRecibe
         caratula['IdRespuesta'] = IdRespuesta
         caratula['NroDetalles'] = NroDetalles
         caratula['NmbContacto'] = self.env.user.partner_id.name
@@ -139,16 +139,6 @@ class ValidarDTEWizard(models.TransientModel):
         IdRespuesta = self.env['ir.sequence'].browse(id_seq).next_by_id()
         NroDetalles = 1
         for doc in document_ids:
-            try:
-                signature_d = inv_obj.get_digital_signature(doc.company_id)
-            except:
-                raise UserError(_('''There is no Signer Person with an \
-            authorized signature for you in the system. Please make sure that \
-            'user_signature_key' module has been installed and enable a digital \
-            signature, for you or make the signer to authorize you to use his \
-            signature.'''))
-            certp = signature_d['cert'].replace(
-                BC, '').replace(EC, '').replace('\n', '')
             xml = xmltodict.parse(doc.xml)['DTE']['Documento']
             dte = self._resultado(
                 TipoDTE=xml['Encabezado']['IdDoc']['TipoDTE'],
@@ -180,8 +170,6 @@ class ValidarDTEWizard(models.TransientModel):
             )
             respuesta = '<?xml version="1.0" encoding="ISO-8859-1"?>\n' + inv_obj.sign_full_xml(
                 resp.replace('<?xml version="1.0" encoding="ISO-8859-1"?>\n', ''),
-                signature_d['priv_key'],
-                certp,
                 'Odoo_resp',
                 'env_resp')
             att = self._create_attachment(
@@ -198,10 +186,10 @@ class ValidarDTEWizard(models.TransientModel):
                         'email_from': doc.company_id.dte_email,
                         'email_to': doc.dte_id.sudo().mail_id.email_from ,
                         'auto_delete': False,
-                        'model' : "mail.message.dte.document",
-                        'body':'XML de Respuesta Envío, Estado: %s , Glosa: %s ' % (recep['EstadoRecepEnv'], recep['RecepEnvGlosa'] ),
-                        'subject': 'XML de Respuesta Envío' ,
-                        'attachment_ids': att.ids,
+                        'model': "mail.message.dte.document",
+                        'body': 'XML de Respuesta Envío, Estado: %s , Glosa: %s ' % (resp['EstadoRecepEnv'], resp['RecepEnvGlosa'] ),
+                        'subject': 'XML de Respuesta Envío',
+                        'attachment_ids': [[6, 0, att.ids]],
                     }
                     send_mail = self.env['mail.mail'].create(values)
                     send_mail.send()
@@ -209,7 +197,7 @@ class ValidarDTEWizard(models.TransientModel):
                 body='XML de Rechazo Comercial, Estado: %s, Glosa: %s' % (dte['ResultadoDTE']['EstadoDTE'], dte['ResultadoDTE']['EstadoDTEGlosa']),
                 subject='XML de Validación Comercial',
                 partner_ids=partners,
-                attachment_ids=[ att.id ],
+                attachment_ids=att.ids,
                 message_type='comment',
                 subtype='mt_comment',
             )
@@ -230,16 +218,6 @@ class ValidarDTEWizard(models.TransientModel):
         for inv in self.invoice_ids:
             if inv.claim in ['ACD', 'RCD']:
                 continue
-            try:
-                signature_d = inv.get_digital_signature(inv.company_id)
-            except:
-                raise UserError(_('''There is no Signer Person with an \
-            authorized signature for you in the system. Please make sure that \
-            'user_signature_key' module has been installed and enable a digital \
-            signature, for you or make the signer to authorize you to use his \
-            signature.'''))
-            certp = signature_d['cert'].replace(
-                BC, '').replace(EC, '').replace('\n', '')
             dte = self._resultado(
                 TipoDTE=inv.sii_document_class_id.sii_code,
                 Folio=inv.reference,
@@ -272,8 +250,6 @@ class ValidarDTEWizard(models.TransientModel):
             )
             respuesta = '<?xml version="1.0" encoding="ISO-8859-1"?>\n' + inv.sign_full_xml(
                 resp.replace('<?xml version="1.0" encoding="ISO-8859-1"?>\n', ''),
-                signature_d['priv_key'],
-                certp,
                 'Odoo_resp',
                 'env_resp',
             )
@@ -286,7 +262,7 @@ class ValidarDTEWizard(models.TransientModel):
                 body='XML de Validación Comercial, Estado: %s, Glosa: %s' % (dte['ResultadoDTE']['EstadoDTE'], dte['ResultadoDTE']['EstadoDTEGlosa']),
                 subject='XML de Validación Comercial',
                 partner_ids=[inv.partner_id.id],
-                attachment_ids=[ att.id ],
+                attachment_ids=att.ids,
                 message_type='comment',
                 subtype='mt_comment',
             )
@@ -306,7 +282,7 @@ class ValidarDTEWizard(models.TransientModel):
         receipt['RUTEmisor'] = inv.format_vat(inv.partner_id.vat)
         receipt['RUTRecep'] = inv.format_vat(inv.company_id.vat)
         receipt['MntTotal'] = int(round(inv.amount_total))
-        receipt['Recinto'] = inv.company_id.street
+        receipt['Recinto'] = self.env['account.invoice']._acortar_str(inv.company_id.street, 80)
         receipt['RutFirma'] = RutFirma
         receipt['Declaracion'] = 'El acuse de recibo que se declara en este acto, de acuerdo a lo dispuesto en la letra b) del Art. 4, y la letra c) del Art. 5 de la Ley 19.983, acredita que la entrega de mercaderias o servicio(s) prestado(s) ha(n) sido recibido(s).'
         receipt['TmstFirmaRecibo'] = inv.time_stamp()
@@ -340,9 +316,8 @@ class ValidarDTEWizard(models.TransientModel):
         for inv in self.invoice_ids:
             if inv.claim in ['ACD', 'RCD']:
                 continue
-            try:
-                signature_d = inv.get_digital_signature(inv.company_id)
-            except:
+            signature_d = self.env['res.users'].browse(SUPERUSER_ID).get_digital_signature(inv.company_id)
+            if not signature_d:
                 raise UserError(_('''There is no Signer Person with an \
             authorized signature for you in the system. Please make sure that \
             'user_signature_key' module has been installed and enable a digital \
@@ -374,8 +349,6 @@ class ValidarDTEWizard(models.TransientModel):
             message += '\n ' + str(dict_recept['Folio']) + ' ' + dict_recept['Declaracion']
             receipt ='<?xml version="1.0" encoding="ISO-8859-1"?>\n' + inv.sign_full_xml(
                 doc.replace('<?xml version="1.0" encoding="ISO-8859-1"?>\n', ''),
-                signature_d['priv_key'],
-                certp,
                 'Recibo',
                 'recep')
             RutRecibe = inv.format_vat(inv.partner_id.vat)
@@ -394,20 +367,18 @@ class ValidarDTEWizard(models.TransientModel):
             )
             envio_dte = '<?xml version="1.0" encoding="ISO-8859-1"?>\n' + inv.sign_full_xml(
                 envio_dte.replace('<?xml version="1.0" encoding="ISO-8859-1"?>\n', ''),
-                signature_d['priv_key'],
-                certp,
                 'SetDteRecibidos',
                 'env_recep',
             )
             att = self._create_attachment(
                 envio_dte,
-                'recepcion_mercaderias_' + str(inv.sii_send_file_name),
+                'recepcion_mercaderias_' + str(inv.sii_xml_request.name),
                 )
             inv.message_post(
                 body='XML de Recepción de Mercaderías\n %s' % (message),
                 subject='XML de Recepción de Documento',
-                partner_ids=[ inv.partner_id.id ],
-                attachment_ids=[ att.id ],
+                partner_ids=[inv.partner_id.id],
+                attachment_ids=att.ids,
                 message_type='comment',
                 subtype='mt_comment',
             )

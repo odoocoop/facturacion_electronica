@@ -32,9 +32,6 @@
 				<field name="activity_description" placeholder="Glosa descriptiva"
 					required="True" />
 			</field>
-			<field name="city" position="attributes">
-				<attribute name="invisible">1</attribute>
-			</field>
 			<field name="street2" position="after">
 				<field name="city_id" placeholder="Comuna" style="width: 100%"
 					options='{"no_open": True, "no_quick_create": True}' />

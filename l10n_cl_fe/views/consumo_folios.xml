@@ -23,6 +23,24 @@
             </field>
         </record>
 
+        <record id="view_cf_filter" model="ir.ui.view">
+          <field name="name">account.move.consumo_folios.list.select</field>
+          <field name="model">account.move.consumo_folios</field>
+          <field name="arch" type="xml">
+              <search string="Buscar Consumo de Folios">
+                  <field name="name"/>
+                  <field name="fecha_inicio"/>
+                  <filter string="Procesado" domain="[('state','=','Proceso')]"/>
+                  <filter string="Rechazado" domain="[('state','=', 'Rechazado')]"/>
+                  <filter string="Anulado" domain="[('state','=','Anulado')]"/>
+                  <filter string="Posted" domain="[('state','=','done')]"/>
+                  <group expand="0" string="Group By">
+                      <filter string="Consumos Mensuales Válidos" domain="[('state', '=', 'Proceso')]" context="{'group_by':'fecha_inicio'}"/>
+                  </group>
+              </search>
+          </field>
+      </record>
+
         <record id="view_electroinic_consumo_folios_form" model="ir.ui.view">
             <field name="name">l10n_cl.consumo_folios.form</field>
             <field name="model">account.move.consumo_folios</field>
@@ -42,6 +60,7 @@
                   <field name="sec_envio" />
                   <field name="date" />
                   <field name="company_id" />
+                  <field name="currency_id" invisible="1" force_save="1" />
                   <field name="total_boletas" />
                   <field name="total_iva" />
                   <field name="total_exento" />

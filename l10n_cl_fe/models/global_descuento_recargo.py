@@ -94,3 +94,16 @@ class GlobalDescuentoRecargo(models.Model):
                 valor = float(value) * (-1)
             monto += valor
         return monto
+
+    @api.model
+    def default_get(self, fields_list):
+        ctx = self.env.context.copy()
+        # FIX: la accion de Notas de credito pasa por contexto default_type: 'out_refund'
+        # pero al existir en esta clase de descuentos un campo llamado type
+        # el ORM lo interpreta como un valor para ese campo, 
+        # pero el valor no esta dentro de las opciones del selection, por ello sale error
+        # asi que si no esta en los valores soportados, eliminarlo del contexto
+        if 'default_type' in ctx and ctx.get('default_type') not in ('D', 'R'):
+            ctx.pop('default_type')
+        values = super(GlobalDescuentoRecargo, self.with_context(ctx)).default_get(fields_list)
+        return values

@@ -6,15 +6,16 @@ import logging
 _logger = logging.getLogger(__name__)
 
 status_dte = [
-    ('no_revisado','No Revisado'),
-    ('0','Conforme'),
-    ('1','Error de Schema'),
-    ('2','Error de Firma'),
-    ('3','RUT Receptor No Corresponde'),
-    ('90','Archivo Repetido'),
-    ('91','Archivo Ilegible'),
-    ('99','Envio Rechazado - Otros')
+    ('no_revisado', 'No Revisado'),
+    ('0', 'Conforme'),
+    ('1', 'Error de Schema'),
+    ('2', 'Error de Firma'),
+    ('3', 'RUT Receptor No Corresponde'),
+    ('90', 'Archivo Repetido'),
+    ('91', 'Archivo Ilegible'),
+    ('99', 'Envio Rechazado - Otros')
 ]
+
 
 class ProcessMails(models.Model):
     _inherit = "mail.message"
@@ -22,14 +23,16 @@ class ProcessMails(models.Model):
     @api.model
     def create(self, vals):
         mail = super(ProcessMails, self).create(vals)
-        if mail.message_type in ['email'] and mail.attachment_ids:
+        if mail.message_type in ['email'] and mail.attachment_ids and \
+                not mail.mail_server_id:
             dte = False
             for att in mail.attachment_ids:
                 if not att.name:
                     continue
                 name = att.name.upper()
                 if att.mimetype in ['text/plain'] and name.find('.XML') > -1:
-                    if not self.env['mail.message.dte'].search([('name', '=', name)]):
+                    if not self.env['mail.message.dte'].search([
+                                            ('name', '=', name)]):
                         dte = {
                             'mail_id': mail.id,
                             'name': name,
@@ -39,6 +42,7 @@ class ProcessMails(models.Model):
                 val.pre_process()
                 val.mail_id = mail.id
         return mail
+
 
 class ProccessMail(models.Model):
     _name = 'mail.message.dte'
@@ -80,7 +84,7 @@ class ProccessMail(models.Model):
                     continue
                 name = att.name.upper()
                 if att.mimetype in ['text/plain'] and name.find('.XML') > -1:
-                    vals={
+                    vals = {
                         'xml_file': att.datas,
                         'filename': att.name,
                         'pre_process': pre,
@@ -88,7 +92,7 @@ class ProccessMail(models.Model):
                         'option': option,
                     }
                     val = self.env['sii.dte.upload_xml.wizard'].create(vals)
-                    created.extend( val.confirm(ret=True) )
+                    created.extend(val.confirm(ret=True))
         xml_id = 'l10n_cl_fe.action_dte_process'
         result = self.env.ref('%s' % (xml_id)).read()[0]
         if created:
@@ -96,6 +100,7 @@ class ProccessMail(models.Model):
             domain.append(('id', 'in', created))
             result['domain'] = domain
         return result
+
 
 class ProcessMailsDocument(models.Model):
     _name = 'mail.message.dte.document'
@@ -149,9 +154,9 @@ class ProcessMailsDocument(models.Model):
         string="Compañía",
         readonly=True,
     )
-    state= fields.Selection(
+    state = fields.Selection(
         [
-            ('draft','Recibido'),
+            ('draft', 'Recibido'),
             ('accepted', 'Aceptado'),
             ('rejected', 'Rechazado'),
         ],
@@ -169,7 +174,7 @@ class ProcessMailsDocument(models.Model):
     purchase_to_done = fields.Many2many(
         'purchase.order',
         string="Ordenes de Compra a validar",
-        domain=[('state', 'not in',['accepted', 'rejected'] )],
+        domain=[('state', 'not in', ['accepted', 'rejected'])],
     )
 
     _order = 'create_date DESC'
@@ -188,7 +193,8 @@ class ProcessMailsDocument(models.Model):
                 state = 'draft'
             """
         )
-        for d in self.browse([line.get('id') for line in self.env.cr.dictfetchall()]):
+        for d in self.browse([line.get('id') for line in \
+                              self.env.cr.dictfetchall()]):
             d.accept_document()
 
     @api.multi
@@ -207,7 +213,7 @@ class ProcessMailsDocument(models.Model):
             r.state = 'accepted'
         xml_id = 'account.action_invoice_tree2'
         result = self.env.ref('%s' % (xml_id)).read()[0]
-        if  created:
+        if created:
             domain = eval(result['domain'])
             domain.append(('id', 'in', created))
             result['domain'] = domain

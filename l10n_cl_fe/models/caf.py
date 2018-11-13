@@ -15,6 +15,7 @@ try:
 except ImportError:
     pass
 
+
 class caf(models.Model):
     _name = 'dte.caf'
 
@@ -97,20 +98,22 @@ has been exhausted.''',
 
     @api.onchange("caf_file",)
     def load_caf(self, flags=False):
-        if not self.caf_file:
+        if not self.caf_file or not self.sequence_id:
             return
         result = self.decode_caf()['AUTORIZACION']['CAF']['DA']
         self.start_nm = result['RNG']['D']
         self.final_nm = result['RNG']['H']
         self.sii_document_class = result['TD']
         self.issued_date = result['FA']
-        self.rut_n = 'CL' + result['RE'].replace('-','')
-        if self.rut_n != self.company_id.vat.replace('L0','L'):
+        self.rut_n = 'CL' + result['RE'].replace('-', '')
+        if self.rut_n != self.company_id.vat.replace('L0', 'L'):
             raise UserError(_(
                 'Company vat %s should be the same that assigned company\'s vat: %s!') % (self.rut_n, self.company_id.vat))
         elif self.sii_document_class != self.sequence_id.sii_document_class_id.sii_code:
             raise UserError(_(
-                '''SII Document Type for this CAF is %s and selected sequence associated document class is %s. This values should be equal for DTE Invoicing to work properly!''') % (self.sii_document_class, self.sequence_id.sii_document_class_id.sii_code))
+                '''SII Document Type for this CAF is %s and selected sequence
+associated document class is %s. This values should be equal for DTE Invoicing
+to work properly!''') % (self.sii_document_class, self.sequence_id.sii_document_class_id.sii_code))
         if flags:
             return True
         self.status = 'in_use'
@@ -118,7 +121,7 @@ has been exhausted.''',
 
     def _used_level(self):
         for r in self:
-            if r.status not in [ 'draft' ]:
+            if r.status not in ['draft']:
                 folio = r.sequence_id.number_next_actual
                 try:
                     if folio > r.final_nm:
@@ -142,6 +145,7 @@ has been exhausted.''',
             '<?xml version="1.0"?>','',1))
         return post
 
+
 class sequence_caf(models.Model):
     _inherit = "ir.sequence"
 
@@ -158,14 +162,15 @@ class sequence_caf(models.Model):
                 if folio >= c.start_nm and folio <= c.final_nm:
                     available += c.final_nm - folio
                 elif folio <= c.final_nm:
-                    available +=  (c.final_nm - c.start_nm) + 1
+                    available += (c.final_nm - c.start_nm) + 1
                 if folio > c.start_nm:
                     available +=1
         return available
 
     def _qty_available(self):
         for i in self:
-            i.qty_available = i.get_qty_available()
+            if i.sii_document_class_id:
+                i.qty_available = i.get_qty_available()
 
     sii_document_class_id = fields.Many2one(
             'sii.document_class',
@@ -212,7 +217,7 @@ www.sii.cl'''.format(folio)
         if not self.dte_caf_ids:
             raise UserError(_('''No hay CAFs disponibles para la secuencia de %s. Por favor suba un CAF o solicite uno en el SII.''' % (self.name)))
         cafs = self.dte_caf_ids
-        sorted(cafs, key=lambda e: e.start_nm)
+        cafs = sorted(cafs, key=lambda e: e.start_nm)
         result = []
         for caffile in cafs:
             if int(folio) <= caffile.final_nm:
@@ -222,6 +227,8 @@ www.sii.cl'''.format(folio)
         return False
 
     def update_next_by_caf(self, folio=None):
+        if self.sii_document_class_id:
+            return
         folio = folio or self._get_folio()
         menor = False
         cafs = self.get_caf_files(folio)
@@ -238,7 +245,7 @@ www.sii.cl'''.format(folio)
         if self.implementation == 'standard':
             number_next = self.number_next_actual
         folio = super(sequence_caf, self)._next_do()
-        if self.forced_by_caf and self.dte_caf_ids:
+        if self.sii_document_class_id and self.forced_by_caf and self.dte_caf_ids:
             self.update_next_by_caf(folio)
             actual = self.number_next
             if self.implementation == 'standard':

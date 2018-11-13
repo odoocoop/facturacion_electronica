@@ -19,7 +19,7 @@ from . import res_city
 from . import res_state_region
 from . import res_state
 from . import res_users
-from . import sale_order
+#from . import sale_order
 from . import sii_activity_description
 from . import sii_cola_envio
 from . import sii_regional_offices

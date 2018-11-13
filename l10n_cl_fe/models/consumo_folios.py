@@ -96,6 +96,7 @@ connection_status = {
     'Otro': 'Error Interno.',
 }
 
+
 class ConsumoFolios(models.Model):
     _name = "account.move.consumo_folios"
 
@@ -166,18 +167,28 @@ class ConsumoFolios(models.Model):
         )
     total_neto = fields.Monetary(
         string="Total Neto",
+        store=True,
+        readonly=True,
         compute='get_totales',)
     total_iva = fields.Monetary(
         string="Total Iva",
+        store=True,
+        readonly=True,
         compute='get_totales',)
     total_exento = fields.Monetary(
         string="Total Exento",
+        store=True,
+        readonly=True,
         compute='get_totales',)
     total = fields.Monetary(
         string="Monto Total",
+        store=True,
+        readonly=True,
         compute='get_totales',)
     total_boletas = fields.Integer(
         string="Total Boletas",
+        store=True,
+        readonly=True,
         compute='get_totales',)
     company_id = fields.Many2one(
         'res.company',
@@ -210,8 +221,10 @@ class ConsumoFolios(models.Model):
        readonly=True,
        states={'draft': [('readonly', False)]},)
     anulaciones = fields.One2many('account.move.consumo_folios.anulaciones',
-       'cf_id',
-       string="Detalle Impuestos")
+        'cf_id',
+        string="Detalle Impuestos",
+        readonly=True,
+        states={'draft': [('readonly', False)]},)
     currency_id = fields.Many2one(
             'res.currency',
             string='Moneda',
@@ -303,14 +316,12 @@ class ConsumoFolios(models.Model):
                 'folio_inicio': item['Inicial'],
                 'folio_final': item['Final'],
                 'cantidad': int(item['Final']) - int(item['Inicial']) +1,
-                'tpo_doc': self.env['sii.document_class'].search([('sii_code','=', tpo_doc)]).id,
+                'tpo_doc': self.env['sii.document_class'].search([('sii_code', '=', tpo_doc)]).id,
             }
             detalles.append([0,0,rango])
-        rangos = {}
         for r, value in resumenes.items():
-            if str(r)+'_folios' in value:
+            if '%s_folios' %str(r) in value:
                 Rangos = value[ str(r)+'_folios' ]
-                folios = []
                 if 'itemUtilizados' in Rangos:
                     for rango in Rangos['itemUtilizados']:
                         pushItem('RangoUtilizados', rango, r)
@@ -335,7 +346,7 @@ class ConsumoFolios(models.Model):
             lines.append([0,0, i])
         self.impuestos = lines
 
-    @api.onchange('fecha_inicio', 'company_id')
+    @api.onchange('fecha_inicio', 'company_id', 'fecha_final')
     def set_data(self):
         self.name = self.fecha_inicio
         self.fecha_final = self.fecha_inicio
@@ -352,6 +363,13 @@ class ConsumoFolios(models.Model):
             ])
         if consumos > 0:
             self.sec_envio = (consumos+1)
+        self._resumenes()
+
+    @api.multi
+    def copy(self, default=None):
+        res = super(ConsumoFolios, self).copy(default)
+        res.set_data()
+        return res
 
     @api.multi
     def unlink(self):
@@ -545,6 +563,14 @@ version="1.0">
     @api.multi
     def validar_consumo_folios(self):
         self._validar()
+        consumos = self.search([
+            ('fecha_inicio', '=', self.fecha_inicio),
+            ('state', 'not in', ['draft', 'Rechazado', 'Anulado']),
+            ('company_id', '=', self.company_id.id),
+            ('id', '!=', self.id),
+            ])
+        for r in consumos:
+            r.state = "Anulado"
         return self.write({'state': 'NoEnviado'})
 
     def _acortar_str(self, texto, size=1):
@@ -560,19 +586,6 @@ version="1.0">
             return True
         return False
 
-    def _process_imps(self, tax_line_id, totales=0, currency=None, Neto=0, TaxMnt=0, MntExe=0):
-        mnt = tax_line_id.compute_all(totales,  currency, 1)['taxes'][0]
-        if mnt['amount'] <= 0 and mnt['base'] < 0:
-            mnt['amount'] *= -1
-            mnt['base'] *= -1
-        if self._es_iva(tax_line_id): # diferentes tipos de IVA retenidos o no @TODO investigar si se aplican a boletas
-            TaxMnt += mnt['amount']
-            Neto += mnt['base']
-        else:
-            if tax_line_id.amount == 0:
-                MntExe += mnt['base']
-        return Neto, TaxMnt, MntExe
-
     def getResumen(self, rec):
         det = collections.OrderedDict()
         det['TpoDoc'] = rec.document_class_id.sii_code
@@ -586,25 +599,22 @@ version="1.0">
         Neto = 0
         MntExe = 0
         TaxMnt = 0
-        Tasa = False
-        impuestos = {}
+        MntTotal = 0
         if 'lines' in rec:
-            for line in rec.lines:# agrupo las líneas para calcular iva global
-                if line.tax_ids:
-                    for t in line.tax_ids:
-                        if not Tasa and self._es_iva(t):
-                            Tasa = t.amount
-                        impuestos.setdefault(t.id, [t, 0])
-                        impuestos[t.id][1] += line.price_subtotal_incl
-            for key, t in impuestos.items():
-                Neto, TaxMnt, MntExe = self._process_imps(t[0], t[1], rec.pricelist_id.currency_id, Neto, TaxMnt, MntExe)
+            # NC pasar a positivo
+            TaxMnt =  rec.amount_tax if rec.amount_tax > 0 else rec.amount_tax * -1
+            MntTotal = rec.amount_total if rec.amount_total > 0 else rec.amount_total * -1
+            Neto = rec.pricelist_id.currency_id.round(sum(line.price_subtotal for line in rec.lines))
+            if Neto < 0:
+                Neto *= -1 
+            MntExe = rec.exento()
+            TasaIVA = self.env['pos.order.line'].search([('order_id', '=', rec.id), ('tax_ids.amount', '>', 0)], limit=1).tax_ids.amount
+            Neto -= MntExe
         else:  # si la boleta fue hecha por contabilidad
             for l in rec.line_ids:
                 if l.tax_line_id:
                     if l.tax_line_id and l.tax_line_id.amount > 0: #supuesto iva único
                         if self._es_iva(l.tax_line_id): # diferentes tipos de IVA retenidos o no
-                            if not Tasa:
-                                Tasa = l.tax_line_id.amount
                             if l.credit > 0:
                                 TaxMnt += l.credit
                             else:
@@ -619,14 +629,15 @@ version="1.0">
                         MntExe += l.credit
                     else:
                         MntExe += l.debit
+            TasaIVA = self.env['account.move.line'].search([('move_id', '=', rec.id), ('tax_line_id.amount', '>', 0)], limit=1).tax_line_id.amount
+            MntTotal = Neto + MntExe + TaxMnt
         if MntExe > 0 :
-            det['MntExe'] = int(round(MntExe,0))
+            det['MntExe'] = self.currency_id.round(MntExe)
         if TaxMnt > 0:
-            det['MntIVA'] = int(round(TaxMnt))
-            det['TasaIVA'] = Tasa
-        monto_total = int(round((Neto + MntExe + TaxMnt), 0))
-        det['MntNeto'] = int(round(Neto))
-        det['MntTotal'] = monto_total
+            det['MntIVA'] = self.currency_id.round(TaxMnt)
+            det['TasaIVA'] = TasaIVA
+        det['MntNeto'] = self.currency_id.round(Neto)
+        det['MntTotal'] = self.currency_id.round(MntTotal)
         return det
 
     def _last(self, folio, items):# se asumen que vienen ordenados de menor a mayor
@@ -734,7 +745,6 @@ version="1.0">
     def _get_resumenes(self, marc=False):
         resumenes = collections.OrderedDict()
         TpoDocs = []
-        orders = []
         recs = []
         for rec in self.with_context(lang='es_CL').move_ids:
             document_class_id = rec.document_class_id if 'document_class_id' in rec else rec.sii_document_class_id
@@ -744,7 +754,7 @@ version="1.0">
             if rec.sii_document_number:
                 recs.append(rec)
             #rec.sended = marc
-        if 'pos.order' in self.env: #@TODO mejor forma de verificar si está isntalado módulo POS
+        if 'pos.order' in self.env: # @TODO mejor forma de verificar si está instalado módulo POS
             current = self.fecha_inicio + ' 00:00:00'
             tz = pytz.timezone('America/Santiago')
             tz_current = tz.localize(datetime.strptime(current, DTF)).astimezone(pytz.utc)
@@ -762,28 +772,28 @@ version="1.0">
             for order in orders_array:
                 recs.append(order)
         if recs:
-            recs = sorted(recs, key=lambda t: t.sii_document_number)
+            recs = sorted(recs, key=lambda t: int(t.sii_document_number))
             ant = {}
             for order in recs:
-                canceled = (hasattr(order,'canceled') and order.canceled)
+                canceled = (hasattr(order, 'canceled') and order.canceled)
                 resumen = self.getResumen(order)
                 TpoDoc = str(resumen['TpoDoc'])
-                if not TpoDoc in ant:
+                if TpoDoc not in ant:
                     ant[TpoDoc] = [0, canceled]
                 if int(order.sii_document_number) == ant[TpoDoc][0]:
                     raise UserError("¡El Folio %s está duplicado!" % order.sii_document_number)
-                if not TpoDoc in TpoDocs:
+                if TpoDoc not in TpoDocs:
                     TpoDocs.append(TpoDoc)
-                if not TpoDoc in resumenes:
+                if TpoDoc not in resumenes:
                     resumenes[TpoDoc] = collections.OrderedDict()
                 continuado = ((ant[TpoDoc][0]+1) == int(order.sii_document_number) and (ant[TpoDoc][1]) == canceled)
                 resumenes[TpoDoc] = self._setResumen(resumen, resumenes[TpoDoc], continuado)
                 ant[TpoDoc] = [int(order.sii_document_number), canceled]
         for an in self.anulaciones:
             TpoDoc = str(an.tpo_doc.sii_code)
-            if not TpoDoc in TpoDocs:
+            if TpoDoc not in TpoDocs:
                 TpoDocs.append(TpoDoc)
-            if not TpoDoc in resumenes:
+            if TpoDoc not in resumenes:
                 resumenes[TpoDoc] = collections.OrderedDict()
             i = an.rango_inicio
             while i <= an.rango_final:
@@ -792,11 +802,10 @@ version="1.0">
                 for r, value in resumenes.items():
                     Rangos = value.get(str(r)+'_folios', collections.OrderedDict())
                     if 'itemAnulados' in Rangos:
-                        _logger.info(Rangos['itemAnulados'])
                         for rango in Rangos['itemAnulados']:
                             if rango['Inicial'] <= i and i <= rango['Final']:
                                 seted = True
-                            if not(seted) and  (i-1) == rango['Final']:
+                            if not(seted) and (i-1) == rango['Final']:
                                     continuado = True
                 if not seted:
                     resumen = {
@@ -911,10 +920,11 @@ version="1.0">
             'sii_xml_request':envio_dte
             })
 
-    def _get_send_status(self, track_id, signature_d,token):
+    def _get_send_status(self):
+        token = self.env['sii.xml.envio'].get_token(self.env.user, self.company_id)
         url = server_url[self.company_id.dte_service_provider] + 'QueryEstUp.jws?WSDL'
         _server = Client(url)
-        respuesta = _server.service.getEstUp(self.company_id.vat[2:-1],self.company_id.vat[-1],track_id,token)
+        respuesta = _server.service.getEstUp(self.company_id.vat[2:-1],self.company_id.vat[-1], self.sii_send_ident, token)
         self.sii_message = respuesta
         resp = xmltodict.parse(respuesta)
         status = False
@@ -931,21 +941,11 @@ version="1.0">
 
     @api.multi
     def ask_for_dte_status(self):
-        try:
-            signature_d = self.env.user.get_digital_signature(self.company_id)
-            seed = self.get_seed(self.company_id)
-            template_string = self.create_template_seed(seed)
-            seed_firmado = self.sign_seed(
-                template_string, signature_d['priv_key'],
-                signature_d['cert'])
-            token = self.get_token(seed_firmado,self.company_id)
-        except Exception as e:
-            raise UserError(tools.ustr(e))
-        xml_response = xmltodict.parse(self.sii_xml_response)
         if self.state == 'Enviado':
-            status = self._get_send_status(self.sii_send_ident, signature_d, token)
+            status = self._get_send_status()
             if self.state != 'Proceso':
                 return status
+
 
 class DetalleCOnsumoFolios(models.Model):
     _name = "account.move.consumo_folios.detalles"
@@ -958,6 +958,7 @@ class DetalleCOnsumoFolios(models.Model):
     folio_inicio = fields.Integer(string="Folio Inicio")
     folio_final = fields.Integer(string="Folio Final")
     cantidad = fields.Integer(string="Cantidad Emitidos")
+
 
 class DetalleImpuestos(models.Model):
     _name = "account.move.consumo_folios.impuestos"
@@ -977,6 +978,7 @@ class DetalleImpuestos(models.Model):
         default=lambda self: self.env.user.company_id.currency_id,
         required=True,
         track_visibility='always')
+
 
 class Anulaciones(models.Model):
     _name = 'account.move.consumo_folios.anulaciones'

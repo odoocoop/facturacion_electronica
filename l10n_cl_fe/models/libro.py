@@ -10,14 +10,12 @@ from lxml import etree
 from lxml.etree import Element, SubElement
 from lxml import objectify
 from lxml.etree import XMLSyntaxError
-from odoo import SUPERUSER_ID
 
 import xml.dom.minidom
 import pytz
 import struct
 
 
-import socket
 import collections
 import traceback as tb
 import suds.metrics as metrics
@@ -104,6 +102,7 @@ allowed_docs = [29, 30, 32, 33, 34, 35, 38, 39, 40,
                 910, 911, 914, 918, 919, 920, 921, 922,
                 924, 500, 501,
                 ]
+
 
 class Libro(models.Model):
     _name = "account.move.book"
@@ -295,42 +294,50 @@ class Libro(models.Model):
             domain = 'purchase'
         query.append(('journal_id.type', '=', domain))
         if self.tipo_operacion in [ 'VENTA' ]:
-            libro_boletas = self.env['account.move.book'].search([
-                ('state','not in', ['draft']),
-                ('periodo_tributario','=', self.periodo_tributario),
-                ('tipo_operacion','=', 'BOLETA'),
-            ])
             cfs = self.env['account.move.consumo_folios'].search([
-                ('state','not in', [ 'draft', 'Rechazado']),
-                ('fecha_inicio','>=', current),
-                ('fecha_inicio','<', next_month),
+                ('state', '=', 'Proceso'),
+                ('fecha_inicio', '>=', current),
+                ('fecha_inicio', '<', next_month),
             ])
             if cfs:
-                cantidad = {}
+                cantidades = {}
                 for cf in cfs:
-                    if not det.tpo_doc in cantidad:
-                        cantidad[str(1)] += cf.total_boletas
-                    else:
-                        cantidad[str(1)] += cf.total_boletas
-                lines = [[5,],]
-                for det in cf.impuestos:
+                    for det in cf.detalles:
+                        if det.tpo_doc.sii_code in [39, 41]:
+                            if not cantidades.get((cf.id, det.tpo_doc)):
+                                cantidades[(cf.id, det.tpo_doc)] = 0
+                            cantidades[(cf.id, det.tpo_doc)] += det.cantidad
+                lineas = {}
+                for key, cantidad in cantidades.items():
+                    cf = key[0]
+                    tpo_doc = key[1]
+                    impuesto = self.env['account.move.consumo_folios.impuestos'].search([('cf_id', '=', cf), ('tpo_doc.sii_code', '=', tpo_doc.sii_code)])
+                    if not lineas.get(tpo_doc):
+                        lineas[tpo_doc] = {'cantidad': 0, 'neto': 0, 'monto_exento': 0}
+                    lineas[tpo_doc] = {
+                                'cantidad': lineas[tpo_doc]['cantidad'] + cantidad,
+                                'neto': lineas[tpo_doc]['neto'] + impuesto.monto_neto,
+                                'monto_exento': lineas[tpo_doc]['monto_exento'] + impuesto.monto_exento,
+                            }
+                lines = [[5, ], ]
+                for tpo_doc, det in lineas.items():
+                    tax_id = self.env['account.tax'].search([('sii_code', '=', 14), ('type_tax_use', '=', 'sale'), ('company_id', '=', self.company_id.id)], limit=1) if tpo_doc.sii_code == 39 else self.env['account.tax'].search([('sii_code', '=', 0), ('type_tax_use', '=', 'sale'), ('company_id', '=', self.company_id.id)], limit=1)
+                    _logger.warning('tax_d %s' %tax_id)
                     line = {
-                        'currency_id' : self.env.user.company_id.currency_id,
-                        'tipo_boleta' : self.env['sii.document_class'].search([('sii_code','=', 39)],limit=1).id,
-                        'cantidad_boletas' : cantidad['1'] ,
-                        'neto' : det.monto_neto,
-                        'impuesto' : self.env['account.tax'].search([('sii_code','=', 14), ('type_tax_use','=','sale'),('company_id','=',self.company_id.id)],limit=1).id,
-                        'monto_impuesto' : det.monto_iva,
-                        'monto_exento': det.monto_exento,
-                        }
-                    lines.append([0,0, line])
-                self.detalles = lines
-        elif self.tipo_operacion in [ 'BOLETA' ]:
+                        'currency_id': self.env.user.company_id.currency_id,
+                        'tipo_boleta': tpo_doc.id,
+                        'cantidad_boletas': det['cantidad'],
+                        'neto': det['neto'] or det['monto_exento'],
+                        'impuesto': tax_id.id,
+                    }
+                    lines.append([0, 0, line])
+                self.boletas = lines
+        elif self.tipo_operacion in ['BOLETA']:
             docs = [35, 38, 39, 41]
             cfs = self.env['account.move.consumo_folios'].search([
-                ('state','not in', ['draft']),
-                ('fecha_inicio','>=', current),
-                ('fecha_inicio','<', next_month),
+                ('state', 'not in', ['draft']),
+                ('fecha_inicio', '>=', current),
+                ('fecha_inicio', '<', next_month),
             ])
             lines = [[5,],]
             monto_iva = 0
@@ -340,13 +347,13 @@ class Libro(models.Model):
                     monto_iva += i.monto_iva
                     monto_exento += i.monto_exento
             lines.extend([
-                 [0,0, {'tax_id': self.env['account.tax'].search([('sii_code','=', 14), ('type_tax_use','=','sale'),('company_id','=',self.company_id.id)],limit=1).id, 'credit': monto_iva, 'currency_id' : self.env.user.company_id.currency_id.id}],
-                 [0,0, {'tax_id': self.env['account.tax'].search([('sii_code','=', 0), ('type_tax_use','=','sale'),('company_id','=',self.company_id.id)],limit=1).id, 'credit': monto_exento, 'currency_id' : self.env.user.company_id.currency_id.id}]
+                 [0,0, {'tax_id': self.env['account.tax'].search([('sii_code', '=', 14), ('type_tax_use', '=', 'sale'),('company_id', '=', self.company_id.id)], limit=1).id, 'credit': monto_iva, 'currency_id' : self.env.user.company_id.currency_id.id}],
+                 [0,0, {'tax_id': self.env['account.tax'].search([('sii_code', '=', 0), ('type_tax_use', '=', 'sale'),('company_id', '=', self.company_id.id)], limit=1).id, 'credit': monto_exento, 'currency_id' : self.env.user.company_id.currency_id.id}]
                  ])
             self.impuestos = lines
             operator = 'in'
         if self.tipo_operacion in [ 'VENTA', 'BOLETA' ]:
-            query.append(('date' , '>=', current.strftime('%Y-%m-%d')))
+            query.append(('date', '>=', current.strftime('%Y-%m-%d')))
 
         query.append(('document_class_id.sii_code', operator, docs))
         self.move_ids = self.env['account.move'].search(query)
@@ -381,6 +388,8 @@ class Libro(models.Model):
             imp = self._get_imps()
             if self.boletas:
                 for bol in self.boletas:
+                    if not imp.get(bol.impuesto.id):
+                        imp[bol.impuesto.id] = {'credit': 0}
                     imp[bol.impuesto.id]['credit'] += bol.monto_impuesto
             if self.impuestos and isinstance(self.id, int):
                 self._cr.execute("DELETE FROM account_move_book_tax WHERE book_id=%s", (self.id,))
@@ -388,7 +397,7 @@ class Libro(models.Model):
             lines = [[5,],]
             for key, i in imp.items():
                 i['currency_id'] = self.env.user.company_id.currency_id.id
-                lines.append([0,0, i])
+                lines.append([0, 0, i])
             self.impuestos = lines
 
     @api.multi
@@ -577,7 +586,7 @@ version="1.0">
         if type == 'libro':
             fulldoc = message.replace('</LibroCompraVenta>','%s\n</LibroCompraVenta>' % msg)
         elif type == 'libro_boleta':
-            resp = fulldoc = message.replace('</LibroBoleta>','%s\n</LibroBoleta>' % msg)
+            fulldoc = message.replace('</LibroBoleta>','%s\n</LibroBoleta>' % msg)
             xmlns = 'xmlns="http://www.w3.org/2000/09/xmldsig#"'
             xmlns_sii = 'xmlns="http://www.sii.cl/SiiDte"'
             msg = msg.replace(xmlns, xmlns_sii)
@@ -593,21 +602,16 @@ version="1.0">
 
     @api.multi
     def send_xml_file(self, envio_dte=None, file_name="envio",company_id=False):
+        signature_d = self.env.user.get_digital_signature(company_id)
+        if not signature_d:
+            raise UserError(_('''There is no Signer Person with an \
+        authorized signature for you in the system. Please make sure that \
+        'user_signature_key' module has been installed and enable a digital \
+        signature, for you or make the signer to authorize you to use his \
+        signature.'''))
         if not company_id.dte_service_provider:
             raise UserError(_("Not Service provider selected!"))
-        try:
-            signature_d = self.env.user.get_digital_signature(self.company_id)
-            seed = self.get_seed(company_id)
-            template_string = self.create_template_seed(seed)
-            seed_firmado = self.sign_seed(
-                template_string,
-                signature_d['priv_key'],
-                signature_d['cert'])
-            token = self.get_token(seed_firmado,company_id)
-        except Exception as e:
-            _logger.info(connection_status)
-            raise UserError(tools.ustr(e))
-
+        token = self.env['sii.xml.envio'].get_token( self.env.user, company_id )
         url = 'https://palena.sii.cl'
         if company_id.dte_service_provider == 'SIICERT':
             url = 'https://maullin.sii.cl'
@@ -629,7 +633,7 @@ version="1.0">
         params['dvCompany'] = company_id.vat[-1]
         file_name = file_name + '.xml'
         params['archivo'] = (file_name,envio_dte,"text/xml")
-        multi  = urllib3.filepost.encode_multipart_formdata(params)
+        multi = urllib3.filepost.encode_multipart_formdata(params)
         headers.update({'Content-Length': '{}'.format(len(multi[0]))})
         response = pool.request_encode_body('POST', url+post, params, headers)
         retorno = {'sii_xml_response': response.data, 'sii_result': 'NoEnviado','sii_send_ident':''}
@@ -637,7 +641,6 @@ version="1.0">
             return retorno
         respuesta_dict = xmltodict.parse(response.data)
         if respuesta_dict['RECEPCIONDTE']['STATUS'] != '0':
-            _logger.info('l736-status no es 0')
             _logger.info(respuesta_dict)
             _logger.info(connection_status[respuesta_dict['RECEPCIONDTE']['STATUS']])
         else:
@@ -799,9 +802,9 @@ version="1.0">
                     MntIVA += int(round(Mnt))
                 if not rec.no_rec_code and not rec.iva_uso_comun:
                     det['MntIVA'] = MntIVA
-                if ActivoFijo != [0,0]:
-                    det['MntActivoFijo'] = Activofijo[0]
-                    det['MntIVAActivoFijo'] = Activofijo[1]
+                if ActivoFijo != [0, 0]:
+                    det['MntActivoFijo'] = ActivoFijo[0]
+                    det['MntIVAActivoFijo'] = ActivoFijo[1]
                 if rec.no_rec_code:
                     det['IVANoRec'] = collections.OrderedDict()
                     det['IVANoRec']['CodIVANoRec'] = rec.no_rec_code
@@ -817,7 +820,7 @@ version="1.0">
                 else:
                     otro['OtrosImp'] = collections.OrderedDict()
                     otro['OtrosImp']['CodImp'] = t['imp'].sii_code
-                    otro['OtrosImp']['TasaImp'] = round(t['imp'].amount,2)
+                    otro['OtrosImp']['TasaImp'] = round(t['imp'].amount, 2)
                     otro['OtrosImp']['MntImp'] = int(round(t['Mnt']))
                 imps.append(otro)
             det['itemOtrosImp'] = imps
@@ -862,8 +865,8 @@ version="1.0">
         if mnt['amount'] < 0:
             mnt['amount'] *= -1
             mnt['base'] *= -1
-        if tax_line_id.sii_code in [14, 15, 17, 18, 19, 30,31, 32 ,33, 34, 36, 37, 38, 39, 41, 47, 48]: # diferentes tipos de IVA retenidos o no
-            ivas.setdefault(tax_line_id.id, [ tax_line_id, 0])
+        if tax_line_id.sii_code in [14, 15, 17, 18, 19, 30, 31, 32, 33, 34, 36, 37, 38, 39, 41, 47, 48]: # diferentes tipos de IVA retenidos o no
+            ivas.setdefault(tax_line_id.id, [tax_line_id, 0])
             ivas[tax_line_id.id][1] += mnt['amount']
             TaxMnt += mnt['amount']
             Neto += mnt['base']
@@ -873,6 +876,11 @@ version="1.0">
             if tax_line_id.amount == 0:
                 MntExe += mnt['base']
         return Neto, TaxMnt, MntExe, ivas, imp
+
+    def _es_iva(self, tax):
+        if tax.sii_code in [14, 15, 17, 18, 19, 30,31, 32 ,33, 34, 36, 37, 38, 39, 41, 47, 48]:
+            return True
+        return False
 
     def getResumenBoleta(self, rec):
         det = collections.OrderedDict()
@@ -914,37 +922,22 @@ version="1.0">
         Neto = 0
         MntExe = 0
         TaxMnt = 0
-        tasa = False
-        ivas = {}
-        imp = {}
-        impuestos = {}
+        MntTotal = 0
         if 'lines' in rec:
-            for line in rec.lines:
-                if line.tax_ids:
-                    for t in line.tax_ids:
-                        impuestos.setdefault(t.id, [t, 0])
-                        impuestos[t.id][1] += line.price_subtotal_incl
-            for key, t in impuestos.items():
-                Neto, TaxMnt, MntExe, ivas, imp = self._process_imps(t[0], t[1], rec.pricelist_id.currency_id, Neto, TaxMnt, MntExe, ivas, imp)
+            TaxMnt =  rec.amount_tax
+            MntTotal = rec.amount_total
+            Neto = rec.pricelist_id.currency_id.round(sum(line.price_subtotal for line in rec.lines))
+            MntExe = rec.exento()
+            TasaIVA = self.env['pos.order.line'].search([('order_id', '=', rec.id), ('tax_ids.amount', '>', 0)], limit=1).tax_ids.amount
+            Neto -= MntExe
         else:  # si la boleta fue hecha por contabilidad
             for l in rec.line_ids:
                 if l.tax_line_id:
                     if l.tax_line_id and l.tax_line_id.amount > 0: #supuesto iva único
-                        if l.tax_line_id.sii_code in [14, 15, 17, 18, 19, 30,31, 32 ,33, 34, 36, 37, 38, 39, 41, 47, 48]: # diferentes tipos de IVA retenidos o no
-                            if not l.tax_line_id.id in ivas:
-                                ivas[l.tax_line_id.id] = [l.tax_line_id, 0]
+                        if self._es_iva(l.tax_line_id): # diferentes tipos de IVA retenidos o no
                             if l.credit > 0:
-                                ivas[l.tax_line_id.id][1] += l.credit
-                            else:
-                                ivas[l.tax_line_id.id][1] += l.debit
-                        else:
-                            if not l.tax_line_id.id in imp:
-                                imp[l.tax_line_id.id] = [l.tax_line_id, 0]
-                            if l.credit > 0:
-                                imp[l.tax_line_id.id][1] += l.credit
                                 TaxMnt += l.credit
                             else:
-                                imp[l.tax_line_id.id][1] += l.debit
                                 TaxMnt += l.debit
                 elif l.tax_ids and l.tax_ids[0].amount > 0:
                     if l.credit > 0:
@@ -956,20 +949,16 @@ version="1.0">
                         MntExe += l.credit
                     else:
                         MntExe += l.debit
-        #det['IndServicio']
-        #det['IndSinCosto']
+            TasaIVA = self.env['account.move.line'].search([('move_id', '=', rec.id), ('tax_line_id.amount', '>', 0)], limit=1).tax_line_id.amount
+            MntTotal = Neto + MntExe + TaxMnt
         det['RUTCliente'] = self.format_vat(rec.partner_id.vat)
-        if TaxMnt > 0:
-            det['MntIVA'] = int(round(TaxMnt))
-            for key, t in ivas.items():
-                det['TasaIVA'] = t[0].amount
-        #det['CodIntCLi']
         if MntExe > 0 :
-            det['MntExe'] = int(round(MntExe,0))
-        monto_total = int(round((Neto + MntExe + TaxMnt), 0))
-        det['MntTotal'] = monto_total
-        det['MntNeto'] = int(round(Neto))
-        det['MntIVA'] = int(round(TaxMnt))
+            det['MntExe'] = self.currency_id.round(MntExe)
+        if TaxMnt > 0:
+            det['MntIVA'] = self.currency_id.round(TaxMnt)
+            det['TasaIVA'] = TasaIVA
+        det['MntNeto'] = self.currency_id.round(Neto)
+        det['MntTotal'] = self.currency_id.round(MntTotal)
         return det
 
     def _procesar_otros_imp(self, resumen, resumenP):
@@ -1012,8 +1001,8 @@ version="1.0">
                 if cod == o['OtrosImp']['CodImp']:
                     tot = {}
                     tot['TotOtrosImp'] = collections.OrderedDict()
-                    tot['TotOtrosImp']['CodImp']  = cod
-                    tot['TotOtrosImp']['TotMntImp']  = r['OtrosImp']['MntImp']
+                    tot['TotOtrosImp']['CodImp'] = cod
+                    tot['TotOtrosImp']['TotMntImp'] = r['OtrosImp']['MntImp']
                     #tot['FctImpAdic']
                     tot['TotOtrosImp']['TotCredImp'] += o['OtrosImp']['MntImp']
                     itemOtrosImp.append(tot)
@@ -1027,12 +1016,12 @@ version="1.0">
             resumenP['TotImpSinCredito'] = no_rec
         return resumenP
 
-    def _setResumenPeriodo(self,resumen,resumenP):
+    def _setResumenPeriodo(self, resumen, resumenP):
         resumenP['TpoDoc'] = resumen['TpoDoc']
         if 'TpoImp' in resumen:
             resumenP['TpoImp'] = resumen['TpoImp'] or 1
         if not 'TotDoc' in resumenP:
-            resumenP['TotDoc'] =  1
+            resumenP['TotDoc'] = 1
             if 'TotDoc' in resumen:
                 resumenP['TotDoc'] = resumen['TotDoc']
         else:
@@ -1142,7 +1131,7 @@ version="1.0">
             resumenP['TotalesServicio']['TotMntExe'] += resumen['MntExe']
         elif not 'TotMntExe' in resumenP['TotalesServicio']:
             resumenP['TotalesServicio']['TotMntExe'] = 0
-        if 'MntNeto' in resumen and not 'TotMntNeto' in resumenP['TotalesServicio']:
+        if 'MntNeto' in resumen and 'TotMntNeto' not in resumenP['TotalesServicio']:
             resumenP['TotalesServicio']['TotMntNeto'] = resumen['MntNeto']
         elif 'MntNeto' in resumen:
             resumenP['TotalesServicio']['TotMntNeto'] += resumen['MntNeto']
@@ -1164,9 +1153,7 @@ version="1.0">
 
     def _validar(self):
         dicttoxml.set_debug(False)
-        cant_doc_batch = 0
         company_id = self.company_id
-        dte_service = company_id.dte_service_provider
         signature_d = self.env.user.get_digital_signature(self.company_id)
         if not signature_d:
             raise UserError(_('''There is no Signer Person with an \
@@ -1181,9 +1168,9 @@ version="1.0">
         for rec in self.with_context(lang='es_CL').move_ids:
             rec.sended = True
             TpoDoc = rec.document_class_id.sii_code
-            if not TpoDoc in resumenesPeriodo:
+            if TpoDoc not in resumenesPeriodo:
                 resumenesPeriodo[TpoDoc] = {}
-            if self.tipo_operacion == 'BOLETA' and rec.document_class_id not in [False, 0] and rec.sii_document_number in [False, 0]:
+            if self.tipo_operacion == 'BOLETA' and rec.document_class_id:
                 if not rec.sii_document_number:
                     orders = sorted(self.env['pos.order'].search(
                             [('account_move', '=', rec.id),
@@ -1201,16 +1188,17 @@ version="1.0">
                         del(resumen['MntIVA'])
                         if 'TasaIVA' in resumen:
                             del(resumen['TasaIVA'])
-                        resumenes.extend([{'Detalle':resumen}])
                 else:
                     resumen = self.getResumenBoleta(rec)
                     resumenesPeriodo[TpoDoc] = self._setResumenPeriodoBoleta(resumen, resumenesPeriodo[TpoDoc])
                     del(resumen['MntNeto'])
                     del(resumen['MntIVA'])
-                    del(resumen['TasaIVA'])
+                    if resumen.get('TasaIVA'):
+                        del(resumen['TasaIVA'])
+                resumenes.extend([{'Detalle': resumen}])
             else:
                 resumen = self.getResumen(rec)
-                resumenes.extend([{'Detalle':resumen}])
+                resumenes.extend([{'Detalle': resumen}])
             if self.tipo_operacion != 'BOLETA':
                 resumenesPeriodo[TpoDoc] = self._setResumenPeriodo(resumen, resumenesPeriodo[TpoDoc])
         if self.boletas:#no es el libro de boletas especial
@@ -1240,7 +1228,6 @@ version="1.0">
         dte['TmstFirma'] = self.time_stamp()
         resol_data = self.get_resolution_data(company_id)
         RUTEmisor = self.format_vat(company_id.vat)
-        RUTRecep = "60803000-K" # RUT SII
         xml = dicttoxml.dicttoxml(
             dte, root=False, attr_type=False).decode()
         doc_id =  self.tipo_operacion+'_'+self.periodo_tributario
@@ -1251,7 +1238,7 @@ version="1.0">
         xml  = self.create_template_env(libro)
         env = 'libro'
         if self.tipo_operacion in['BOLETA']:
-                xml  = self.create_template_env_boleta(libro)
+                xml = self.create_template_env_boleta(libro)
                 env = 'libro_boleta'
         root = etree.XML( xml )
         xml_pret = etree.tostring(root, pretty_print=True).decode('iso-8859-1')\
@@ -1284,10 +1271,11 @@ version="1.0">
             'sii_xml_request':envio_dte
             })
 
-    def _get_send_status(self, track_id, signature_d,token):
+    def _get_send_status(self):
+        token = self.env['sii.xml.envio'].get_token(self.env.user, self.company_id)
         url = server_url[self.company_id.dte_service_provider] + 'QueryEstUp.jws?WSDL'
         _server = Client(url)
-        respuesta = _server.service.getEstUp(self.company_id.vat[2:-1],self.company_id.vat[-1],track_id,token)
+        respuesta = _server.service.getEstUp(self.company_id.vat[2:-1],self.company_id.vat[-1], self.sii_send_ident, token)
         self.sii_receipt = respuesta
         resp = xmltodict.parse(respuesta)
         status = False
@@ -1304,21 +1292,12 @@ version="1.0">
 
     @api.multi
     def ask_for_dte_status(self):
-        try:
-            signature_d = self.env.user.get_digital_signature(self.company_id)
-            seed = self.get_seed(self.company_id)
-            template_string = self.create_template_seed(seed)
-            seed_firmado = self.sign_seed(
-                template_string, signature_d['priv_key'],
-                signature_d['cert'])
-            token = self.get_token(seed_firmado,self.company_id)
-        except:
-            raise UserError(connection_status[response.e])
         xml_response = xmltodict.parse(self.sii_xml_response)
         if self.state == 'Enviado':
-            status = self._get_send_status(self.sii_send_ident, signature_d, token)
+            status = self._get_send_status()
             #if self.state != 'Proceso':
             return status
+
 
 class Boletas(models.Model):
     _name = 'account.move.book.boletas'
@@ -1373,6 +1352,7 @@ class Boletas(models.Model):
         if self.rango_final < self.rango_inicial:
             raise UserError("¡El rango Final no puede ser menor al inicial")
         self.cantidad_boletas = self.rango_final - self.rango_inicial +1
+
 
 class ImpuestosLibro(models.Model):
     _name="account.move.book.tax"

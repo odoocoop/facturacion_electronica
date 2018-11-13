@@ -121,9 +121,6 @@
                                     <field name="journal_id" groups="account.group_account_user" options="{'no_create': True}"
                                         attrs="{'readonly':['|','|',('state','!=','draft'),('sii_document_number','!=',False),('move_name','!=',False)]}"
                                         domain="[('journal_document_class_ids.sii_document_class_id.document_letter_id.name','=','M')]"/>
-                                    <field name="turn_issuer"
-                                           attrs="{'required':[('use_documents','=',True)]}"
-                                           options="{'no_create': True}"/>
                                     <field name="journal_document_class_id"
                                            attrs="{'invisible':[('use_documents','=',False)],'required':[('use_documents','=',True)],'readonly':['|',('state','!=','draft'),('sii_document_number','!=',False)]}"
                                            options="{'no_create': True}"/>

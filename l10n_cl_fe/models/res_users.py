@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
-import datetime
+from datetime import datetime
 from odoo import models, fields, api
 from odoo.tools.translate import _
-from odoo.exceptions import Warning
-from odoo import SUPERUSER_ID
+from odoo.exceptions import UserError
 import base64
 import logging
 _logger = logging.getLogger(__name__)
@@ -17,7 +16,7 @@ except ImportError:
 zero_values = {
     "filename": "",
     "key_file": False,
-    "dec_pass":"",
+    "dec_pass": "",
     "not_before": False,
     "not_after": False,
     "status": "unverified",
@@ -43,17 +42,17 @@ zero_values = {
     "cert": "",
 }
 
+
 class ResUsers(models.Model):
     _inherit = 'res.users'
 
-    def default_status(self):
-        return 'unverified'
-
-    def load_cert_m2pem(self, *args, **kwargs):
-        filecontent = base64.b64decode(self.key_file)
-        cert = M2X509.load_cert(filecontent)
-        issuer = cert.get_issuer()
-        subject = cert.get_subject()
+    def check_signature(self):
+        for s in self:
+            if not s.cert:
+                s.status = 'unverified'
+            continue
+            expired = datetime.strptime(s.not_after, '%Y-%m-%d') < datetime.now()
+            s.status = 'expired' if expired else 'valid'
 
     def load_cert_pk12(self, filecontent):
         p12 = crypto.load_pkcs12(filecontent, self.dec_pass)
@@ -63,43 +62,33 @@ class ResUsers(models.Model):
         cacert = p12.get_ca_certificates()
         issuer = cert.get_issuer()
         subject = cert.get_subject()
-
-        self.not_before = datetime.datetime.strptime(cert.get_notBefore().decode("utf-8"), '%Y%m%d%H%M%SZ')
-        self.not_after = datetime.datetime.strptime(cert.get_notAfter().decode("utf-8"), '%Y%m%d%H%M%SZ')
-
+        self.not_before = datetime.strptime(cert.get_notBefore().decode("utf-8"), '%Y%m%d%H%M%SZ')
+        self.not_after = datetime.strptime(cert.get_notAfter().decode("utf-8"), '%Y%m%d%H%M%SZ')
         # self.final_date =
         self.subject_c = subject.C
         self.subject_title = subject.title
         self.subject_common_name = subject.CN
         self.subject_serial_number = subject.serialNumber
         self.subject_email_address = subject.emailAddress
-
         self.issuer_country = issuer.C
         self.issuer_organization = issuer.O
         self.issuer_common_name = issuer.CN
         self.issuer_serial_number = issuer.serialNumber
         self.issuer_email_address = issuer.emailAddress
-        self.status = 'expired' if cert.has_expired() else 'valid'
-
         self.cert_serial_number = cert.get_serial_number()
         self.cert_signature_algor = cert.get_signature_algorithm()
         self.cert_version  = cert.get_version()
         self.cert_hash = cert.subject_name_hash()
-
         # data privada
         self.private_key_bits = privky.bits()
         self.private_key_check = privky.check()
         self.private_key_type = privky.type()
         # self.cacert = cacert
-
         certificate = p12.get_certificate()
         private_key = p12.get_privatekey()
-
         self.priv_key = crypto.dump_privatekey(type_, private_key)
         self.cert = crypto.dump_certificate(type_, certificate)
-
         self.dec_pass = False
-
 
     filename = fields.Char(string='File Name')
     key_file = fields.Binary(
@@ -112,8 +101,13 @@ class ResUsers(models.Model):
     not_after = fields.Date(
         string='Not After', help='Not After this Date', readonly=True)
     status = fields.Selection(
-        [('unverified', 'Unverified'), ('valid', 'Valid'), ('expired', 'Expired')],
-        string='Status', default=default_status,
+        [
+                    ('unverified', 'Unverified'),
+                    ('valid', 'Valid'),
+                    ('expired', 'Expired')
+        ],
+        string='Status',
+        compute='check_signature',
         help='''Draft: means it has not been checked yet.\nYou must press the\
 "check" button.''')
     final_date = fields.Date(
@@ -140,7 +134,7 @@ class ResUsers(models.Model):
     # data del certificado
     cert_serial_number = fields.Char(string='Serial Number', readonly=True)
     cert_signature_algor = fields.Char(string='Signature Algorithm', readonly=True)
-    cert_version  = fields.Char(string='Version', readonly=True)
+    cert_version = fields.Char(string='Version', readonly=True)
     cert_hash = fields.Char(string='Hash', readonly=True)
     # data privad, readonly=Truea
     private_key_bits = fields.Char(string='Private Key Bits', readonly=True)
@@ -149,43 +143,30 @@ class ResUsers(models.Model):
     # cacert = fields.Char('CA Cert', readonly=True)
     cert = fields.Text(string='Certificate', readonly=True)
     priv_key = fields.Text('Private Key', readonly=True)
-    authorized_users_ids = fields.One2many('res.users','cert_owner_id',
+    authorized_users_ids = fields.One2many('res.users', 'cert_owner_id',
                                            string='Authorized Users')
     cert_owner_id = fields.Many2one('res.users', string='Certificate Owner',
                                     index=True, ondelete='cascade')
 
     @api.multi
     def action_clean1(self):
-        self.ensure_one()
-        # todo: debe lanzar un wizard que confirme si se limpia o no
-        # self.status = 'unverified'
         self.write(zero_values)
-
 
     @api.multi
     def action_process(self):
-        self.ensure_one()
         filecontent = base64.b64decode(self.key_file)
         self.load_cert_pk12(filecontent)
-
-    @api.multi
-    @api.depends('key_file')
-    def _get_date(self):
-        self.ensure_one()
-        old_date = self.issued_date
-        if self.key_file != None and self.status == 'unverified':
-            self.issued_date = fields.datetime.now()
-        else:
-            self.issued_date = old_date
 
     def get_digital_signature(self, company_id):
         obj = self
         if not obj.cert:
             obj = company_id or self.company_id
             if not obj or not obj.cert:
-                obj = self.env['res.users'].search([("authorized_users_ids","=", self.id)])
+                obj = self.env['res.users'].search([("authorized_users_ids", "=", self.id), ('status', '=', 'valid')])
             if not obj.cert or not self.id in obj.authorized_users_ids.ids:
                 return False
+        if obj.status == 'expired':
+            raise UserError(_('Expired signature since %s' %obj.not_after))
         signature_data = {
             'subject_name': obj.name,
             'subject_serial_number': obj.subject_serial_number,

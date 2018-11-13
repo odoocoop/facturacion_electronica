@@ -54,9 +54,10 @@ stamp to be legally valid.''',
             string='Ubication',
         )
     company_activities_ids = fields.Many2many(
+            'partner.activities',
+            id1='company_id', 
+            id2='activities_id',
             string='Activities Names',
-            related='partner_id.partner_activities_ids',
-            relation='partner.activities',
         )
     responsability_id = fields.Many2one(
             related='partner_id.responsability_id',
@@ -160,4 +161,6 @@ stamp to be legally valid.''',
     @api.onchange('city_id')
     def _asign_city(self):
         if self.city_id:
+            self.country_id = self.city_id.state_id.country_id.id
+            self.state_id = self.city_id.state_id.id
             self.city = self.city_id.name

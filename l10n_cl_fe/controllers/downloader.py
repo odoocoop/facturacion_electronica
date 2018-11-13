@@ -33,12 +33,12 @@ class Binary(http.Controller):
     @serialize_exception
     def download_cf(self, rec_id, **post):
         filename = ('CF_%s.xml' % rec_id.name).replace(' ','_')
-        filecontent = rec_id.sii_xml_request.xml_envio
+        filecontent = rec_id.sii_xml_request
         return self.document(filename, filecontent)
 
     @http.route(["/download/xml/libro/<model('account.move.book'):rec_id>"], type='http', auth='user')
     @serialize_exception
     def download_book(self, rec_id, **post):
         filename = ('Libro_%s.xml' % rec_id.name).replace(' ','_')
-        filecontent = rec_id.sii_xml_request.xml_envio
+        filecontent = rec_id.sii_xml_request
         return self.document(filename, filecontent)

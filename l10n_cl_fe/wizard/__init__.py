@@ -8,3 +8,4 @@ from . import upload_xml
 from . import validar
 from . import masive_dte_process
 from . import masive_dte_accept
+from . import mail_compose_message

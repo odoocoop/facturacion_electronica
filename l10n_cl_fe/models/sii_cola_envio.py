@@ -7,6 +7,7 @@ from odoo.tools import DEFAULT_SERVER_DATETIME_FORMAT as DTF
 import logging
 _logger = logging.getLogger(__name__)
 
+
 class ColaEnvio(models.Model):
     _name = "sii.cola_envio"
 
@@ -43,40 +44,17 @@ class ColaEnvio(models.Model):
         )
 
     def enviar_email(self, doc):
-        att = doc._create_attachment()
-        body = 'XML de Intercambio DTE: %s' % (doc.document_number)
-        subject = 'XML de Intercambio DTE: %s' % (doc.document_number)
-        doc.message_post(
-            body=body,
-            subject=subject,
-            partner_ids=[doc.partner_id.id],
-            attachment_ids=att.ids,
-            message_type='comment',
-            subtype='mt_comment',
-        )
-        if doc.partner_id.dte_email == doc.partner_id.email:
-            return
-        values = {
-            'email_from': doc.company_id.dte_email,
-            'email_to': doc.partner_id.dte_email,
-            'auto_delete': False,
-            'model' : self.model,
-            'body': body,
-            'subject': subject,
-            'attachment_ids': att.ids,
-        }
-        send_mail = self.env['mail.mail'].create(values)
-        send_mail.send()
+        doc.send_exchange()
 
     def _procesar_tipo_trabajo(self):
-        docs = self.env[self.model].browse(ast.literal_eval(self.doc_ids))
+        docs = self.env[self.model].sudo(self.user_id.id).browse(ast.literal_eval(self.doc_ids))
         if self.tipo_trabajo == 'pasivo':
-            if docs[0].sii_xml_request and docs[0].sii_xml_request.state in [ 'Aceptado', 'Enviado', 'Rechazado']:
+            if docs[0].sii_xml_request and docs[0].sii_xml_request.state in [ 'Aceptado', 'Enviado', 'Rechazado', 'Anulado']:
                 self.unlink()
                 return
             if self.date_time and datetime.now() >= datetime.strptime(self.date_time, DTF):
                 try:
-                    envio_id = docs.do_dte_send()
+                    envio_id = docs.do_dte_send(self.n_atencion)
                     if envio_id.sii_send_ident:
                         self.tipo_trabajo = 'consulta'
                 except Exception as e:
@@ -84,7 +62,7 @@ class ColaEnvio(models.Model):
                     _logger.warning(str(e))
                 docs.get_sii_result()
             return
-        if docs[0].sii_message and docs[0].sii_result in ['Proceso', 'Reparo', 'Rechazado']:
+        if docs[0].sii_message and docs[0].sii_result in ['Proceso', 'Reparo', 'Rechazado', 'Anulado']:
             if self.send_email and docs[0].sii_result in ['Proceso', 'Reparo']:
                 for doc in docs:
                     self.enviar_email(doc)
@@ -98,7 +76,7 @@ class ColaEnvio(models.Model):
                 _logger.warning(str(e))
         elif self.tipo_trabajo == 'envio' and (not docs[0].sii_xml_request or not docs[0].sii_xml_request.sii_send_ident or docs[0].sii_xml_request.state not in [ 'Aceptado', 'Enviado']):
             try:
-                envio_id = docs.do_dte_send()
+                envio_id = docs.do_dte_send(self.n_atencion)
                 if envio_id.sii_send_ident:
                     self.tipo_trabajo = 'consulta'
                 docs.get_sii_result()
@@ -108,7 +86,7 @@ class ColaEnvio(models.Model):
 
     @api.model
     def _cron_procesar_cola(self):
-        ids = self.search([('active','=',True)])
+        ids = self.search([('active', '=', True)])
         if ids:
             for c in ids:
                 c._procesar_tipo_trabajo()
