@@ -9,7 +9,7 @@
                         <field name="documentos" widget="one2many">
                           <tree string="DTes a enviar" editable="top/bottom">
                             <field name="state" invisible="True"/>
-                            <field name="document_number" />
+                            <field name="number" />
                             <field name="origin" />
                             <field name="amount_total" />
                             <field name="sii_batch_number" readonly="False" />

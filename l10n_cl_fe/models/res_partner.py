@@ -6,6 +6,7 @@ import re
 import logging
 _logger = logging.getLogger(__name__)
 
+
 class ResPartner(models.Model):
     _inherit = 'res.partner'
 
@@ -25,6 +26,19 @@ class ResPartner(models.Model):
     def _get_default_country(self):
         return self.env.user.company_id.country_id.id or self.env.user.partner_id.country_id.id
 
+    @api.depends('child_ids')
+    def _compute_dte_email(self):
+        for p in self:
+            for dte in p.child_ids:
+                if dte.type == 'dte' and dte.principal:
+                    p.dte_email_id = dte.id
+                    p.dte_email = dte.email
+                    break
+    type = fields.Selection(
+        selection_add=[
+            ('dte', 'Contacto DTE'),
+        ]
+    )
     state_id = fields.Many2one(
             "res.country.state",
             'Ubication',
@@ -55,15 +69,94 @@ class ResPartner(models.Model):
             'sii.activity.description',
             string='Glosa Giro', ondelete="restrict",
         )
+    dte_email_id = fields.Many2one(
+            'res.partner',
+            string='DTE Email Principal',
+            compute='_compute_dte_email',
+        )
     dte_email = fields.Char(
             string='DTE Email',
+            #related='dte_email_id.name',
         )
+    principal = fields.Boolean(
+        string="Principal DTE",
+        default=lambda self: self.verify_principal(),
+    )
+    send_dte = fields.Boolean(
+        string="Auto Enviar DTE",
+        default=True,
+    )
+
+    @api.onchange('dte_email')
+    def set_temporal_email_cambiar_a_related(self):
+        ''' Esto eliminar en la versión siguiente, es solamente para evitar
+            problemas al actualizar '''
+        if not self.is_company and not self.dte_email or\
+            (not self.email and not self.dte_email):
+            if self.dte_email_id:
+                self.dte_email_id.unlink()
+            return
+        if not self.dte_email_id:
+            partners = []
+            for rec in self.child_ids:
+                partners.append((4, rec.id, False))
+            partners.append((0, 0,
+                            {
+                                'type': 'dte',
+                                'name': self.dte_email,
+                                'email': self.dte_email,
+                                'send_dte': True,
+                                'principal': True,
+                            })
+                        )
+            self.child_ids = partners
+        elif self.dte_email_id and self.dte_email_id.email != self.dte_email:
+            __name = self.dte_email_id.name
+            if __name == self.dte_email_id.email:
+                __name = self.dte_email
+            self.dte_email_id.name = __name
+            self.dte_email_id.email = self.dte_email
+        else:
+            for r in self.child_ids:
+                if r.type == 'dte':
+                    r.email = self.email_dte
+                    r.name = self.email_dte
+
+    @api.onchange('principal')
+    def verify_principal(self):
+        another = False
+        if self.type != 'dte':
+            return another
+        check_id = self.id
+        if self.parent_id:
+            check_id = self.parent_id.id
+        another = self.env['res.partner'].search([
+                    ('parent_id', '=', check_id),
+                    ('principal', '=', True)])
+        if another:
+            raise UserError(_('Existe otro correo establecido como Principal'))
+        return True
+
+    #def create(self, vals):
+    #    partner = super(ResPartner, self).create(vals)
+    #    if vals.get('email_dte'):
+    #        dte_email_id = self.env['res.partner'].create(
+    #                              {
+    #                                  'parent_id': self.id,
+    #                                  'type': 'dte',
+    #                                  'name': self.dte_email,
+    #                                  'email': self.dte_email,
+    #                                  'send_dte': True,
+    #                                  'principal': True,
+    #                              })
+    #        self.dte_email_id = dte_email_id.id
+
 
     @api.multi
     @api.onchange('responsability_id')
     def _get_tp_sii_code(self):
         for record in self:
-            record.tp_sii_code=str(record.responsability_id.tp_sii_code)
+            record.tp_sii_code = str(record.responsability_id.tp_sii_code)
 
     @api.onchange('document_number', 'document_type_id')
     def onchange_document(self):
@@ -85,7 +178,7 @@ class ResPartner(models.Model):
             vat = 'CL%s' % document_number
             exist = self.env['res.partner'].search(
                 [
-                    ('vat','=', vat),
+                    ('vat', '=', vat),
                     ('vat', '!=',  'CL555555555'),
                     ('commercial_partner_id', '!=', self.commercial_partner_id.id ),
                 ],

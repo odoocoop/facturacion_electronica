@@ -296,20 +296,16 @@ version="1.0">
 
     @api.multi
     def send_xml_file(self, envio_dte=None, file_name="envio",company_id=False):
+        signature_d = self.env.user.get_digital_signature(company_id)
+        if not signature_d:
+            raise UserError(_('''There is no Signer Person with an \
+        authorized signature for you in the system. Please make sure that \
+        'user_signature_key' module has been installed and enable a digital \
+        signature, for you or make the signer to authorize you to use his \
+        signature.'''))
         if not company_id.dte_service_provider:
             raise UserError(_("Not Service provider selected!"))
-        try:
-            signature_d = self.get_digital_signature_pem(
-                company_id)
-            seed = self.get_seed(company_id)
-            template_string = self.create_template_seed(seed)
-            seed_firmado = self.sign_seed(
-                template_string, signature_d['priv_key'],
-                signature_d['cert'])
-            token = self.get_token(seed_firmado,company_id)
-        except:
-            raise UserError(connection_status)
-
+        token = self.env['sii.xml.envio'].get_token( self.env.user, company_id )
         url = 'https://palena.sii.cl'
         if company_id.dte_service_provider == 'SIICERT':
             url = 'https://maullin.sii.cl'
@@ -477,7 +473,7 @@ version="1.0">
             referencia = self.env['account.move'].search([('document_number','=',ref.origin)])
         det = collections.OrderedDict()
         det['Folio'] = int(rec.sii_document_number)
-        if rec.canceled and rec.sii_send_ident: #cancelada y enviada al sii
+        if rec.canceled and rec.sii_xml_request and rec.sii_xml_request.sii_send_ident: #cancelada y enviada al sii
             det['Anulado'] = 2
         elif rec.canceled: # para anular folio
             det['Anulado'] = 1

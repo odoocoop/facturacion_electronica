@@ -2,25 +2,13 @@
 from odoo import api, models, fields
 from odoo.tools.translate import _
 from odoo.exceptions import UserError
+from .bigint import BigInt
 import logging
 _logger = logging.getLogger(__name__)
 
+
 class account_move(models.Model):
     _inherit = "account.move"
-
-    @api.depends(
-        'sii_document_number',
-        'name',
-        'document_class_id',
-        'document_class_id.doc_code_prefix',
-        )
-    def _get_document_number(self):
-        for r in self:
-            if r.sii_document_number and r.document_class_id:
-                document_number = (r.document_class_id.doc_code_prefix or '') + r.sii_document_number
-            else:
-                document_number = r.name
-            r.document_number = document_number
 
     document_class_id = fields.Many2one(
             'sii.document_class',
@@ -29,13 +17,12 @@ class account_move(models.Model):
             readonly=True,
             states={'draft': [('readonly', False)]},
         )
-    sii_document_number = fields.Char(
+    sii_document_number = BigInt(
             string='Document Number',
             copy=False,
             readonly=True,
             states={'draft': [('readonly', False)]},
         )
-
     canceled = fields.Boolean(
             string="Canceled?",
             readonly=True,
@@ -58,13 +45,6 @@ class account_move(models.Model):
             readonly=True,
             states={'draft': [('readonly', False)]},
         )# @TODO select 1 automático si es emisor 2Categoría
-    document_number = fields.Char(
-            compute='_get_document_number',
-            string='Document Number',
-            store=True,
-            readonly=True,
-            states={'draft': [('readonly', False)]},
-        )
     sended = fields.Boolean(
             string="Enviado al SII",
             default=False,
@@ -123,12 +103,7 @@ class account_move_line(models.Model):
             store=True,
             readonly=True,
         )
-    document_number = fields.Char(
-            string='Document Number',
-            related='move_id.document_number',
-            store=True,
-            readonly=True,
-        )
+
 
 class AccountJournalSiiDocumentClass(models.Model):
     _name = "account.journal.sii_document_class"
@@ -170,8 +145,13 @@ class AccountJournalSiiDocumentClass(models.Model):
         if self.sii_document_class_id and self.sequence_id and self.sii_document_class_id != self.sequence_id.sii_document_class_id:
             raise UserError("El tipo de Documento de la secuencia es distinto")
 
+
 class account_journal(models.Model):
     _inherit = "account.journal"
+
+    def _domain_journal(self):
+        company_id = self.company_id or self.env.user.company_id
+        return [('id', 'in', company_id.company_activities_ids.ids)]
 
     sucursal_id = fields.Many2one(
             'sii.sucursal',
@@ -198,11 +178,21 @@ class account_journal(models.Model):
             string='Journal Turns',
             help="""Select the turns you want to \
             invoice in this Journal""",
+            domain=lambda self: self._domain_journal(),
         )
     restore_mode = fields.Boolean(
             string="Restore Mode",
             default=False,
         )
+
+    @api.onchange('company_id')
+    def set_domain_journals(self):
+        res = {
+            'domain': {
+                'journal_document_class_id': self._domain_journal()
+                }
+        }
+        return res
 
     @api.onchange('journal_activities_ids')
     def max_actecos(self):

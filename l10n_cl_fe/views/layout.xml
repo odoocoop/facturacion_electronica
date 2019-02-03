@@ -190,10 +190,7 @@
                                    <span t-field="l.discount"/>
                                </td>
                                <td class="text-left" style="max-height:8px;line-height:10px !important;">
-                                    <span t-if="not price_included" t-field="l.price_subtotal"
-                                         t-field-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
-                                    <span t-if="price_included" t-field="l.price_tax_included"
-                                         t-field-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
+                                    <span t-field="l.price_total" t-field-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
                                </td>
                            </tr>
                        </tbody>
@@ -212,7 +209,7 @@
                             <p style="text-align:center;color:red; font-size:8px;">
                               Timbre Electrónico SII
                               <br/>
-                              Resolución <t t-esc='o.company_id.dte_resolution_number'/> de <t t-esc='o.company_id.dte_resolution_date[:4]'/> Verifique documento en: <t t-if="not o._es_boleta()">www.sii.cl</t><t t-if="o._es_boleta()" t-esc="o.company_id.website+'/boleta/'+o.sii_document_number"/>
+                              Resolución <t t-esc='o.company_id.dte_resolution_number'/> de <t t-esc='o.company_id.dte_resolution_date[:4]'/> Verifique documento en: <t t-if="not o._es_boleta()">www.sii.cl</t><t t-if="o._es_boleta()" t-esc="'%s/boleta/%s' % (o.company_id.website, o.sii_document_number)"/>
                             </p>
                         </div>
                       </div>
@@ -411,7 +408,7 @@
                               <span t-field="line.price_unit" t-field-options="{&quot;widget&quot;: &quot;monetary&quot;, &quot;display_currency&quot;: &quot;o.currency_id&quot;}"/>
                             </td>
                             <td class="text-right">
-                                <span t-field="line.price_tax_included" t-field-options="{&quot;widget&quot;: &quot;monetary&quot;, &quot;display_currency&quot;: &quot;o.currency_id&quot;}"/>
+                                <span t-field="line.price_total" t-field-options="{&quot;widget&quot;: &quot;monetary&quot;, &quot;display_currency&quot;: &quot;o.currency_id&quot;}"/>
                             </td>
                         </tr>
                     </tbody>
@@ -473,7 +470,7 @@
                       <p style="text-align:center;color:red; font-size:8px;">
                         Timbre Electrónico SII
                         <br/>
-                        Resolución <t t-esc='o.company_id.dte_resolution_number'/> de <t t-esc='o.company_id.dte_resolution_date[:4]'/> Verifique documento en: <t t-if="not o._es_boleta()">www.sii.cl</t><t t-if="o._es_boleta()" t-esc="o.company_id.website+'/boleta/'+o.sii_document_number"/>
+                        Resolución <t t-esc='o.company_id.dte_resolution_number'/> de <t t-esc='o.company_id.dte_resolution_date[:4]'/> Verifique documento en: <t t-if="not o._es_boleta()">www.sii.cl</t><t t-if="o._es_boleta()" t-esc="'%s/boleta/%s' % (o.company_id.website, o.sii_document_number)"/>
                       </p>
                   </div>
                 </div>
@@ -483,113 +480,162 @@
     </t>
 </template>
 
-
-        <template id="PosTicket_dte">
-          <div class="pos-sale-ticket">
-
-              <div class="pos-center-align"> <t t-esc="order.name"/></div>
-              <br />
-              <t t-esc="widget.pos.company.name"/><br />
-              Phone: <t t-esc="widget.pos.company.phone || ''"/><br />
-              User: <t t-esc="widget.pos.cashier ? widget.pos.cashier.name : widget.pos.user.name"/><br />
-              Shop: <t t-esc="widget.pos.shop.name"/><br />
-              <br />
-              <t t-if="receipt.header">
-                  <div style='text-align:center'>
-                      <t t-esc="receipt.header" />
-                  </div>
-                  <br />
+<!--<template id="thermal_layouts.invoice_thermal">-->
+<template id="invoice_thermal">
+      <t t-foreach="docs" t-as="doc">
+          <t t-if="doc and 'company_id' in doc">
+              <t t-set="company" t-value="doc.company_id.sudo()"/>
+          </t>
+          <t t-if="not doc or not 'company_id' in doc">
+              <t t-set="company" t-value="res_company"/>
+          </t>
+          <t t-if="'journal_document_class_id' in doc and doc.journal_document_class_id">
+            <t t-set="document_class_id" t-value="doc.journal_document_class_id.sii_document_class_id"/>
+          </t>
+          <t t-set="partner_id" t-value="doc.partner_id" />
+          <t t-set="commercial_partner_id" t-value="doc.partner_id.commercial_partner_id" />
+          <t t-set="logo" t-value="company.logo" />
+          <t t-set="sii_document_number" t-value="doc.sii_document_number" />
+          <t t-if="doc.type in ['in_invoice', 'in_refund']">
+            <t t-set="partner_id" t-value="company.partner_id" />
+            <t t-set="commercial_partner_id" t-value="company.partner_id" />
+            <t t-set="company" t-value="doc.partner_id" />
+            <t t-set="logo" t-value="doc.partner_id.image" />
+            <t t-set="sii_document_number" t-value="doc.reference" />
+          </t>
+        <receipt align='center' width='45' value-thousands-separator='.' >
+            <div class="pos-center-align"> 
+              <img t-att-src="'data:image/png;base64,%s' % doc.sii_header()"/>
+            </div>
+            <t t-if='doc.company_id'>
+                <img t-att-src='logo' />
+            </t>
+            <div>
+              <h3><t t-esc="company.name"/></h3>
+            </div>
+            <line><left font='b'>Vendedor: </left><right><t t-esc="doc.user_id.name"/></right></line>
+            <line><left font='b'>Fecha: </left><right><t t-esc="doc.date_invoice"/></right></line>
+            <line><left font='b'>Teléfono: </left><right><t t-esc="doc.company_id.phone"/></right></line>
+            <line><left font='b'>Dirección: </left><right><t t-esc="doc.company_id.street"/></right></line>
+            <t t-if="doc.partner_id">
+              <line><right>--------</right></line>
+              <line><left font='b'>Cliente: </left><right><span t-esc="doc.partner_id.name"/></right></line>
+              <line><left font='b'>RUT: </left><right><span t-esc="doc.partner_id.document_number"/></right></line>
+              <line><left font='b'>Giro: </left><right><span t-esc="doc.partner_id.activity_description.name"/></right></line>
+              <line><left font='b'>Dirección: </left><right><span t-esc="doc.partner_id.street"/></right></line>
+              <line><left font='b'>Teléfono: </left><right><span t-esc="doc.partner_id.phone"/></right></line>
+            </t>
+            <t t-if="doc.referencias">
+              <line><right>--------</right></line>
+              <line><right>Documento de Referencia</right></line>
+              <t t-foreach="doc.referencias" t-as="l">
+                <line><left>Folio:</left><right><t t-if="l.origen" t-esc="l.origen" /></right></line>
+                <line><left>Referencia:</left><right><t t-if="l.sii_referencia_TpoDocRef" t-esc="l.sii_referencia_TpoDocRef.name" /></right></line>
+                <line><left>Motivo/observación:</left><right><t t-esc="l.sii_referencia_CodRef[0]" /> <t t-esc="l.sii_referencia_CodRef" />: <span t-if="l.motivo" t-field="l.motivo"/></right></line>
+                <line><left>Fecha del documento</left><right><span t-if="l.fecha_documento" t-field="l.fecha_documento"/></right></line>
               </t>
-              <table class='receipt-orderlines'>
-                  <colgroup>
-                      <col width='50%' />
-                      <col width='25%' />
-                      <col width='25%' />
-                  </colgroup>
-                  <tr t-foreach="orderlines" t-as="orderline">
-                      <td>
-                          <t t-esc="orderline.get_product().display_name"/>
-                           <t t-if="orderline.get_discount() > 0">
-                              <div class="pos-disc-font">
-                                  With a <t t-esc="orderline.get_discount()"/>% discount
-                              </div>
-                          </t>
-                      </td>
-                      <td class="pos-right-align">
-                          <t t-esc="orderline.get_quantity_str_with_unit()"/>
-                      </td>
-                      <td class="pos-right-align">
-                          <t t-esc="widget.format_currency(orderline.get_display_price())"/>
-                      </td>
-                  </tr>
-              </table>
-              <br />
-              <table class='receipt-total'>
-                  <tr>
-                      <td>Subtotal:</td>
-                      <td class="pos-right-align">
-                          <t t-esc="widget.format_currency(order.get_total_without_tax())"/>
-                      </td>
-                  </tr>
-                  <t t-foreach="order.get_tax_details()" t-as="taxdetail">
-                      <tr>
-                          <td><t t-esc="taxdetail.name" /></td>
-                          <td class="pos-right-align">
-                              <t t-esc="widget.format_currency(taxdetail.amount)" />
-                          </td>
-                      </tr>
+            </t>
+            <line><right>--------</right></line>
+            <div class='orderlines' line-ratio='0.6'>
+              <t t-foreach='doc.invoice_line_ids' t-as='line'>
+                <t t-set='simple' t-value="line.discount == 0 and line.uom_id.name == 'Unit(s)' and line.quantity == 1" />
+                <t t-if='simple'>
+                    <line>
+                        <left><t t-esc='line.name' /></left>
+                        <right>$ <value ><t t-esc='line.price_unit' /></value></right>
+                    </line>
+                </t>
+                <t t-else=''>
+                  <line><left><t t-esc='line.name' /></left></line>
+                  <t t-if='line.discount != 0'>
+                    <line indent='1'><left>Descuento: <t t-esc='line.discount' />%</left></line>
                   </t>
-                  <tr>
-                      <td>Discount:</td>
-                      <td class="pos-right-align">
-                          <t t-esc="widget.format_currency(order.get_total_discount())"/>
-                      </td>
-                  </tr>
-                  <tr class="emph">
-                      <td>Total:</td>
-                      <td class="pos-right-align">
-                          <t t-esc="widget.format_currency(order.get_total_with_tax())"/>
-                      </td>
-                  </tr>
-              </table>
-              <br />
-              <table class='receipt-paymentlines'>
-                  <t t-foreach="paymentlines" t-as="line">
-                    <tr>
-                        <td>
-                            <t t-esc="line.name"/>
-                        </td>
-                        <td class="pos-right-align">
-                            <t t-esc="widget.format_currency(line.get_amount())"/>
-                        </td>
-                    </tr>
-                  </t>
-              </table>
-              <br />
-              <table class='receipt-change'>
-                  <tr><td>Change:</td><td class="pos-right-align">
-                      <t t-esc="widget.format_currency(order.get_change())"/>
-                      </td></tr>
-              </table>
-              <br/>
+                  <line indent='1'>
+                    <left>
+                      <value value-decimals='3' value-autoint='on'>
+                        <t t-esc='line.quantity' />
+                      </value>
+                      <t t-if='line.uom_id.name != "Unit(s)"'>
+                        <t t-esc='line.uom_id.name' />
+                      </t>
+                      x
+                      $ <value >
+                        <t t-esc='line.price_unit' />
+                      </value>
+                    </left>
+                    <right>
+                      $ <value value-decimals='0'><t t-esc='line.price_total' /></value>
+                    </right>
+                  </line>
+                </t>
+              </t>
+            </div>
+            <line><right>--------</right></line>
+            <line t-if="doc.global_descuentos_recargos">
+              <t t-foreach="doc.global_descuentos_recargos" t-as="gdr">
+                <left><pre>        Descuento o Recargo Global</pre></left>
+                <right>$ <value value-decimals='0'><t t-esc="gdr.valor if gdr.gdr_type=='amount' else gdr.amount_untaxed_global_dr" t-esc-options="{'widget': 'monetary', 'display_currency': doc.currency_id}"/></value></right>
+              </t>
+            </line>
+            <line t-if="doc.amount_untaxed and not doc._es_boleta()" class='total'>
+                <left><pre>        SubTotal</pre></left>
+                <right>$ <value value-decimals='0'><t t-esc='doc.amount_untaxed' /></value></right>
+            </line>
+            <line t-if="doc.amount_untaxed and not doc._es_boleta()" class='total'>
+              <left><pre>        Impuestos</pre></left>
+              <t t-foreach="doc.tax_line_ids" t-as="tl">
+                <right><t t-esc="tl.tax_id.description" />: $ <value value-decimals='0'><t t-esc='tl.amount' /></value></right>
+              </t>
+            </line>
+            <line t-if='doc.amount_total' class='total'>
+              <left><pre>        TOTAL</pre></left>
+              <right>$ <value value-decimals='0'><t t-esc='doc.amount_total' /></value></right>
+            </line>
+
+            <div>
+                <img t-att-src="'data:image/png;base64,%s' % doc.get_barcode_img(25,6).decode()"/>
+                <em>
+                  <p style="text-align:center;color:red; font-size:8px;">
+                    Timbre Electrónico SII
+                    <br/>
+                    Resolución <t t-esc='doc.company_id.dte_resolution_number'/> de <t t-esc='doc.company_id.dte_resolution_date[:4]'/> Verifique documento en: <t t-if="not doc._es_boleta()">www.sii.cl</t><t t-if="doc._es_boleta()" t-esc="'%s/boleta/%s' % (doc.company_id.website, doc.sii_document_number)"/>
+                  </p>
+                </em>
+            </div>
+            <t t-if="cedible">
               <div class="row">
-                <div class="col-xs-12">
-                   <span t-field="o.sii_barcode_img" t-field-options="{&quot;widget&quot;: &quot;image&quot;}"/>
-                </div>
-                <div class="col-xs-12">
-                    <p style="text-align:center;color:red; font-size:8px;">
-                      Timbre Electrónico SII
-                      <br/>
-                      Resolución <t t-esc='o.company_id.dte_resolution_number'/> de <t t-esc='o.company_id.dte_resolution_date[:4]'/> Verifique documento en: <t t-if="not o._es_boleta()">www.sii.cl</t><t t-if="o._es_boleta()" t-esc="o.company_id.website+'/boleta/'+o.sii_document_number"/>
-                    </p>
-                </div>
-              </div>
-              <t t-if="receipt.footer">
-                  <br />
-                  <div style='text-align:center'>
-                      <t t-esc="receipt.footer" />
+                  <div class="col-xs-12" style="border: 1px solid black;height:20px;font-size:15px !important;">
+                    <div class="col-xs-4">
+                        <strong>Nombre:</strong>
+                    </div>
                   </div>
-              </t>
-          </div>
-      </template>
+                  <div class="col-xs-12" style="border: 1px solid black;height:20px;font-size:15px !important;">
+                    <div class="col-xs-7">
+                        <strong>R.U.T.:</strong>
+                    </div>
+                    <div class="col-xs-5">
+                        <strong>FECHA:</strong>
+                    </div>
+                  </div>
+                  <div class="col-xs-12" style="border: 1px solid black;height:20px; font-size:15px !important;">
+                    <div class="col-xs-7">
+                        <strong>RECINTO:</strong>
+                    </div>
+                    <div class="col-xs-5">
+                        <strong>FIRMA:</strong>
+                    </div>
+                  </div>
+                  <div class="col-xs-12" style="border: 1px solid black;">
+                    <p style="font-size:8px">
+                      "El acuse de recibo que se declara en este acto, de acuerdo a lo dispuesto en la letra b) del Artículo 4°, y la letra c) del Artículo 5° de la Ley 19.983, acredita que la entrega de mercaderías o servicio(s) prestado(s) ha(n) sido recibido(s)"
+                    </p>
+                  </div>
+              </div>
+              <div class="row">
+                <h6 class="pull-right"> CEDIBLE</h6>
+              </div>
+            </t>
+          </receipt>
+        </t>
+  </template>
 </odoo>

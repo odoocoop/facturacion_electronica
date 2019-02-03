@@ -43,10 +43,9 @@
                                 context="{'type':type}"/>
                         <group>
                             <field name="journal_activities_ids"
-                                   attrs="{'invisible': ['|',('type','not in',['purchase','sale'])],'required': [('use_documents','=',True),('type','in',['sale'])]}" context="{'default_company_id':company_id}"
+                                   attrs="{'invisible': ['|',('type','not in',['purchase','sale'])],'required': [('use_documents','=',True),('type','in',['sale'])]}"
                                    placeholder="Giros del Diario" widget="many2many_tags"
-                                   options="{'no_create': True}"
-                                   domain="[('company_ids', 'parent_of', company_id)]"/>
+                                   options="{'no_create': True}"/>
                         </group>
                         <field name='journal_document_class_ids' context="{'journal_type': type}" editable="bottom" widget="one2many">
                           <tree string="Journal SII Documents" editable="bottom">

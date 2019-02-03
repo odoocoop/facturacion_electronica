@@ -2,6 +2,9 @@
 from odoo import models, fields, api, SUPERUSER_ID
 from odoo.tools.translate import _
 from odoo.exceptions import UserError
+from datetime import datetime, date
+from dateutil.relativedelta import relativedelta
+import pytz
 import logging
 _logger = logging.getLogger(__name__)
 
@@ -27,8 +30,8 @@ class caf(models.Model):
 
     name = fields.Char(
             string='File Name',
-           readonly=True,
-           compute='_get_filename',
+            readonly=True,
+            compute='_get_filename',
         )
     filename = fields.Char(
             string='File Name',
@@ -41,6 +44,11 @@ class caf(models.Model):
         )
     issued_date = fields.Date(
             string='Issued Date',
+            compute='_compute_data',
+            store=True,
+        )
+    expiration_date = fields.Date(
+            string='Expiration Date',
             compute='_compute_data',
             store=True,
         )
@@ -93,7 +101,7 @@ has been exhausted.''',
             compute='_used_level',
         )
     _sql_constraints = [
-                ('filename_unique','unique(filename)','Error! Filename Already Exist!'),
+                ('filename_unique', 'unique(filename)', 'Error! Filename Already Exist!'),
             ]
 
     @api.onchange("caf_file",)
@@ -105,6 +113,10 @@ has been exhausted.''',
         self.final_nm = result['RNG']['H']
         self.sii_document_class = result['TD']
         self.issued_date = result['FA']
+        self.expiration_date = date(int(result['FA'][:4]),
+                                    int(result['FA'][5:7]),
+                                    int(result['FA'][8:10])
+                                   ) + relativedelta(months=6)
         self.rut_n = 'CL' + result['RE'].replace('-', '')
         if self.rut_n != self.company_id.vat.replace('L0', 'L'):
             raise UserError(_(
@@ -142,7 +154,7 @@ to work properly!''') % (self.sii_document_class, self.sequence_id.sii_document_
     def decode_caf(self):
         post = base64.b64decode(self.caf_file).decode('ISO-8859-1')
         post = xmltodict.parse(post.replace(
-            '<?xml version="1.0"?>','',1))
+            '<?xml version="1.0"?>', '', 1))
         return post
 
 
@@ -197,16 +209,30 @@ class sequence_caf(models.Model):
     def _get_folio(self):
         return self.number_next_actual
 
+    def time_stamp(self, formato='%Y-%m-%dT%H:%M:%S'):
+        tz = pytz.timezone('America/Santiago')
+        return datetime.now(tz).strftime(formato)
+
     def get_caf_file(self, folio=False):
         folio = folio or self._get_folio()
         caffiles = self.get_caf_files(folio)
+        msg = '''No Hay caf para el documento: {}, está fuera de rango . Solicite un nuevo CAF en el sitio \
+www.sii.cl'''.format(folio)
         if not caffiles:
             raise UserError(_('''No hay caf disponible para el documento %s folio %s. Por favor solicite suba un CAF o solicite uno en el SII.''' % (self.name, folio)))
         for caffile in caffiles:
             if int(folio) >= caffile.start_nm and int(folio) <= caffile.final_nm:
-                return caffile.decode_caf()
-        msg = '''No Hay caf para el documento: {}, está fuera de rango . Solicite un nuevo CAF en el sitio \
-www.sii.cl'''.format(folio)
+                timestamp = self.time_stamp()
+                expiration_caf = date(int(caffile.expiration_date[:4]),
+                                      int(caffile.expiration_date[5:7]),
+                                      int(caffile.expiration_date[8:10])
+                                     )
+                if date(int(timestamp[:4]),
+                        int(timestamp[5:7]),
+                        int(timestamp[8:10])) > expiration_caf:
+                    msg = "CAF Vencido. %s" % msg
+                else:
+                    return caffile.decode_caf()
         raise UserError(_(msg))
 
     def get_caf_files(self, folio=None):

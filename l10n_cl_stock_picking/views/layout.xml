@@ -179,7 +179,7 @@
                                  <th >Nombre </th>
                                  <th > RUT </th>
                                  <th name="td_sched_date_h">Patente</th>
-                                 <th >Traslado</th>
+                                 <th >Tipo Operación</th>
                                </tr>
                              </thead>
                              <tbody>
@@ -216,7 +216,7 @@
                              <p style="text-align:center;color:red; font-size:8px;">
                                Timbre Electrónico SII
                                <br/>
-                               Resolución 393/2016 Verifique documento: www.sii.cl
+                               Resolución <t t-esc='o.company_id.dte_resolution_number'/> de <t t-esc='o.company_id.dte_resolution_date[:4]'/> Verifique documento: www.sii.cl
                              </p>
                          </div>
                        </div>

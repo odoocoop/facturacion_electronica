@@ -2,13 +2,13 @@
 {
     "name": """Facturación Electrónica para Chile\
     """,
-    'version': '0.4.25',
+    'version': '0.6.7',
     'category': 'Localization/Chile',
     'sequence': 12,
     'author':  'Daniel Santibáñez Polanco, Cooperativa OdooCoop',
     'website': 'https://globalresponse.cl',
     'license': 'AGPL-3',
-    'summary': '',
+    'summary': 'Facturación Electrónica para Chile.',
     'description': """
 Facturación Electrónica para Chile.
 """,
@@ -32,7 +32,7 @@ Facturación Electrónica para Chile.
             'base64',
             'hashlib',
             'cchardet',
-            'suds',#use suds-py3
+            'suds',
             'urllib3',
             'signxml',
             'ast',
@@ -40,6 +40,7 @@ Facturación Electrónica para Chile.
             'num2words',
             'xlsxwriter',
             'io',
+            'PIL',#Via Pillow
         ]
     },
     'data': [

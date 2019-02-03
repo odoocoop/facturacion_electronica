@@ -9,16 +9,16 @@ class Boleta(http.Controller):
 
     @http.route(['/boleta'], type='http', auth="public", website=True)
     def input_document(self, **post):
-        if not 'boleta' in post:
+        if 'boleta' not in post:
             return request.render('l10n_cl_fe.boleta_layout')
         return request.redirect('/boleta/%s?%s' % (post['boleta'], urllib.parse.urlencode(post)))
 
     def _get_domain_account_invoice(self, folio, post_values):
         domain = [('sii_document_number', '=', folio)]
         if post_values.get('date_invoice', ''):
-            domain.append(('date_invoice','=',post_values.get('date_invoice', '')))
+            domain.append(('date_invoice', '=', post_values.get('date_invoice', '')))
         if post_values.get('amount_total', ''):
-            domain.append(('amount_total','=',post_values.get('amount_total', '')))
+            domain.append(('amount_total', '=', post_values.get('amount_total', '')))
         if post_values.get('sii_codigo', ''):
             domain.append(('sii_document_class_id.sii_code', '=', int(post_values.get('sii_codigo', ''))))
         else:

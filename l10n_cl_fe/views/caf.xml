@@ -20,9 +20,10 @@
                             <tree string="DTE CAF Files">
                                 <!--<field name="caf_file" filename="filename" attrs="{'invisible':[('status', '!=', 'draft')]}"/>-->
                                 <field name="name"/>
-                                <field name="issued_date" readonly="1"/>
                                 <field name="start_nm"/>
                                 <field name="final_nm"/>
+                                <field name="issued_date" readonly="1"/>
+                                <field name="expiration_date" readonly="1"/>
                                 <field name="use_level" widget="progressbar"/>
                                 <field name="status" readonly="1"/>
                             </tree>
@@ -31,18 +32,6 @@
                 </xpath>
             </field>
         </record>
-
-
-        <!--<record id="view_l10n_cl_fe_sequence_enabled_subtree" model="ir.ui.view">
-            <field name="name">ir.sequence.journal.caf.subtree</field>
-            <field name="model">ir.sequence</field>
-            <field name="inherit_id" ref="l10n_cl_fe.view_account_journal_cl_form" />
-            <field name="arch" type="xml">
-                <field name="journal_document_class_ids" position="inside">
-                    <field name="is_dte"/>
-                </field>
-            </field>
-        </record>-->
 
 
     	<!-- vista de formulario -->
@@ -67,13 +56,13 @@
                         </group>
                         <group col="4">
                             <field name="sii_document_class"/>
-                            <field name="issued_date"/>
                             <field name="start_nm"/>
                             <field name="final_nm"/>
+                            <field name="issued_date"/>
+                            <field name="expiration_date" />
                             <field name="company_id"/>
                             <field name="rut_n"/>
                             <field name="sequence_id"/>
-                                <!--context="{'default_dte_caf_id':  active_id}"-->
                             <field name="use_level" widget="progressbar" backgrounds="blue:status == 'in_use';red:status == 'spent'"/>
                         </group>
                     </sheet>
@@ -91,18 +80,14 @@
                     <field name="sii_document_class"/>
                     <field name="start_nm" />
                     <field name="final_nm" />
+                    <field name="expiration_date" />
                     <field name="company_id" />
                     <field name="use_level" />
                     <field name="status" />
-                    <!-- <field name="caf_file" />-->
                 </tree>
             </field>
         </record>
 
-		<!-- accion -->
-        <!--<act_window id="action_partner_inventory"
-            name="Partner Inventory" res_model="partner.inventory.head" view_mode="tree,form" />-->
-        <!-- accion -->
         <record model="ir.actions.act_window" id="action_caf_files">
             <field name="name">SII CAF Files for DTE</field>
             <field name="type">ir.actions.act_window</field>

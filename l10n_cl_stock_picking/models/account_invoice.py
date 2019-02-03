@@ -14,13 +14,13 @@ class PickingToInvoiceD(models.Model):
     @api.depends('partner_id')
     @api.onchange('partner_id')
     def _get_pending_pickings(self ):
-        if not self.partner_id:
-            return
         for inv in self:
+            if not inv.partner_id or inv.type in ['out_refund', 'in_refund', 'in_invoice']:
+                continue
             if inv.type in ['out_invoice']:
                 mes_antes = 0
                 if inv.date_invoice:
-                    date_invoice = datetime.strptime( self.date_invoice, '%Y-%m-%d' )
+                    date_invoice = datetime.strptime( inv.date_invoice, '%Y-%m-%d' )
                     fecha_inicio = "%s-%s-01 00:00:00" % (date_invoice.year, date_invoice.month)
                     fecha_final = "%s-%s-11 00:00:00" % (date_invoice.year, date_invoice.month)
                     if date_invoice.day == 10:
@@ -46,7 +46,7 @@ class PickingToInvoiceD(models.Model):
                 )
                 inv.update({
                         'has_pending_pickings': len(pickings.ids),
-                        'picking_ids': pickings.ids,
+                        'picking_pending_ids': pickings.ids,
                         })
 
     has_pending_pickings = fields.Integer(
@@ -54,7 +54,7 @@ class PickingToInvoiceD(models.Model):
         compute='_get_pending_pickings',
         default=0,
     )
-    picking_ids = fields.Many2many(
+    picking_pending_ids = fields.Many2many(
             "stock.picking",
             string='Invoices',
             compute="_get_pending_pickings",
@@ -80,7 +80,7 @@ class PickingToInvoiceD(models.Model):
 
     @api.multi
     def action_view_pickings(self):
-        picking_ids = self.mapped('picking_ids')
+        picking_pending_ids = self.mapped('picking_pending_ids')
         action = self.env.ref('stock.action_picking_tree_all').read()[0]#cambiar por wizard seleccionable
-        action['domain'] = [('id', 'in', picking_ids.ids)]
+        action['domain'] = [('id', 'in', picking_pending_ids.ids)]
         return action

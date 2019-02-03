@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, date
 from lxml import etree
 from lxml.etree import Element, SubElement
 from odoo.tools.translate import _
+from .bigint import BigInt
 
 import logging
 _logger = logging.getLogger(__name__)
@@ -60,6 +61,11 @@ try:
     import hashlib
 except ImportError:
     _logger.warning('Cannot import hashlib library')
+
+try:
+    from PIL import Image, ImageDraw, ImageFont
+except:
+    _logger.warning("no se ha cargado PIL")
 
 # timbre patrón. Permite parsear y formar el
 # ordered-dict patrón corespondiente al documento
@@ -132,12 +138,6 @@ class AccountInvoiceLine(models.Model):
             line.price_subtotal_signed = price_subtotal_signed * sign
             line.price_total = taxes['total_included'] if (taxes and taxes['total_included'] > total) else total
 
-    # TODO: eliminar este campo en versiones futuras
-    # odoo en V11 ya agrega un campo para guardar el precio incluido impuestos
-    # este campo es innecesario a partir de V11
-    price_tax_included = fields.Monetary(string='Amount', readonly=True, compute='_compute_price')
-
-
 class Referencias(models.Model):
     _name = 'account.invoice.referencias'
 
@@ -190,14 +190,18 @@ class AccountInvoice(models.Model):
         domain = self._get_available_journal_document_class()
         return [('id', 'in', domain)]
 
+    @api.multi
+    def get_barcode_img(self, columns=13, ratio=3):
+        barcodefile = BytesIO()
+        image = self.pdf417bc(self.sii_barcode, columns, ratio)
+        image.save(barcodefile, 'PNG')
+        data = barcodefile.getvalue()
+        return base64.b64encode(data)
+
     def _get_barcode_img(self):
         for r in self:
             if r.sii_barcode:
-                barcodefile = BytesIO()
-                image = self.pdf417bc(r.sii_barcode)
-                image.save(barcodefile, 'PNG')
-                data = barcodefile.getvalue()
-                r.sii_barcode_img = base64.b64encode(data)
+                r.sii_barcode_img =  r.get_barcode_img()
 
     vat_discriminated = fields.Boolean(
             'Discriminate VAT?',
@@ -227,7 +231,14 @@ class AccountInvoice(models.Model):
             readonly=True,
             store=True,
         )
-    sii_document_number = fields.Char(
+    sii_code = fields.Integer(
+            related='sii_document_class_id.sii_code',
+            string='Document Code',
+            copy=False,
+            readonly=True,
+            store=True,
+        )
+    sii_document_number = BigInt(
         string='Document Number',
         copy=False,
         readonly=True,)
@@ -244,27 +255,16 @@ class AccountInvoice(models.Model):
         ) # solamente para compras tratamiento del iva
     no_rec_code = fields.Selection(
             [
-                    ('1','Compras destinadas a IVA a generar operaciones no gravados o exentas.'),
-                    ('2','Facturas de proveedores registrados fuera de plazo.'),
-                    ('3','Gastos rechazados.'),
-                    ('4','Entregas gratuitas (premios, bonificaciones, etc.) recibidos.'),
-                    ('9','Otros.')
+                    ('1', 'Compras destinadas a IVA a generar operaciones no gravados o exentas.'),
+                    ('2', 'Facturas de proveedores registrados fuera de plazo.'),
+                    ('3', 'Gastos rechazados.'),
+                    ('4', 'Entregas gratuitas (premios, bonificaciones, etc.) recibidos.'),
+                    ('9', 'Otros.')
             ],
             string="Código No recuperable",
             readonly=True,
             states={'draft': [('readonly', False)]},
         )# @TODO select 1 automático si es emisor 2Categoría
-
-    document_number = fields.Char(
-            compute='_get_document_number',
-            string='Document Number',
-            readonly=True,
-        )
-    next_invoice_number = fields.Integer(
-            related='journal_document_class_id.sequence_id.number_next_actual',
-            string='Next Document Number',
-            readonly=True,
-        )
     use_documents = fields.Boolean(
             related='journal_id.use_documents',
             string='Use Documents?',
@@ -278,11 +278,11 @@ class AccountInvoice(models.Model):
     )
     forma_pago = fields.Selection(
             [
-                    ('1','Contado'),
-                    ('2','Crédito'),
-                    ('3','Gratuito')
-            ]
-            ,string="Forma de pago",
+                    ('1', 'Contado'),
+                    ('2', 'Crédito'),
+                    ('3', 'Gratuito')
+            ],
+            string="Forma de pago",
             readonly=True,
             states={'draft': [('readonly', False)]},
             default='1',
@@ -347,8 +347,8 @@ class AccountInvoice(models.Model):
     estado_recep_dte = fields.Selection(
         [
             ('recibido', 'Recibido en DTE'),
-            ('mercaderias','Recibido mercaderias'),
-            ('validate','Validada Comercial')
+            ('mercaderias', 'Recibido mercaderias'),
+            ('validate', 'Validada Comercial')
         ],
         string="Estado de Recepcion del Envio",
         default='recibido',
@@ -411,6 +411,22 @@ class AccountInvoice(models.Model):
             readonly=True,
             states={'draft': [('readonly', False)]},
         )
+
+    @api.depends('state', 'journal_id', 'date_invoice', 'sii_document_class_id')
+    def _get_sequence_prefix(self):
+        for invoice in self:
+            if invoice.use_documents:
+                invoice.sequence_number_next_prefix = invoice.sii_document_class_id.doc_code_prefix or ''
+            else:
+                super(AccountInvoice, self)._get_sequence_prefix()
+
+    @api.depends('state', 'journal_id', 'sii_document_class_id')
+    def _get_sequence_number_next(self):
+        for invoice in self:
+            if invoice.use_documents:
+                invoice.sequence_number_next = invoice.journal_document_class_id.sequence_id.number_next_actual
+            else:
+                super(AccountInvoice, self)._get_sequence_number_next()
 
     @api.multi
     def compute_invoice_totals(self, company_currency, invoice_move_lines):
@@ -755,21 +771,18 @@ class AccountInvoice(models.Model):
         result = []
         for inv in self:
             result.append(
-                (inv.id, "%s %s" % (inv.document_number or TYPES[inv.type], inv.name or '')))
+                (inv.id, "%s %s" % (inv.number or TYPES[inv.type], inv.name or '')))
         return result
 
     @api.model
     def name_search(self, name, args=None, operator='ilike', limit=100):
         args = args or []
         recs = self.browse()
-        if name:
-            recs = self.search(
-                [('document_number', '=', name)] + args, limit=limit)
         if not recs:
             recs = self.search([('name', operator, name)] + args, limit=limit)
         return recs.name_get()
 
-    def _buscarTaxEquivalente(self,tax):
+    def _buscarTaxEquivalente(self, tax):
         tax_n = self.env['account.tax'].search(
             [
                 ('sii_code', '=', tax.sii_code),
@@ -933,16 +946,6 @@ a VAT."""))
                 vat_discriminated = True
             inv.vat_discriminated = vat_discriminated
 
-    @api.depends('sii_document_number', 'number')
-    def _get_document_number(self):
-        for inv in self:
-            if inv.sii_document_number and inv.sii_document_class_id:
-                document_number = (
-                    inv.sii_document_class_id.doc_code_prefix or '') + inv.sii_document_number
-            else:
-                document_number = inv.number
-            inv.document_number = document_number
-
     @api.one
     @api.constrains('reference', 'partner_id', 'company_id', 'type','journal_document_class_id')
     def _check_reference_in_invoice(self):
@@ -969,18 +972,22 @@ a VAT."""))
                     if not obj_inv.journal_document_class_id.sequence_id:
                         raise UserError(_(
                             'Please define sequence on the journal related documents to this invoice.'))
-                    obj_inv.sii_document_number = obj_inv.journal_document_class_id.sequence_id.next_by_id()
+                    sii_document_number = obj_inv.journal_document_class_id.sequence_id.next_by_id()
                     prefix = obj_inv.journal_document_class_id.sii_document_class_id.doc_code_prefix or ''
-                    move_name = (prefix + str(obj_inv.sii_document_number)).replace(' ','')
-                    obj_inv.write({'move_name': move_name})
+                    move_name = (prefix + str(sii_document_number)).replace(' ','')
+                    obj_inv.write(
+                        {
+                            'sii_document_number': int(sii_document_number),
+                            'move_name': move_name
+                        })
         super(AccountInvoice, self).action_move_create()
         for obj_inv in self:
             invtype = obj_inv.type
             if invtype in ('in_invoice', 'in_refund'):
-                obj_inv.sii_document_number = obj_inv.reference
+                obj_inv.sii_document_number = int(obj_inv.reference)
             document_class_id = obj_inv.sii_document_class_id.id
             guardar = {'document_class_id': document_class_id,
-                       'sii_document_number': obj_inv.sii_document_number,
+                       'sii_document_number': int(obj_inv.sii_document_number),
                        'no_rec_code': obj_inv.no_rec_code,
                        'iva_uso_comun': obj_inv.iva_uso_comun,
                     }
@@ -1062,6 +1069,8 @@ a VAT."""))
                 raise UserError('Las Notas deben llevar por obligación una referencia al documento que están afectando')
             if not inv.journal_id.use_documents or not inv.sii_document_class_id.dte:
                 continue
+            if not self.env.user.get_digital_signature(inv.company_id):
+                raise UserError(_('Usuario no autorizado a usar firma electrónica para esta compañia. Por favor solicatar autorización en la ficha de compañia del documento por alguien con los permisos suficientes de administrador'))
             inv.sii_result = 'NoEnviado'
             inv.responsable_envio = self.env.user.id
             if inv.type in ['out_invoice', 'out_refund']:
@@ -1327,7 +1336,7 @@ version="1.0">
 
     def _create_attachment(self,):
         url_path = '/download/xml/invoice/%s' % (self.id)
-        filename = ('%s.xml' % self.document_number).replace(' ', '_')
+        filename = ('%s.xml' % self.number).replace(' ', '_')
         att = self.env['ir.attachment'].search(
                 [
                     ('name', '=', filename),
@@ -1382,7 +1391,7 @@ version="1.0">
 
     def get_folio(self):
         # saca el folio directamente de la secuencia
-        return int(self.sii_document_number)
+        return self.sii_document_number
 
     def format_vat(self, value, con_cero=False):
         ''' Se Elimina el 0 para prevenir problemas con el sii, ya que las muestras no las toma si va con
@@ -1396,16 +1405,17 @@ version="1.0">
         rut = rut.replace('CL','')
         return rut
 
-    def pdf417bc(self, ted):
+    def pdf417bc(self, ted, columns=13, ratio=3):
         bc = pdf417gen.encode(
             ted,
             security_level=5,
-            columns=13,
+            columns=columns,
         )
         image = pdf417gen.render_image(
             bc,
             padding=15,
             scale=1,
+            ratio=ratio,
         )
         return image
 
@@ -1483,11 +1493,13 @@ version="1.0">
                 return True
         return False
 
-    def _giros_emisor(self):
-        giros_emisor = []
-        for turn in self.journal_id.journal_activities_ids:
-            giros_emisor.extend([{'Acteco': turn.code}])
-        return giros_emisor
+    def _actecos_emisor(self):
+        actecos = []
+        if not self.journal_id.journal_activities_ids:
+            raise UserError('El Diario no tiene ACTECOS asignados')
+        for acteco in self.journal_id.journal_activities_ids:
+            actecos.extend([{'Acteco': acteco.code}])
+        return actecos
 
     def _id_doc(self, taxInclude=False, MntExe=0):
         IdDoc = collections.OrderedDict()
@@ -1496,7 +1508,7 @@ version="1.0">
         IdDoc['FchEmis'] = self.date_invoice
         if self._es_boleta():
             IdDoc['IndServicio'] = 3 #@TODO agregar las otras opciones a la fichade producto servicio
-        if self.ticket:
+        if self.ticket and not self._es_boleta():
             IdDoc['TpoImpresion'] = "T"
         #if self.tipo_servicio:
         #    Encabezado['IdDoc']['IndServicio'] = 1,2,3,4
@@ -1527,7 +1539,7 @@ version="1.0">
             if self.company_id.phone:
                 Emisor['Telefono'] = self._acortar_str(self.company_id.phone, 20)
             Emisor['CorreoEmisor'] = self.company_id.dte_email
-            Emisor['item'] = self._giros_emisor()
+            Emisor['item'] = self._actecos_emisor()
         if self.journal_id.sucursal_id:
             Emisor['Sucursal'] = self._acortar_str(self.journal_id.sucursal_id.name, 20)
             Emisor['CdgSIISucur'] = self._acortar_str(self.journal_id.sucursal_id.sii_code, 9)
@@ -1770,8 +1782,7 @@ version="1.0">
                 taxInclude = t.price_include or ( (self._es_boleta() or self._nc_boleta()) and not t.sii_detailed )
                 if t.amount == 0 or t.sii_code in [0]:#@TODO mejor manera de identificar exento de afecto
                     lines['IndExe'] = 1
-                    price_exe = line.price_tax_included
-                    MntExe += self.currency_id.round(price_exe)
+                    MntExe += self.currency_id.round(line.price_subtotal)
             #if line.product_id.type == 'events':
             #   lines['ItemEspectaculo'] =
 #            if self._es_boleta():
@@ -1801,20 +1812,22 @@ version="1.0">
                     lines['OtrMnda']['DctoOtrMnda'] = line.discount
                 lines['DescuentoPct'] = line.discount
                 DescMonto = (((line.discount / 100) * lines['PrcItem'])* qty)
-                lines['DescuentoMonto'] = self.currency_id.round( DescMonto )
+                lines['DescuentoMonto'] = self.currency_id.round(DescMonto)
                 if currency_id:
                    lines['OtrMnda']['DctoOtrMnda'] = currency_id.compute(DescMonto, self.company_id.currency_id)
             if not no_product and not taxInclude:
                 if currency_id:
-                    lines['OtrMnda']['MontoItemOtrMnda'] = currency_id.compute( line.price_subtotal, self.company_id.currency_id)
+                    lines['OtrMnda']['MontoItemOtrMnda'] = currency_id.compute(line.price_subtotal, self.company_id.currency_id)
                 lines['MontoItem'] = self.currency_id.round(line.price_subtotal)
             elif not no_product :
                 if currency_id:
-                    lines['OtrMnda']['MontoItemOtrMnda'] = currency_id.compute( line.price_tax_included, self.company_id.currency_id)
-                lines['MontoItem'] = self.currency_id.round(line.price_tax_included)
+                    lines['OtrMnda']['MontoItemOtrMnda'] = currency_id.compute(line.price_total, self.company_id.currency_id)
+                lines['MontoItem'] = self.currency_id.round(line.price_total)
             if no_product:
                 lines['MontoItem'] = 0
             line_number += 1
+            if lines.get('PrcItem', 1) == 0:
+                del(lines['PrcItem'])
             invoice_lines.extend([{'Detalle': lines}])
             if 'IndExe' in lines:
                 taxInclude = False
@@ -1949,7 +1962,7 @@ version="1.0">
                 if not es_boleta and clases:
                     raise UserError('No se puede hacer envío masivo con contenido mixto, para este envío solamente boleta electrónica, boleta exenta electrónica o NC de Boleta ( o eliminar los casos descitos del set)')
                 es_boleta = True
-            if inv.company_id.dte_service_provider == 'SIICERT': #Retimbrar con número de atención y envío
+            if inv.company_id.dte_service_provider == 'SIICERT' or inv.sii_result == 'Rechazado': #Retimbrar con número de atención y envío
                 inv._timbrar(n_atencion)
             #@TODO Mejarorar esto en lo posible
             if not inv.sii_document_class_id.sii_code in clases:
@@ -2014,23 +2027,25 @@ version="1.0">
 
     @api.multi
     def do_dte_send(self, n_atencion=None):
-        if not self[0].sii_xml_request or self[0].sii_result in ['Rechazado'] or (self[0].company_id.dte_service_provider == 'SIICERT' and self[0].sii_xml_request.state in ['', 'NoEnviado']):
-            tipo_envio = {
+        tipo_envio = {
                 'boleta': [],
                 'normal': [],
             }
-            for r in self:
-                if r._es_boleta():
-                    tipo_envio['boleta'].append(r.id)
-                else:
-                    tipo_envio['normal'].append(r.id)
+        for r in self:
+            if r._es_boleta():
+                tipo_envio['boleta'].append(r.id)
+            else:
+                tipo_envio['normal'].append(r.id)
+            if r.sii_result in ['Rechazado'] or (r.company_id.dte_service_provider == 'SIICERT' and r.sii_xml_request.state in ['', 'NoEnviado']):
                 if r.sii_xml_request:
                     r.sii_xml_request.unlink()
-                    r.sii_message = ''
-            for k, t in tipo_envio.items():
-                if not t:
-                    continue
-                recs = self.browse(t)
+                r.sii_message = ''
+        for k, t in tipo_envio.items():
+            if not t:
+                continue
+            recs = self.browse(t)
+            envio_id = recs[0].sii_xml_request
+            if not envio_id:
                 envio = recs._crear_envio(n_atencion, RUTRecep="60803000-K")
                 if k in ['boleta']:
                     envio.update({
@@ -2042,11 +2057,9 @@ version="1.0">
                     r.sii_xml_request = envio_id.id
                     if r._es_boleta():
                         r.sii_result = 'Proceso'
-                if k in ['factura']:
-                    resp = envio_id.send_xml()
-            return envio_id
-        self[0].sii_xml_request.send_xml()
-        return self[0].sii_xml_request
+            if k in ['normal']:
+                resp = envio_id.send_xml()
+        return envio_id
 
     def process_response_xml(self, resp):
         if resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] == '2':
@@ -2058,12 +2071,15 @@ version="1.0">
             return "Reparo"
         elif resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] in ["DNK", "FAU", "RCT"]:
             return "Rechazado"
-        elif resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] in ["FAN"]:
-            return "Anulado" #Desde El sii
+        elif resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] in ["FAN", "ANC"]:
+            return "Anulado" #Desde El sii o por NC
 
     @api.onchange('sii_message')
     def get_sii_result(self):
         for r in self:
+            if r._es_boleta():
+                r.sii_result = "Proceso"
+                continue
             if r.sii_message:
                 r.sii_result = r.process_response_xml(xmltodict.parse(r.sii_message))
                 continue
@@ -2074,6 +2090,8 @@ version="1.0">
 
     def _get_dte_status(self):
         for r in self:
+            if r._es_boleta():
+                continue
             if r.sii_xml_request and r.sii_xml_request.state not in ['Aceptado', 'Rechazado']:
                 continue
             token = r.sii_xml_request.get_token(self.env.user, r.company_id)
@@ -2208,8 +2226,8 @@ version="1.0">
 
     def send_exchange(self):
         att = self._create_attachment()
-        body = 'XML de Intercambio DTE: %s' % (self.document_number)
-        subject = 'XML de Intercambio DTE: %s' % (self.document_number)
+        body = 'XML de Intercambio DTE: %s' % (self.number)
+        subject = 'XML de Intercambio DTE: %s' % (self.number)
         self.sudo().message_post(
             body=body,
             subject=subject,
@@ -2220,17 +2238,20 @@ version="1.0">
         )
         if not self.commercial_partner_id.dte_email or self.commercial_partner_id.dte_email == self.commercial_partner_id.email:
             return
-        values = {
-            'email_from': self.company_id.dte_email,
-            'email_to': self.commercial_partner_id.dte_email,
-            'auto_delete': False,
-            'model': 'account.invoice',
-            'body': body,
-            'subject': subject,
-            'attachment_ids': [[6, 0, att.ids]],
-        }
-        send_mail = self.env['mail.mail'].sudo().create(values)
-        send_mail.send()
+        for dte_email in self.commercial_partner_id.child_ids:
+            if not dte_email.send_dte:
+                continue
+            values = {
+                'email_from': self.company_id.dte_email,
+                'email_to': dte_email.name,
+                'auto_delete': False,
+                'model': 'account.invoice',
+                'body': body,
+                'subject': subject,
+                'attachment_ids': [[6, 0, att.ids]],
+            }
+            send_mail = self.env['mail.mail'].sudo().create(values)
+            send_mail.send()
 
     @api.multi
     def manual_send_exchange(self):
@@ -2254,3 +2275,26 @@ version="1.0">
         for l in self.invoice_line_ids:
             total_discount +=  (((l.discount or 0.00) /100) * l.price_unit * l.quantity)
         return self.currency_id.round(total_discount)
+
+    @api.multi
+    def sii_header(self):
+        W, H = (560, 255)
+        img = Image.new('RGB', (W, H), color=(255,255,255))
+
+        d = ImageDraw.Draw(img)
+        w, h = (0, 0)
+        for i in range(10):
+            d.rectangle(((w, h), (550+w, 220+h)), outline="black")
+            w += 1
+            h += 1
+        font = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', 40)
+        d.text((50,30), "R.U.T.: %s" % self.company_id.document_number, fill=(0,0,0), font=font)
+        d.text((50,90), self.sii_document_class_id.name, fill=(0,0,0), font=font)
+        d.text((220,150), "N° %s" % self.sii_document_number, fill=(0,0,0), font=font)
+        font = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', 20)
+        d.text((200,235), "SII %s" %self.company_id.sii_regional_office_id.name, fill=(0,0,0), font=font)
+
+        buffered = BytesIO()
+        img.save(buffered, format="PNG")
+        imm = base64.b64encode(buffered.getvalue()).decode()
+        return imm

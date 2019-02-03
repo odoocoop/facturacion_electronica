@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
         <record model="ir.ui.view" id="view_partner_activity_inherit_form">
-          <field name="name">res.partner.activities.form.inherit</field>
+          <field name="name">res.partner.form.inherit</field>
           <field name="inherit_id" ref="base.view_partner_form"/>
           <field name="model">res.partner</field>
           <field name="arch" type="xml">
@@ -29,7 +29,34 @@
             <field name="email" position="after">
                 <field name="dte_email" widget="email" attrs="{'invisible': [('parent_id', '!=', False)], 'required': [('company_type','=','company')]}"/>
             </field>
-
+            <xpath expr="//field[@name='child_ids']/kanban/templates/t/div/div[hasclass('o_kanban_image')]/t" position="inside">
+                <img t-if="record.type.raw_value === 'dte'" t-att-src='_s + "/base/static/src/img/money.png"'/>
+            </xpath>
+            <xpath expr="//field[@name='child_ids']/kanban" position="inside">
+                <field name="send_dte" />
+                <field name="principal" />
+            </xpath>
+            <xpath expr="//field[@name='child_ids']/kanban/templates/t/div/div[hasclass('oe_kanban_details')]" position="inside">
+                <div attrs="{'invisible': [('type', '!=', 'dte')]}">
+                    <h3>Opciones DTE</h3>
+                    <field name="send_dte" />
+                    <field name="principal" />
+                </div>
+            </xpath>
+            <xpath expr="//field[@name='child_ids']/form/sheet/group" position="attributes">
+                <attribute name="attrs">{'invisible': [('type', '=', 'dte')]}</attribute>
+            </xpath>
+            <xpath expr="//field[@name='child_ids']/form/sheet" position="inside">
+                <group attrs="{'invisible': [('type', '!=', 'dte')]}">
+                    <group>
+                        <field name="name" string="Contact Name"/>
+                        <field name="email"/>
+                        <h3>Opciones DTE</h3>
+                        <field name="send_dte" widget="checkbox"/>
+                        <field name="principal" widget="checkbox"/>
+                    </group>
+                </group>
+            </xpath>
           </field>
         </record>
 

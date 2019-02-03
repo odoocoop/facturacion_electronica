@@ -22,6 +22,22 @@ screens.PaymentScreenWidget.include({
 		var self = this;
 		var res = this._super(force_validation);
 		var order = self.pos.get_order();
+		if (order.is_to_invoice() || order.es_boleta()){
+		      var total_tax = order.get_total_tax();
+		      if (order.es_boleta_exenta() && total_tax > 0){// @TODO agrregar facturas exentas
+		        this.gui.show_popup('error',{
+		        	'title': "Error de integridad",
+		        	'body': "No pueden haber productos afectos en boleta/factura exenta",
+		        });
+				return false;
+		      }else if(!order.es_boleta_exenta() && total_tax <= 0 && order.get_total_exento() > 0){
+		        this.gui.show_popup('error',{
+		        	'title': "Error de integridad",
+		        	'body': "Debe haber almenos un producto afecto",
+		      	});
+				return false;
+		    };
+		};
 		if (order.is_to_invoice() && order.get_client()) {
 			var client = order.get_client();
 			if (!client.street){
@@ -95,59 +111,32 @@ screens.PaymentScreenWidget.include({
 		var order = this.pos.get_order();
 		order.set_to_invoice(false);
 		this.$('.js_invoice').removeClass('highlight');
-		var caf = false;
-		if (this.pos.pos_session.caf_files){
-			caf = true;
-		}
-		this.unset_boleta(order);
-		if (!order.es_boleta() && caf) {
+		if (this.pos.pos_session.caf_files && (order.es_boleta_exenta() || !order.es_boleta())) {
+			this.unset_boleta(order);
 			order.set_boleta(true);
 			order.set_tipo_boleta(this.pos.config.secuencia_boleta);
-			if (this.pos.config.secuencia_boleta){
-				this.$('.js_boleta').addClass('highlight');
-			}
+			this.$('.js_boleta').addClass('highlight');
+			return;
 		}
+		this.unset_boleta(order);
 	},
 	click_boleta_exenta: function(){
 		var order = this.pos.get_order();
 		order.set_to_invoice(false);
 		this.$('.js_invoice').removeClass('highlight');
-		var caf = false;
-		if (this.pos.pos_session.caf_files_exentas){
-			caf = true;
-        }
-		this.unset_boleta(order);
-		if (!order.es_boleta_exenta() || caf){
+		if (this.pos.pos_session.caf_files_exentas && !order.es_boleta_exenta()){
+			this.unset_boleta(order);
 			order.set_boleta(true);
 			order.set_tipo_boleta(this.pos.config.secuencia_boleta_exenta);
-			if (this.pos.config.secuencia_boleta_exenta){
-				this.$('.js_boleta_exenta').addClass('highlight');
-			}
-        }
+			this.$('.js_boleta_exenta').addClass('highlight');
+			return;
+		}
+		this.unset_boleta(order);
 	},
 	click_invoice: function(){
 		var order = this.pos.get_order();
 		this.unset_boleta(order);
 		var res = this._super();
-	},
-	finalize_validation: function() {
-		var self = this;
-    var order = self.pos.get_order();
-		if (order.es_boelta()){
-			var tax_amount = order.get_total_tax();
-			if (order.es_boleta_exenta() && tax_amount > 0){
-				self.gui.show_popup('error',{
-					'title': 'Boleta Exenta no Válida',
-					'body':  'No debe tener productos con Impuesto, por favor elimine los productos con Impuesto',
-				});
-			}else if(tax_amount <= 0){
-				self.gui.show_popup('error',{
-					'title': 'Boleta Afecta no Válida',
-					'body':  'La Boleta Afecta debe llevar almenos 1 producto con Impuesto, no puede ser solamente exentos, use Boleta Exenta en su lugar si va a usar solamente exentos',
-				});
-			}
-		}
-		self._super();
 	},
 });
 
@@ -282,14 +271,17 @@ screens.ClientListScreenWidget.include({
 				select.val(selected_state);
 				displayed_state.appendTo(select).show();
 			});
-			self.$("select[name='state_id']").on('change', function(){
-				var select = self.$("select[name='city_id']:visible");
-				var selected_comuna = select.val();
-				comuna_options.detach();
-				var displayed_comuna = comuna_options.filter("[data-state_id="+(self.$(this).val() || 0)+"]");
-				select.val(selected_comuna);
-				displayed_comuna.appendTo(select).show();
-			});
+			self.$("select[name='city_id']").on('change', function(){
+        		var city_id = self.$(this).val() || 0;
+        		if (city_id > 0){
+        			var city = self.pos.cities_by_id[city_id];
+        			var select_country = self.$("select[name='country_id']:visible");
+        			select_country.val(city.country_id ? city.country_id[0] : 0);
+        			select_country.change();
+        			var select_state = self.$("select[name='state_id']:visible");
+        			select_state.val(city.state_id ? city.state_id[0] : 0);
+        		}
+        	});
 			self.$(".client-document_number").on('change', function(){
 				var document_number = self.$(this).val() || '';
 				document_number = document_number.replace(/[^1234567890Kk]/g, "");
@@ -302,7 +294,6 @@ screens.ClientListScreenWidget.include({
     			self.$(this).val(document_number);
 			});
 			self.$("select[name='country_id']").change();
-			self.$("select[name='state_id']").change();
 		}
 	},
 	validar_rut: function(texto){

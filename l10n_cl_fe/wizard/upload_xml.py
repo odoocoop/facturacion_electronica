@@ -135,7 +135,7 @@ class UploadXMLWizard(models.TransientModel):
             xml = base64.b64decode(self.xml_file).decode('ISO-8859-1').replace('<?xml version="1.0" encoding="ISO-8859-1"?>','').replace('<?xml version="1.0" encoding="ISO-8859-1" ?>','')
             if check:
                 return xml
-            xml = xml.replace(' xmlns="http://www.sii.cl/SiiDte"','')
+            xml = xml.replace(' xmlns="http://www.sii.cl/SiiDte"', '')
         if mode == "etree":
             parser = etree.XMLParser(remove_blank_text=True)
             return etree.fromstring(xml, parser=parser)
@@ -162,7 +162,7 @@ class UploadXMLWizard(models.TransientModel):
     def _check_digest_dte(self, dte):
         xml = self._read_xml("etree")
         envio = xml.find("SetDTE")#"{http://www.w3.org/2000/09/xmldsig#}Signature/{http://www.w3.org/2000/09/xmldsig#}SignedInfo/{http://www.w3.org/2000/09/xmldsig#}Reference/{http://www.w3.org/2000/09/xmldsig#}DigestValue").text
-        for e in envio.findall("DTE") :
+        for e in envio.findall("DTE"):
             string = etree.tostring(e.find("Documento"))#doc
             mess = etree.tostring(etree.fromstring(string), method="c14n").decode('iso-8859-1').replace(' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"','').encode('iso-8859-1')# el replace es necesario debido a que python lo agrega solo
             our = base64.b64encode(self.env['account.invoice'].digest(mess))
@@ -187,9 +187,9 @@ class UploadXMLWizard(models.TransientModel):
             return 3, 'Rut no corresponde a nuestra empresa'
         partner_id = self.env['res.partner'].search(
             [
-                ('active','=', True),
+                ('active', '=', True),
                 ('parent_id', '=', False),
-                ('vat','=', self.format_rut(cara['RutEmisor']))
+                ('vat', '=', self.format_rut(cara['RutEmisor']))
             ]
         )
 #        if not partner_id :
@@ -302,7 +302,7 @@ class UploadXMLWizard(models.TransientModel):
 
     def _create_attachment(self, xml, name, id=False, model='account.invoice'):
         data = base64.b64encode(xml.encode('ISO-8859-1'))
-        filename = (name + '.xml').replace(' ','')
+        filename = (name + '.xml').replace(' ', '')
         url_path = '/download/xml/resp/%s' % (id)
         att = self.env['ir.attachment'].search(
             [
@@ -420,7 +420,7 @@ class UploadXMLWizard(models.TransientModel):
             'responsability_id': self.env.ref('l10n_cl_fe.res_IVARI').id,
             'document_number': data[rut_path],
             'street': data['Dir%s'%dest],
-            'city': data['Ciudad%s'%dest] if 'Ciudad%s'%dest in data else '',
+            'city': data.get('Ciudad%s'%dest, ''),
             'company_type': 'company',
         }
         if 'CorreoEmisor' in data or 'CorreRecep' in data:
@@ -460,18 +460,18 @@ class UploadXMLWizard(models.TransientModel):
                     ('name', '=', name)
             )
         if sii_type:
-            query.extend( [
+            query.extend([
                 ('sii_type', '=', sii_type),
             ])
-        imp = self.env['account.tax'].search( query )
+        imp = self.env['account.tax'].search(query)
         if not imp:
-            imp = self.env['account.tax'].sudo().create( {
+            imp = self.env['account.tax'].sudo().create({
                 'amount': amount,
                 'name': name,
                 'sii_code': sii_code,
                 'sii_type': sii_type,
                 'type_tax_use': 'purchase' if self.type == 'compras' else 'sale',
-            } )
+            })
         return imp
 
     def get_product_values(self, line, price_included=False):
@@ -669,13 +669,13 @@ class UploadXMLWizard(models.TransientModel):
             query.append(('doc_code_prefix', '=', TpoDocRef))
         tpo = self.env['sii.document_class'].search(query, limit=1)
         if not tpo:
-            tpo = self._create_tpo_doc( TpoDocRef, RazonRef)
-        return [0,0,{
-            'origen' : ref.find("FolioRef").text,
-            'sii_referencia_TpoDocRef' : tpo.id,
-            'sii_referencia_CodRef' : ref.find("CodRef").text if ref.find("CodRef") is not None else None,
-            'motivo' : RazonRef.text if RazonRef is not None else None,
-            'fecha_documento' : ref.find("FchRef").text if ref.find("FchRef") is not None else None,
+            tpo = self._create_tpo_doc(TpoDocRef, RazonRef)
+        return [0, 0, {
+            'origen': ref.find("FolioRef").text,
+            'sii_referencia_TpoDocRef': tpo.id,
+            'sii_referencia_CodRef': ref.find("CodRef").text if ref.find("CodRef") is not None else None,
+            'motivo': RazonRef.text if RazonRef is not None else None,
+            'fecha_documento': ref.find("FchRef").text if ref.find("FchRef") is not None else None,
         }]
 
     def process_dr(self, dr):
@@ -776,6 +776,7 @@ class UploadXMLWizard(models.TransientModel):
                 'sii_document_number': Folio,
                 'journal_document_class_id': journal_document_class_id.id,
                 'state': 'open',
+                'move_name': '%s%s' % (journal_document_class_id.sii_document_class_id.doc_code_prefix, Folio),
             })
         else:
             RznSoc = Emisor.find('RznSoc')
@@ -997,7 +998,7 @@ class UploadXMLWizard(models.TransientModel):
                     inv = self._inv_exist(documento)
                     pre.write({
                         'xml': etree.tostring(dte),
-                        'invoice_id' : inv.id ,
+                        'invoice_id': inv.id,
                         }
                     )
                     created.append(pre.id)
@@ -1025,12 +1026,21 @@ class UploadXMLWizard(models.TransientModel):
                     documento,
                     company_id,
                 )
-                if self.document_id :
+                if self.document_id:
                     self.document_id.invoice_id = inv.id
                 if inv:
                     created.append(inv.id)
                 if not inv:
                     raise UserError('El archivo XML no contiene documentos para alguna empresa registrada en Odoo, o ya ha sido procesado anteriormente ')
+                if self.type == 'ventas':
+                    #inv._onchange_invoice_line_ids()
+                    inv._onchange_partner_id()
+                    inv.action_move_create()
+                    guardar = {
+                        'document_class_id': inv.sii_document_class_id.id,
+                        'sii_document_number': inv.sii_document_number
+                    }
+                    inv.move_id.write(guardar)
             except Exception as e:
                 _logger.warning('Error en crear 1 factura con error:  %s' % str(e))
         if created and self.option not in [False, 'upload'] and self.type == 'compras':

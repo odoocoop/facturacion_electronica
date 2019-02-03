@@ -1,12 +1,10 @@
 # -*- coding: utf-8 -*-
-
-import logging
-
 from odoo import fields, models, api, _
 from odoo.exceptions import UserError
 from odoo.exceptions import UserError, ValidationError
-
+import logging
 _logger = logging.getLogger(__name__)
+
 
 class PosConfig(models.Model):
     _inherit = "pos.config"
@@ -53,11 +51,14 @@ class PosConfig(models.Model):
             ('boleta_exenta', 'Boletas Exentas'),
         ],
         string="Marcar por defecto",
-        default='boleta',
+    )
+    restore_mode = fields.Boolean(
+        string="Restore Mode",
+        default=False,
     )
 
     @api.one
-    @api.constrains('marcar','secuencia_boleta', 'secuencia_boleta_exenta', 'iface_invoicing')
+    @api.constrains('marcar', 'secuencia_boleta', 'secuencia_boleta_exenta', 'iface_invoicing')
     def _check_document_type(self):
         if self.marcar == 'boleta' and not self.secuencia_boleta:
             raise ValidationError("Al marcar por defecto Boletas, "
@@ -71,5 +72,3 @@ class PosConfig(models.Model):
             raise ValidationError("Al marcar por defecto Facturas, "
                                   "debe activar el check de Facturacion, "
                                   "por favor verifique su configuracion")
-
-    

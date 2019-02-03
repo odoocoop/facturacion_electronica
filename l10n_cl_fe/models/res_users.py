@@ -157,14 +157,19 @@ class ResUsers(models.Model):
         filecontent = base64.b64decode(self.key_file)
         self.load_cert_pk12(filecontent)
 
+    def _check_auth_dte(self, obj):
+        if not obj.cert or not self.id in obj.authorized_users_ids.ids:
+            return False
+        return True
+
     def get_digital_signature(self, company_id):
         obj = self
         if not obj.cert:
             obj = company_id or self.company_id
-            if not obj or not obj.cert:
-                obj = self.env['res.users'].search([("authorized_users_ids", "=", self.id), ('status', '=', 'valid')])
-            if not obj.cert or not self.id in obj.authorized_users_ids.ids:
-                return False
+            if not self._check_auth_dte(obj):
+                obj = self.env['res.users'].search([("authorized_users_ids", "child_of", [self.id]), ('status', '=', 'valid')])
+                if not obj or not self._check_auth_dte(obj):
+                    return False
         if obj.status == 'expired':
             raise UserError(_('Expired signature since %s' %obj.not_after))
         signature_data = {

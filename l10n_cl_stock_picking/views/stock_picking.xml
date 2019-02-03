@@ -22,8 +22,7 @@
                 </form>
                 <field name="partner_id" position="after">
                     <field name="activity_description" />
-                      <field name="partner_turn" domain="[('partner_ids', '=', partner_id)]" options="{'no_create': True}" invisible="True"/>
-                      <field name="currency_id"/>
+                      <field name="currency_id" groups="base.group_multi_currency" options="{'no_create': True}"/>
                 </field>
 
                 <field name="origin" position="after">
@@ -45,7 +44,6 @@
                     <field name="amount_untaxed"/>
                     <field name="amount_tax"/>
                     <field name="amount_total" />
-                    <field name="currency_id" invisible="1"/>
                   </group>
                 </field>
                 <page name="extra" position="inside">
@@ -65,10 +63,6 @@
                     </field>
                 </page>
 
-                <field name="company_id" position="after">
-                    <field name="turn_issuer"
-                           options="{'no_create': True}"/>
-                </field>
                 <field name="name" position="after">
                         <label string="- Next Number: " attrs="{'invisible': ['|',('name','!=',False),('state','!=','draft')]}" class="oe_inline"/>
                         <field name="next_number" attrs="{'invisible': ['|',('name','!=',False),('state','!=','draft')]}" class="oe_inline"/>
@@ -134,9 +128,10 @@
             <field name="inherit_id" ref="stock.view_location_form"/>
             <field name="arch" type="xml">
                 <field name="usage" position="after">
+                    <field name="restore_mode" />
                     <field name="sii_code"/>
-                    <field name="sequence_id"/>
                     <field name="sii_document_class_id" attrs="{'required': [('usage','=','internal')]}"/>
+                    <field name="sequence_id" context="{'default_sii_document_class_id': sii_document_class_id}"/>
                 </field>
             </field>
         </record>

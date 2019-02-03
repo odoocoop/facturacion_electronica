@@ -30,9 +30,43 @@
 		</div>
 	</template>
 
+	<template id="report_credit_note_header_layout">
+		<div class="row" id="header">
+			<div
+				style="text-align:center; color:red; border: 2px solid red;padding:5px;">
+				<h4>
+					R.U.T.:
+					<t t-esc="o.company_id.partner_id.document_number" />
+				</h4>
+				<h4 class="pos-center-align">
+					<t t-esc="o.document_class_id.name" />
+					<br />
+					N°:
+					<t t-esc="o.sii_document_number" />
+				</h4>
+			</div>
+			<div class="row"
+				style="text-align: center; margin-top:0px !important; padding-top:0px!important;">
+				<h7
+					style="color:red;text-align:center;font-size:11px;text-transform:uppercase;">
+					SII -
+					<span t-field="o.company_id.sii_regional_office_id.name" />
+				</h7>
+			</div>
+		</div>
+	</template>
+
 	<!-- plantilla para la informacion del cliente -->
 	<template id="report_boleta_partner_layout">
 		<div id="info">
+			<t t-if="o.document_class_id.sii_code in [61]">
+				<strong>Casa Matriz:</strong>
+				<t t-esc="o.company_id.street" />
+				<br />
+				<strong>Giro:</strong>
+				<t t-esc="o.company_id.activity_description.name" />
+				<br />
+			</t>
 			<strong>Teléfono:</strong>
 			<t t-esc="o.company_id.phone" />
 			<br />
@@ -43,7 +77,7 @@
 			<t t-esc="o.location_id.name" />
 			<br />
 			<strong>Fecha:</strong>
-			<t t-esc="o.date_order" />
+			<span t-field="o.date_order" />
 			<br />
 			<br />
 			<t t-if="o.partner_id">
@@ -60,6 +94,46 @@
 				<span t-esc="o.partner_id.id" />
 				<br />
 			</t>
+		</div>
+	</template>
+
+	<!-- plantilla para las referencias -->
+	<template id="report_referencias_layout">
+		<div class="row" t-if="o.referencias">
+			<h4 style="font-size: 10px;">Documentos de Referencia</h4>
+			<table class="table table-condensed" style="margin-bottom:0; padding-bottom:0;">
+				<colgroup>
+					<col width='7%' />
+					<col width='20%' />
+					<col width='10%' />
+					<col width='10%' />
+					<col width='23%' />
+				</colgroup>
+				<tr>
+					<th style="font-size: 10px;">Folio</th>
+					<th style="font-size: 10px;">Tipo Documento</th>
+					<th style="font-size: 10px;">Fecha Documento</th>
+					<th style="font-size: 10px;">Código</th>
+					<th style="font-size: 10px;">Razón Referencia</th>
+				</tr>
+				<tr t-foreach="o.referencias" t-as="ref">
+					<td style="font-size: 10px;">
+						<span t-field="ref.origen" />
+					</td>
+					<td style="font-size: 10px;">
+						<span t-field="ref.sii_referencia_TpoDocRef.name" />
+					</td>
+					<td style="font-size: 10px;">
+						<span t-field="ref.fecha_documento" />
+					</td>
+					<td style="font-size: 10px;">
+						<span t-field="ref.sii_referencia_CodRef" />
+					</td>
+					<td style="font-size: 10px;">
+						<span t-field="ref.motivo" />
+					</td>
+				</tr>
+			</table>
 		</div>
 	</template>
 
@@ -86,16 +160,18 @@
 					</td>
 					<td class="text-right">
 						<t t-if="o.state != 'cancel' and o.statement_ids">
-							<span t-field="line.price_unit" widget="monetary" />
+							<span t-esc="line.price_unit"
+								t-options='{"widget": "monetary", "display_currency": o.company_id.currency_id}' />
 						</t>
 						<t t-if="line.discount != 0.0">
 							<span t-esc="line.discount" />
 							%
 						</t>
 					</td>
-					<td>
+					<td class="text-right">
 						<t t-if="o.state != 'cancel' and o.statement_ids">
-							<span t-field="line.price_subtotal_incl" widget="monetary" />
+							<span t-esc="line.price_subtotal_incl"
+								t-options='{"widget": "monetary", "display_currency": o.company_id.currency_id}' />
 						</t>
 					</td>
 				</tr>
@@ -110,8 +186,9 @@
 				<table class="table table-condensed">
 					<tr t-if="o.exento() !=0">
 						<td>Exento:</td>
-						<td class="pos-right-align">
-							<t t-esc="o.exento()" />
+						<td class="text-right">
+							<t t-esc="o.exento()"
+								t-options='{"widget": "monetary", "display_currency": o.company_id.currency_id}' />
 						</td>
 					</tr>
 					<tr>
@@ -119,7 +196,8 @@
 							<strong>MONTO TOTAL</strong>
 						</td>
 						<td class="text-right">
-							<strong t-field="o.amount_total" widget="monetary" />
+							<strong t-esc="o.amount_total"
+								t-options='{"widget": "monetary", "display_currency": o.company_id.currency_id}' />
 						</td>
 					</tr>
 				</table>
@@ -139,9 +217,9 @@
 			<tbody>
 				<tr t-foreach="o.statement_ids" t-as="p">
 					<td>
-						<span t-esc="p.name" />
+						<span t-esc="p.journal_id.name" />
 					</td>
-					<td>
+					<td class="text-right">
 						<span t-field="p.amount" />
 					</td>
 				</tr>
@@ -154,7 +232,8 @@
 		<div class="row" t-if="o.sii_barcode_img" id="barcode">
 			<div class="col-xs-12">
 				<span>
-				      <img t-att-src="'data:image/png;base64,%s' % to_text(o.sii_barcode_img)" style="width: 100%" t-att-widget="'image'" />
+					<img t-att-src="'data:image/png;base64,%s' % to_text(o.sii_barcode_img)"
+						style="width: 100%" t-att-widget="'image'" />
 				</span>
 			</div>
 			<div class="col-xs-12">
@@ -162,8 +241,12 @@
 					Timbre Electrónico SII
 					<br />
 					Verifique documento:
-					Resolución <t t-esc='o.company_id.dte_resolution_number'/> de <t t-esc='o.company_id.dte_resolution_date[:4]'/>
-					<t t-esc="o.company_id.website + '/boleta/' + str(o.sii_document_number)" />
+					Resolución
+					<t t-esc='o.company_id.dte_resolution_number' />
+					de
+					<t t-esc='o.company_id.dte_resolution_date[:4]' />
+					<t t-if="o.document_class_id.sii_code in [ 61 ]" t-esc="'www.sii.cl'"/>
+					<t t-if="o.document_class_id.sii_code not in [ 61 ]" t-esc="o.company_id.website + '/boleta/' + str(o.sii_document_number)" />
 				</p>
 			</div>
 		</div>

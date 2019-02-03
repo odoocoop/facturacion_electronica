@@ -56,8 +56,11 @@ class userSignature(models.Model):
             s.status = 'expired' if expired else 'valid'
 
     def load_cert_pk12(self, filecontent):
-
-        p12 = crypto.load_pkcs12(filecontent, self.dec_pass)
+        try:
+            p12 = crypto.load_pkcs12(filecontent, self.dec_pass)
+        except:
+            raise UserError('Error al abrir la firma, posiblmente ha ingresado\
+ mal la clave de la firma o el archivo no es compatible.')
 
         cert = p12.get_certificate()
         privky = p12.get_privatekey()
@@ -83,7 +86,7 @@ class userSignature(models.Model):
 
         self.cert_serial_number = cert.get_serial_number()
         self.cert_signature_algor = cert.get_signature_algorithm()
-        self.cert_version  = cert.get_version()
+        self.cert_version = cert.get_version()
         self.cert_hash = cert.subject_name_hash()
 
 
@@ -146,7 +149,7 @@ class userSignature(models.Model):
     # data del certificado
     cert_serial_number = fields.Char(string='Serial Number', readonly=True)
     cert_signature_algor = fields.Char(string='Signature Algorithm', readonly=True)
-    cert_version  = fields.Char(string='Version', readonly=True)
+    cert_version = fields.Char(string='Version', readonly=True)
     cert_hash = fields.Char(string='Hash', readonly=True)
     # data privad, readonly=Truea
     private_key_bits = fields.Char(string='Private Key Bits', readonly=True)

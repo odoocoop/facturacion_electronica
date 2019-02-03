@@ -118,6 +118,7 @@
                 </p>
             </div>
           </div>
+          <div class='before-footer' />
           <t t-if="receipt.footer">
               <br />
               <div style='text-align:center'>
@@ -231,6 +232,7 @@
             </p>
           </em>
         </div>
+        <div class='before-footer' />
         <t t-if="receipt.footer">
             <br />
             <div style='text-align:center'>
@@ -388,6 +390,7 @@
               </p>
           </div>
         </div>
+        <div class='before-footer' />
         <t t-if="receipt.footer">
             <br />
             <div style='text-align:center'>

@@ -4,14 +4,8 @@ from odoo.exceptions import UserError
 from datetime import datetime, timedelta
 from lxml import etree
 from lxml.etree import Element, SubElement
-from odoo import SUPERUSER_ID
 from odoo.tools import DEFAULT_SERVER_DATETIME_FORMAT as DTF
-import time
-import math
-
-import xml.dom.minidom
 import pytz
-import socket
 import collections
 import logging
 
@@ -21,21 +15,17 @@ try:
     from io import BytesIO
 except:
     _logger.warning("no se ha cargado io")
-
 # ejemplo de suds
 import traceback as tb
 import suds.metrics as metrics
-
 try:
     from suds.client import Client
 except:
     pass
-
 try:
     import urllib3
 except:
     pass
-
 try:
     urllib3.disable_warnings()
 except:
@@ -45,33 +35,23 @@ try:
     pool = urllib3.PoolManager()
 except:
     pass
-
-try:
-    import textwrap
-except:
-    pass
-
 try:
     import xmltodict
 except ImportError:
     _logger.info('Cannot import xmltodict library')
-
 try:
     import dicttoxml
     dicttoxml.set_debug(False)
 except ImportError:
     _logger.info('Cannot import dicttoxml library')
-
 try:
     import pdf417gen
 except ImportError:
     _logger.info('Cannot import pdf417gen library')
-
 try:
     import base64
 except ImportError:
     _logger.info('Cannot import base64 library')
-
 try:
     import hashlib
 except ImportError:
@@ -79,7 +59,7 @@ except ImportError:
 
 # timbre patrón. Permite parsear y formar el
 # ordered-dict patrón corespondiente al documento
-timbre  = """<TED version="1.0"><DD><RE>99999999-9</RE><TD>11</TD><F>1</F>\
+timbre = """<TED version="1.0"><DD><RE>99999999-9</RE><TD>11</TD><F>1</F>\
 <FE>2000-01-01</FE><RR>99999999-9</RR><RSR>\
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX</RSR><MNT>10000</MNT><IT1>IIIIIII\
 </IT1><CAF version="1.0"><DA><RE>99999999-9</RE><RS>YYYYYYYYYYYYYYY</RS>\
@@ -92,7 +72,7 @@ afeqWjiRVMvV4+s4Q==</FRMA></CAF><TSTED>2014-04-24T12:02:20</TSTED></DD>\
 fHlAa7j08Xff95Yb2zg31sJt6lMjSKdOK+PQp25clZuECig==</FRMT></TED>"""
 result = xmltodict.parse(timbre)
 
-server_url = {'SIICERT':'https://maullin.sii.cl/DTEWS/','SII':'https://palena.sii.cl/DTEWS/'}
+server_url = {'SIICERT': 'https://maullin.sii.cl/DTEWS/','SII':'https://palena.sii.cl/DTEWS/'}
 
 BC = '''-----BEGIN CERTIFICATE-----\n'''
 EC = '''\n-----END CERTIFICATE-----\n'''
@@ -114,6 +94,7 @@ connection_status = {
     'Otro': 'Error Interno.',
 }
 
+
 class POSL(models.Model):
     _inherit = 'pos.order.line'
 
@@ -122,13 +103,35 @@ class POSL(models.Model):
             readonly=True,
         )
 
+    @api.depends('price_unit', 'tax_ids', 'qty', 'discount', 'product_id')
+    def _compute_amount_line_all(self):
+        for line in self:
+            fpos = line.order_id.fiscal_position_id
+            tax_ids_after_fiscal_position = fpos.map_tax(line.tax_ids, line.product_id, line.order_id.partner_id) if fpos else line.tax_ids
+            taxes = tax_ids_after_fiscal_position.compute_all(line.price_unit, line.order_id.pricelist_id.currency_id, line.qty, product=line.product_id, partner=line.order_id.partner_id, discount=line.discount)
+            line.update({
+                'price_subtotal_incl': taxes['total_included'],
+                'price_subtotal': taxes['total_excluded'],
+            })
+
+
 class POS(models.Model):
     _inherit = 'pos.order'
 
-    def _get_document_class_id(self):
-        if self.sequence_id:
-            return self.sequence_id.sii_document_class_id.id
-        return self.env['sii.document_class']
+    def _get_available_sequence(self):
+        ids = [39, 41]
+        if self.sequence_id and self.sequence_id.sii_code == 61:
+            ids = [61]
+        return [('document_class_id.sii_code', 'in', ids)]
+
+    def _get_barcode_img(self):
+        for r in self:
+            if r.sii_barcode:
+                barcodefile = BytesIO()
+                image = self.pdf417bc(r.sii_barcode)
+                image.save(barcodefile, 'PNG')
+                data = barcodefile.getvalue()
+                r.sii_barcode_img = base64.b64encode(data)
 
     signature = fields.Char(
             string="Signature",
@@ -137,14 +140,12 @@ class POS(models.Model):
             'ir.sequence',
             string='Sequencia de Boleta',
             states={'draft': [('readonly', False)]},
+            domain=lambda self: self._get_available_sequence(),
         )
     document_class_id = fields.Many2one(
             'sii.document_class',
-            related="sequence_id.sii_document_class_id",
             string='Document Type',
             copy=False,
-            readonly=True,
-            states={'draft': [('readonly', False)]},
         )
     sii_batch_number = fields.Integer(
             copy=False,
@@ -162,28 +163,18 @@ class POS(models.Model):
             copy=False,
             string=_('SII Barcode Image'),
             help='SII Barcode Image in PDF417 format',
+            compute='_get_barcode_img',
         )
-    sii_message = fields.Text(
-            string='SII Message',
-            copy=False,
-        )
-    sii_xml_request = fields.Text(
+    sii_xml_request = fields.Many2one(
+            'sii.xml.envio',
             string='SII XML Request',
-            copy=False,
-        )
-    sii_xml_response = fields.Text(
-            string='SII XML Response',
-            copy=False,
-        )
-    sii_send_ident = fields.Text(
-            string='SII Send Identification',
             copy=False,
         )
     sii_result = fields.Selection(
             [
                     ('', 'n/a'),
                     ('NoEnviado', 'No Enviado'),
-                    ('EnCola','En cola de envío'),
+                    ('EnCola', 'En cola de envío'),
                     ('Enviado', 'Enviado'),
                     ('Aceptado', 'Aceptado'),
                     ('Rechazado', 'Rechazado'),
@@ -197,7 +188,7 @@ class POS(models.Model):
             states={'draft': [('readonly', False)]},
             copy=False,
             help="SII request result",
-            default = '',
+            default='',
         )
     canceled = fields.Boolean(
             string="Canceled?",
@@ -216,6 +207,12 @@ class POS(models.Model):
             'pos.order.referencias',
             'order_id',
             string="References",
+            readonly=True,
+            states={'draft': [('readonly', False)]},
+        )
+    sii_xml_dte = fields.Text(
+            string='SII XML DTE',
+            copy=False,
             readonly=True,
             states={'draft': [('readonly', False)]},
         )
@@ -316,43 +313,6 @@ version="1.0">
 </EnvioBOLETA>'''.format(doc)
         return xml
 
-    def get_digital_signature_pem(self, comp_id):
-        obj = user = self[0].responsable_envio if self else False
-        if not obj:
-            obj = user = self.env.user
-        if not obj.cert:
-            obj = comp_id or self.env.user.company_id
-            if not obj or not obj.cert or not user.id in obj.authorized_users_ids.ids:
-                obj = self.env['res.users'].search([("authorized_users_ids","=", user.id)])
-            if not obj.cert or not user.id in obj.authorized_users_ids.ids:
-                return False
-        signature_data = {
-            'subject_name': obj.name,
-            'subject_serial_number': obj.subject_serial_number,
-            'priv_key': obj.priv_key,
-            'cert': obj.cert,
-            'rut_envia': obj.subject_serial_number
-            }
-        return signature_data
-
-    def get_digital_signature(self, comp_id):
-        obj = user = self[0].responsable_envio if self else False
-        if not obj:
-            obj = user = self.env.user
-        if not obj.cert:
-            obj = comp_id or self.env.user.company_id
-            if not obj.cert or not user.id in obj.authorized_users_ids.ids:
-                obj = self.env['res.users'].search([("authorized_users_ids","=", user.id)])
-            if not obj or not obj.cert:
-                if not obj.cert or not user.id in obj.authorized_users_ids.ids:
-                    return False
-        signature_data = {
-            'subject_name': obj.name,
-            'subject_serial_number': obj.subject_serial_number,
-            'priv_key': obj.priv_key,
-            'cert': obj.cert}
-        return signature_data
-
     def get_resolution_data(self, comp_id):
         resolution_data = {
             'dte_resolution_date': comp_id.dte_resolution_date,
@@ -362,23 +322,19 @@ version="1.0">
     @api.multi
     def get_xml_file(self):
         return {
-            'type' : 'ir.actions.act_url',
-            'url': '/download/xml/boleta/%s' % (self.id ),
+            'type': 'ir.actions.act_url',
+            'url': '/download/xml/boleta/%s' % (self.id),
             'target': 'self',
         }
 
     def get_folio(self):
-        # saca el folio directamente de la secuencia
         return int(self.sii_document_number)
 
     def format_vat(self, value):
-        ''' Se Elimina el 0 para prevenir problemas con el sii, ya que las muestras no las toma si va con
-        el 0 , y tambien internamente se generan problemas'''
-        if not value or value=='' or value == 0:
-            value ="CL666666666"
-            #@TODO opción de crear código de cliente en vez de rut genérico
+        if not value or value == '' or value == 0:
+            value = "CL666666666"
         rut = value[:10] + '-' + value[10:]
-        rut = rut.replace('CL0','').replace('CL','')
+        rut = rut.replace('CL0', '').replace('CL', '')
         return rut
 
     def pdf417bc(self, ted):
@@ -413,16 +369,17 @@ version="1.0">
             l[2]['pos_order_line_id'] = int(l[2]['id'])
             lines.append(l)
         order['lines'] = lines
-        order_id = super(POS,self)._process_order(order)
+        order_id = super(POS, self)._process_order(order)
         order_id.sequence_number = order['sequence_number'] #FIX odoo bug
         if order.get('orden_numero', False) and order.get('sequence_id', False):
             order_id.sequence_id = order['sequence_id'].get('id', False)
-            if order_id.sequence_id and  order_id.sequence_id.sii_document_class_id.sii_code == 39 and  order['orden_numero'] > order_id.session_id.numero_ordenes:
+            order_id.document_class_id = order_id.sequence_id.sii_document_class_id.id
+            if order_id.sequence_id and order_id.document_class_id.sii_code == 39 and order['orden_numero'] > order_id.session_id.numero_ordenes:
                 order_id.session_id.numero_ordenes = order['orden_numero']
-            elif order_id.sequence_id and order_id.sequence_id.sii_document_class_id.sii_code == 41 and order['orden_numero'] > order_id.session_id.numero_ordenes_exentas:
+            elif order_id.sequence_id and order_id.document_class_id.sii_code == 41 and order['orden_numero'] > order_id.session_id.numero_ordenes_exentas:
                 order_id.session_id.numero_ordenes_exentas = order['orden_numero']
             order_id.sii_document_number = order['sii_document_number']
-            sign = self.get_digital_signature(self.env.user.company_id)
+            sign = self.env.user.get_digital_signature(self.env.user.company_id)
             if (order_id.session_id.caf_files or order_id.session_id.caf_files_exentas) and sign:
                 order_id.signature = order['signature']
                 order_id._timbrar()
@@ -431,20 +388,16 @@ version="1.0">
 
     def _prepare_invoice(self):
         result = super(POS, self)._prepare_invoice()
+        sale_journal = self.session_id.config_id.invoice_journal_id
         journal_document_class_id = self.env['account.journal.sii_document_class'].search(
                 [
-                    ('journal_id','=', self.sale_journal.id),
-                    ('sii_document_class_id.sii_code', 'in', ['33']),
+                    ('journal_id', '=', sale_journal.id),
+                    ('sii_document_class_id.sii_code', 'in', [33]),
                 ],
             )
         if not journal_document_class_id:
-            raise UserError("Por favor defina Secuencia de Facturas para el Journal del POS")
-        available_turn_ids = self.company_id.company_activities_ids
-        turn_issuer = False
-        for turn in available_turn_ids:
-            turn_issuer = turn
+            raise UserError("Por favor defina Secuencia de Facturas para el Journal %s" % sale_journal.name)
         result.update({
-            'turn_issuer' : turn_issuer.id,
             'activity_description': self.partner_id.activity_description.id,
             'ticket':  self.session_id.config_id.ticket,
             'sii_document_class_id': journal_document_class_id.sii_document_class_id.id,
@@ -455,20 +408,43 @@ version="1.0">
 
     @api.multi
     def do_validate(self):
+        ids = []
         for order in self:
+            if order.session_id.config_id.restore_mode:
+                continue
             order.sii_result = 'NoEnviado'
-            order.responsable_envio = self.env.user.id
             #if not order.invoice_id:
             order._timbrar()
+            if order.document_class_id.sii_code in [61]:
+                ids.append(order.id)
+        if ids:
+            tiempo_pasivo = (datetime.now() + timedelta(hours=int(self.env['ir.config_parameter'].sudo().get_param('account.auto_send_dte', default=12))))
+            self.env['sii.cola_envio'].create({
+                'doc_ids': ids,
+                'model': 'pos.order',
+                'user_id': self.env.uid,
+                'tipo_trabajo': 'pasivo',
+                'date_time': tiempo_pasivo,
+                'send_email': False if self[0].company_id.dte_service_provider=='SIICERT' or not self.env['ir.config_parameter'].sudo().get_param('account.auto_send_email', default=True) else True,
+            })
 
     @api.multi
     def do_dte_send_order(self):
-        invs = ids = []
+        ids = []
         for order in self:
             if not order.invoice_id:
                 if order.sii_result not in [False, '', 'NoEnviado']:
                     raise UserError("El documento %s ya ha sido enviado o está en cola de envío" % order.sii_document_number)
-                order.responsable_envio = self.env.user.id
+                if order.document_class_id.sii_code in [ 61 ]:
+                    ids.append(order.id)
+        if ids:
+            self.env['sii.cola_envio'].create({
+                'doc_ids': ids,
+                'model': 'pos.order',
+                'user_id': self.env.uid,
+                'tipo_trabajo': 'envio',
+                'send_email': False if self[0].company_id.dte_service_provider=='SIICERT' or not self.env['ir.config_parameter'].sudo().get_param('account.auto_send_email', default=True) else True,
+            })
         self.do_dte_send()
 
     def _es_boleta(self, id_doc=False):
@@ -493,7 +469,7 @@ version="1.0">
         from_zone = pytz.UTC
         to_zone = pytz.timezone('America/Santiago')
         date_order = util_model._change_time_zone(datetime.strptime(self.date_order, DTF), from_zone, to_zone).strftime(DTF)
-        IdDoc= collections.OrderedDict()
+        IdDoc = collections.OrderedDict()
         IdDoc['TipoDTE'] = self.document_class_id.sii_code
         IdDoc['Folio'] = self.get_folio()
         IdDoc['FchEmis'] = date_order[:10]
@@ -507,7 +483,7 @@ version="1.0">
         #    Encabezado['IdDoc']['IndServicio'] = 1,2,3,4
         # todo: forma de pago y fecha de vencimiento - opcional
         if not taxInclude:
-        	IdDoc['IndMntNeto'] = 2
+            IdDoc['IndMntNeto'] = 2
         #if self._es_boleta():
             #Servicios periódicos
         #    IdDoc['PeriodoDesde'] =
@@ -515,7 +491,7 @@ version="1.0">
         return IdDoc
 
     def _emisor(self):
-        Emisor= collections.OrderedDict()
+        Emisor = collections.OrderedDict()
         Emisor['RUTEmisor'] = self.format_vat(self.company_id.vat)
         if self._es_boleta():
             Emisor['RznSocEmisor'] = self.company_id.partner_id.name
@@ -556,16 +532,20 @@ version="1.0">
         amount_total = amount_total = int(round(self.amount_total, 0))
         if amount_total < 0:
             amount_total *= -1
-        if self.document_class_id.sii_code == 34 :#@TODO Boletas exentas
+        if self.document_class_id.sii_code in [ 34, 41]:
+            if self.amount_tax > 0:
+                raise UserError("NO pueden ir productos afectos en documentos exentos")
             Totales['MntExe'] = amount_total
-            if  no_product:
+            if no_product:
                 Totales['MntExe'] = 0
-        else :
-            amount_untaxed =  self.amount_total - self.amount_tax
+        elif not no_product:
+            amount_untaxed = self.amount_total - self.amount_tax
             if amount_untaxed < 0:
                 amount_untaxed *= -1
             if MntExe < 0:
                 MntExe *=-1
+            if self.amount_tax == 0 and MntExe > 0:
+                raise UserError("Debe ir almenos un Producto Afecto")
             Neto = amount_untaxed - MntExe
             if not taxInclude and not self._es_boleta():
                 IVA = False
@@ -577,7 +557,7 @@ version="1.0">
                 if IVA :
                     Totales['MntNeto'] = int(round((Neto), 0))
             if MntExe > 0:
-                Totales['MntExe'] = int(round( MntExe))
+                Totales['MntExe'] = int(round(MntExe))
             if not taxInclude and not self._es_boleta():
                 if IVA:
                     if not self._es_boleta():
@@ -594,7 +574,7 @@ version="1.0">
             #    Totales['ImptoReten']['TpoImp'] = IVA.tax_id.sii_code
             #    Totales['ImptoReten']['TasaImp'] = round(IVA.tax_id.amount,2)
             #    Totales['ImptoReten']['MontoImp'] = int(round(IVA.amount))
-        if no_product:
+        else:
             amount_total = 0
         Totales['MntTotal'] = amount_total
 
@@ -639,7 +619,7 @@ version="1.0">
         resultcaf = self.sequence_id.get_caf_file(folio)
         result['TED']['DD']['CAF'] = resultcaf['AUTORIZACION']['CAF']
         dte = result['TED']['DD']
-        timestamp = date_order.replace(' ','T')
+        timestamp = date_order.replace(' ', 'T')
         #if date( int(timestamp[:4]), int(timestamp[5:7]), int(timestamp[8:10])) < date(int(self.date[:4]), int(self.date[5:7]), int(self.date[8:10])):
         #    raise UserError("La fecha de timbraje no puede ser menor a la fecha de emisión del documento")
         dte['TSTED'] = timestamp
@@ -664,13 +644,6 @@ version="1.0">
             _logger.warning(self.signature)
             _logger.warning("¡La firma del pos es distinta a la del Backend!")
         self.sii_barcode = ted
-        image = False
-        if ted:
-            barcodefile = BytesIO()
-            image = self.pdf417bc(ted)
-            image.save(barcodefile,'PNG')
-            data = barcodefile.getvalue()
-            self.sii_barcode_img = base64.b64encode(data)
         ted  += '<TmstFirma>{}</TmstFirma>'.format(timestamp)
         return ted
 
@@ -741,13 +714,13 @@ version="1.0">
         dte['Encabezado'] = self._encabezado(invoice_lines['MntExe'], invoice_lines['no_product'], invoice_lines['tax_include'])
         lin_ref = 1
         ref_lines = []
-        if 'referencias' in self and  self.referencias :
+        if 'referencias' in self and self.referencias :
             for ref in self.referencias:
                 ref_line = {}
                 ref_line = collections.OrderedDict()
                 ref_line['NroLinRef'] = lin_ref
                 if not self._es_boleta():
-                    if  ref.sii_referencia_TpoDocRef:
+                    if ref.sii_referencia_TpoDocRef:
                         ref_line['TpoDocRef'] = ref.sii_referencia_TpoDocRef.sii_code
                         ref_line['FolioRef'] = ref.origen
                     ref_line['FchRef'] = ref.fecha_documento or datetime.strftime(datetime.now(), '%Y-%m-%d')
@@ -776,15 +749,6 @@ version="1.0">
         return xml
 
     def _timbrar(self):
-        signature_d = self.get_digital_signature(self.company_id)
-        if not signature_d:
-            raise UserError(_('''There is no Signer Person with an \
-        authorized signature for you in the system. Please make sure that \
-        'user_signature_key' module has been installed and enable a digital \
-        signature, for you or make the signer to authorize you to use his \
-        signature.'''))
-        certp = signature_d['cert'].replace(
-            BC, '').replace(EC, '').replace('\n', '')
         folio = self.get_folio()
         dte = collections.OrderedDict()
         doc_id_number = "F{}T{}".format(folio, self.document_class_id.sii_code)
@@ -798,12 +762,10 @@ version="1.0">
         type = 'bol'
         einvoice = self.env['account.invoice'].sign_full_xml(
                 envelope_efact,
-                signature_d['priv_key'],
-                self.split_cert(certp),
                 doc_id_number,
                 type,
             )
-        self.sii_xml_request = einvoice
+        self.sii_xml_dte = einvoice
 
     @api.multi
     def do_dte_send(self, n_atencion=None):
@@ -812,23 +774,13 @@ version="1.0">
         clases = {}
         company_id = False
         for inv in self.with_context(lang='es_CL'):
-            try:
-                signature_d = self.get_digital_signature(inv.company_id)
-            except:
-                raise UserError(_('''There is no Signer Person with an \
-            authorized signature for you in the system. Please make sure that \
-            'user_signature_key' module has been installed and enable a digital \
-            signature, for you or make the signer to authorize you to use his \
-            signature.'''))
-            certp = signature_d['cert'].replace(
-                BC, '').replace(EC, '').replace('\n', '')
             #@TODO Mejarorar esto en lo posible
             if not inv.document_class_id.sii_code in clases:
                 clases[inv.document_class_id.sii_code] = []
             clases[inv.document_class_id.sii_code].extend([{
-                                                'id':inv.id,
-                                                'envio': inv.sii_xml_request,
-                                                'sii_document_number':inv.sii_document_number
+                                                'id': inv.id,
+                                                'envio': inv.sii_xml_dte,
+                                                'sii_document_number': inv.sii_document_number
                                             }])
             DTEs.update(clases)
             if not company_id:
@@ -837,12 +789,12 @@ version="1.0">
                 raise UserError("Está combinando compañías, no está permitido hacer eso en un envío")
             company_id = inv.company_id
 
-        file_name = ""
+        file_name = {}
         dtes={}
         SubTotDTE = {}
         documentos = {}
         resol_data = self.get_resolution_data(company_id)
-        signature_d = self.get_digital_signature(company_id)
+        signature_d = self.env.user.get_digital_signature(company_id)
         RUTEmisor = self.format_vat(company_id.vat)
 
         for id_class_doc, classes in clases.items():
@@ -851,7 +803,9 @@ version="1.0">
             for documento in classes:
                 documentos[id_class_doc] += '\n' + documento['envio']
                 NroDte += 1
-                file_name += 'F' + str(int(documento['sii_document_number'])) + 'T' + str(id_class_doc)
+                if not str(id_class_doc) in file_name:
+                    file_name[str(id_class_doc)]
+                file_name[str(id_class_doc)] += 'F' + str(int(documento['sii_document_number'])) + 'T' + str(id_class_doc)
             SubTotDTE[id_class_doc] = '<SubTotDTE>\n<TpoDTE>' + str(id_class_doc) + '</TpoDTE>\n<NroDTE>'+str(NroDte)+'</NroDTE>\n</SubTotDTE>\n'
         file_name += ".xml"
         # firma del sobre
@@ -872,100 +826,74 @@ version="1.0">
                 env = 'env_boleta'
             else:
                 envio_dte  = self.create_template_env(dtes)
-            envio_dte = self.env['account.invoice'].sign_full_xml(
+            envio_dte = self.env['account.invoice'].sudo(self.env.uid).sign_full_xml(
                     envio_dte,
-                    signature_d['priv_key'],
-                    certp,
                     'SetDoc',
                     env,
                 )
-            for inv in self:
-                if inv.document_class_id.sii_code == id_class_doc:
-                    inv.sii_xml_request = envio_dte
-                    inv.sii_send_file_name = file_name
+            envio_id = self.env['sii.xml.envio'].create(
+                    {
+                        'sii_xml_request': '<?xml version="1.0" encoding="ISO-8859-1"?>\n' + envio_dte,
+                        'name': file_name[str(id_class_doc)],
+                        'company_id': company_id.id,
+                        'user_id': self.env.uid,
+                    }
+                )
+            if env == 'env':
+                envio_id.send_xml()
+            for order in self:
+                if order.document_class_id.sii_code == id_class_doc:
+                    order.sii_xml_request = envio_dte.id
 
-    def _get_send_status(self, track_id, signature_d,token):
-        url = server_url[self.company_id.dte_service_provider] + 'QueryEstUp.jws?WSDL'
-        _server = Client(url)
-        rut = self.format_vat(self.company_id.vat)
-        respuesta = _server.service.getEstUp(rut[:8], str(rut[-1]),track_id,token)
-        self.sii_message = respuesta
-        resp = xmltodict.parse(respuesta)
-        status = False
-        if resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] == "-11":
-            if resp['SII:RESPUESTA']['SII:RESP_HDR']['ERR_CODE'] == "2":
-                status =  {'warning':{'title':_('Estado -11'), 'message': _("Estado -11: Espere a que sea aceptado por el SII, intente en 5s más")}}
-            else:
-                status =  {'warning':{'title':_('Estado -11'), 'message': _("Estado -11: error 1Algo a salido mal, revisar carátula")}}
-        if resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] == "EPR":
-            self.sii_result = "Proceso"
-            if resp['SII:RESPUESTA']['SII:RESP_BODY']['RECHAZADOS'] == "1":
-                self.sii_result = "Rechazado"
-        elif resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] == "RCH":
-            self.sii_result = "Rechazado"
-            _logger.warning(resp)
-            status = {'warning':{'title':_('Error RCT'), 'message': _(resp['SII:RESPUESTA']['GLOSA'])}}
-        return status
+    @api.onchange('sii_message')
+    def get_sii_result(self):
+        for r in self:
+            if r.sii_message:
+                r.sii_result = r.sii_xml_request.process_response_xml(xmltodict.parse(r.sii_message))
+                continue
+            if r.sii_xml_request.state == 'NoEnviado':
+                r.sii_result = 'EnCola'
+                continue
+            r.sii_result = r.sii_xml_request.state
 
-    def _get_dte_status(self, signature_d, token):
-        url = server_url[self.company_id.dte_service_provider] + 'QueryEstDte.jws?WSDL'
-        _server = Client(url)
-        receptor = self.format_vat(self.partner_id.vat)
-        util_model = self.env['cl.utils']
-        from_zone = pytz.UTC
-        to_zone = pytz.timezone('America/Santiago')
-        date_order = util_model._change_time_zone(datetime.strptime(self.date_order, DTF), from_zone, to_zone).strftime(DTF)[:10]
-        date_invoice = datetime.strptime(date_order, "%Y-%m-%d").strftime("%d-%m-%Y")
-        rut = signature_d['subject_serial_number']
-        amount = int(self.amount_total)
-        if amount < 0:
-            amount *= -1
-        respuesta = _server.service.getEstDte(rut[:8],
-                                      str(rut[-1]),
-                                      self.company_id.vat[2:-1],
-                                      self.company_id.vat[-1],
-                                      receptor[:8],
-                                      receptor[-1],
-                                      str(self.document_class_id.sii_code),
-                                      str(self.sii_document_number),
-                                      date_invoice,
-                                      str(amount),
-                                      token)
-        self.sii_message = respuesta
-        resp = xmltodict.parse(respuesta)
-        if resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] == '2':
-            status = {'warning':{'title':_("Error code: 2"), 'message': _(resp['SII:RESPUESTA']['SII:RESP_HDR']['GLOSA'])}}
-            return status
-        if resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] == "EPR":
-            self.sii_result = "Proceso"
-            if resp['SII:RESPUESTA']['SII:RESP_BODY']['RECHAZADOS'] == "1":
-                self.sii_result = "Rechazado"
-            if resp['SII:RESPUESTA']['SII:RESP_BODY']['REPARO'] == "1":
-                self.sii_result = "Reparo"
-        elif resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] == "RCT":
-            self.sii_result = "Rechazado"
+    def _get_dte_status(self):
+        for r in self:
+            if r.sii_xml_request and r.sii_xml_request.state not in ['Aceptado', 'Rechazado']:
+                continue
+            token = r.sii_xml_request.get_token(self.env.user, r.company_id)
+            url = server_url[r.company_id.dte_service_provider] + 'QueryEstDte.jws?WSDL'
+            _server = Client(url)
+            receptor = r.format_vat(r.commercial_partner_id.vat)
+            date_invoice = datetime.strptime(r.date_invoice, "%Y-%m-%d").strftime("%d-%m-%Y")
+            signature_d = self.env.user.get_digital_signature(r.company_id)
+            rut = signature_d['subject_serial_number']
+            respuesta = _server.service.getEstDte(
+                rut[:8],
+                str(rut[-1]),
+                r.company_id.vat[2:-1],
+                r.company_id.vat[-1],
+                receptor[:8],
+                receptor[-1],
+                str(r.document_class_id.sii_code),
+                str(r.sii_document_number),
+                date_invoice,
+                str(int(r.amount_total)),
+                token,
+            )
+            r.sii_message = respuesta
 
     @api.multi
     def ask_for_dte_status(self):
+        for r in self:
+            if not r.sii_xml_request and not r.sii_xml_request.sii_send_ident:
+                raise UserError('No se ha enviado aún el documento, aún está en cola de envío interna en odoo')
+            if r.sii_xml_request.state not in [ 'Aceptado', 'Rechazado']:
+                r.sii_xml_request.get_send_status(r.env.user)
         try:
-            signature_d = self.get_digital_signature_pem(
-                self.company_id)
-            seed = self.get_seed(self.company_id)
-            template_string = self.create_template_seed(seed)
-            seed_firmado = self.sign_seed(
-                template_string, signature_d['priv_key'],
-                signature_d['cert'])
-            token = self.get_token(seed_firmado,self.company_id)
-        except:
-            _logger.warning(connection_status)
-            raise UserError(connection_status)
-        if not self.sii_send_ident:
-            raise UserError('No se ha enviado aún el documento, aún está en cola de envío interna en odoo')
-        if self.sii_result == 'Enviado':
-            status = self._get_send_status(self.sii_send_ident, signature_d, token)
-            if self.sii_result != 'Proceso':
-                return status
-        return self._get_dte_status(signature_d, token)
+            self._get_dte_status()
+        except Exception as e:
+            _logger.warning("Error al obtener DTE Status: %s" %str(e))
+        self.get_sii_result()
 
     def _create_account_move_line(self, session=None, move=None):
         # Tricky, via the workflow, we only have one id in the ids variable
@@ -1130,7 +1058,7 @@ version="1.0">
                 'partner_id': partner_id
             })
 
-            order.write({'state':'done', 'account_move': move.id})
+            order.write({'state': 'done', 'account_move': move.id})
 
         all_lines = []
         for group_key, group_data in grouped_data.items():
@@ -1139,7 +1067,7 @@ version="1.0">
         if move:  # In case no order was changed
             move.sudo().write(
                     {
-                            'line_ids':all_lines,
+                            'line_ids': all_lines,
                             'document_class_id':  (document_class_id.id if document_class_id else False ),
                     }
                 )
@@ -1148,14 +1076,12 @@ version="1.0">
 
     @api.multi
     def action_pos_order_paid(self):
-        if not self.test_paid():
-            raise UserError(_("Order is not paid."))
-        if self.sequence_id and not self.sii_xml_request:
-            if (not self.sii_document_number or self.sii_document_number == 0) and not self.signature:
-                self.sii_document_number = self.sequence_id.next_by_id()
-            self.do_validate()
-        self.write({'state': 'paid'})
-        return self.create_picking()
+        if self.test_paid():
+            if self.sequence_id and not self.sii_xml_request:
+                if (not self.sii_document_number or self.sii_document_number == 0) and not self.signature:
+                    self.sii_document_number = self.sequence_id.next_by_id()
+                self.do_validate()
+        return super(POS, self).action_pos_order_paid()
 
     @api.depends('statement_ids', 'lines.price_subtotal_incl', 'lines.discount')
     def _compute_amount_all(self):
@@ -1172,7 +1098,7 @@ version="1.0">
     def exento(self):
         exento = 0
         for l in self.lines:
-            if l.tax_ids.amount == 0:
+            if l.tax_ids_after_fiscal_position.amount == 0:
                 exento += l.price_subtotal
         return exento if exento > 0 else (exento * -1)
 
@@ -1180,7 +1106,7 @@ version="1.0">
     def print_nc(self):
         """ Print NC
         """
-        return self.env.ref('l10n_cl_dte_point_of_sale.action_print_nc').report_action(self)
+        return self.env.ref('l10n_cl_dte_point_of_sale.action_report_pos_boleta_ticket').report_action(self)
 
     @api.multi
     def _get_printed_report_name(self):
@@ -1192,21 +1118,22 @@ version="1.0">
     def get_invoice(self):
         return self.invoice_id
 
+
 class Referencias(models.Model):
     _name = 'pos.order.referencias'
 
     origen = fields.Char(
             string="Origin",
         )
-    sii_referencia_TpoDocRef =  fields.Many2one(
+    sii_referencia_TpoDocRef = fields.Many2one(
             'sii.document_class',
             string="SII Reference Document Type",
         )
     sii_referencia_CodRef = fields.Selection(
             [
-                    ('1','Anula Documento de Referencia'),
-                    ('2','Corrige texto Documento Referencia'),
-                    ('3','Corrige montos')
+                    ('1', 'Anula Documento de Referencia'),
+                    ('2', 'Corrige texto Documento Referencia'),
+                    ('3', 'Corrige montos')
             ],
             string="SII Reference Code",
         )

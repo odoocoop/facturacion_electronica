@@ -6,8 +6,16 @@
 			<t t-call="web.basic_layout">
 				<!-- llamar a las mismas plantilla QWeb que se usan en el portal -->
 				<div class="page">
-					<t t-call="l10n_cl_dte_point_of_sale.report_boleta_header_layout" />
+					<t t-if="o.document_class_id.sii_code in [61]">
+						<t t-call="l10n_cl_dte_point_of_sale.report_credit_note_header_layout" />
+					</t>
+					<t t-if="o.document_class_id.sii_code not in [61]">
+						<t t-call="l10n_cl_dte_point_of_sale.report_boleta_header_layout" />
+					</t>
 					<t t-call="l10n_cl_dte_point_of_sale.report_boleta_partner_layout" />
+					<t t-if="o.document_class_id.sii_code in [61]">
+						<t t-call="l10n_cl_dte_point_of_sale.report_referencias_layout" />
+					</t>
 					<t t-call="l10n_cl_dte_point_of_sale.report_boleta_detail_layout" />
 					<t t-call="l10n_cl_dte_point_of_sale.report_boleta_subtotal_layout" />
 					<t t-call="l10n_cl_dte_point_of_sale.report_boleta_payment_layout" />
@@ -27,12 +35,14 @@
 		<report id="action_report_pos_boleta_ticket" 
 			model="pos.order"
 			report_type="qweb-pdf" 
-			string="Boleta electronica" 
-			menu="False"
+			string="Imprimir Reporte" 
+			menu="True"
 			name="l10n_cl_dte_point_of_sale.report_pos_boleta_ticket" 
 			file="l10n_cl_dte_point_of_sale.report_pos_boleta_ticket"
 			paperformat="l10n_cl_dte_point_of_sale.paperformat_pos_boleta_ticket" 
-			print_report_name="(object._get_printed_report_name())" />
+			print_report_name="(object._get_printed_report_name())" 
+			attachment_use="True"
+            attachment="'%s.pdf' % (object._get_printed_report_name())" />
 
 	</data>
 </odoo>
