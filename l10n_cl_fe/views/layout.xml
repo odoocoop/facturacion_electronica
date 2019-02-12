@@ -282,7 +282,7 @@
                           </div>
                       </div>
                       <div class="row">
-                        <h6 class="pull-right"> CEDIBLE</h6>
+                        <p class="pull-right"> CEDIBLE</p>
                       </div>
                     </t>
                 </div>
@@ -315,10 +315,13 @@
 
           <template id="dte_invoice" inherit_id="account.report_invoice">
               <t t-call="web.html_container" position="replace">
-                <t t-call="web.html_container">
-                    <t t-foreach="docs" t-as="o">
-                        <t t-call="l10n_cl_fe.dte_external_layout" t-lang="o.partner_id.lang"/>
-                    </t>
+                <t t-foreach="docs" t-as="o">
+                  <t t-if="o.ticket" >
+                    <t t-call="l10n_cl_fe.report_ticket" t-lang="o.partner_id.lang"/>
+                  </t>
+                  <t t-else="" t-call="web.html_container">
+                    <t t-call="l10n_cl_fe.dte_external_layout" t-lang="o.partner_id.lang"/>
+                  </t>
                 </t>
               </t>
           </template>
@@ -334,10 +337,16 @@
           </template>
 
           <template id="invoice_cedible">
-            <t t-call="l10n_cl_fe.dte_invoice_con_pagos" >
+            <t t-call="l10n_cl_fe.dte_invoice" >
               <t t-set="cedible" t-value="True" />
             </t>
           </template>
+
+          <template id="report_invoice_and_cedible">
+            <t t-call="l10n_cl_fe.dte_invoice_con_pagos" />
+            <t t-call="l10n_cl_fe.invoice_cedible" />
+          </template>
+
           <report
                     string="Print Cedible"
                     id="action_print_cedible"
@@ -350,14 +359,14 @@
           />
 
           <report
-                    string="Print Ticket"
-                    id="action_print_ticket"
+                    string="Imprimir Copia y Cedible"
+                    id="action_print_copy_cedible"
                     model="account.invoice"
                     report_type="qweb-pdf"
-                    name="l10n_cl_fe.report_ticket"
-                    file="l10n_cl_fe.report_ticket"
+                    name="l10n_cl_fe.report_invoice_and_cedible"
+                    file="l10n_cl_fe.report_invoice_and_cedible"
                     attachment_use="True"
-                    attachment="(object.state in ('open','paid')) and ('T_'+(object.number or '').replace('/','')+'.pdf')"
+                    attachment="(object.state in ('open','paid')) and ('FyC_'+(object.number or '').replace('/','')+'.pdf')"
           />
 
           <template id="report_ticket">
@@ -603,37 +612,24 @@
                 </em>
             </div>
             <t t-if="cedible">
-              <div class="row">
-                  <div class="col-xs-12" style="border: 1px solid black;height:20px;font-size:15px !important;">
-                    <div class="col-xs-4">
-                        <strong>Nombre:</strong>
-                    </div>
-                  </div>
-                  <div class="col-xs-12" style="border: 1px solid black;height:20px;font-size:15px !important;">
-                    <div class="col-xs-7">
-                        <strong>R.U.T.:</strong>
-                    </div>
-                    <div class="col-xs-5">
-                        <strong>FECHA:</strong>
-                    </div>
-                  </div>
-                  <div class="col-xs-12" style="border: 1px solid black;height:20px; font-size:15px !important;">
-                    <div class="col-xs-7">
-                        <strong>RECINTO:</strong>
-                    </div>
-                    <div class="col-xs-5">
-                        <strong>FIRMA:</strong>
-                    </div>
-                  </div>
-                  <div class="col-xs-12" style="border: 1px solid black;">
-                    <p style="font-size:8px">
-                      "El acuse de recibo que se declara en este acto, de acuerdo a lo dispuesto en la letra b) del Artículo 4°, y la letra c) del Artículo 5° de la Ley 19.983, acredita que la entrega de mercaderías o servicio(s) prestado(s) ha(n) sido recibido(s)"
-                    </p>
-                  </div>
+              <line />
+              <line>
+                <left>Nombre:__________________________</left><right>_______________________</right>
+              </line>
+              <line />
+              <line>
+                <left>R.U.T.:_______________ </left><right>FIRMA:_________________________</right>
+              </line>
+              <line />
+              <line>
+                <left>FECHA:_______________</left><right>RECINTO:_________________________</right>
+              </line>
+              <div>
+                <em>"El acuse de recibo que se declara en este acto, de acuerdo a lo dispuesto en la letra b) del Artículo 4°, y la letra c) del Artículo 5° de la Ley 19.983, acredita que la entrega de mercaderías o servicio(s) prestado(s) ha(n) sido recibido(s)"</em>
               </div>
-              <div class="row">
-                <h6 class="pull-right"> CEDIBLE</h6>
-              </div>
+              <line>
+                <left /><right>CEDIBLE</right>
+              </line>
             </t>
           </receipt>
         </t>

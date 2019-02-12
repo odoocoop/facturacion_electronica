@@ -48,17 +48,12 @@
               </form>
 
               <button name="invoice_print" position="after">
+                 <button string="Imprimir Copia y Cedible" type="object" name="print_copy_cedible" />
                  <button string="Imprimir Cedible" type="object" name="print_cedible" />
               </button>
               <field name="invoice_line_tax_ids" position="attributes">
                 <attribute name="required">1</attribute>    
               </field>
-              
-
-              <!--
-              <button name="invoice_cancel" position="attributes">
-                  <attribute name="invisible">1</attribute>
-              </button>-->
 
               <field name="state" position="before">
                 <button name="%(account.action_account_invoice_refund)d" type='action' string='Refund Invoice' groups="base.group_user" attrs="{'invisible': ['|',('type', '=', 'out_invoice'), ('state', 'not in', ('open','proforma2','paid'))]}"/>

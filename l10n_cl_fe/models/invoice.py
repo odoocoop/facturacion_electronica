@@ -2224,6 +2224,12 @@ version="1.0">
         """
         return self.env.ref('l10n_cl_fe.action_print_cedible').report_action(self)
 
+    @api.multi
+    def print_copy_cedible(self):
+        """ Print Copy and Cedible
+        """
+        return self.env.ref('l10n_cl_fe.action_print_copy_cedible').report_action(self)
+
     def send_exchange(self):
         att = self._create_attachment()
         body = 'XML de Intercambio DTE: %s' % (self.number)

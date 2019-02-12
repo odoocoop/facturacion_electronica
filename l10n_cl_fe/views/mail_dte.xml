@@ -27,7 +27,6 @@
         <field name="currency_id" />
         <field name="invoice_line_ids" />
         <field name="company_id" />
-        <field name="dte_id" />
         <field name="state" />
         <button name="accept_document" string="Aceptar" type="object" attrs="{'invisible':[('state', '!=', 'draft')]}"/>
         <button name="reject_document" string="Rechazar" type="object" attrs="{'invisible':[('state', '!=', 'draft')]}"/>
