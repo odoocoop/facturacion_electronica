@@ -149,10 +149,6 @@ class AccountJournalSiiDocumentClass(models.Model):
 class account_journal(models.Model):
     _inherit = "account.journal"
 
-    def _domain_journal(self):
-        company_id = self.company_id or self.env.user.company_id
-        return [('id', 'in', company_id.company_activities_ids.ids)]
-
     sucursal_id = fields.Many2one(
             'sii.sucursal',
             string="Sucursal",
@@ -171,6 +167,10 @@ class account_journal(models.Model):
             string='Use Documents?',
             default='_get_default_doc',
         )
+    company_activity_ids = fields.Many2many(
+        'partner.activities',
+        related='company_id.company_activities_ids'
+    )
     journal_activities_ids = fields.Many2many(
             'partner.activities',
             id1='journal_id',
@@ -178,21 +178,11 @@ class account_journal(models.Model):
             string='Journal Turns',
             help="""Select the turns you want to \
             invoice in this Journal""",
-            domain=lambda self: self._domain_journal(),
         )
     restore_mode = fields.Boolean(
             string="Restore Mode",
             default=False,
         )
-
-    @api.onchange('company_id')
-    def set_domain_journals(self):
-        res = {
-            'domain': {
-                'journal_document_class_id': self._domain_journal()
-                }
-        }
-        return res
 
     @api.onchange('journal_activities_ids')
     def max_actecos(self):

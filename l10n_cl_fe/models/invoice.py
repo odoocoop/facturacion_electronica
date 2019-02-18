@@ -411,6 +411,17 @@ class AccountInvoice(models.Model):
             readonly=True,
             states={'draft': [('readonly', False)]},
         )
+    acteco_ids = fields.Many2many(
+        'partner.activities',
+        related="commercial_partner_id.acteco_ids",
+        string="Partner Activities"
+    )
+    acteco_id = fields.Many2one(
+        'partner.activities',
+        string="Partner Activity",
+        readonly=True,
+        states={'draft': [('readonly', False)]},
+    )
 
     @api.depends('state', 'journal_id', 'date_invoice', 'sii_document_class_id')
     def _get_sequence_prefix(self):
@@ -956,7 +967,8 @@ a VAT."""))
                       ('journal_document_class_id.sii_document_class_id', '=',
                        self.journal_document_class_id.sii_document_class_id.id),
                       ('company_id', '=', self.company_id.id),
-                      ('id', '!=', self.id)]
+                      ('id', '!=', self.id),
+                      ('state', '!=', 'cancel')]
             invoice_ids = self.search(domain)
             if invoice_ids:
                 raise UserError(u'El numero de factura debe ser unico por Proveedor.\n'\
@@ -1129,7 +1141,7 @@ a VAT."""))
         return resolution_data
 
     def create_template_envio(self, RutEmisor, RutReceptor, FchResol, NroResol,
-                              TmstFirmaEnv, EnvioDTE,signature_d,SubTotDTE):
+                              TmstFirmaEnv, EnvioDTE, subject_serial_number,SubTotDTE):
         xml = '''<SetDTE ID="SetDoc">
 <Caratula version="1.0">
 <RutEmisor>{0}</RutEmisor>
@@ -1140,7 +1152,7 @@ a VAT."""))
 <TmstFirmaEnv>{5}</TmstFirmaEnv>
 {6}</Caratula>{7}
 </SetDTE>
-'''.format(RutEmisor, signature_d['subject_serial_number'], RutReceptor,
+'''.format(RutEmisor, subject_serial_number, RutReceptor,
            FchResol, NroResol, TmstFirmaEnv, SubTotDTE, EnvioDTE)
         return xml
 
@@ -1276,16 +1288,16 @@ version="1.0">
 
     def sign_full_xml(self, message, uri, type='doc'):
         user_id = self.env.user
-        signature_d = user_id.get_digital_signature(self.company_id)
-        if not signature_d:
+        signature_id = user_id.get_digital_signature(self.company_id)
+        if not signature_id:
             raise UserError(_('''There is no Signer Person with an \
         authorized signature for you in the system. Please make sure that \
         'user_signature_key' module has been installed and enable a digital \
         signature, for you or make the signer to authorize you to use his \
         signature.'''))
-        cert = signature_d['cert'].replace(
+        cert = signature_id.cert.replace(
             BC, '').replace(EC, '').replace('\n', '').replace(' ','')
-        privkey = signature_d['priv_key']
+        privkey = signature_id.priv_key
         doc = etree.fromstring(message)
         string = etree.tostring(doc[0])
         mess = etree.tostring(etree.fromstring(string), method="c14n")
@@ -1457,8 +1469,10 @@ version="1.0">
             if inv.sii_result in ['','NoEnviado','Rechazado'] or inv.company_id.dte_service_provider == 'SIICERT':
                 if inv.sii_result in ['Rechazado']:
                     inv._timbrar()
-                    if inv.sii_xml_request:
+                    if len(inv.sii_xml_request) == 1:
                         inv.sii_xml_request.unlink()
+                    else:
+                        inv.sii_xml_request = False
                 inv.sii_result = 'EnCola'
                 ids.append(inv.id)
                 if not envio_boleta and (inv._es_boleta() or inv._nc_boleta()):
@@ -1538,12 +1552,12 @@ version="1.0">
             Emisor['GiroEmis'] = self._acortar_str(self.company_id.activity_description.name, 80)
             if self.company_id.phone:
                 Emisor['Telefono'] = self._acortar_str(self.company_id.phone, 20)
-            Emisor['CorreoEmisor'] = self.company_id.dte_email
+            Emisor['CorreoEmisor'] = self.company_id.dte_email_id.name
             Emisor['item'] = self._actecos_emisor()
         if self.journal_id.sucursal_id:
             Emisor['Sucursal'] = self._acortar_str(self.journal_id.sucursal_id.name, 20)
             Emisor['CdgSIISucur'] = self._acortar_str(self.journal_id.sucursal_id.sii_code, 9)
-        Emisor['DirOrigen'] = self._acortar_str(self.company_id.street + ' ' +(self.company_id.street2 or ''), 70)
+        Emisor['DirOrigen'] = self._acortar_str(self.company_id.street + ' ' + (self.company_id.street2 or ''), 70)
         Emisor['CmnaOrigen'] = self.company_id.city_id.name or ''
         Emisor['CiudadOrigen'] = self.company_id.city or ''
         return Emisor
@@ -1559,9 +1573,10 @@ version="1.0">
         if not self.partner_id or Receptor['RUTRecep'] == '66666666-6':
             return Receptor
         if not self._es_boleta() and not self._nc_boleta():
-            if not self.commercial_partner_id.activity_description:
+            GiroRecep = self.acteco_id.name or self.commercial_partner_id.activity_description.name
+            if not GiroRecep:
                 raise UserError(_('Seleccione giro del partner'))
-            Receptor['GiroRecep'] = self._acortar_str(self.commercial_partner_id.activity_description.name, 40)
+            Receptor['GiroRecep'] = self._acortar_str(GiroRecep, 40)
         if self.partner_id.phone or self.commercial_partner_id.phone:
             Receptor['Contacto'] = self._acortar_str(self.partner_id.phone or self.commercial_partner_id.phone or self.partner_id.email, 80)
         if (self.commercial_partner_id.email or self.commercial_partner_id.dte_email or self.partner_id.email or self.partner_id.dte_email) and not self._es_boleta():
@@ -1981,7 +1996,7 @@ version="1.0">
         dtes = {}
         SubTotDTE = ''
         resol_data = self.get_resolution_data(company_id)
-        signature_d = self.env.user.get_digital_signature(company_id)
+        signature_id = self.env.user.get_digital_signature(company_id)
         RUTEmisor = self.format_vat(company_id.vat)
         for id_class_doc, classes in clases.items():
             NroDte = 0
@@ -2004,7 +2019,7 @@ version="1.0">
                 resol_data['dte_resolution_number'],
                 self.time_stamp(),
                 documentos,
-                signature_d,
+                signature_id.subject_serial_number,
                 SubTotDTE,
             )
         env = 'env'
@@ -2038,7 +2053,10 @@ version="1.0">
                 tipo_envio['normal'].append(r.id)
             if r.sii_result in ['Rechazado'] or (r.company_id.dte_service_provider == 'SIICERT' and r.sii_xml_request.state in ['', 'NoEnviado']):
                 if r.sii_xml_request:
-                    r.sii_xml_request.unlink()
+                    if len(r.sii_xml_request.invoice_ids) == 1:
+                        r.sii_xml_request.unlink()
+                    else:
+                        r.sii_xml_request = False
                 r.sii_message = ''
         for k, t in tipo_envio.items():
             if not t:
@@ -2099,8 +2117,8 @@ version="1.0">
             _server = Client(url)
             receptor = r.format_vat(r.commercial_partner_id.vat)
             date_invoice = datetime.strptime(r.date_invoice, "%Y-%m-%d").strftime("%d-%m-%Y")
-            signature_d = self.env.user.get_digital_signature(r.company_id)
-            rut = signature_d['subject_serial_number']
+            signature_id = self.env.user.get_digital_signature(r.company_id)
+            rut = signature_id.subject_serial_number
             respuesta = _server.service.getEstDte(
                 rut[:8],
                 str(rut[-1]),
@@ -2248,7 +2266,7 @@ version="1.0">
             if not dte_email.send_dte:
                 continue
             values = {
-                'email_from': self.company_id.dte_email,
+                'email_from': self.company_id.dte_email_id.name,
                 'email_to': dte_email.name,
                 'auto_delete': False,
                 'model': 'account.invoice',

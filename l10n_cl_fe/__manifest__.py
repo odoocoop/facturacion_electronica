@@ -2,7 +2,7 @@
 {
     "name": """Facturación Electrónica para Chile\
     """,
-    'version': '0.7.2',
+    'version': '0.8.0',
     'category': 'Localization/Chile',
     'sequence': 12,
     'author':  'Daniel Santibáñez Polanco, Cooperativa OdooCoop',
@@ -26,17 +26,12 @@ Facturación Electrónica para Chile.
         ],
     'external_dependencies': {
         'python': [
-            'xmltodict',
-            'dicttoxml',
-            'pdf417gen',
+            'facturacion_electronica',
             'base64',
             'hashlib',
-            'cchardet',
             'suds',
-            'urllib3',
             'signxml',
             'ast',
-            'pysftp',
             'num2words',
             'xlsxwriter',
             'io',
@@ -44,6 +39,7 @@ Facturación Electrónica para Chile.
         ]
     },
     'data': [
+            'views/assets.xml',
             'wizard/journal_config_wizard_view.xml',
             'views/sii_menuitem.xml',
             'views/invoice_view.xml',
@@ -64,7 +60,7 @@ Facturación Electrónica para Chile.
             'views/sii_activity_description.xml',
             'views/sii_cola_envio.xml',
             'views/sii_regional_offices_view.xml',
-            'views/user_signature_tab.xml',
+            'views/sii_firma.xml',
             'views/account_journal_sii_document_class_view.xml',
             'views/account_move_line_view.xml',
             'views/account_move_view.xml',
@@ -85,6 +81,7 @@ Facturación Electrónica para Chile.
             'views/global_descuento_recargo.xml',
             'views/res_config_settings.xml',
             'views/portal_boleta_layout.xml',
+            'views/sale_order.xml',
             'wizard/masive_send_dte.xml',
             'wizard/masive_dte_process.xml',
             'wizard/masive_dte_accept.xml',
@@ -107,6 +104,9 @@ Facturación Electrónica para Chile.
             'data/res.currency.csv',
             'security/state_manager.xml',
             'security/ir.model.access.csv',
+    ],
+    'qweb': [
+        "static/src/xml/base.xml",
     ],
     'installable': True,
     'auto_install': False,

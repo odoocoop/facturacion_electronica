@@ -56,6 +56,15 @@ class PosConfig(models.Model):
         string="Restore Mode",
         default=False,
     )
+    opciones_impresion = fields.Selection(
+        [
+            ('cliente', 'Solo Copia Cliente'),
+            ('cedible', 'Solo Cedible'),
+            ('cliente_cedible', 'Cliente y Cedible'),
+        ],
+        string="Opciones de Impresión",
+        default="cliente",
+    )
 
     @api.one
     @api.constrains('marcar', 'secuencia_boleta', 'secuencia_boleta_exenta', 'iface_invoicing')

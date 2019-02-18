@@ -15,6 +15,14 @@ class ResConfigSettings(models.TransientModel):
             string="Enviar Email automático al Auto Enviar DTE al SII",
             default=True,
         )
+    dte_email_id = fields.Many2one(
+        'mail.alias',
+        related="company_id.dte_email_id"
+    )
+    limit_dte_lines = fields.Boolean(
+        string="Limitar Cantidad de líneas por documento",
+        default=False,
+    )
 
     @api.model
     def get_values(self):
@@ -22,9 +30,11 @@ class ResConfigSettings(models.TransientModel):
         ICPSudo = self.env['ir.config_parameter'].sudo()
         account_auto_send_dte = int(ICPSudo.get_param('account.auto_send_dte', default=12))
         account_auto_send_email = ICPSudo.get_param('account.auto_send_email', default=True)
+        account_limit_dte_lines = ICPSudo.get_param('account.limit_dte_lines', default=False)
         res.update(
                 auto_send_email=account_auto_send_email,
                 auto_send_dte=account_auto_send_dte,
+                limit_dte_lines=account_limit_dte_lines,
             )
         return res
 
@@ -34,3 +44,4 @@ class ResConfigSettings(models.TransientModel):
         ICPSudo = self.env['ir.config_parameter'].sudo()
         ICPSudo.set_param('account.auto_send_dte', self.auto_send_dte)
         ICPSudo.set_param('account.auto_send_email', self.auto_send_email)
+        ICPSudo.set_param('account.limit_dte_lines', self.limit_dte_lines)

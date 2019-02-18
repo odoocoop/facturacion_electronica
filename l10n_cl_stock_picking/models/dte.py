@@ -104,7 +104,7 @@ class stock_picking(models.Model):
     _inherit = "stock.picking"
 
     def create_template_envio(self, RutEmisor, RutReceptor, FchResol, NroResol,
-                              TmstFirmaEnv, EnvioDTE,signature_d,SubTotDTE):
+                              TmstFirmaEnv, EnvioDTE, subject_serial_number,SubTotDTE):
         xml = '''<SetDTE ID="SetDoc">
 <Caratula version="1.0">
 <RutEmisor>{0}</RutEmisor>
@@ -116,7 +116,7 @@ class stock_picking(models.Model):
 {6}</Caratula>
 {7}
 </SetDTE>
-'''.format(RutEmisor, signature_d['subject_serial_number'], RutReceptor,
+'''.format(RutEmisor, subject_serial_number, RutReceptor,
            FchResol, NroResol, TmstFirmaEnv, SubTotDTE, EnvioDTE)
         return xml
 
@@ -370,7 +370,7 @@ version="1.0">
         Emisor['RznSoc'] = self.company_id.partner_id.name
         Emisor['GiroEmis'] = self._acortar_str(self.company_id.activity_description.name, 80)
         Emisor['Telefono'] = self._acortar_str(self.company_id.phone or '', 20)
-        Emisor['CorreoEmisor'] = self.company_id.dte_email
+        Emisor['CorreoEmisor'] = self.company_id.dte_email_id.name
         Emisor['item'] = self._giros_emisor()
         if self.location_id.sii_code:
             Emisor['CdgSIISucur'] = self.location_id.sii_code
@@ -651,7 +651,7 @@ version="1.0">
         dtes=""
         SubTotDTE = ''
         resol_data = self.get_resolution_data(company_id)
-        signature_d = self.env.user.get_digital_signature(company_id)
+        signature_id = self.env.user.get_digital_signature(company_id)
         RUTEmisor = self.format_vat(company_id.vat)
         NroDte = 0
         for rec_id,  documento in DTEs.items():
@@ -667,7 +667,7 @@ version="1.0">
                 resol_data['dte_resolution_number'],
                 self.time_stamp(),
                 dtes,
-                signature_d,SubTotDTE,
+                signature_id.subject_serial_number,SubTotDTE,
             )
         envio_dte = self.create_template_env(dtes)
         envio_dte = self.env['account.invoice'].sudo(self.env.user.id).with_context({'company_id': company_id.id}).sign_full_xml(
@@ -685,8 +685,10 @@ version="1.0">
     def do_dte_send(self, n_atencion=False):
         if not self[0].sii_xml_request or self[0].sii_result in ['Rechazado'] or (self[0].company_id.dte_service_provider == 'SIICERT' and self[0].sii_xml_request.state in ['', 'NoEnviado']):
             for r in self:
-                if r.sii_xml_request:
+                if len(r.sii_xml_request) == 1:
                     r.sii_xml_request.unlink()
+                else:
+                    r.sii_xml_request = False
             envio = self._crear_envio(n_atencion, RUTRecep="60803000-K")
             envio_id = self.env['sii.xml.envio'].create(envio)
             for r in self:
@@ -713,15 +715,15 @@ version="1.0">
                 continue
             partner_id = r.partner_id or r.company_id.partner_id
             token = r.sii_xml_request.get_token(self.env.user, r.company_id)
-            signature_d = self.env.user.get_digital_signature(r.company_id)
+            signature_id = self.env.user.get_digital_signature(r.company_id)
             url = server_url[r.company_id.dte_service_provider] + 'QueryEstDte.jws?WSDL'
             _server = Client(url)
             receptor = r.format_vat(partner_id.commercial_partner_id.vat)
             scheduled_date = fields.Datetime.context_timestamp(r.with_context(tz='America/Santiago'), fields.Datetime.from_string(r.scheduled_date)).strftime("%d-%m-%Y")
             total = str(int(round(r.amount_total,0)))
             sii_code = str(r.location_id.sii_document_class_id.sii_code)
-            respuesta = _server.service.getEstDte(signature_d['subject_serial_number'][:8],
-                                      str(signature_d['subject_serial_number'][-1]),
+            respuesta = _server.service.getEstDte(signature_id.subject_serial_number[:8],
+                                      str(signature_id.subject_serial_number[-1]),
                                       r.company_id.vat[2:-1],
                                       r.company_id.vat[-1],
                                       receptor[:8],

@@ -155,27 +155,27 @@ class SIIXMLEnvio(models.Model):
         return token
 
     def get_token(self, user_id, company_id):
-        signature_d = user_id.get_digital_signature( company_id )
-        seed = self.get_seed( company_id )
-        template_string = self.create_template_seed( seed )
+        signature_id = user_id.get_digital_signature( company_id )
+        seed = self.get_seed(company_id)
+        template_string = self.create_template_seed(seed)
         seed_firmado = self.sign_seed(
                 template_string,
-                signature_d['priv_key'],
-                signature_d['cert'],
+                signature_id.priv_key,
+                signature_id.cert,
             )
         return self._get_token(seed_firmado, company_id)
 
     def init_params(self):
         params = collections.OrderedDict()
-        signature_d = self.user_id.get_digital_signature(self.company_id)
-        if not signature_d:
+        signature_id = self.user_id.get_digital_signature(self.company_id)
+        if not signature_id:
             raise UserError(_('''There is no Signer Person with an \
         authorized signature for you in the system. Please make sure that \
         'user_signature_key' module has been installed and enable a digital \
         signature, for you or make the signer to authorize you to use his \
         signature.'''))
-        params['rutSender'] = signature_d['subject_serial_number'][:8]
-        params['dvSender'] = signature_d['subject_serial_number'][-1]
+        params['rutSender'] = signature_id.subject_serial_number[:8]
+        params['dvSender'] = signature_id.subject_serial_number[-1]
         params['rutCompany'] = self.company_id.vat[2:-1]
         params['dvCompany'] = self.company_id.vat[-1]
         params['archivo'] = (self.name, self.xml_envio, "text/xml")

@@ -86,6 +86,10 @@ class ResPartner(models.Model):
         string="Auto Enviar DTE",
         default=True,
     )
+    acteco_ids = fields.Many2many(
+            'partner.activities',
+            string='Activities Names',
+        )
 
     @api.onchange('dte_email')
     def set_temporal_email_cambiar_a_related(self):

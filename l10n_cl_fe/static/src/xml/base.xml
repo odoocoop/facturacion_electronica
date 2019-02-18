@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates id="template" xml:space="preserve">
+    <t t-name="ProUpgrade">
+        <div class="row">
+            <div class="col-xs-6">
+                Get this feature and much more with a Pro Membershipin OdooCoop.cl!
+                <ul class="list-unstyled">
+                    <li><i class="fa fa-check"></i> Print Ticket on thermal printer</li>
+                    <li><i class="fa fa-check"></i> Set max number lines,  Limite or autogenerate a new document</li>
+                    <li><i class="fa fa-check"></i> Automate Document from Ecommerce</li>
+                    <li><i class="fa fa-check"></i> Bugfixes guarantee</li>
+                    <li><a href="http://odoocoop.cl/" target="_blank"><i class="fa fa-plus"></i> And more</a></li>
+                </ul>
+            </div>
+            <div class="col-xs-6">
+                <img class="img-responsive" t-att-src='_s + "/web/static/src/img/enterprise_upgrade.jpg"' draggable="false"/>
+            </div>
+        </div>
+    </t>
+
+</templates>

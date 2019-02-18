@@ -108,7 +108,7 @@ class LibroGuia(models.Model):
             certf += cert[76 * i:76 * (i + 1)] + '\n'
         return certf
 
-    def create_template_envio(self, RutEmisor, PeriodoTributario, FchResol, NroResol, EnvioDTE,signature_d,TipoLibro='MENSUAL',TipoEnvio='TOTAL',FolioNotificacion="123", IdEnvio='SetDoc'):
+    def create_template_envio(self, RutEmisor, PeriodoTributario, FchResol, NroResol, EnvioDTE,subject_serial_number,TipoLibro='MENSUAL',TipoEnvio='TOTAL',FolioNotificacion="123", IdEnvio='SetDoc'):
         if TipoLibro in ['ESPECIAL']:
             FolioNotificacion = '<FolioNotificacion>{0}</FolioNotificacion>'.format(FolioNotificacion)
         else:
@@ -126,7 +126,7 @@ class LibroGuia(models.Model):
 </Caratula>
 {8}
 </EnvioLibro>
-'''.format(RutEmisor, signature_d['subject_serial_number'], PeriodoTributario,
+'''.format(RutEmisor, subject_serial_number, PeriodoTributario,
            FchResol, NroResol, TipoLibro,TipoEnvio,FolioNotificacion, EnvioDTE,IdEnvio)
         return xml
 
@@ -247,47 +247,6 @@ version="1.0">
         fulldoc = fulldoc if self.xml_validator(fulldoc, type) else ''
         return fulldoc
 
-    def get_digital_signature_pem(self, comp_id):
-        obj = user = False
-        if 'responsable_envio' in self and self._ids:
-            obj = user = self[0].responsable_envio
-        if not obj:
-            obj = user = self.env.user
-        if not obj.cert:
-            obj = self.env['res.users'].search([("authorized_users_ids","=", user.id)])
-            if not obj or not obj.cert:
-                obj = self.env['res.company'].browse([comp_id.id])
-                if not obj.cert or not user.id in obj.authorized_users_ids.ids:
-                    return False
-        signature_data = {
-            'subject_name': obj.name,
-            'subject_serial_number': obj.subject_serial_number,
-            'priv_key': obj.priv_key,
-            'cert': obj.cert,
-            'rut_envia': obj.subject_serial_number
-            }
-        return signature_data
-
-    def get_digital_signature(self, comp_id):
-        obj = user = False
-        if 'responsable_envio' in self and self._ids:
-            obj = user = self[0].responsable_envio
-        if not obj:
-            obj = user = self.env.user
-        _logger.info(obj.name)
-        if not obj.cert:
-            obj = self.env['res.users'].search([("authorized_users_ids","=", user.id)])
-            if not obj or not obj.cert:
-                obj = self.env['res.company'].browse([comp_id.id])
-                if not obj.cert or not user.id in obj.authorized_users_ids.ids:
-                    return False
-        signature_data = {
-            'subject_name': obj.name,
-            'subject_serial_number': obj.subject_serial_number,
-            'priv_key': obj.priv_key,
-            'cert': obj.cert}
-        return signature_data
-
     def get_resolution_data(self, comp_id):
         resolution_data = {
             'dte_resolution_date': comp_id.dte_resolution_date,
@@ -296,8 +255,8 @@ version="1.0">
 
     @api.multi
     def send_xml_file(self, envio_dte=None, file_name="envio",company_id=False):
-        signature_d = self.env.user.get_digital_signature(company_id)
-        if not signature_d:
+        signature_id = self.env.user.get_digital_signature(company_id)
+        if not signature_id:
             raise UserError(_('''There is no Signer Person with an \
         authorized signature for you in the system. Please make sure that \
         'user_signature_key' module has been installed and enable a digital \
@@ -321,8 +280,8 @@ version="1.0">
             'Cookie': 'TOKEN={}'.format(token),
         }
         params = collections.OrderedDict()
-        params['rutSender'] = signature_d['subject_serial_number'][:8]
-        params['dvSender'] = signature_d['subject_serial_number'][-1]
+        params['rutSender'] = signature_id.subject_serial_number[:8]
+        params['dvSender'] = signature_id.subject_serial_number[-1]
         params['rutCompany'] = company_id.vat[2:-1]
         params['dvCompany'] = company_id.vat[-1]
         file_name = file_name + '.xml'
@@ -557,14 +516,14 @@ version="1.0">
         company_id = self.company_id
         dte_service = company_id.dte_service_provider
         try:
-            signature_d = self.get_digital_signature(company_id)
+            signature_id = self.get_digital_signature(company_id)
         except:
             raise UserError(_('''There is no Signer Person with an \
         authorized signature for you in the system. Please make sure that \
         'user_signature_key' module has been installed and enable a digital \
         signature, for you or make the signer to authorize you to use his \
         signature.'''))
-        certp = signature_d['cert'].replace(
+        certp = signature_id.cert.replace(
             BC, '').replace(EC, '').replace('\n', '')
         resumenes = []
         resumenPeriodo = {}
@@ -592,14 +551,15 @@ version="1.0">
         libro = self.create_template_envio( RUTEmisor, self.periodo_tributario,
             resol_data['dte_resolution_date'],
             resol_data['dte_resolution_number'],
-            xml, signature_d,self.tipo_libro,self.tipo_envio,self.folio_notificacion, doc_id)
+            xml, signature_id.subject_serial_number,
+            self.tipo_libro,self.tipo_envio,self.folio_notificacion, doc_id)
         xml  = self.create_template_env(libro)
         root = etree.XML( xml )
         envio_dte = etree.tostring(root, pretty_print=True).decode()\
                 .replace('<item>','\n').replace('</item>','').replace('<itemTraslado>','').replace('</itemTraslado>','\n')
         envio_dte = self.sign_full_xml(
             envio_dte,
-            signature_d['priv_key'],
+            signature_id.priv_key,
             certp,
             doc_id,
             'libro')
@@ -616,7 +576,7 @@ version="1.0">
             'state': result['sii_result'],
             'sii_xml_request':envio_dte})
 
-    def _get_send_status(self, track_id, signature_d,token):
+    def _get_send_status(self, track_id, token):
         url = server_url[self.company_id.dte_service_provider] + 'QueryEstUp.jws?WSDL'
         ns = 'urn:'+ server_url[self.company_id.dte_service_provider] + 'QueryEstUp.jws'
         _server = Client(url, ns)
@@ -636,13 +596,14 @@ version="1.0">
             status = {'warning':{'title':_('Error RCT'), 'message': _(resp['SII:RESPUESTA']['GLOSA'])}}
         return status
 
-    def _get_dte_status(self, signature_d, token):
+    def _get_dte_status(self, token):
+        signature_id = self.env.user.get_digital_signature(self.company_id)
         url = server_url[self.company_id.dte_service_provider] + 'QueryEstDte.jws?WSDL'
         ns = 'urn:'+ server_url[self.company_id.dte_service_provider] + 'QueryEstDte.jws'
         _server = Client(url, ns)
         receptor = self.format_vat(self.partner_id.vat or self.company_id.partner_id.vat)
         date_invoice = datetime.strptime(self.date_invoice, "%Y-%m-%d").strftime("%d-%m-%Y")
-        respuesta = _server.getEstDte(signature_d['subject_serial_number'][:8], str(signature_d['subject_serial_number'][-1]),
+        respuesta = _server.getEstDte(signature_id.subject_serial_number[:8], str(signature_id.subject_serial_number[-1]),
                 self.company_id.vat[2:-1],self.company_id.vat[-1], receptor[:8],receptor[2:-1],str(self.document_class_id.sii_code), str(self.sii_document_number),
                 date_invoice, str(self.amount_total),token)
         self.sii_message = respuesta
@@ -662,19 +623,18 @@ version="1.0">
     @api.multi
     def ask_for_dte_status(self):
         try:
-            signature_d = self.get_digital_signature_pem(
-                self.company_id)
+            signature_id = self.env.user.get_digital_signature(self.company_id)
             seed = self.get_seed(self.company_id)
             template_string = self.create_template_seed(seed)
             seed_firmado = self.sign_seed(
-                template_string, signature_d['priv_key'],
-                signature_d['cert'])
+                template_string, signature_id.priv_key,
+                signature_id.cert)
             token = self.get_token(seed_firmado,self.company_id)
         except:
             raise UserError(connection_status[response.e])
         xml_response = xmltodict.parse(self.sii_xml_response)
         if self.state == 'Enviado':
-            status = self._get_send_status(self.sii_send_ident, signature_d, token)
+            status = self._get_send_status(self.sii_send_ident, token)
             if self.state != 'Proceso':
                 return status
-        return self._get_dte_status(signature_d, token)
+        return self._get_dte_status(token)

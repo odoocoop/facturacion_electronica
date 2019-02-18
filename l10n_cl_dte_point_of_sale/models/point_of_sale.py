@@ -216,6 +216,10 @@ class POS(models.Model):
             readonly=True,
             states={'draft': [('readonly', False)]},
         )
+    sii_message = fields.Text(
+            string='SII Message',
+            copy=False,
+        )
 
     @api.model
     def _amount_line_tax(self, line, fiscal_position_id):
@@ -233,7 +237,7 @@ class POS(models.Model):
         return certf
 
     def create_template_envio(self, RutEmisor, RutReceptor, FchResol, NroResol,
-                              TmstFirmaEnv, EnvioDTE,signature_d,SubTotDTE):
+                              TmstFirmaEnv, EnvioDTE,subject_serial_number,SubTotDTE):
         xml = '''<SetDTE ID="SetDoc">
 <Caratula version="1.0">
 <RutEmisor>{0}</RutEmisor>
@@ -244,7 +248,7 @@ class POS(models.Model):
 <TmstFirmaEnv>{5}</TmstFirmaEnv>
 {6}</Caratula>{7}
 </SetDTE>
-'''.format(RutEmisor, signature_d['subject_serial_number'], RutReceptor,
+'''.format(RutEmisor, subject_serial_number, RutReceptor,
            FchResol, NroResol, TmstFirmaEnv, SubTotDTE, EnvioDTE)
         return xml
 
@@ -500,7 +504,7 @@ version="1.0">
             Emisor['RznSoc'] = self.company_id.partner_id.name
             Emisor['GiroEmis'] = self._acortar_str(self.company_id.activity_description.name, 80)
             Emisor['Telefono'] = self.company_id.phone or ''
-            Emisor['CorreoEmisor'] = self.company_id.dte_email
+            Emisor['CorreoEmisor'] = self.company_id.dte_email_id.name
             Emisor['item'] = self._giros_emisor()
         if self.sale_journal.sucursal_id:
             Emisor['Sucursal'] = self.sale_journal.sucursal_id.name
@@ -794,7 +798,7 @@ version="1.0">
         SubTotDTE = {}
         documentos = {}
         resol_data = self.get_resolution_data(company_id)
-        signature_d = self.env.user.get_digital_signature(company_id)
+        signature_id = self.env.user.get_digital_signature(company_id)
         RUTEmisor = self.format_vat(company_id.vat)
 
         for id_class_doc, classes in clases.items():
@@ -803,13 +807,13 @@ version="1.0">
             for documento in classes:
                 documentos[id_class_doc] += '\n' + documento['envio']
                 NroDte += 1
-                if not str(id_class_doc) in file_name:
-                    file_name[str(id_class_doc)]
+                if not file_name.get(str(id_class_doc)):
+                    file_name[str(id_class_doc)] = ''
                 file_name[str(id_class_doc)] += 'F' + str(int(documento['sii_document_number'])) + 'T' + str(id_class_doc)
             SubTotDTE[id_class_doc] = '<SubTotDTE>\n<TpoDTE>' + str(id_class_doc) + '</TpoDTE>\n<NroDTE>'+str(NroDte)+'</NroDTE>\n</SubTotDTE>\n'
-        file_name += ".xml"
         # firma del sobre
         RUTRecep = "60803000-K" # RUT SII
+        to_return = False
         for id_class_doc, documento in documentos.items():
             dtes = self.create_template_envio(
                 RUTEmisor,
@@ -818,11 +822,11 @@ version="1.0">
                 resol_data['dte_resolution_number'],
                 self.time_stamp(),
                 documento,
-                signature_d,
+                signature_id.subject_serial_number,
                 SubTotDTE[id_class_doc] )
             env = 'env'
             if self._es_boleta(id_class_doc):
-                envio_dte  = self.create_template_env_boleta(dtes)
+                envio_dte = self.create_template_env_boleta(dtes)
                 env = 'env_boleta'
             else:
                 envio_dte  = self.create_template_env(dtes)
@@ -833,23 +837,27 @@ version="1.0">
                 )
             envio_id = self.env['sii.xml.envio'].create(
                     {
-                        'sii_xml_request': '<?xml version="1.0" encoding="ISO-8859-1"?>\n' + envio_dte,
-                        'name': file_name[str(id_class_doc)],
+                        'xml_envio': '<?xml version="1.0" encoding="ISO-8859-1"?>\n' + envio_dte,
+                        'name': file_name[str(id_class_doc)] + '.xml',
                         'company_id': company_id.id,
                         'user_id': self.env.uid,
                     }
                 )
+            if not to_return:
+                to_return = envio_id
             if env == 'env':
                 envio_id.send_xml()
+                to_return = envio_id
             for order in self:
                 if order.document_class_id.sii_code == id_class_doc:
-                    order.sii_xml_request = envio_dte.id
+                    order.sii_xml_request = envio_id.id
+        return to_return
 
     @api.onchange('sii_message')
     def get_sii_result(self):
         for r in self:
             if r.sii_message:
-                r.sii_result = r.sii_xml_request.process_response_xml(xmltodict.parse(r.sii_message))
+                r.sii_result = self.env['account.invoice'].process_response_xml(xmltodict.parse(r.sii_message))
                 continue
             if r.sii_xml_request.state == 'NoEnviado':
                 r.sii_result = 'EnCola'
@@ -863,10 +871,14 @@ version="1.0">
             token = r.sii_xml_request.get_token(self.env.user, r.company_id)
             url = server_url[r.company_id.dte_service_provider] + 'QueryEstDte.jws?WSDL'
             _server = Client(url)
-            receptor = r.format_vat(r.commercial_partner_id.vat)
-            date_invoice = datetime.strptime(r.date_invoice, "%Y-%m-%d").strftime("%d-%m-%Y")
-            signature_d = self.env.user.get_digital_signature(r.company_id)
-            rut = signature_d['subject_serial_number']
+            receptor = r.format_vat(r.partner_id.vat)
+            util_model = self.env['cl.utils']
+            fields_model = self.env['ir.fields.converter']
+            from_zone = pytz.UTC
+            to_zone = pytz.timezone('America/Santiago')
+            date_order = util_model._change_time_zone(datetime.strptime(r.date_order, DTF), from_zone, to_zone).strftime(DTF)
+            signature_id = self.env.user.get_digital_signature(r.company_id)
+            rut = signature_id.subject_serial_number
             respuesta = _server.service.getEstDte(
                 rut[:8],
                 str(rut[-1]),
@@ -876,7 +888,7 @@ version="1.0">
                 receptor[-1],
                 str(r.document_class_id.sii_code),
                 str(r.sii_document_number),
-                date_invoice,
+                date_order,
                 str(int(r.amount_total)),
                 token,
             )

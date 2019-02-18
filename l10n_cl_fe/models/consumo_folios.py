@@ -384,7 +384,9 @@ class ConsumoFolios(models.Model):
             certf += cert[76 * i:76 * (i + 1)] + '\n'
         return certf
 
-    def create_template_envio(self, RutEmisor, FchResol, NroResol, FchInicio, FchFinal, Correlativo, SecEnvio, EnvioDTE, signature_d, IdEnvio='SetDoc'):
+    def create_template_envio(self, RutEmisor, FchResol, NroResol, FchInicio,\
+                               FchFinal, Correlativo, SecEnvio, EnvioDTE,\
+                               subject_serial_number, IdEnvio='SetDoc'):
         if Correlativo != 0:
             Correlativo = "<Correlativo>"+str(Correlativo)+"</Correlativo>"
         else:
@@ -402,7 +404,7 @@ class ConsumoFolios(models.Model):
 </Caratula>
 {9}
 </DocumentoConsumoFolios>
-'''.format(RutEmisor, signature_d['subject_serial_number'],
+'''.format(RutEmisor, subject_serial_number,
            FchResol, NroResol, FchInicio, FchFinal, str(Correlativo), str(SecEnvio), self.time_stamp(), EnvioDTE,  IdEnvio)
         return xml
 
@@ -499,38 +501,6 @@ version="1.0">
         fulldoc = fulldoc
         fulldoc = '<?xml version="1.0" encoding="ISO-8859-1"?>\n'+fulldoc if self.xml_validator(fulldoc, type) else ''
         return fulldoc
-
-    def get_digital_signature_pem(self, comp_id):
-        obj = self.env['res.users'].browse([self.env.user.id])
-        if not obj.cert:
-            obj = self.env['res.company'].browse([comp_id.id])
-            if not obj.cert:
-                obj = self.env['res.users'].search(domain=[("authorized_users_ids","=", self.env.user.id)])
-            if not obj.cert or not self.env.user.id in obj.authorized_users_ids.ids:
-                return False
-        signature_data = {
-            'subject_name': obj.name,
-            'subject_serial_number': obj.subject_serial_number,
-            'priv_key': obj.priv_key,
-            'cert': obj.cert,
-            'rut_envia': obj.subject_serial_number
-            }
-        return signature_data
-
-    def get_digital_signature(self, comp_id):
-        obj = self.env['res.users'].browse([self.env.user.id])
-        if not obj.cert:
-            obj = self.env['res.company'].browse([comp_id.id])
-            if not obj.cert:
-                obj = self.env['res.users'].search(domain=[("authorized_users_ids","=", self.env.user.id)])
-            if not obj.cert or not self.env.user.id in obj.authorized_users_ids.ids:
-                return False
-        signature_data = {
-            'subject_name': obj.name,
-            'subject_serial_number': obj.subject_serial_number,
-            'priv_key': obj.priv_key,
-            'cert': obj.cert}
-        return signature_data
 
     def get_resolution_data(self, comp_id):
         resolution_data = {
@@ -823,14 +793,14 @@ version="1.0">
         cant_doc_batch = 0
         company_id = self.company_id
         dte_service = company_id.dte_service_provider
-        signature_d = self.env.user.get_digital_signature(self.company_id)
-        if not signature_d:
+        signature_id = self.env.user.get_digital_signature(self.company_id)
+        if not signature_id:
             raise UserError(_('''There is no Signer Person with an \
         authorized signature for you in the system. Please make sure that \
         'user_signature_key' module has been installed and enable a digital \
         signature, for you or make the signer to authorize you to use his \
         signature.'''))
-        certp = signature_d['cert'].replace(
+        certp = signature_id.cert.replace(
             BC, '').replace(EC, '').replace('\n', '')
         resumenes, TpoDocs = self._get_resumenes(marc=True)
         Resumen=[]
@@ -876,7 +846,7 @@ version="1.0">
             Correlativo,
             SecEnvio,
             xml,
-            signature_d,
+            signature_id.subject_serial_number,
             doc_id)
         xml  = self.create_template_env(cf)
         root = etree.XML( xml )
@@ -890,7 +860,7 @@ version="1.0">
         	xml_pret = xml_pret.replace('<key name="'+str(TpoDoc)+'_folios">','').replace('</key>','\n').replace('<key name="'+str(TpoDoc)+'_folios"/>','\n')
         envio_dte = self.sign_full_xml(
             xml_pret,
-            signature_d['priv_key'],
+            signature_id.priv_key,
             certp,
             doc_id,
             'consu')

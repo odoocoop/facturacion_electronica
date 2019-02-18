@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<odoo>
+     <template id="l10n_cl_fe" name="l10n_cl_fe" inherit_id="web.assets_common">
+          <xpath expr="." position="inside">
+            <script src="/l10n_cl_fe/static/src/js/upgrade_fields.js"></script>
+          </xpath>
+      </template>
+</odoo>

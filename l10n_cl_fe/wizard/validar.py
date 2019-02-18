@@ -183,7 +183,7 @@ class ValidarDTEWizard(models.TransientModel):
                 if att:
                     values = {
                         'model_id': doc.id,
-                        'email_from': doc.company_id.dte_email,
+                        'email_from': doc.company_id.dte_email_id.name,
                         'email_to': doc.dte_id.sudo().mail_id.email_from ,
                         'auto_delete': False,
                         'model': "mail.message.dte.document",
@@ -316,20 +316,20 @@ class ValidarDTEWizard(models.TransientModel):
         for inv in self.invoice_ids:
             if inv.claim in ['ACD', 'RCD']:
                 continue
-            signature_d = self.env['res.users'].browse(SUPERUSER_ID).get_digital_signature(inv.company_id)
-            if not signature_d:
+            signature_id = self.env['res.users'].browse(SUPERUSER_ID).get_digital_signature(inv.company_id)
+            if not signature_id:
                 raise UserError(_('''There is no Signer Person with an \
             authorized signature for you in the system. Please make sure that \
             'user_signature_key' module has been installed and enable a digital \
             signature, for you or make the signer to authorize you to use his \
             signature.'''))
-            certp = signature_d['cert'].replace(
+            certp = signature_id.cert.replace(
                 BC,
                 '',
             ).replace(EC, '').replace('\n', '')
             dict_recept = self._recep(
                 inv,
-                signature_d['subject_serial_number'],
+                signature_id.subject_serial_number,
             )
             id = "T" + str(inv.sii_document_class_id.sii_code) + "F" + str(inv.get_folio())
             doc = '''

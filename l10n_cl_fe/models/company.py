@@ -6,7 +6,6 @@ import re
 class DTECompany(models.Model):
     _inherit = 'res.company'
 
-
     def _get_default_tp_type(self):
         try:
             return self.env.ref('l10n_cl_fe.res_IVARI')
@@ -19,9 +18,11 @@ class DTECompany(models.Model):
         except:
             return self.env['sii.document_type']
 
-    dte_email = fields.Char(
-            string='DTE Email',
-            related='partner_id.dte_email'
+    dte_email_id = fields.Many2one(
+            'mail.alias',
+            string='DTE EMail',
+            ondelete="restrict",
+            help="The email address associated with electronica invoice, where all emails vendors would send Exchange DTE, for automatic reception in Odoo."
     )
     dte_service_provider = fields.Selection(
             (
@@ -55,8 +56,7 @@ stamp to be legally valid.''',
         )
     company_activities_ids = fields.Many2many(
             'partner.activities',
-            id1='company_id', 
-            id2='activities_id',
+            related="partner_id.acteco_ids",
             string='Activities Names',
         )
     responsability_id = fields.Many2one(
@@ -131,7 +131,7 @@ stamp to be legally valid.''',
             vat = 'CL%s' % document_number
             exist = self.env['res.partner'].search(
                 [
-                    ('vat','=', vat),
+                    ('vat', '=', vat),
                     ('vat', '!=',  'CL555555555'),
                     ('commercial_partner_id', '!=', self.id ),
                 ],

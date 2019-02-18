@@ -9,6 +9,30 @@
       <xpath expr="//div[hasclass('settings')]" position="inside">
         <div class="app_settings_block" data-string="Electronic Invoice" string="Facturación Electrónica" data-key="account_electronic_invoicing" >
           <div >
+            <h2 class="mt32">Firmas Electrónica (Certificados digitales)</h2>
+            <div class="row mt16 o_settings_container">
+              <div class="col-xs-12 col-md-6 o_setting_box" title="Configure firmas electrónicas y usuarios autorizados a usarlas." id="firmas">
+                  <div class="o_setting_left_pane" />
+                  <div class="o_setting_right_pane">
+                      <div class="content-group">
+                          <div class="mt16">
+                              <button name="%(l10n_cl_fe.action_sii_firma_form)d" icon="fa-arrow-right" type="action" string="Firmas Electrónica" class="btn-link"/>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+              <div class="col-xs-12 col-md-6 o_setting_box" id="dte_email_id">
+                  <div class="o_setting_left_pane">
+                  </div>
+                  <div class="o_setting_right_pane">
+                      <label for="dte_email_id"/>
+                      <field name="dte_email_id" />
+                      <div class="text-muted">
+                          Select an Alias where all vendor's exchange email dte will send and processed by odoo
+                      </div>
+                  </div>
+              </div>
+            </div>
             <h2>Envío Automático</h2>
             <div class="row mt16 o_settings_container">
               <div class="col-xs-12 col-md-6 o_setting_box" id="envio_dte">
@@ -30,6 +54,43 @@
                     <label string="Auto Enviar Email" for="auto_send_email"/>
                     <div class="text-muted">
                        Auto Enviar Email al enviar DTE al Cliente
+                    </div>
+                </div>
+              </div>
+            </div>
+            <h2>Mantenedores</h2>
+            <div class="row mt16 o_settings_container">
+              <div class="col-xs-12 col-md-6 o_setting_box" id="caf_files">
+                <div class="o_setting_left_pane" />
+                <div class="o_setting_right_pane" name="caf_files_right_pane">
+                    <div class="text-muted">
+                       Listado de todos los archivos CAF Subidos (Modo avanzado)
+                    </div>
+                    <button name="%(l10n_cl_fe.action_caf_files)d" icon="fa-arrow-right" type="action" string="Archivos CAF" class="btn-link"/>
+                </div>
+              </div>
+              <div class="col-xs-12 col-md-6 o_setting_box" id="envio_email">
+                <div class="o_setting_left_pane">
+                    <field name="auto_send_email" />
+                </div>
+                <div class="o_setting_right_pane" name="envios_right_pane">
+                    <label string="Auto Enviar Email" for="auto_send_email"/>
+                    <div class="text-muted">
+                       Auto Enviar Email al enviar DTE al Cliente
+                    </div>
+                </div>
+              </div>
+            </div>
+            <h2>Otras Opciones</h2>
+            <div class="row mt16 o_settings_container">
+              <div class="col-xs-12 col-md-6 o_setting_box" id="limit_dte_lines">
+                <div class="o_setting_left_pane">
+                    <field name="limit_dte_lines" widget="upgrade_odoocoop_boolean"/>
+                </div>
+                <div class="o_setting_right_pane" name="limit_dte_lines_right_pane">
+                    <label string="Limitar Líenas" for="limit_dte_lines"/>
+                    <div class="text-muted">
+                       Limitar la cantidad de líneas por documento (legalmente debe ser una por hoja)
                     </div>
                 </div>
               </div>

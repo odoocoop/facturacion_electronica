@@ -17,7 +17,7 @@ class ColaEnvio(models.Model):
 
     def _procesar_tipo_trabajo(self):
         if self.tipo_trabajo in [ 'cesion', 'cesion_consulta' ]:
-            docs = self.env[self.model].browse(ast.literal_eval(self.doc_ids))
+            docs = self.env[self.model].sudo(self.user_id.id).browse(ast.literal_eval(self.doc_ids))
             if self.tipo_trabajo == 'cesion':
                 try:
                     docs.cesion_dte_send()

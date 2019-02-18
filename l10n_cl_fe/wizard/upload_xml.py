@@ -11,9 +11,6 @@ import dicttoxml
 
 _logger = logging.getLogger(__name__)
 
-BC = '''-----BEGIN CERTIFICATE-----\n'''
-EC = '''\n-----END CERTIFICATE-----\n'''
-
 
 class UploadXMLWizard(models.TransientModel):
     _name = 'sii.dte.upload_xml.wizard'
@@ -21,8 +18,8 @@ class UploadXMLWizard(models.TransientModel):
 
     action = fields.Selection(
         [
-            ('create_po','Crear Orden de Pedido y Factura'),
-            ('create','Crear Solamente Factura'),
+            ('create_po', 'Crear Orden de Pedido y Factura'),
+            ('create', 'Crear Solamente Factura'),
         ],
         string="Acción",
         default="create",
@@ -372,7 +369,7 @@ class UploadXMLWizard(models.TransientModel):
             if att:
                 values = {
                     'model_id': self.dte_id.id,
-                    'email_from': self.dte_id.company_id.dte_email,
+                    'email_from': self.dte_id.company_id.dte_email_id.name,
                     'email_to': self.sudo().dte_id.mail_id.email_from,
                     'auto_delete': False,
                     'model': "mail.message.dte",

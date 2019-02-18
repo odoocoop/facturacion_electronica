@@ -413,7 +413,11 @@ class Libro(models.Model):
             certf += cert[76 * i:76 * (i + 1)] + '\n'
         return certf
 
-    def create_template_envio(self, RutEmisor, PeriodoTributario, FchResol, NroResol, EnvioDTE,signature_d,TipoOperacion='VENTA',TipoLibro='MENSUAL',TipoEnvio='TOTAL',FolioNotificacion="123", IdEnvio='SetDoc'):
+    def create_template_envio(self, RutEmisor, PeriodoTributario, FchResol,\
+                              NroResol, EnvioDTE, subject_serial_number,\
+                              TipoOperacion='VENTA',TipoLibro='MENSUAL',\
+                              TipoEnvio='TOTAL',FolioNotificacion="123",\
+                              IdEnvio='SetDoc'):
         if TipoOperacion == 'BOLETA' and TipoLibro not in ['ESPECIAL', 'RECTIFICA']:
             raise UserError("Boletas debe ser solamente Tipo Operación ESPECIAL")
         CodigoRectificacion = ''
@@ -441,7 +445,7 @@ class Libro(models.Model):
 {9}
 </EnvioLibro>
 '''.format(RutEmisor,
-           signature_d['subject_serial_number'],
+           subject_serial_number,
            PeriodoTributario,
            FchResol,
            NroResol,
@@ -602,8 +606,8 @@ version="1.0">
 
     @api.multi
     def send_xml_file(self, envio_dte=None, file_name="envio",company_id=False):
-        signature_d = self.env.user.get_digital_signature(company_id)
-        if not signature_d:
+        signature_id = self.env.user.get_digital_signature(company_id)
+        if not signature_id:
             raise UserError(_('''There is no Signer Person with an \
         authorized signature for you in the system. Please make sure that \
         'user_signature_key' module has been installed and enable a digital \
@@ -627,8 +631,8 @@ version="1.0">
             'Cookie': 'TOKEN={}'.format(token),
         }
         params = collections.OrderedDict()
-        params['rutSender'] = signature_d['subject_serial_number'][:8]
-        params['dvSender'] = signature_d['subject_serial_number'][-1]
+        params['rutSender'] = signature_id.subject_serial_number[:8]
+        params['dvSender'] = signature_id.subject_serial_number[-1]
         params['rutCompany'] = company_id.vat[2:-1]
         params['dvCompany'] = company_id.vat[-1]
         file_name = file_name + '.xml'
@@ -1154,14 +1158,14 @@ version="1.0">
     def _validar(self):
         dicttoxml.set_debug(False)
         company_id = self.company_id
-        signature_d = self.env.user.get_digital_signature(self.company_id)
-        if not signature_d:
+        signature_id = self.env.user.get_digital_signature(self.company_id)
+        if not signature_id:
             raise UserError(_('''There is no Signer Person with an \
         authorized signature for you in the system. Please make sure that \
         'user_signature_key' module has been installed and enable a digital \
         signature, for you or make the signer to authorize you to use his \
         signature.'''))
-        certp = signature_d['cert'].replace(
+        certp = signature_id.cert.replace(
             BC, '').replace(EC, '').replace('\n', '')
         resumenes = []
         resumenesPeriodo = {}
@@ -1231,10 +1235,18 @@ version="1.0">
         xml = dicttoxml.dicttoxml(
             dte, root=False, attr_type=False).decode()
         doc_id =  self.tipo_operacion+'_'+self.periodo_tributario
-        libro = self.create_template_envio( RUTEmisor, self.periodo_tributario,
-            resol_data['dte_resolution_date'],
-            resol_data['dte_resolution_number'],
-            xml, signature_d,self.tipo_operacion,self.tipo_libro,self.tipo_envio,self.folio_notificacion, doc_id)
+        libro = self.create_template_envio(
+                    RUTEmisor,
+                    self.periodo_tributario,
+                    resol_data['dte_resolution_date'],
+                    resol_data['dte_resolution_number'],
+                    xml,
+                    signature_id.subjec_serial_number,
+                    self.tipo_operacion,
+                    self.tipo_libro,
+                    self.tipo_envio,
+                    self.folio_notificacion,
+                    doc_id)
         xml  = self.create_template_env(libro)
         env = 'libro'
         if self.tipo_operacion in['BOLETA']:
@@ -1250,7 +1262,7 @@ version="1.0">
                 .replace('_no_rec','')
         envio_dte = self.sign_full_xml(
             xml_pret,
-            signature_d['priv_key'],
+            signature_id.priv_key,
             certp,
             doc_id,
             env)
