@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from ast import literal_eval
-
 from odoo import api, fields, models
+from openerp.exceptions import UserError
 
 
 class ResConfigSettings(models.TransientModel):
@@ -42,6 +42,8 @@ class ResConfigSettings(models.TransientModel):
     def set_values(self):
         super(ResConfigSettings, self).set_values()
         ICPSudo = self.env['ir.config_parameter'].sudo()
+        if self.dte_email_id and not self.default_external_email_server:
+            raise UserError('Debe Cofigurar Servidor de Correo Externo en la pestaña Opciones Generales')
         ICPSudo.set_param('account.auto_send_dte', self.auto_send_dte)
         ICPSudo.set_param('account.auto_send_email', self.auto_send_email)
         ICPSudo.set_param('account.limit_dte_lines', self.limit_dte_lines)

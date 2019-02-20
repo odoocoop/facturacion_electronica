@@ -1552,7 +1552,7 @@ version="1.0">
             Emisor['GiroEmis'] = self._acortar_str(self.company_id.activity_description.name, 80)
             if self.company_id.phone:
                 Emisor['Telefono'] = self._acortar_str(self.company_id.phone, 20)
-            Emisor['CorreoEmisor'] = self.company_id.dte_email_id.name
+            Emisor['CorreoEmisor'] = self.company_id.dte_email_id.name_get()[0][1]
             Emisor['item'] = self._actecos_emisor()
         if self.journal_id.sucursal_id:
             Emisor['Sucursal'] = self._acortar_str(self.journal_id.sucursal_id.name, 20)
@@ -2266,7 +2266,7 @@ version="1.0">
             if not dte_email.send_dte:
                 continue
             values = {
-                'email_from': self.company_id.dte_email_id.name,
+                'email_from': self.company_id.dte_email_id.name_get()[0][1],
                 'email_to': dte_email.name,
                 'auto_delete': False,
                 'model': 'account.invoice',

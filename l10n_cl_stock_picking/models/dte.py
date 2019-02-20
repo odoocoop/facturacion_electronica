@@ -370,7 +370,7 @@ version="1.0">
         Emisor['RznSoc'] = self.company_id.partner_id.name
         Emisor['GiroEmis'] = self._acortar_str(self.company_id.activity_description.name, 80)
         Emisor['Telefono'] = self._acortar_str(self.company_id.phone or '', 20)
-        Emisor['CorreoEmisor'] = self.company_id.dte_email_id.name
+        Emisor['CorreoEmisor'] = self.company_id.dte_email_id.name_get()[0][1]
         Emisor['item'] = self._giros_emisor()
         if self.location_id.sii_code:
             Emisor['CdgSIISucur'] = self.location_id.sii_code

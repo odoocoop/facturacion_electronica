@@ -183,7 +183,7 @@ class ValidarDTEWizard(models.TransientModel):
                 if att:
                     values = {
                         'model_id': doc.id,
-                        'email_from': doc.company_id.dte_email_id.name,
+                        'email_from': doc.company_id.dte_email_id.name_get()[0][1],
                         'email_to': doc.dte_id.sudo().mail_id.email_from ,
                         'auto_delete': False,
                         'model': "mail.message.dte.document",
