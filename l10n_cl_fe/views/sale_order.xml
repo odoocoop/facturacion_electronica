@@ -11,6 +11,16 @@
                     domain="[('id', 'in', acteco_ids)]" 
                     options="{'no_open': True, 'no_create': True}"/>
 			</field>
+			<group name="technical" position="after">
+                  <field name="referencia_ids" mode="tree">
+                    <tree editable="bottom">
+                    	<field name="fecha_documento"/>
+                      	<field name="folio" required="True"/>
+                      	<field name="sii_referencia_TpoDocRef" required="True" />
+                      	<field name="motivo"/>
+                    </tree>
+                  </field>
+            </group>
 		</field>
 	</record>
 </odoo>

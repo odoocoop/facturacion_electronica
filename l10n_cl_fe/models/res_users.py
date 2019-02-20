@@ -13,9 +13,9 @@ class ResUsers(models.Model):
     def get_digital_signature(self, company_id):
         return self.env['sii.firma'].search(
             [
-                ('authorized_users_ids', 'child_of', [self.id]),
-                ('company_id', 'child_of', [company_id.id]),
-                ('state', '=', 'valid'),
+                ('user_ids', 'child_of', [self.id]),
+                ('company_ids', 'child_of', [company_id.id]),
+                ('state', '=', 'valid')
             ],
             limit=1,
             order="priority ASC",

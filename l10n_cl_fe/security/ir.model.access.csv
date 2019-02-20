@@ -53,3 +53,5 @@ edit_account_invoice_gdr,edit_account_invoice_gdr,model_account_invoice_gdr,acco
 access_account_invoice_gdr,access_account_invoice_gdr,model_account_invoice_gdr,,1,0,0,0
 edit_sii_xml_envio,edit_sii_xml_envio,model_sii_xml_envio,account.group_account_invoice,1,1,1,1
 access_sii_xml_envio,access_sii_xml_envio,model_sii_xml_envio,,1,0,0,0
+access_sale_order_referencias_manager,sale_order_referencias_manager,model_sale_order_referencias,account.group_account_manager,1,1,1,1
+access_sale_order_referencias_user,sale_order_referencias_user,model_sale_order_referencias,,1,1,1,1

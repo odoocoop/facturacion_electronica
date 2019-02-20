@@ -123,8 +123,8 @@ class ResPartner(models.Model):
         else:
             for r in self.child_ids:
                 if r.type == 'dte':
-                    r.email = self.email_dte
-                    r.name = self.email_dte
+                    r.email = self.dte_email
+                    r.name = self.dte_email
 
     @api.onchange('principal')
     def verify_principal(self):
@@ -143,7 +143,7 @@ class ResPartner(models.Model):
 
     #def create(self, vals):
     #    partner = super(ResPartner, self).create(vals)
-    #    if vals.get('email_dte'):
+    #    if vals.get('dte_email'):
     #        dte_email_id = self.env['res.partner'].create(
     #                              {
     #                                  'parent_id': self.id,

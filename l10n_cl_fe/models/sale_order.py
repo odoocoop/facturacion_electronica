@@ -13,11 +13,27 @@ class SO(models.Model):
         'partner.activities',
         string='Partner Activity',
     )
+    referencia_ids = fields.One2many(
+        'sale.order.referencias',
+        'so_id',
+        string="Referencias de documento"
+    )
 
     @api.multi
     def _prepare_invoice(self):
         vals = super(SO, self)._prepare_invoice()
         if self.acteco_id:
             vals['acteco_id'] = self.acteco_id.id
+        if self.referencia_ids:
+            vals['referencias'] = []
+            for ref in self.referencia_ids:
+                vals['referencias'].append(
+                    (0, 0, {
+                        'origen': ref.folio,
+                        'sii_referencia_TpoDocRef': ref.sii_referencia_TpoDocRef.id,
+                        'motivo': ref.motivo,
+                        'fecha_documento': ref.fecha_documento,
+                    })
+                )
         return vals
 

@@ -18,6 +18,7 @@ from . import res_city
 from . import res_state_region
 from . import res_state
 from . import res_users
+from . import sale_order_referencias
 from . import sale_order
 from . import sii
 from . import sii_activity_description
