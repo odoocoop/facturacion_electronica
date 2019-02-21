@@ -102,6 +102,7 @@ class userSignature(models.Model):
     )
 
     _sql_constraints = [('name', 'unique(name, subject_serial_number)', 'Name must be unique!'), ]
+    _order = 'priority DESC'
 
     @api.multi
     def action_process(self):

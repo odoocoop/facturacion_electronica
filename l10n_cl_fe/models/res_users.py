@@ -21,5 +21,7 @@ class ResUsers(models.Model):
             order="priority ASC",
         )
         signature.check_signature()
-        return signature
+        if signature and signature.active:
+            return signature
+        return self.env['sii.firma']
 
