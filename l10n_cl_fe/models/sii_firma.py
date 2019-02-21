@@ -23,7 +23,7 @@ class userSignature(models.Model):
                 continue
             expired = datetime.strptime(s.expire_date, '%Y-%m-%d') < datetime.now()
             s.state = 'expired' if expired else 'valid'
-            s.active = expired
+            s.active = not expired
 
     name = fields.Char(
             string='File Name',
