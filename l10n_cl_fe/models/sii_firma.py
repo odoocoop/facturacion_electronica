@@ -99,9 +99,9 @@ class userSignature(models.Model):
     )
     active = fields.Boolean(
         string="Active",
-        compute='check_signature',
-        store=True,
     )
+
+    _sql_constraints = [('name', 'unique(name, subject_serial_number)', 'Name must be unique!'), ]
 
     @api.multi
     def action_process(self):
