@@ -1241,7 +1241,7 @@ version="1.0">
                     resol_data['dte_resolution_date'],
                     resol_data['dte_resolution_number'],
                     xml,
-                    signature_id.subjec_serial_number,
+                    signature_id.subject_serial_number,
                     self.tipo_operacion,
                     self.tipo_libro,
                     self.tipo_envio,

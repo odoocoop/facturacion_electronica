@@ -389,7 +389,7 @@ class AccountInvoice(models.Model):
     activity_description = fields.Many2one(
             'sii.activity.description',
             string="Giro",
-            related="partner_id.activity_description",
+            related="commercial_partner_id.activity_description",
             readonly=True,
     )
     amount_untaxed_global_discount = fields.Float(
