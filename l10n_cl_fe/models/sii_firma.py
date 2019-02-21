@@ -100,6 +100,7 @@ class userSignature(models.Model):
     active = fields.Boolean(
         string="Active",
         compute='check_signature',
+        store=True,
     )
 
     @api.multi

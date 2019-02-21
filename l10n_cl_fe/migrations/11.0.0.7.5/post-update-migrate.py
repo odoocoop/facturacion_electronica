@@ -18,8 +18,8 @@ def migrate(cr, installed_version):
             for row_u in cr.dictfetchall():
                 users.append(row_u['res_users_id'])
         env = api.Environment(cr, SUPERUSER_ID, {})
-        firma = env['self.firma'].create({
-                    'file_content': row['key_file_temp'],
+        firma = env['sii.firma'].create({
+                    'file_content': row['key_file_temp'].tobytes(),
                     'name': row['filename_temp'],
                     'company_ids': [row['company_id']],
                     'user_ids': users,
@@ -27,7 +27,7 @@ def migrate(cr, installed_version):
                     'active': True,
                     'state': 'unverified',
         })
-        firma.action_process()
+        #firma.action_process()
     cr.execute(
         "SELECT filename_temp, key_file_temp, company_id, id as user_id FROM res_users ru WHERE ru.key_file_temp!=''")
     for row in cr.dictfetchall():

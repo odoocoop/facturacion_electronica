@@ -47,8 +47,8 @@
                             <span t-field="company.name"/>
                         </h4>
                         <p style="text-align:center;font-size:14px;color:black; text-transform:uppercase;">
-                          <t t-if="o.partner_activity_id">
-                            <span t-field="o.partner_activity_id.name" style="color:black; text-align:center;"/><br/>
+                          <t t-if="o.acteco_id">
+                            <span t-field="o.acteco_id.name" style="color:black; text-align:center;"/><br/>
                           </t>
                           <t t-else="company.activity_description">
                             <span t-field="company.activity_description.name" style="color:black; text-align:center;"/><br/>
