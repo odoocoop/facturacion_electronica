@@ -179,11 +179,10 @@ class ValidarDTEWizard(models.TransientModel):
                 model="mail.message.dte.document",
             )
             partners = doc.partner_id.ids
-            if not doc.partner_id:
-                if att:
-                    values = {
-                        'model_id': doc.id,
-                        'email_from': doc.company_id.dte_email_id.name_get()[0][1],
+            dte_email_id = doc.company_id.dte_email_id or self.env.user.company_id.dte_email_id
+            values = {
+                        'res_id': doc.id,
+                        'email_from': dte_email_id.name_get()[0][1],
                         'email_to': doc.dte_id.sudo().mail_id.email_from ,
                         'auto_delete': False,
                         'model': "mail.message.dte.document",
@@ -191,17 +190,8 @@ class ValidarDTEWizard(models.TransientModel):
                         'subject': 'XML de Respuesta Envío',
                         'attachment_ids': [[6, 0, att.ids]],
                     }
-                    send_mail = self.env['mail.mail'].create(values)
-                    send_mail.send()
-            doc.message_post(
-                body='XML de Rechazo Comercial, Estado: %s, Glosa: %s' % (dte['ResultadoDTE']['EstadoDTE'], dte['ResultadoDTE']['EstadoDTEGlosa']),
-                subject='XML de Validación Comercial',
-                partner_ids=partners,
-                attachment_ids=att.ids,
-                message_type='comment',
-                subtype='mt_comment',
-            )
-
+            send_mail = self.env['mail.mail'].create(values)
+            send_mail.send()
             inv_obj.set_dte_claim(
                 rut_emisor = xml['Encabezado']['Emisor']['RUTEmisor'],
                 company_id=doc.company_id,
@@ -258,14 +248,19 @@ class ValidarDTEWizard(models.TransientModel):
                 respuesta,
                 'validacion_comercial_' + str(IdRespuesta),
             )
-            inv.message_post(
-                body='XML de Validación Comercial, Estado: %s, Glosa: %s' % (dte['ResultadoDTE']['EstadoDTE'], dte['ResultadoDTE']['EstadoDTEGlosa']),
-                subject='XML de Validación Comercial',
-                partner_ids=[inv.partner_id.id],
-                attachment_ids=att.ids,
-                message_type='comment',
-                subtype='mt_comment',
-            )
+            dte_email_id = inv.company_id.dte_email_id or self.env.user.company_id.dte_email_id
+            values = {
+                        'res_id': inv.id,
+                        'email_from': dte_email_id.name_get()[0][1],
+                        'email_to': inv.commercial_partner_id.dte_email,
+                        'auto_delete': False,
+                        'model': "account.invoice",
+                        'body': 'XML de Validación Comercial, Estado: %s, Glosa: %s' % (dte['ResultadoDTE']['EstadoDTE'], dte['ResultadoDTE']['EstadoDTEGlosa']),
+                        'subject': 'XML de Validación Comercial',
+                        'attachment_ids': [[6, 0, att.ids]],
+                    }
+            send_mail = self.env['mail.mail'].create(values)
+            send_mail.send()
             inv.claim = 'ACD'
             try:
                 inv.set_dte_claim(
@@ -374,14 +369,19 @@ class ValidarDTEWizard(models.TransientModel):
                 envio_dte,
                 'recepcion_mercaderias_' + str(inv.sii_xml_request.name),
                 )
-            inv.message_post(
-                body='XML de Recepción de Mercaderías\n %s' % (message),
-                subject='XML de Recepción de Documento',
-                partner_ids=[inv.partner_id.id],
-                attachment_ids=att.ids,
-                message_type='comment',
-                subtype='mt_comment',
-            )
+            dte_email_id = inv.company_id.dte_email_id or self.env.user.company_id.dte_email_id
+            values = {
+                        'res_id': inv.id,
+                        'email_from': dte_email_id.name_get()[0][1],
+                        'email_to': inv.commercial_partner_id.dte_email,
+                        'auto_delete': False,
+                        'model': "account.invoice",
+                        'body': 'XML de Recepción de Mercaderías\n %s' % (message),
+                        'subject': 'XML de Recepción de Documento',
+                        'attachment_ids': [[6, 0, att.ids]],
+                    }
+            send_mail = self.env['mail.mail'].create(values)
+            send_mail.send()
             inv.claim = 'ERM'
             try:
                 inv.set_dte_claim(

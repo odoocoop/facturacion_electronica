@@ -366,10 +366,10 @@ class UploadXMLWizard(models.TransientModel):
                 'recepcion_envio_' + (self.filename or self.dte_id.name) + '_' + str(IdRespuesta),
                 self.dte_id.id,
                 'mail.message.dte')
-            if att:
-                values = {
-                    'model_id': self.dte_id.id,
-                    'email_from': self.dte_id.company_id.dte_email_id.name_get()[0][1],
+            dte_email_id = self.dte_id.company_id.dte_email_id or self.env.user.company_id.dte_email_id
+            values = {
+                    'res_id': self.dte_id.id,
+                    'email_from': dte_email_id.name_get()[0][1],
                     'email_to': self.sudo().dte_id.mail_id.email_from,
                     'auto_delete': False,
                     'model': "mail.message.dte",
@@ -377,15 +377,8 @@ class UploadXMLWizard(models.TransientModel):
                     'subject': 'XML de Respuesta Envío',
                     'attachment_ids': [[6, 0, att.ids]],
                 }
-                send_mail = self.env['mail.mail'].sudo().create(values)
-                send_mail.send()
-            self.dte_id.message_post(
-                body='XML de Respuesta Envío, Estado: %s , Glosa: %s ' % (recep['EstadoRecepEnv'], recep['RecepEnvGlosa']),
-                subject='XML de Respuesta Envío',
-                attachment_ids=att.ids,
-                message_type='comment',
-                subtype='mt_comment',
-            )
+            send_mail = self.env['mail.mail'].sudo().create(values)
+            send_mail.send()
 
     def _create_partner(self, data):
         if self.pre_process and self.type == 'compras':
