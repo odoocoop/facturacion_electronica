@@ -1290,11 +1290,7 @@ version="1.0">
         user_id = self.env.user
         signature_id = user_id.get_digital_signature(self.company_id)
         if not signature_id:
-            raise UserError(_('''There is no Signer Person with an \
-        authorized signature for you in the system. Please make sure that \
-        'user_signature_key' module has been installed and enable a digital \
-        signature, for you or make the signer to authorize you to use his \
-        signature.'''))
+            raise UserError(_('''There are not a Signature Cert Available for this user, pleaseupload your signature or tell to someelse.'''))
         cert = signature_id.cert.replace(
             BC, '').replace(EC, '').replace('\n', '').replace(' ','')
         privkey = signature_id.priv_key
@@ -1671,7 +1667,7 @@ version="1.0">
                 for t in self.tax_line_ids:
                     if t.tax_id.sii_code in [ 14, 15 ]:
                         IVA = t
-                    elif t.tax_id.sii_code in [ 15, 17, 18, 19 ]:
+                    elif t.tax_id.sii_code in [ 15, 17, 18, 19, 27, 271, 26 ]:
                         OtrosImp.append(t)
                     if t.tax_id.sii_code in [ 14, 15 ]:
                         MntNeto += self.currency_id.round(t.base)
@@ -1817,6 +1813,9 @@ version="1.0">
             if not no_product:
                 lines['UnmdItem'] = line.uom_id.name[:4]
                 lines['PrcItem'] = round(line.price_unit, 6)
+                for t in line.invoice_line_tax_ids:
+                    if t.sii_code in [26,27,271]:#@Agregar todos los adicionales
+                        lines['CodImpAdic'] = t.sii_code
                 if currency_id:
                     lines['OtrMnda'] = collections.OrderedDict()
                     lines['OtrMnda']['PrcOtrMon'] = round(currency_id.compute( line.price_unit, self.company_id.currency_id, round=False), 6)
@@ -2252,30 +2251,25 @@ version="1.0">
         att = self._create_attachment()
         body = 'XML de Intercambio DTE: %s' % (self.number)
         subject = 'XML de Intercambio DTE: %s' % (self.number)
-        self.sudo().message_post(
-            body=body,
-            subject=subject,
-            partner_ids=[self.commercial_partner_id.id],
-            attachment_ids=att.ids,
-            message_type='comment',
-            subtype='mt_comment',
-        )
-        if not self.commercial_partner_id.dte_email or self.commercial_partner_id.dte_email == self.commercial_partner_id.email:
-            return
-        for dte_email in self.commercial_partner_id.child_ids:
+        dte_email_id = self.company_id.dte_email_id or self.env.user.company_id.dte_email_id
+        dte_receptors = self.commercial_partner_id.child_ids + self.commercial_partner_id
+        email_to = ''
+        for dte_email in dte_recptors:
             if not dte_email.send_dte:
                 continue
-            values = {
-                'email_from': self.company_id.dte_email_id.name_get()[0][1],
-                'email_to': dte_email.name,
+            email_to += dte_email.name+','
+        values = {
+                'res_id': self.id,
+                'email_from': dte_email_id.name_get()[0][1],
+                'email_to': email_to[:-1],
                 'auto_delete': False,
                 'model': 'account.invoice',
                 'body': body,
                 'subject': subject,
                 'attachment_ids': [[6, 0, att.ids]],
             }
-            send_mail = self.env['mail.mail'].sudo().create(values)
-            send_mail.send()
+        send_mail = self.env['mail.mail'].sudo().create(values)
+        send_mail.send()
 
     @api.multi
     def manual_send_exchange(self):

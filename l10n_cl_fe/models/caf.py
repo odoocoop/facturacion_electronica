@@ -113,7 +113,8 @@ has been exhausted.''',
         self.final_nm = result['RNG']['H']
         self.sii_document_class = result['TD']
         self.issued_date = result['FA']
-        self.expiration_date = date(int(result['FA'][:4]),
+        if self.sii_document_class_id.sii_code not in [34, 52]:
+            self.expiration_date = date(int(result['FA'][:4]),
                                     int(result['FA'][5:7]),
                                     int(result['FA'][8:10])
                                    ) + relativedelta(months=6)
@@ -221,7 +222,7 @@ www.sii.cl'''.format(folio)
         if not caffiles:
             raise UserError(_('''No hay caf disponible para el documento %s folio %s. Por favor solicite suba un CAF o solicite uno en el SII.''' % (self.name, folio)))
         for caffile in caffiles:
-            if int(folio) >= caffile.start_nm and int(folio) <= caffile.final_nm:
+            if int(folio) >= caffile.start_nm and int(folio) <= caffile.final_nm and self.expiration_date:
                 timestamp = self.time_stamp()
                 expiration_caf = date(int(caffile.expiration_date[:4]),
                                       int(caffile.expiration_date[5:7]),

@@ -29,6 +29,8 @@ class ResPartner(models.Model):
     @api.depends('child_ids')
     def _compute_dte_email(self):
         for p in self:
+            if p.dte_email == p.email:
+                continue
             for dte in p.child_ids:
                 if dte.type == 'dte' and dte.principal:
                     p.dte_email_id = dte.id
@@ -100,6 +102,10 @@ class ResPartner(models.Model):
             if self.dte_email_id:
                 self.dte_email_id.unlink()
             return
+        if self.dte_email == self.email:
+           self.send_dte = True
+           self.principal = True
+           return
         if not self.dte_email_id:
             partners = []
             for rec in self.child_ids:

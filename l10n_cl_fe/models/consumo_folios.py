@@ -795,11 +795,7 @@ version="1.0">
         dte_service = company_id.dte_service_provider
         signature_id = self.env.user.get_digital_signature(self.company_id)
         if not signature_id:
-            raise UserError(_('''There is no Signer Person with an \
-        authorized signature for you in the system. Please make sure that \
-        'user_signature_key' module has been installed and enable a digital \
-        signature, for you or make the signer to authorize you to use his \
-        signature.'''))
+            raise UserError(_('''There are not a Signature Cert Available for this user, pleaseupload your signature or tell to someelse.'''))
         certp = signature_id.cert.replace(
             BC, '').replace(EC, '').replace('\n', '')
         resumenes, TpoDocs = self._get_resumenes(marc=True)

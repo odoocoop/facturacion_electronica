@@ -648,10 +648,12 @@ version="1.0">
                 raise UserError("Está combinando compañías")
             company_id = rec.company_id
         file_name = 'T52'
-        dtes=""
+        dtes = ""
         SubTotDTE = ''
         resol_data = self.get_resolution_data(company_id)
         signature_id = self.env.user.get_digital_signature(company_id)
+        if not signature_id:
+            raise UserError(_('''There are not a Signature Cert Available for this user, pleaseupload your signature or tell to someelse.'''))
         RUTEmisor = self.format_vat(company_id.vat)
         NroDte = 0
         for rec_id,  documento in DTEs.items():

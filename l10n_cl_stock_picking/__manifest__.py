@@ -11,7 +11,7 @@
         'sale_stock',
         'l10n_cl_fe',
         ],
-    'description': u'''
+    'description': '''
 \n\nMódulo de Guías de Despacho de la localización Chilena.\n\n\nIncluye:\n
 - Configuración de libros, diarios (journals) y otros detalles para Guías de despacho en Chile.\n
 - Asistente para configurar los talonarios de facturas, boletas, guías de despacho, etc.
@@ -30,6 +30,6 @@
         "views/account_invoice.xml",
         'wizard/masive_send_dte.xml',
     ],
-    'version': '0.8.9',
+    'version': '0.8.10',
     'application': True,
 }
