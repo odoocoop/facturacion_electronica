@@ -259,6 +259,20 @@ screens.ClientListScreenWidget.include({
 	},
 	display_client_details: function(visibility, partner, clickpos){
 		var self = this;
+		function get_remote_data(vat){
+		  rpc.query({
+				model: 'res.partner',
+				method: 'get_remote_user_data',
+				args: [vat, false]
+			}).
+		          then(function(resp){
+		              if (resp){
+		                  self.$(".client-name").val(resp.razon_social);
+		                  self.$(".client-dte_email").val(resp.dte_email);
+
+		              }
+		          });
+		}
 		this._super(visibility, partner, clickpos);
 		if (visibility === "edit"){
 			var state_options = self.$("select[name='state_id']:visible option:not(:first)");
@@ -291,12 +305,15 @@ screens.ClientListScreenWidget.include({
     				document_number.slice(2, 5),
     				document_number.slice(5, 8),
     				document_number.slice(-1))
+    		        if (self.validar_rut(document_number, false)){
+    		              get_remote_data(document_number)
+    		        }
     			self.$(this).val(document_number);
 			});
 			self.$("select[name='country_id']").change();
 		}
 	},
-	validar_rut: function(texto){
+	validar_rut: function(texto, alert=true){
 		var tmpstr = "";
 		var i = 0;
 		for ( i=0; i < texto.length ; i++ ){
@@ -307,12 +324,16 @@ screens.ClientListScreenWidget.include({
 		texto = tmpstr;
 		var largo = texto.length;
 		if ( largo < 2 ){
-			this.gui.show_popup('error',_t('Debe ingresar el rut completo'));
+		          if (alert){
+		          	this.gui.show_popup('error',_t('Debe ingresar el rut completo'));
+		          }
 			return false;
 		}
 		for (i=0; i < largo ; i++ ){
 			if ( texto.charAt(i) !="0" && texto.charAt(i) != "1" && texto.charAt(i) !="2" && texto.charAt(i) != "3" && texto.charAt(i) != "4" && texto.charAt(i) !="5" && texto.charAt(i) != "6" && texto.charAt(i) != "7" && texto.charAt(i) !="8" && texto.charAt(i) != "9" && texto.charAt(i) !="k" && texto.charAt(i) != "K" ){
-				this.gui.show_popup('error',_t('El valor ingresado no corresponde a un R.U.T valido'));
+			         if (alert){
+				    this.gui.show_popup('error',_t('El valor ingresado no corresponde a un R.U.T valido'));
+				    }
 				return false;
 			}
 		}
@@ -343,15 +364,17 @@ screens.ClientListScreenWidget.include({
 		for ( i=(dtexto.length-1),j=0; i>=0; i--,j++ ){
 			invertido = invertido + dtexto.charAt(i);
 		}
-		if ( this.revisarDigito2(texto) ){
+		if ( this.revisarDigito2(texto, alert) ){
 			return true;
 		}
 		return false;
 	},
-	revisarDigito: function( dvr ){
+	revisarDigito: function( dvr, alert){
 		var dv = dvr + ""
 		if ( dv != '0' && dv != '1' && dv != '2' && dv != '3' && dv != '4' && dv != '5' && dv != '6' && dv != '7' && dv != '8' && dv != '9' && dv != 'k'  && dv != 'K'){
-			this.gui.show_popup('error',_t('Debe ingresar un digito verificador valido'));
+		        if (alert){
+			     this.gui.show_popup('error',_t('Debe ingresar un digito verificador valido'));
+			 }
 			return false;
 		}
 		return true;

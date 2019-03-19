@@ -6,6 +6,7 @@
           <field name="model">res.partner</field>
           <field name="arch" type="xml">
             <field name="parent_id" position="before">
+                <field name="sync" invisible="1"/>
               <field name="activity_description" placeholder="Glosa Descriptiva (Giro)" attrs="{'invisible': ('parent_id', '!=', False)}"/>
               <field name="acteco_ids" placeholder="Actividades del partner" attrs="{'invisible': ('parent_id', '!=', False)}" widget="many2many_tags" options="{'no_create': True}"/>
             </field>

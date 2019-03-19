@@ -608,7 +608,11 @@ version="1.0">
     def send_xml_file(self, envio_dte=None, file_name="envio",company_id=False):
         signature_id = self.env.user.get_digital_signature(company_id)
         if not signature_id:
-            raise UserError(_('''There are not a Signature Cert Available for this user, pleaseupload your signature or tell to someelse.'''))
+            raise UserError(_('''There is no Signer Person with an \
+        authorized signature for you in the system. Please make sure that \
+        'user_signature_key' module has been installed and enable a digital \
+        signature, for you or make the signer to authorize you to use his \
+        signature.'''))
         if not company_id.dte_service_provider:
             raise UserError(_("Not Service provider selected!"))
         token = self.env['sii.xml.envio'].get_token( self.env.user, company_id )

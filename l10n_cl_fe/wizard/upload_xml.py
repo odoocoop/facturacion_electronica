@@ -1023,8 +1023,8 @@ class UploadXMLWizard(models.TransientModel):
                     created.append(inv.id)
                 if not inv:
                     raise UserError('El archivo XML no contiene documentos para alguna empresa registrada en Odoo, o ya ha sido procesado anteriormente ')
-                if self.type == 'ventas':
-                    #inv._onchange_invoice_line_ids()
+                if self.type == 'ventas' or self.option == 'accept':
+                    inv._onchange_invoice_line_ids()
                     inv._onchange_partner_id()
                     inv.action_move_create()
                     guardar = {

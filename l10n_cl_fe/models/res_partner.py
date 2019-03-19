@@ -3,9 +3,15 @@ from odoo import models, fields, api
 from odoo.exceptions import UserError
 from odoo.tools.translate import _
 import re
+import json
 import logging
 _logger = logging.getLogger(__name__)
-
+try:
+    import urllib3
+    urllib3.disable_warnings()
+    pool = urllib3.PoolManager()
+except:
+    _logger.warning("no se ha cargado urllib3")
 
 class ResPartner(models.Model):
     _inherit = 'res.partner'
@@ -89,9 +95,25 @@ class ResPartner(models.Model):
         default=True,
     )
     acteco_ids = fields.Many2many(
-            'partner.activities',
-            string='Activities Names',
-        )
+        'partner.activities',
+        string='Activities Names',
+    )
+    sync = fields.Boolean(
+        string="syncred",
+        default=False,
+    )
+
+    def write(self, vals):
+        result = super(ResPartner, self).write(vals)
+        if not vals.get('sync', False) and self.sync:
+            for k in vals.keys():
+                if k in ('name', 'dte_email', 'street', 'email', 'acteco_ids', 'website'):
+                    try:
+                        self.put_remote_user_data()
+                    except Exception as e:
+                        _logger.warning("Error en subida información %s" % str(e))
+                    break
+        return result
 
     @api.onchange('dte_email')
     def set_temporal_email_cambiar_a_related(self):
@@ -161,7 +183,6 @@ class ResPartner(models.Model):
     #                              })
     #        self.dte_email_id = dte_email_id.id
 
-
     @api.multi
     @api.onchange('responsability_id')
     def _get_tp_sii_code(self):
@@ -214,6 +235,7 @@ class ResPartner(models.Model):
             self.document_number = ''
         else:
             self.vat = ''
+        self.fill_partner()
 
     @api.onchange('city_id')
     def _onchange_city_id(self):
@@ -254,3 +276,84 @@ class ResPartner(models.Model):
                 return False
         except IndexError:
             return False
+
+    def _process_data(self, data={}):
+        if data.get('razon_social'):
+            self.name = data['razon_social']
+        if data.get('dte_email'):
+            self.dte_email = data['dte_email']
+        if data.get('email'):
+            self.name = data['email']
+        if data.get('telefono'):
+            self.name = data['phone']
+        if data.get('direccion'):
+            self.street = data['direccion']
+        if data.get('actecos'):
+            for a in data['actecos']:
+                ac = self.env['sii.document_class'].search([('code', '=', a)])
+                self.acteco_ids += ac
+        if data.get('url'):
+            self.website = data['url']
+        self.sync = True
+        if not self.document_number:
+            self.document_number = data['rut']
+
+    def put_remote_user_data(self):
+        ICPSudo = self.env['ir.config_parameter'].sudo()
+        url = ICPSudo.get_param('account.url_remote_partners')
+        token = ICPSudo.get_param('account.token_remote_partners')
+        sync = ICPSudo.get_param('account.sync_remote_partners')
+        if not url or not token or not sync:
+            return
+        resp = pool.request('PUT',
+                            url,
+                            body=json.dumps(
+                                                {
+                                                    'rut': self.document_number,
+                                                    'token': token,
+                                                    'razon_social': self.name,
+                                                    'dte_email': self.dte_email,
+                                                    'email': self.email,
+                                                    'direccion': self.street,
+                                                    #'comuna': self.
+                                                    'telefono': self.phone,
+                                                    'actectos': [ac.code for ac in self.acteco_ids],
+                                                    'url': self.website,
+                                                    'origen': self.env['ir.config_parameter'].sudo().get_param('web.base.url')
+                                                }
+                                            ).encode('utf-8'),
+                            headers={'Content-Type': 'application/json'})
+        data = json.loads(resp.data.decode('ISO-8859-1'))
+
+    def get_remote_user_data(self, to_check, process_data=True):
+        ICPSudo = self.env['ir.config_parameter'].sudo()
+        url = ICPSudo.get_param('account.url_remote_partners')
+        token = ICPSudo.get_param('account.token_remote_partners')
+        if not url or not token:
+            return
+        resp = pool.request('POST',
+                            url,
+                            body=json.dumps(
+                                                {
+                                                    'rut': to_check,
+                                                    'token': token,
+                                                }
+                                            ).encode('utf-8'),
+                            headers={'Content-Type': 'application/json'})
+        data = json.loads(resp.data.decode('iso-8859-1'))
+        if not process_data:
+            return data
+        if not data:
+            self.sync = False
+            return
+        self._process_data(data)
+
+    @api.onchange('name')
+    def fill_partner(self):
+        if self.sync:
+            return
+        if self.document_number and self.check_vat_cl(self.document_number.replace('.','').replace('-', '')):
+            self.get_remote_user_data(self.document_number)
+        elif self.name and self.check_vat_cl(self.name.replace('.','').replace('-', '')):
+            self.get_remote_user_data(self.name)
+

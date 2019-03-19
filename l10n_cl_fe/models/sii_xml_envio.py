@@ -225,7 +225,7 @@ class SIIXMLEnvio(models.Model):
         _server = Client(url)
         rut = self.invoice_ids.format_vat( self.company_id.vat, con_cero=True)
         respuesta = _server.service.getEstUp(
-                rut[:8],
+                rut[:8].replace('-', ''),
                 str(rut[-1]),
                 self.sii_send_ident,
                 token,

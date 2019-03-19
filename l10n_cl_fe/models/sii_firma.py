@@ -13,17 +13,25 @@ except ImportError:
     _logger.warning('Error en cargar crypto')
 
 
-class userSignature(models.Model):
+class SignatureCert(models.Model):
     _name = 'sii.firma'
 
     def check_signature(self):
-        for s in self:
-            if not s.cert:
-                s.state = 'unverified'
-                continue
+        for s in self.sudo():
             expired = datetime.strptime(s.expire_date, '%Y-%m-%d') < datetime.now()
-            s.state = 'expired' if expired else 'valid'
-            s.active = not expired
+            state = 'expired' if expired else 'valid'
+            if s.state != state:
+                s.state = state
+                s.active = not expired
+
+    @api.onchange('subject_serial_number')
+    def set_state(self):
+        if self.subject_serial_number:
+            rut = self.subject_serial_number.replace('.', '').upper()
+            if not self.env.user.partner_id.check_vat_cl(rut.replace('-', '')):
+                raise UserError(_('Not Valid Subject Serial Number'))
+            self.subject_serial_number = rut
+            self.check_signature()
 
     name = fields.Char(
             string='File Name',
@@ -48,9 +56,10 @@ class userSignature(models.Model):
     )
     state = fields.Selection(
         [
-                    ('unverified', 'Unverified'),
-                    ('valid', 'Valid'),
-                    ('expired', 'Expired')
+            ('unverified', 'Unverified'),
+            ('incomplete', 'Incomplete'),
+            ('valid', 'Valid'),
+            ('expired', 'Expired')
         ],
         string='state',
         default='unverified',
@@ -60,7 +69,11 @@ class userSignature(models.Model):
     subject_title = fields.Char(string='Subject Title', readonly=True)
     subject_c = fields.Char(string='Subject Country', readonly=True)
     subject_serial_number = fields.Char(
-        string='Subject Serial Number')
+        string='Subject Serial Number',
+        readonly=True,
+        states={'draft': [('readonly', False)],
+                'incomplete': [('readonly', False)],
+                'unverified': [('readonly', False)]})
     subject_common_name = fields.Char(
         string='Subject Common Name', readonly=True)
     subject_email_address = fields.Char(
@@ -92,6 +105,7 @@ class userSignature(models.Model):
         'res.company',
         string='Authorized Companies',
         default=lambda self: [self.env.user.company_id.id],
+        required=True,
     )
     priority = fields.Integer(
         string="Priority",
@@ -99,9 +113,10 @@ class userSignature(models.Model):
     )
     active = fields.Boolean(
         string="Active",
+        default=True,
     )
 
-    _sql_constraints = [('name', 'unique(name, subject_serial_number)', 'Name must be unique!'), ]
+    _sql_constraints = [('name', 'unique(name, subject_serial_number, active)', 'Name must be unique!'), ]
     _order = 'priority DESC'
 
     @api.multi
@@ -144,4 +159,3 @@ class userSignature(models.Model):
             'password': False,
         })
         self.check_signature()
-

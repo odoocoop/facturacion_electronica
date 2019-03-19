@@ -36,7 +36,7 @@
                             <group col="4" attrs="{'invisible':[('state','=','unverified')]}" >
                                 <field name="subject_title"/>
                                 <field name="subject_c"/>
-                                <field name="subject_serial_number" attrs="{'readonly':[('subject_serial_number','!=', False)], 'required':[('state', '!=', 'unverified')]}"/>
+                                <field name="subject_serial_number" attrs="{'required':[('state', 'in', ['valid', 'incomplete'])]}"/>
                                 <field name="subject_common_name"/>
                                 <field name="subject_email_address"/>
                                 <field name="issuer_country"/>
