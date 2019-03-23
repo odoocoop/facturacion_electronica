@@ -8,17 +8,12 @@ from odoo.tools import DEFAULT_SERVER_DATETIME_FORMAT as DTF
 import logging
 from lxml import etree
 from lxml.etree import Element, SubElement
-from lxml import objectify
-from lxml.etree import XMLSyntaxError
 
-import xml.dom.minidom
 import pytz
 import struct
 
 
 import collections
-import traceback as tb
-import suds.metrics as metrics
 
 try:
     from suds.client import Client
@@ -65,11 +60,6 @@ try:
     import hashlib
 except ImportError:
     _logger.info('Cannot import hashlib library')
-
-try:
-    import cchardet
-except ImportError:
-    _logger.info('Cannot import cchardet library')
 
 server_url = {'SIICERT':'https://maullin.sii.cl/DTEWS/','SII':'https://palena.sii.cl/DTEWS/'}
 

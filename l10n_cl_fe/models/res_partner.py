@@ -5,6 +5,7 @@ from odoo.tools.translate import _
 import re
 import json
 import logging
+import datetime
 _logger = logging.getLogger(__name__)
 try:
     import urllib3
@@ -102,14 +103,19 @@ class ResPartner(models.Model):
         string="syncred",
         default=False,
     )
+    last_sync_update = fields.Datetime(
+        string="Fecha Actualizado",
+    )
 
     def write(self, vals):
         result = super(ResPartner, self).write(vals)
-        if not vals.get('sync', False) and self.sync:
+        if not vals.get('sync', False):
             for k in vals.keys():
                 if k in ('name', 'dte_email', 'street', 'email', 'acteco_ids', 'website'):
                     try:
-                        self.put_remote_user_data()
+                        for r in self:
+                            if r.sync and r.sii_document_number and not r.parent_id:
+                                r.put_remote_user_data()
                     except Exception as e:
                         _logger.warning("Error en subida información %s" % str(e))
                     break
@@ -251,11 +257,11 @@ class ResPartner(models.Model):
                 continue
             partner = self.env['res.partner'].search(
                 [
-                    ('vat','=', r.vat),
-                    ('id','!=', r.id),
+                    ('vat', '=', r.vat),
+                    ('id', '!=', r.id),
                     ('commercial_partner_id', '!=', r.commercial_partner_id.id),
                 ])
-            if r.vat !="CL555555555" and partner:
+            if r.vat != "CL555555555" and partner:
                 raise UserError(_('El rut: %s debe ser único') % r.vat)
                 return False
 
@@ -297,12 +303,13 @@ class ResPartner(models.Model):
         self.sync = True
         if not self.document_number:
             self.document_number = data['rut']
+        self.last_sync_update = data['actualizado']
 
     def put_remote_user_data(self):
         ICPSudo = self.env['ir.config_parameter'].sudo()
-        url = ICPSudo.get_param('account.url_remote_partners')
-        token = ICPSudo.get_param('account.token_remote_partners')
-        sync = ICPSudo.get_param('account.sync_remote_partners')
+        url = ICPSudo.get_param('partner.url_remote_partners')
+        token = ICPSudo.get_param('partner.token_remote_partners')
+        sync = ICPSudo.get_param('partner.sync_remote_partners')
         if not url or not token or not sync:
             return
         resp = pool.request('PUT',
@@ -317,9 +324,9 @@ class ResPartner(models.Model):
                                                     'direccion': self.street,
                                                     #'comuna': self.
                                                     'telefono': self.phone,
-                                                    'actectos': [ac.code for ac in self.acteco_ids],
+                                                    'actecos': [ac.code for ac in self.acteco_ids],
                                                     'url': self.website,
-                                                    'origen': self.env['ir.config_parameter'].sudo().get_param('web.base.url')
+                                                    'origen': ICPSudo.get_param('web.base.url')
                                                 }
                                             ).encode('utf-8'),
                             headers={'Content-Type': 'application/json'})
@@ -327,8 +334,8 @@ class ResPartner(models.Model):
 
     def get_remote_user_data(self, to_check, process_data=True):
         ICPSudo = self.env['ir.config_parameter'].sudo()
-        url = ICPSudo.get_param('account.url_remote_partners')
-        token = ICPSudo.get_param('account.token_remote_partners')
+        url = ICPSudo.get_param('partner.url_remote_partners')
+        token = ICPSudo.get_param('partner.token_remote_partners')
         if not url or not token:
             return
         resp = pool.request('POST',
@@ -352,8 +359,31 @@ class ResPartner(models.Model):
     def fill_partner(self):
         if self.sync:
             return
-        if self.document_number and self.check_vat_cl(self.document_number.replace('.','').replace('-', '')):
+        if self.document_number and self.check_vat_cl(self.document_number.replace('.', '').replace('-', '')):
             self.get_remote_user_data(self.document_number)
-        elif self.name and self.check_vat_cl(self.name.replace('.','').replace('-', '')):
+        elif self.name and self.check_vat_cl(self.name.replace('.', '').replace('-', '')):
             self.get_remote_user_data(self.name)
+
+    @api.model
+    def _check_need_update(self):
+        ICPSudo = self.env['ir.config_parameter'].sudo()
+        url = ICPSudo.get_param('partner.url_remote_partners')
+        token = ICPSudo.get_param('partner.token_remote_partners')
+        if not url or not token:
+            return
+        for r in self.search([('document_number', 'not in', [False, 0]), ('parent_id', '=', False)]):
+            if ICPSudo.get_param('partner.sync_remote_partners'):
+                r.put_remote_user_data()
+            resp = pool.request('GET',
+                                    url,
+                                    {
+                                        'rut': r.document_number,
+                                        'token': token,
+                                        'actualizado': r.last_sync_update,
+                                    })
+            data = json.loads(resp.data.decode('ISO-8859-1'))
+            if data.get('result', False):
+                r.sync = False
+                r.fill_partner()
+
 

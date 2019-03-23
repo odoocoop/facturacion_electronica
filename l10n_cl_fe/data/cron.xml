@@ -23,5 +23,17 @@
             <field name="active" eval="True" />
             <field name="nextcall">02/10/2017 00:00:01 AM</field>
         </record>
+
+        <record id="ir_cron_update_remote partners" model="ir.cron">
+            <field name="name">Cron Verificación de Partners</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="numbercall">-1</field>
+            <field name="model_id" ref="model_res_partner"/>
+            <field name="state">code</field>
+            <field name="code">model._check_need_update()</field>
+            <field name="active" eval="True" />
+            <field name="nextcall">03/21/2019 00:00:01 AM</field>
+        </record>
     </data>
 </odoo>
