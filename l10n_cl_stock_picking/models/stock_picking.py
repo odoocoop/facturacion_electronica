@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-from datetime import date, datetime
 from odoo import osv, models, fields, api, _, SUPERUSER_ID
 from odoo.exceptions import except_orm, UserError
 import odoo.addons.decimal_precision as dp

@@ -97,34 +97,27 @@ allowed_docs = [29, 30, 32, 33, 34, 35, 38, 39, 40,
 class Libro(models.Model):
     _name = "account.move.book"
 
-    sii_receipt = fields.Text(
-        string='SII Message',
-        copy=False)
-    sii_message = fields.Text(
-        string='SII Message',
-        copy=False)
-    sii_xml_request = fields.Text(
-        string='SII XML Request',
-        copy=False)
-    sii_xml_response = fields.Text(
-        string='SII XML Response',
-        copy=False)
-    sii_send_ident = fields.Text(
-        string='SII Send Identification',
-        copy=False)
+    sii_xml_request = fields.Many2one(
+            'sii.xml.envio',
+            string='SII XML Request',
+            copy=False)
     state = fields.Selection([
-        ('draft', 'Borrador'),
-        ('NoEnviado', 'No Enviado'),
-        ('Enviado', 'Enviado'),
-        ('Aceptado', 'Aceptado'),
-        ('Rechazado', 'Rechazado'),
-        ('Reparo', 'Reparo'),
-        ('Proceso', 'Proceso'),
-        ('Reenviar', 'Reenviar'),
-        ('Anulado', 'Anulado')],
-        'Resultado'
-        , index=True, readonly=True, default='draft',
-        track_visibility='onchange', copy=False,
+            ('draft', 'Borrador'),
+            ('NoEnviado', 'No Enviado'),
+            ('EnCola', 'En Cola'),
+            ('Enviado', 'Enviado'),
+            ('Aceptado', 'Aceptado'),
+            ('Rechazado', 'Rechazado'),
+            ('Reparo', 'Reparo'),
+            ('Proceso', 'Proceso'),
+            ('Reenviar', 'Reenviar'),
+            ('Anulado', 'Anulado')],
+        string='Resultado',
+        index=True,
+        readonly=True,
+        default='draft',
+        track_visibility='onchange',
+        copy=False,
         help=" * The 'Draft' status is used when a user is encoding a new and unconfirmed Invoice.\n"
              " * The 'Pro-forma' status is used the invoice does not have an invoice number.\n"
              " * The 'Open' status is used when user create invoice, an invoice number is generated. Its in open status till user does not pay invoice.\n"
@@ -595,53 +588,6 @@ version="1.0">
         return resolution_data
 
     @api.multi
-    def send_xml_file(self, envio_dte=None, file_name="envio",company_id=False):
-        signature_id = self.env.user.get_digital_signature(company_id)
-        if not signature_id:
-            raise UserError(_('''There is no Signer Person with an \
-        authorized signature for you in the system. Please make sure that \
-        'user_signature_key' module has been installed and enable a digital \
-        signature, for you or make the signer to authorize you to use his \
-        signature.'''))
-        if not company_id.dte_service_provider:
-            raise UserError(_("Not Service provider selected!"))
-        token = self.env['sii.xml.envio'].get_token( self.env.user, company_id )
-        url = 'https://palena.sii.cl'
-        if company_id.dte_service_provider == 'SIICERT':
-            url = 'https://maullin.sii.cl'
-        post = '/cgi_dte/UPL/DTEUpload'
-        headers = {
-            'Accept': 'image/gif, image/x-xbitmap, image/jpeg, image/pjpeg, application/vnd.ms-powerpoint, application/ms-excel, application/msword, */*',
-            'Accept-Language': 'es-cl',
-            'Accept-Encoding': 'gzip, deflate',
-            'User-Agent': 'Mozilla/4.0 (compatible; PROG 1.0; Windows NT 5.0; YComp 5.0.2.4)',
-            'Referer': '{}'.format(company_id.website),
-            'Connection': 'Keep-Alive',
-            'Cache-Control': 'no-cache',
-            'Cookie': 'TOKEN={}'.format(token),
-        }
-        params = collections.OrderedDict()
-        params['rutSender'] = signature_id.subject_serial_number[:8]
-        params['dvSender'] = signature_id.subject_serial_number[-1]
-        params['rutCompany'] = company_id.vat[2:-1]
-        params['dvCompany'] = company_id.vat[-1]
-        file_name = file_name + '.xml'
-        params['archivo'] = (file_name,envio_dte,"text/xml")
-        multi = urllib3.filepost.encode_multipart_formdata(params)
-        headers.update({'Content-Length': '{}'.format(len(multi[0]))})
-        response = pool.request_encode_body('POST', url+post, params, headers)
-        retorno = {'sii_xml_response': response.data, 'sii_result': 'NoEnviado','sii_send_ident':''}
-        if response.status != 200:
-            return retorno
-        respuesta_dict = xmltodict.parse(response.data)
-        if respuesta_dict['RECEPCIONDTE']['STATUS'] != '0':
-            _logger.info(respuesta_dict)
-            _logger.info(connection_status[respuesta_dict['RECEPCIONDTE']['STATUS']])
-        else:
-            retorno.update({'sii_result': 'Enviado','sii_send_ident':respuesta_dict['RECEPCIONDTE']['TRACKID']})
-        return retorno
-
-    @api.multi
     def get_xml_file(self):
         return {
             'type' : 'ir.actions.act_url',
@@ -671,7 +617,6 @@ version="1.0">
     def validar_libro(self):
         self._validar()
         return self.write({'state': 'NoEnviado'})
-
 
     def _acortar_str(self, texto, size=1):
         c = 0
@@ -1252,49 +1197,48 @@ version="1.0">
             certp,
             doc_id,
             env)
-        self.sii_xml_request = envio_dte
-        return envio_dte, doc_id
+        self.sii_xml_request = self.env['sii.xml.envio'].create({
+            'xml_envio': envio_dte,
+            'name': doc_id,
+            'company_id': company_id.id,
+        }).id
 
     @api.multi
     def do_dte_send_book(self):
-        if self.state not in ['NoEnviado', 'Rechazado']:
+        if self.state not in ['draft', 'NoEnviado', 'Rechazado']:
             raise UserError("El Libro  ya ha sido enviado")
-        envio_dte, doc_id =  self._validar()
-        company_id = self.company_id
-        result = self.send_xml_file(envio_dte, doc_id+'.xml', company_id)
-        self.write({
-            'sii_xml_response': result['sii_xml_response'],
-            'sii_send_ident': result['sii_send_ident'],
-            'state': result['sii_result'],
-            'sii_xml_request':envio_dte
-            })
+        if not self.sii_xml_request:
+            self._validar()
+        self.env['sii.cola_envio'].create(
+                    {
+                        'doc_ids': [self.id],
+                        'model': 'account.move.book',
+                        'user_id': self.env.user.id,
+                        'tipo_trabajo': 'envio',
+                    })
+        self.state = 'EnCola'
+
+    def do_dte_send(self, n_atencion=''):
+        self.sii_xml_request.send_xml()
+        return self.sii_xml_request
 
     def _get_send_status(self):
-        token = self.env['sii.xml.envio'].get_token(self.env.user, self.company_id)
-        url = server_url[self.company_id.dte_service_provider] + 'QueryEstUp.jws?WSDL'
-        _server = Client(url)
-        respuesta = _server.service.getEstUp(self.company_id.vat[2:-1],self.company_id.vat[-1], self.sii_send_ident, token)
-        self.sii_receipt = respuesta
-        resp = xmltodict.parse(respuesta)
-        status = False
-        if resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] == "-11":
-            status =  {'warning':{'title':_('Error -11'), 'message': _("Error -11: Espere a que sea aceptado por el SII, intente en 5s más")}}
-        if resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] == "LOK":
+        self.sii_xml_request.get_send_status()
+        if self.sii_xml_request.state == 'Aceptado':
             self.state = "Proceso"
-            if 'SII:RESP_BODY' in resp['SII:RESPUESTA'] and resp['SII:RESPUESTA']['SII:RESP_BODY']['RECHAZADOS'] == "1":
-                self.sii_result = "Rechazado"
-        elif resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] == "LRH":
-            self.state = "Rechazado"
-            status = {'warning':{'title':_('Error RCT'), 'message': _(resp['SII:RESPUESTA']['SII:RESP_HDR']['GLOSA'])}}
-        return status
+        else:
+            self.state = self.sii_xml_request.state
 
     @api.multi
     def ask_for_dte_status(self):
-        xml_response = xmltodict.parse(self.sii_xml_response)
-        if self.state == 'Enviado':
-            status = self._get_send_status()
-            #if self.state != 'Proceso':
-            return status
+        self._get_send_status()
+
+    def get_sii_result(self):
+        for r in self:
+            if r.sii_xml_request.state == 'NoEnviado':
+                r.state = 'EnCola'
+                continue
+            r.state = r.sii_xml_request.state
 
 
 class Boletas(models.Model):

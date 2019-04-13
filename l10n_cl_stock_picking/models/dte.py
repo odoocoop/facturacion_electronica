@@ -279,17 +279,22 @@ version="1.0">
     canceled = fields.Boolean(string="Is Canceled?")
     estado_recep_dte = fields.Selection(
         [
-            ('no_revisado','No Revisado'),
-            ('0','Conforme'),
-            ('1','Error de Schema'),
-            ('2','Error de Firma'),
-            ('3','RUT Receptor No Corresponde'),
-            ('90','Archivo Repetido'),
-            ('91','Archivo Ilegible'),
-            ('99','Envio Rechazado - Otros')
-        ],string="Estado de Recepcion del Envio")
+            ('no_revisado', 'No Revisado'),
+            ('0', 'Conforme'),
+            ('1', 'Error de Schema'),
+            ('2', 'Error de Firma'),
+            ('3', 'RUT Receptor No Corresponde'),
+            ('90', 'Archivo Repetido'),
+            ('91', 'Archivo Ilegible'),
+            ('99', 'Envio Rechazado - Otros')
+        ],string="Estado de Recepción del Envío")
     estado_recep_glosa = fields.Char(string="Información Adicional del Estado de Recepción")
     responsable_envio = fields.Many2one('res.users')
+    document_class_id = fields.Many2one(
+        'sii.document_class',
+        string="Document Type",
+        related="location_id.sii_document_class_id",
+    )
 
     def _acortar_str(self, texto, size=1):
         c = 0
@@ -307,7 +312,7 @@ version="1.0">
                 continue
             if not s.sii_document_number and s.location_id.sequence_id.is_dte:
                 s.sii_document_number = s.location_id.sequence_id.next_by_id()
-                document_number = (s.location_id.sii_document_class_id.doc_code_prefix or '') + s.sii_document_number
+                document_number = (s.document_class_id.doc_code_prefix or '') + s.sii_document_number
                 s.name = document_number
             if s.picking_type_id.code in ['outgoing', 'internal']:# @TODO diferenciar si es de salida o entrada para internal
                 s.responsable_envio = self.env.uid
@@ -350,7 +355,7 @@ version="1.0">
 
     def _id_doc(self, taxInclude=False, MntExe=0):
         IdDoc= collections.OrderedDict()
-        IdDoc['TipoDTE'] = self.location_id.sii_document_class_id.sii_code
+        IdDoc['TipoDTE'] = self.document_class_id.sii_code
         IdDoc['Folio'] = self.get_folio()
         IdDoc['FchEmis'] = fields.Datetime.context_timestamp(self.with_context(tz='America/Santiago'), fields.Datetime.from_string(self.scheduled_date)).strftime(DF)
         if self.transport_type and self.transport_type not in ['0']:
@@ -458,7 +463,7 @@ version="1.0">
         ted = False
         RutEmisor = self.format_vat(self.company_id.vat)
         result['TED']['DD']['RE'] = RutEmisor
-        result['TED']['DD']['TD'] = self.location_id.sii_document_class_id.sii_code
+        result['TED']['DD']['TD'] = self.document_class_id.sii_code
         result['TED']['DD']['F'] = self.get_folio()
         result['TED']['DD']['FE'] = fields.Datetime.context_timestamp(self.with_context(tz='America/Santiago'), fields.Datetime.from_string(self.scheduled_date)).strftime(DF)
         if not partner_id.commercial_partner_id.vat:
@@ -615,7 +620,7 @@ version="1.0">
         tpo_dte = self._tpo_dte()
         dte = collections.OrderedDict()
         doc_id_number = "F{}T{}".format(
-            folio, self.location_id.sii_document_class_id.sii_code)
+            folio, self.document_class_id.sii_code)
         doc_id = '<Documento ID="{}">'.format(doc_id_number)
         dte['Documento ID'] = self._dte(n_atencion)
         xml = self.env['account.invoice']._dte_to_xml(dte, tpo_dte)
@@ -713,7 +718,7 @@ version="1.0">
 
     def _get_dte_status(self):
         for r in self:
-            if not r.sii_xml_request or r.sii_xml_request.state not in ['Aceptado', 'Reparo']:
+            if not r.sii_xml_request or r.sii_xml_request.state not in ['Aceptado', 'Reparo', 'Rechazado']:
                 continue
             partner_id = r.partner_id or r.company_id.partner_id
             token = r.sii_xml_request.get_token(self.env.user, r.company_id)
@@ -723,7 +728,7 @@ version="1.0">
             receptor = r.format_vat(partner_id.commercial_partner_id.vat)
             scheduled_date = fields.Datetime.context_timestamp(r.with_context(tz='America/Santiago'), fields.Datetime.from_string(r.scheduled_date)).strftime("%d-%m-%Y")
             total = str(int(round(r.amount_total,0)))
-            sii_code = str(r.location_id.sii_document_class_id.sii_code)
+            sii_code = str(r.document_class_id.sii_code)
             respuesta = _server.service.getEstDte(signature_id.subject_serial_number[:8],
                                       str(signature_id.subject_serial_number[-1]),
                                       r.company_id.vat[2:-1],

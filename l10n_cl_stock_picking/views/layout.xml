@@ -4,7 +4,7 @@
       <t t-call="web.html_container" position="replace">
           <t t-foreach="docs" t-as="o">
             <t t-set="partner_id" t-value="o.partner_id or o.company_id.partner_id" />
-              <t  t-lang="partner_id.lang">
+              <t  t-lang="'es_CL">
                 <!-- Multicompany -->
                   <t t-if="not o and doc">
                         <t t-set="o" t-value="doc"/>
@@ -14,9 +14,6 @@
                     </t>
                     <t t-if="not o or not 'company_id' in o">
                         <t t-set="company" t-value="res_company"></t>
-                  </t>
-                  <t t-if="'picking_type_id' in o and o.location_id.sii_document_class_id">
-                    <t t-set="document_class_id" t-value="o.location_id.sii_document_class_id"/>
                   </t>
                     <div class="header">
                       <div class="row">
@@ -49,8 +46,8 @@
                                 <h6 style="color:red;font-size:25px;padding-bottom:10px; padding-top:5px; font-family:Arial;">
                                     R.U.T.: <span t-field="o.company_id.partner_id.document_number"/>
                                 </h6>
-                                <h6 name="document_class_id" t-if="document_class_id" style="line-height:30px;font-size:23px;color:red;text-align:center;text-transform:uppercase;font-family:Arial;">
-                                   <span t-field="document_class_id.name"/>
+                                <h6 name="document_class_id" t-if="o.document_class_id" style="line-height:30px;font-size:23px;color:red;text-align:center;text-transform:uppercase;font-family:Arial;">
+                                   <span t-field="o.document_class_id.name"/>
                                 </h6>
                                 <h6 t-if="'sii_document_number' in o and o.sii_document_number" style="color: red;text-align: center;font-size:20px;font-family:Arial;">
                                     N° <span  t-field="o.sii_document_number"/>

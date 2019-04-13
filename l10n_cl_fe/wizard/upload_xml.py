@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from odoo import models, fields, api, SUPERUSER_ID
+from odoo import models, fields, api
 from odoo.tools.translate import _
 from odoo.exceptions import UserError
 import logging
@@ -226,7 +226,7 @@ class UploadXMLWizard(models.TransientModel):
             [
                 ('reference', '=', doc['Encabezado']['IdDoc']['Folio']),
                 ('partner_id', '=', partner_id.id),
-                ('sii_document_class_id.sii_code', '=', sii_document_class)
+                ('document_class_id.sii_code', '=', sii_document_class)
             ])
         company_id = self.env['res.company'].search([
                 ('vat', '=', self.format_rut(doc['Encabezado']['Receptor']['RUTRecep']))
@@ -356,7 +356,7 @@ class UploadXMLWizard(models.TransientModel):
             attr_type=False,
         ).decode().replace('<item>', '\n').replace('</item>', '\n')
         resp = self._RecepcionEnvio(caratula, RecepcionEnvio )
-        respuesta = '<?xml version="1.0" encoding="ISO-8859-1"?>\n'+self.env['account.invoice'].with_context({'user_id': SUPERUSER_ID, 'company_id': company_id.id}).sign_full_xml(
+        respuesta = '<?xml version="1.0" encoding="ISO-8859-1"?>\n'+self.env['account.invoice'].sudo().with_context({'company_id': company_id.id}).sign_full_xml(
             resp.replace('<?xml version="1.0" encoding="ISO-8859-1"?>\n', ''),
             'Odoo_resp',
             'env_resp')
@@ -901,7 +901,7 @@ class UploadXMLWizard(models.TransientModel):
             [
                 ('reference', '=', IdDoc.find("Folio").text),
                 ('type', 'in', type),
-                ('sii_document_class_id.sii_code', '=', IdDoc.find("TipoDTE").text),
+                ('document_class_id.sii_code', '=', IdDoc.find("TipoDTE").text),
                 ('partner_id.vat', '=', self.format_rut(Emisor.find("RUTEmisor").text)),
             ])
 
@@ -1028,7 +1028,7 @@ class UploadXMLWizard(models.TransientModel):
                     inv._onchange_partner_id()
                     inv.action_move_create()
                     guardar = {
-                        'document_class_id': inv.sii_document_class_id.id,
+                        'document_class_id': inv.document_class_id.id,
                         'sii_document_number': inv.sii_document_number
                     }
                     inv.move_id.write(guardar)

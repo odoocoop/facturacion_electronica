@@ -5,6 +5,7 @@ import collections
 import logging
 _logger = logging.getLogger(__name__)
 
+
 class SIIXMLEnvio(models.Model):
     _inherit = 'sii.xml.envio'
 
@@ -28,11 +29,13 @@ class SIIXMLEnvio(models.Model):
         return params
 
     def procesar_recepcion(self, retorno, respuesta_dict):
-        _logger.warning(respuesta_dict)
         if respuesta_dict.get('RECEPCIONAEC') and respuesta_dict['RECEPCIONAEC']['STATUS'] != '0':
             _logger.warning(connection_status[respuesta_dict['RECEPCIONDTE']['STATUS']])
         elif respuesta_dict.get('RECEPCIONAEC'):
-            retorno.update({'state': 'Enviado','sii_send_ident': respuesta_dict['RECEPCIONAEC']['TRACKID']})
+            retorno.update({
+                        'state': 'Enviado',
+                        'sii_send_ident': respuesta_dict['RECEPCIONAEC']['TRACKID']
+            })
         else:
             super(SIIXMLEnvio, self).procesar_recepcion(retorno, respuesta_dict)
         return retorno

@@ -99,7 +99,7 @@ class AccountInvoiceRefund(models.TransientModel):
                                 ]
                     referencias = [[0,0, {
                             'origen': int(inv.sii_document_number or inv.reference),
-                            'sii_referencia_TpoDocRef': inv.sii_document_class_id.id,
+                            'sii_referencia_TpoDocRef': inv.document_class_id.id,
                             'sii_referencia_CodRef': mode,
                             'motivo': description,
                             'fecha_documento': inv.date_invoice

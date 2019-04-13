@@ -20,8 +20,9 @@ class ResUsers(models.Model):
             limit=1,
             order="priority ASC",
         )
-        signature.check_signature()
-        if signature and signature.active:
-            return signature
+        if signature:
+            signature.check_signature()
+            if signature.active:
+                return signature
         return self.env['sii.firma']
 

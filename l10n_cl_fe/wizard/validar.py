@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from odoo import models, fields, api, SUPERUSER_ID
+from odoo import models, fields, api
 from odoo.tools.translate import _
 from odoo.exceptions import UserError
 import logging
@@ -59,7 +59,7 @@ class ValidarDTEWizard(models.TransientModel):
 
     def send_message(self, message="RCT"):
         id = self.document_id.number or self.inv.ref
-        sii_document_class = self.document_id.sii_document_class_id or self.inv.sii_document_class_id.sii_code
+        sii_document_class = self.document_id.sii_document_class_id or self.inv.document_class_id.sii_code
 
     def _create_attachment(self, xml, name, id=False, model='account.invoice'):
         data = base64.b64encode(xml.encode('ISO-8859-1'))
@@ -209,7 +209,7 @@ class ValidarDTEWizard(models.TransientModel):
             if inv.claim in ['ACD', 'RCD']:
                 continue
             dte = self._resultado(
-                TipoDTE=inv.sii_document_class_id.sii_code,
+                TipoDTE=inv.document_class_id.sii_code,
                 Folio=inv.reference,
                 FchEmis=inv.date_invoice,
                 RUTEmisor=inv.format_vat(inv.partner_id.vat),
@@ -271,7 +271,7 @@ class ValidarDTEWizard(models.TransientModel):
 
     def _recep(self, inv, RutFirma):
         receipt = collections.OrderedDict()
-        receipt['TipoDoc'] = inv.sii_document_class_id.sii_code
+        receipt['TipoDoc'] = inv.document_class_id.sii_code
         receipt['Folio'] = int(inv.reference)
         receipt['FchEmis'] = inv.date_invoice
         receipt['RUTEmisor'] = inv.format_vat(inv.partner_id.vat)
@@ -311,7 +311,7 @@ class ValidarDTEWizard(models.TransientModel):
         for inv in self.invoice_ids:
             if inv.claim in ['ACD', 'RCD']:
                 continue
-            signature_id = self.env['res.users'].browse(SUPERUSER_ID).get_digital_signature(inv.company_id)
+            signature_id = self.env['res.users'].sudo().get_digital_signature(inv.company_id)
             if not signature_id:
                 raise UserError(_('''There is no Signer Person with an \
             authorized signature for you in the system. Please make sure that \
@@ -326,7 +326,7 @@ class ValidarDTEWizard(models.TransientModel):
                 inv,
                 signature_id.subject_serial_number,
             )
-            id = "T" + str(inv.sii_document_class_id.sii_code) + "F" + str(inv.get_folio())
+            id = "T" + str(inv.document_class_id.sii_code) + "F" + str(inv.get_folio())
             doc = '''
 <Recibo version="1.0" xmlns="http://www.sii.cl/SiiDte" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.sii.cl/SiiDte Recibos_v10.xsd" >
     <DocumentoRecibo ID="{0}" >

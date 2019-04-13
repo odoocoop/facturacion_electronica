@@ -45,6 +45,9 @@
                     <field name="principal" />
                 </div>
             </xpath>
+            <xpath expr="//field[@name='child_ids']/form/sheet/group/group/field[@name='email']" position="attributes">
+                <attribute name="attrs">{'required' : [('send_dte', '=', True)]}</attribute>
+            </xpath>
             <xpath expr="//field[@name='child_ids']/form/sheet/group" position="attributes">
                 <attribute name="attrs">{'invisible': [('type', '=', 'dte')]}</attribute>
             </xpath>

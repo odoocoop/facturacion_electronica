@@ -323,6 +323,38 @@ version="1.0">
             'dte_resolution_number': comp_id.dte_resolution_number}
         return resolution_data
 
+    def crear_intercambio(self):
+        rut = self.format_vat(self.partner_id.commercial_partner_id.vat )
+        envio = self._crear_envio(RUTRecep=rut)
+        return envio[list(envio.keys())[0]].encode('ISO-8859-1')
+
+    def _create_attachment(self,):
+        url_path = '/download/xml/boleta/%s' % (self.id)
+        filename = ('%s%s.xml' % (self.document_class_id.doc_code_prefix, self.sii_document_number)).replace(' ', '_')
+        att = self.env['ir.attachment'].search(
+                [
+                    ('name', '=', filename),
+                    ('res_id', '=', self.id),
+                    ('res_model', '=', 'pos.order')
+                ],
+                limit=1,
+            )
+        if att:
+            return att
+        xml_intercambio = self.crear_intercambio()
+        data = base64.b64encode(xml_intercambio)
+        values = dict(
+                        name=filename,
+                        datas_fname=filename,
+                        url=url_path,
+                        res_model='pos.order',
+                        res_id=self.id,
+                        type='binary',
+                        datas=data,
+                    )
+        att = self.env['ir.attachment'].sudo().create(values)
+        return att
+
     @api.multi
     def get_xml_file(self):
         return {
@@ -771,9 +803,7 @@ version="1.0">
             )
         self.sii_xml_dte = einvoice
 
-    @api.multi
-    def do_dte_send(self, n_atencion=None):
-        dicttoxml.set_debug(False)
+    def _crear_envio(self, n_atencion=None, RUTRecep="60803000-K"):
         DTEs = {}
         clases = {}
         company_id = False
@@ -811,9 +841,7 @@ version="1.0">
                     file_name[str(id_class_doc)] = ''
                 file_name[str(id_class_doc)] += 'F' + str(int(documento['sii_document_number'])) + 'T' + str(id_class_doc)
             SubTotDTE[id_class_doc] = '<SubTotDTE>\n<TpoDTE>' + str(id_class_doc) + '</TpoDTE>\n<NroDTE>'+str(NroDte)+'</NroDTE>\n</SubTotDTE>\n'
-        # firma del sobre
-        RUTRecep = "60803000-K" # RUT SII
-        to_return = False
+        envs = {}
         for id_class_doc, documento in documentos.items():
             dtes = self.create_template_envio(
                 RUTEmisor,
@@ -835,21 +863,29 @@ version="1.0">
                     'SetDoc',
                     env,
                 )
+            envs[(id_class_doc, company_id, env)] = '<?xml version="1.0" encoding="ISO-8859-1"?>\n' + envio_dte
+        return envs
+
+    @api.multi
+    def do_dte_send(self, n_atencion=None):
+        envs = self._crear_envio(n_atencion=n_atencion)
+        to_return = False
+        for id_class_doc, env in envs.items():
             envio_id = self.env['sii.xml.envio'].create(
                     {
-                        'xml_envio': '<?xml version="1.0" encoding="ISO-8859-1"?>\n' + envio_dte,
-                        'name': file_name[str(id_class_doc)] + '.xml',
-                        'company_id': company_id.id,
+                        'xml_envio': env,
+                        'name': file_name[str(id_class_doc[0])] + '.xml',
+                        'company_id': id_class_doc[1].id,
                         'user_id': self.env.uid,
                     }
                 )
             if not to_return:
                 to_return = envio_id
-            if env == 'env':
+            if id_class_doc[2] == 'env':
                 envio_id.send_xml()
                 to_return = envio_id
             for order in self:
-                if order.document_class_id.sii_code == id_class_doc:
+                if order.document_class_id.sii_code == id_class_doc[0]:
                     order.sii_xml_request = envio_id.id
         return to_return
 
@@ -876,11 +912,12 @@ version="1.0">
             fields_model = self.env['ir.fields.converter']
             from_zone = pytz.UTC
             to_zone = pytz.timezone('America/Santiago')
-            date_order = util_model._change_time_zone(datetime.strptime(r.date_order, DTF), from_zone, to_zone).strftime(DTF)
+            date_order = util_model._change_time_zone(datetime.strptime(r.date_order, DTF), from_zone, to_zone).strftime("%d-%m-%Y")
             signature_id = self.env.user.get_digital_signature(r.company_id)
             rut = signature_id.subject_serial_number
+            amount_total = r.amount_total if r.amount_total >= 0 else r.amount_total*-1
             respuesta = _server.service.getEstDte(
-                rut[:8],
+                rut[:8].replace('-', ''),
                 str(rut[-1]),
                 r.company_id.vat[2:-1],
                 r.company_id.vat[-1],
@@ -889,7 +926,7 @@ version="1.0">
                 str(r.document_class_id.sii_code),
                 str(r.sii_document_number),
                 date_order,
-                str(int(r.amount_total)),
+                str(int(amount_total)),
                 token,
             )
             r.sii_message = respuesta
@@ -899,13 +936,37 @@ version="1.0">
         for r in self:
             if not r.sii_xml_request and not r.sii_xml_request.sii_send_ident:
                 raise UserError('No se ha enviado aún el documento, aún está en cola de envío interna en odoo')
-            if r.sii_xml_request.state not in [ 'Aceptado', 'Rechazado']:
+            if r.sii_xml_request.state not in ['Aceptado', 'Rechazado']:
                 r.sii_xml_request.get_send_status(r.env.user)
         try:
             self._get_dte_status()
         except Exception as e:
             _logger.warning("Error al obtener DTE Status: %s" %str(e))
         self.get_sii_result()
+
+    def send_exchange(self):
+        att = self._create_attachment()
+        body = 'XML de Intercambio DTE: %s%s' % (self.document_class_id.doc_code_prefix, self.sii_document_number)
+        subject = 'XML de Intercambio DTE: %s%s' % (self.document_class_id.doc_code_prefix, self.sii_document_number)
+        dte_email_id = self.company_id.dte_email_id or self.env.user.company_id.dte_email_id
+        dte_receptors = self.partner_id.commercial_partner_id.child_ids + self.partner_id.commercial_partner_id
+        email_to = ''
+        for dte_email in dte_receptors:
+            if not dte_email.send_dte:
+                continue
+            email_to += dte_email.name+','
+        values = {
+                'res_id': self.id,
+                'email_from': dte_email_id.name_get()[0][1],
+                'email_to': email_to[:-1],
+                'auto_delete': False,
+                'model': 'pos.order',
+                'body': body,
+                'subject': subject,
+                'attachment_ids': [[6, 0, att.ids]],
+            }
+        send_mail = self.env['mail.mail'].sudo().create(values)
+        send_mail.send()
 
     def _create_account_move_line(self, session=None, move=None):
         # Tricky, via the workflow, we only have one id in the ids variable

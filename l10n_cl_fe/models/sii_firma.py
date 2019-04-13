@@ -32,6 +32,8 @@ class SignatureCert(models.Model):
                 raise UserError(_('Not Valid Subject Serial Number'))
             self.subject_serial_number = rut
             self.check_signature()
+        else:
+            self.state = 'incomplete'
 
     name = fields.Char(
             string='File Name',

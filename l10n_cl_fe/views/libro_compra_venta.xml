@@ -101,10 +101,6 @@
                   </page>
                   <page string="Envio SII">
                     <group>
-                      <field name='sii_message' attrs="{'invisible':[('state', 'in', ['','NoEnviado'])]}" readonly="1"/>
-                      <field name='sii_receipt' attrs="{'invisible':[('state', 'in', ['','NoEnviado'])]}" readonly="1"/>
-                      <field name='sii_send_ident' attrs="{'invisible':[('state', 'in', ['','NoEnviado'])]}" readonly="1"/>
-                      <field name='sii_xml_response' attrs="{'invisible':[('state', 'in', ['','NoEnviado'])]}" readonly="1"/>
                       <field name='sii_xml_request' readonly="1"/>
                     </group>
                   </page>

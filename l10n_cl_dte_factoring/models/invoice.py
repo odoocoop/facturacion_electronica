@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
-from openerp import fields, models, api, _
-from openerp.exceptions import UserError
+from odoo import fields, models, api, _
+from odoo.exceptions import UserError
 from datetime import datetime, timedelta, date
 import os
 import logging
 from lxml import etree
 from lxml.etree import Element, SubElement
-from openerp import SUPERUSER_ID
 
 import pytz
 import collections
@@ -24,18 +23,13 @@ except ImportError:
     _logger.warning('Cannot import dicttoxml library')
 
 try:
-    import base64
-except ImportError:
-    _logger.warning('Cannot import base64 library')
-
-try:
     from suds.client import Client
 except ImportError:
     _logger.warning('Cannot import suds')
 
 server_url = {
-    'SIIHOMO':'https://maullin.sii.cl/DTEWS/',
-    'SII':'https://palena.sii.cl/DTEWS/',
+    'SIIHOMO': 'https://maullin.sii.cl/DTEWS/',
+    'SII': 'https://palena.sii.cl/DTEWS/',
 }
 
 BC = '''-----BEGIN CERTIFICATE-----\n'''
@@ -235,7 +229,7 @@ version="1.0">
 
     def _id_dte(self):
         IdDoc = collections.OrderedDict()
-        IdDoc['TipoDTE'] = self.sii_document_class_id.sii_code
+        IdDoc['TipoDTE'] = self.document_class_id.sii_code
         IdDoc['RUTEmisor'] = self.format_vat(self.company_id.vat)
         if not self.partner_id.commercial_partner_id.vat:
             raise UserError("Debe Ingresar RUT Receptor")
@@ -293,10 +287,10 @@ version="1.0">
         data['TmstCesion'] = self.time_stamp()
         xml = dicttoxml.dicttoxml(
             {'item':data}, root=False, attr_type=False).decode() \
-            .replace('<item>','').replace('</item>','')
+            .replace('<item>', '').replace('</item>', '')
         doc_cesion_xml =  self._crear_info_trans_elec_aec(xml, id)
         cesion_xml =  self._crear_info_cesion(doc_cesion_xml)
-        root = etree.XML( cesion_xml )
+        root = etree.XML(cesion_xml)
         xml_formated = etree.tostring(root).decode()
         cesion = self.sign_full_xml(
             xml_formated,
@@ -331,7 +325,7 @@ version="1.0">
     def validate_cesion(self):
         for inv in self.with_context(lang='es_CL'):
             inv.sii_cesion_result = 'NoEnviado'
-            if inv.type in ['out_invoice' ] and inv.sii_document_class_id.sii_code in [ 33, 34]:
+            if inv.type in ['out_invoice' ] and inv.document_class_id.sii_code in [ 33, 34]:
                 if inv.journal_id.restore_mode:
                     inv.sii_result = 'Proceso'
                 else:
@@ -362,7 +356,7 @@ version="1.0">
     def do_cesion_dte_send(self):
         ids = []
         for inv in self.with_context(lang='es_CL'):
-            if inv.sii_cesion_result in ['','NoEnviado','Rechazado'] and inv.type in ['out_invoice' ] and inv.sii_document_class_id.sii_code in [ 33, 34]:
+            if inv.sii_cesion_result in ['', 'NoEnviado','Rechazado'] and inv.type in ['out_invoice' ] and inv.document_class_id.sii_code in [ 33, 34]:
                 if inv.sii_cesion_result in ['Rechazado']:
                     inv._crear_envio_cesion()
                 inv.sii_cesion_result = 'EnCola'
@@ -370,7 +364,7 @@ version="1.0">
         if ids:
             self.env['sii.cola_envio'].create({
                                     'doc_ids': ids,
-                                    'model':'account.invoice',
+                                    'model': 'account.invoice',
                                     'user_id': self.env.user.id,
                                     'tipo_trabajo': 'cesion',
                                     })
@@ -414,7 +408,7 @@ version="1.0">
             token,
             rut[:8],
             str(rut[-1]),
-            str(self.sii_document_class_id.sii_code),
+            str(self.document_class_id.sii_code),
             str(self.sii_document_number),
         )
         self.sii_cesion_message = respuesta
@@ -439,7 +433,7 @@ version="1.0">
             token,
             rut[:8],
             str(rut[-1]),
-            str(self.sii_document_class_id.sii_code),
+            str(self.document_class_id.sii_code),
             str(self.sii_document_number),
             tenedor_rut[2:-1],
             tenedor_rut[-1],

@@ -15,4 +15,5 @@ def migrate(cr, installed_version):
     cr.execute(
         "UPDATE res_company set filename_temp=filename,key_file_temp=key_file, cert_temp=cert, priv_temp=priv_key,expire_temp=not_after,emision_temp=not_before,serial_temp=subject_serial_number  where key_file!=''")
     cr.execute("CREATE TABLE back_res_c AS TABLE res_company_res_users_rel")
+    cr.execute("DELETE FROM ir_ui_view where name='user.signature.tab.form'")
 

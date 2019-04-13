@@ -2,6 +2,7 @@ from odoo import models, http
 from odoo.http import request
 from odoo.addons.web.controllers.main import serialize_exception, content_disposition
 
+
 class Binary(http.Controller):
 
     def document(self, filename, filecontent):
@@ -18,27 +19,27 @@ class Binary(http.Controller):
     @http.route(["/download/xml/invoice/<model('account.invoice'):document_id>"], type='http', auth='user')
     @serialize_exception
     def download_document(self, document_id, **post):
-        filename = ('%s.xml' % document_id.number).replace(' ','_')
+        filename = ('%s.xml' % document_id.number).replace(' ', '_')
         filecontent = document_id.sii_xml_request.xml_envio
         return self.document(filename, filecontent)
 
     @http.route(["/download/xml/invoice_exchange/<model('account.invoice'):rec_id>"], type='http', auth='user')
     @serialize_exception
     def download_document_exchange(self, rec_id, **post):
-        filename = ('%s.xml' % rec_id.number).replace(' ','_')
+        filename = ('%s.xml' % rec_id.number).replace(' ', '_')
         filecontent = rec_id.sii_xml_request.xml_envio
         return self.document(filename, filecontent)
 
     @http.route(["/download/xml/cf/<model('account.move.consumo_folios'):rec_id>"], type='http', auth='user')
     @serialize_exception
     def download_cf(self, rec_id, **post):
-        filename = ('CF_%s.xml' % rec_id.name).replace(' ','_')
-        filecontent = rec_id.sii_xml_request
+        filename = ('CF_%s.xml' % rec_id.sii_xml_request.name).replace(' ', '_')
+        filecontent = rec_id.sii_xml_request.xml_envio
         return self.document(filename, filecontent)
 
     @http.route(["/download/xml/libro/<model('account.move.book'):rec_id>"], type='http', auth='user')
     @serialize_exception
     def download_book(self, rec_id, **post):
-        filename = ('Libro_%s.xml' % rec_id.name).replace(' ','_')
-        filecontent = rec_id.sii_xml_request
+        filename = ('Libro_%s.xml' % rec_id.sii_xml_request.name).replace(' ', '_')
+        filecontent = rec_id.sii_xml_request.xml_envio
         return self.document(filename, filecontent)

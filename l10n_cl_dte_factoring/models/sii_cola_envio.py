@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
-from openerp import fields, models, api, _
+from odoo import fields, models, api, _
 import ast
 import logging
 _logger = logging.getLogger(__name__)
+
 
 class ColaEnvio(models.Model):
     _inherit = "sii.cola_envio"
@@ -16,7 +17,7 @@ class ColaEnvio(models.Model):
     )
 
     def _procesar_tipo_trabajo(self):
-        if self.tipo_trabajo in [ 'cesion', 'cesion_consulta' ]:
+        if self.tipo_trabajo in ['cesion', 'cesion_consulta' ]:
             docs = self.env[self.model].sudo(self.user_id.id).browse(ast.literal_eval(self.doc_ids))
             if self.tipo_trabajo == 'cesion':
                 try:

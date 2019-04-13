@@ -10,7 +10,7 @@ def migrate(cr, installed_version):
     env = api.Environment(cr, SUPERUSER_ID, {})
     for row in env['account.invoice'].search([
             ('type', 'in', ['in_invoice', 'in_refund']),
-            ('state', '=', 'draft'),
+            ('state', 'in', ['open']),
             ('sii_xml_request', '!=', False),
         ]):
         try:
