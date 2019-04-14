@@ -1,5 +1,5 @@
 facturacion_electronica
-suds
+suds-jurko
 signxml
 ast
 num2words
