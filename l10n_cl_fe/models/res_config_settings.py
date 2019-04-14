@@ -59,7 +59,7 @@ class ResConfigSettings(models.TransientModel):
     def set_values(self):
         super(ResConfigSettings, self).set_values()
         ICPSudo = self.env['ir.config_parameter'].sudo()
-        if self.dte_email_id and not self.default_external_email_server:
+        if self.dte_email_id and not self.external_email_server_default:
             raise UserError('Debe Cofigurar Servidor de Correo Externo en la pestaña Opciones Generales')
         ICPSudo.set_param('account.auto_send_dte', self.auto_send_dte)
         ICPSudo.set_param('account.auto_send_email', self.auto_send_email)

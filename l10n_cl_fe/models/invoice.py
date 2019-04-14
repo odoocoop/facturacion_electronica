@@ -133,11 +133,10 @@ class AccountInvoiceLine(models.Model):
                 total -= total_discount
                 line.price_subtotal = price_subtotal_signed = total
             if line.invoice_id.currency_id and line.invoice_id.currency_id != line.invoice_id.company_id.currency_id:
-                price_subtotal_signed = line.invoice_id.currency_id.with_context(date=line.invoice_id._get_currency_rate_date()).compute(price_subtotal_signed, line.invoice_id.company_id.currency_id)
+                price_subtotal_signed = line.invoice_id.currency_id._convert(price_subtotal_signed, line.invoice_id.company_id.currency_id, line.invoice_id.company_id, line.invoice_id.date_invoice)
             sign = line.invoice_id.type in ['in_refund', 'out_refund'] and -1 or 1
             line.price_subtotal_signed = price_subtotal_signed * sign
             line.price_total = taxes['total_included'] if (taxes and taxes['total_included'] > total) else total
-
 
 class Referencias(models.Model):
     _name = 'account.invoice.referencias'
@@ -451,8 +450,9 @@ class AccountInvoice(models.Model):
         amount_diff_currency = 0
         gdr = self.porcentaje_dr()
         if self.currency_id != company_currency:
-            currency = self.currency_id.with_context(date=self.date_invoice or fields.Date.context_today(self))
-            amount_diff = currency.compute(self.amount_total, company_currency)
+            currency = self.currency_id
+            date = self._get_currency_rate_date() or fields.Date.context_today(self)
+            amount_diff = currency._convert(self.amount_total, company_currency, self.company_id, date)
             amount_diff_currency = self.amount_total
         for line in invoice_move_lines:
             #@TODO Posibilidad de GDR a exentos
@@ -476,7 +476,7 @@ class AccountInvoice(models.Model):
                 if not (line.get('currency_id') and line.get('amount_currency')):
                     line['currency_id'] = currency.id
                     line['amount_currency'] = currency.round(line['price'])
-                    line['price'] = currency.compute(line['price'], company_currency)
+                    line['price'] = currency._convert(line['price'], company_currency, self.company_id, date)
             else:
                 line['currency_id'] = False
                 line['amount_currency'] = False
@@ -556,10 +556,10 @@ class AccountInvoice(models.Model):
         self.amount_total = self.amount_untaxed + self.amount_tax - amount_retencion
         amount_total_company_signed = self.amount_total
         amount_untaxed_signed = self.amount_untaxed
-        if self.currency_id and self.currency_id != self.company_id.currency_id:
-            currency_id = self.currency_id.with_context(date=self.date_invoice)
-            amount_total_company_signed = currency_id.compute(self.amount_total, self.company_id.currency_id)
-            amount_untaxed_signed = self.currency_id.compute(self.amount_untaxed, self.company_id.currency_id)
+        if self.currency_id and self.company_id and self.currency_id != self.company_id.currency_id:
+                currency_id = self.currency_id
+                amount_total_company_signed = currency_id._convert(self.amount_total, self.company_id.currency_id, self.company_id, self.date_invoice or fields.Date.today())
+                amount_untaxed_signed = currency_id._convert(self.amount_untaxed, self.company_id.currency_id, self.company_id, self.date_invoice or fields.Date.today())
         sign = self.type in ['in_refund', 'out_refund'] and -1 or 1
         self.amount_total_company_signed = amount_total_company_signed * sign
         self.amount_total_signed = self.amount_total * sign
@@ -578,24 +578,26 @@ class AccountInvoice(models.Model):
         done_taxes = []
         # loop the invoice.tax.line in reversal sequence
         for tax_line in sorted(self.tax_line_ids, key=lambda x: -x.sequence):
-            amount = tax_line.amount + tax_line.amount_retencion
+            amount = tax_line.amount_total + tax_line.amount_retencion
             if amount:
                 tax = tax_line.tax_id
                 if tax.amount_type == "group":
                     for child_tax in tax.children_tax_ids:
                         done_taxes.append(child_tax.id)
+                analytic_tag_ids = [(4, analytic_tag.id, None) for analytic_tag in tax_line.analytic_tag_ids]
                 done_taxes.append(tax.id)
-                if tax_line.amount  > 0:
+                if tax_line.amount_total > 0:
                     res.append({
                         'invoice_tax_line_id': tax_line.id,
                         'tax_line_id': tax_line.tax_id.id,
                         'type': 'tax',
                         'name': tax_line.name,
-                        'price_unit': tax_line.amount,
+                        'price_unit': tax_line.amount_total,
                         'quantity': 1,
-                        'price': tax_line.amount,
+                        'price': tax_line.amount_total,
                         'account_id': tax_line.account_id.id,
                         'account_analytic_id': tax_line.account_analytic_id.id,
+                        'analytic_tag_ids': analytic_tag_ids,
                         'invoice_id': self.id,
                         'tax_ids': [(6, 0, done_taxes)] if tax_line.tax_id.include_base_amount else []
                     })
@@ -610,6 +612,7 @@ class AccountInvoice(models.Model):
                         'price': -tax_line.amount_retencion,
                         'account_id': tax_line.retencion_account_id.id,
                         'account_analytic_id': tax_line.account_analytic_id.id,
+                        'analytic_tag_ids': analytic_tag_ids,
                         'invoice_id': self.id,
                         'tax_ids': [(6, 0, done_taxes)] if tax_line.tax_id.include_base_amount else []
                     })
@@ -750,7 +753,7 @@ class AccountInvoice(models.Model):
                             'out_refund': ('customer invoices debit note'),
                             'in_invoice': ('vendor bill credit note'),
                             'in_refund': ('vendor bill debit note')}
-            message = _("This %s has been created from: <a href=# data-oe-model=account.invoice data-oe-id=%d>%s</a>") % (invoice_type[invoice.type], invoice.id, invoice.number)
+            message = _("This %s has been created from: <a href=# data-oe-model=account.invoice data-oe-id=%d>%s</a><br>Reason: %s") % (invoice_type[invoice.type], invoice.id, invoice.number, description)
             refund_invoice.message_post(body=message)
             new_invoices += refund_invoice
         return new_invoices
@@ -922,7 +925,7 @@ class AccountInvoice(models.Model):
             query = []
             if not default and not self.journal_document_class_id:
                 query.append(
-                    ('sii_document_class_id','=', self.document_class_id.id),
+                    ('sii_document_class_id','=', self.journal_document_class_id.sii_document_class_id.id),
                 )
             if self.journal_document_class_id.journal_id != self.journal_id or not default:
                 query.append(
@@ -965,8 +968,7 @@ a VAT."""))
             domain = [('type', '=', self.type),
                       ('reference', '=', self.reference),
                       ('partner_id', '=', self.partner_id.id),
-                      ('journal_document_class_id.sii_document_class_id', '=',
-                       self.document_class_id.id),
+                      ('document_class_id', '=', self.document_class_id.id),
                       ('company_id', '=', self.company_id.id),
                       ('id', '!=', self.id),
                       ('state', '!=', 'cancel')]
@@ -1131,14 +1133,14 @@ a VAT."""))
     def _default_journal(self):
         if self._context.get('default_journal_id', False):
             return self.env['account.journal'].browse(self._context.get('default_journal_id'))
-        company_id = self._context.get('company_id', self.company_id or self.env.user.company_id)
+        company_id = self._context.get('company_id', self.company_id.id or self.env.user.company_id.id)
         if self._context.get('honorarios', False):
             inv_type = self._context.get('type', 'out_invoice')
             inv_types = inv_type if isinstance(inv_type, list) else [inv_type]
             domain = [
                 ('journal_document_class_ids.sii_document_class_id.document_letter_id.name','=','M'),
                 ('type', 'in', [TYPE2JOURNAL[ty] for ty in inv_types if ty in TYPE2JOURNAL])
-                ('company_id', '=', company_id.id),
+                ('company_id', '=', company_id),
             ]
             journal_id = self.env['account.journal'].search(domain, limit=1)
             return journal_id
@@ -1146,7 +1148,7 @@ a VAT."""))
         inv_types = inv_type if isinstance(inv_type, list) else [inv_type]
         domain = [
             ('type', 'in', [TYPE2JOURNAL[ty] for ty in inv_types if ty in TYPE2JOURNAL]),
-            ('company_id', '=', company_id.id),
+            ('company_id', '=', company_id),
         ]
         return self.env['account.journal'].search(domain, limit=1, order="sequence asc")
 
@@ -1607,17 +1609,17 @@ version="1.0">
         Totales['TpoCambio'] = currency_id.rate
         if MntNeto > 0:
             if currency_id != self.currency_id:
-                MntNeto = currency_id.compute(MntNeto, self.currency_id)
+                MntNeto = currency_id._convert(MntNeto, self.currency_id, self.company_id, self.date_invoice)
             Totales['MntNetoOtrMnda'] = MntNeto
         if MntExe:
             if currency_id != self.currency_id:
-                MntExe = currency_id.compute(MntExe, self.currency_id)
+                MntExe = currency_id._convert(MntExe, self.currency_id, self.company_id, self.date_invoice)
             Totales['MntExeOtrMnda'] = MntExe
         if MntBase and MntBase > 0:
             Totales['MntFaeCarneOtrMnda'] = MntBase
         if TasaIVA:
             if currency_id != self.currency_id:
-                IVA = currency_id.compute(IVA, self.currency_id)
+                IVA = currency_id._convert(IVA, self.currency_id, self.company_id, self.date_invoice)
             Totales['IVAOtrMnda'] = IVA
         if ImptoReten:
             for item in ImptoReten:
@@ -1625,11 +1627,11 @@ version="1.0">
                 ret['ImptRetOtrMnda']['TipoImpOtrMnda'] = item['ImptRet']['TipoImp']
                 ret['ImptRetOtrMnda']['TasaImpOtrMnda'] = item['ImptRet']['TasaImp']
                 if currency_id != self.currency_id:
-                    ret['ImptRetOtrMnda']['MontoImp'] = currency_id.compute(item['ImptRet']['MontoImp'], self.currency_id)
+                    ret['ImptRetOtrMnda']['MontoImp'] = currency_id._convert(item['ImptRet']['MontoImp'], self.currency_id, self.company_id, self.date_invoice)
                 ret['ImptRetOtrMnda']['ValorImpOtrMnda'] = item['ImptRet']['MontoImp']
             Totales['item_ret_otr'] = ret
         if currency_id != self.currency_id:
-            MntTotal = currency_id.compute(MntTotal, self.currency_id)
+            MntTotal = currency_id._convert(MntTotal, self.currency_id, self.company_id, self.date_invoice)
         Totales['MntTotOtrMnda'] = MntTotal
         #Totales['MontoNF']
         #Totales['TotalPeriodo']
@@ -1641,24 +1643,24 @@ version="1.0">
         Totales = collections.OrderedDict()
         if MntNeto > 0:
             if currency_id != self.currency_id:
-                    MntNeto = currency_id.compute(MntNeto, self.currency_id)
+                    MntNeto = currency_id._convert(MntNeto, self.currency_id, self.company_id, self.date_invoice)
             Totales['MntNeto'] = currency_id.round(MntNeto)
         if MntExe:
             if currency_id != self.currency_id:
-                MntExe = currency_id.compute(MntExe, self.currency_id)
+                MntExe = currency_id._convert(MntExe, self.currency_id, self.company_id, self.date_invoice)
             Totales['MntExe'] = currency_id.round(MntExe)
         if MntBase > 0:
             Totales['MntBase'] = currency_id.round(MntBase)
         if TasaIVA:
             Totales['TasaIVA'] = TasaIVA
             if currency_id != self.currency_id:
-                IVA = currency_id.compute(IVA, self.currency_id)
+                IVA = currency_id._convert(IVA, self.currency_id, self.company_id, self.date_invoice)
             Totales['IVA'] = currency_id.round(IVA)
         if ImptoReten:
             '''@TODO desglose ImptoReten'''
             Totales['item_ret'] = ImptoReten
         if currency_id != self.currency_id:
-            MntTotal = currency_id.compute(MntTotal, self.currency_id)
+            MntTotal = currency_id._convert(MntTotal, self.currency_id, self.company_id, self.date_invoice)
         Totales['MntTotal'] = currency_id.round(MntTotal)
         #Totales['MontoNF']
         #Totales['TotalPeriodo']
@@ -1727,7 +1729,7 @@ version="1.0">
         Encabezado['IdDoc'] = self._id_doc(taxInclude, MntExe)
         Encabezado['Emisor'] = self._emisor()
         Encabezado['Receptor'] = self._receptor()
-        currency_base = self.env.ref('base.CLP').with_context(date=self.date_invoice)
+        currency_base = self.env.ref('base.CLP')
         another_currency_id = False
         if self.currency_id != currency_base:
             another_currency_id = self.currency_id
@@ -1741,9 +1743,8 @@ version="1.0">
         if not self.commercial_partner_id.vat and not self._es_boleta() and not self._nc_boleta():
             raise UserError(_("Fill Partner VAT"))
         timestamp = self.time_stamp()
-        invoice_date = date(int(self.date_invoice[:4]), int(self.date_invoice[5:7]), int(self.date_invoice[8:10]))
         fecha_timbre = date(int(timestamp[:4]), int(timestamp[5:7]), int(timestamp[8:10]))
-        if fecha_timbre < invoice_date:
+        if fecha_timbre < self.date_invoice:
             raise UserError("La fecha de timbraje no puede ser menor a la fecha de emisión del documento")
         if fecha_timbre < \
             date(int(caf['FA'][:4]), int(caf['FA'][5:7]), int(caf['FA'][8:10])):
@@ -1768,7 +1769,8 @@ version="1.0">
             if line.product_id.default_code:
                 result['TED']['DD']['IT1'] = self._acortar_str(line.product_id.name.replace('['+line.product_id.default_code+'] ',''),40)
             break
-        resultcaf = self.journal_document_class_id.sequence_id.get_caf_file(self.get_folio() )
+
+        resultcaf = self.journal_document_class_id.sequence_id.get_caf_file(self.get_folio())
         result['TED']['DD']['CAF'] = resultcaf['AUTORIZACION']['CAF']
         dte = result['TED']['DD']
         timestamp = self._validaciones_caf(resultcaf['AUTORIZACION']['CAF']['DA'])
@@ -1807,10 +1809,10 @@ version="1.0">
         invoice_lines = []
         no_product = False
         MntExe = 0
-        currency_base = self.env.ref('base.CLP').with_context(date=self.date_invoice)
+        currency_base = self.env.ref('base.CLP')
         currency_id = False
         if self.currency_id != currency_base:
-            currency_id = self.currency_id.with_context(date=self.date_invoice)
+            currency_id = self.currency_id
         for line in self.invoice_line_ids:
             if line.product_id.default_code == 'NO_PRODUCT':
                 no_product = True
@@ -1850,7 +1852,7 @@ version="1.0">
                         lines['CodImpAdic'] = t.sii_code
                 if currency_id:
                     lines['OtrMnda'] = collections.OrderedDict()
-                    lines['OtrMnda']['PrcOtrMon'] = round(currency_base.compute( line.price_unit, currency_id, round=False), 6)
+                    lines['OtrMnda']['PrcOtrMon'] = round(currency_base._convert(line.price_unit, currency_id, self.company_id, self.date_invoice, round=False), 6)
                     lines['OtrMnda']['Moneda'] = self._acortar_str(currency_id.name, 3)
                     lines['OtrMnda']['FctConv'] = round(currency_id.rate, 4)
             if line.discount > 0:
@@ -1858,24 +1860,24 @@ version="1.0">
                 DescMonto = (((line.discount / 100) * lines['PrcItem'])* qty)
                 lines['DescuentoMonto'] = currency_base.round(DescMonto)
                 if currency_id:
-                    lines['DescuentoMonto'] = currency_base.compute(DescMonto, currency_id)
+                    lines['DescuentoMonto'] = currency_base._convert(DescMonto, currency_id, self.company_id, self.date_invoice)
                     lines['OtrMnda']['DctoOtrMnda'] = DescMonto
             if not no_product and not taxInclude:
                 price_subtotal = line.price_subtotal
                 if currency_id:
                     lines['OtrMnda']['MontoItemOtrMnda'] = price_subtotal
-                    price_subtotal = currency_base.compute(price_subtotal, currency_id)
+                    price_subtotal = currency_base._convert(price_subtotal, currency_id, self.company_id, self.date_invoice)
                 lines['MontoItem'] = currency_base.round(price_subtotal)
             elif not no_product:
                 price_total = line.price_total
                 if currency_id:
                     lines['OtrMnda']['MontoItemOtrMnda'] = price_total
-                    price_total = currency_base.compute(price_total, currency_id)
+                    price_total = currency_base._convert(price_total, currency_id, self.company_id, self.date_invoice)
                 lines['MontoItem'] = currency_base.round(price_total)
             if no_product:
                 lines['MontoItem'] = 0
             if lines['MontoItem'] < 0:
-                raise UserError(_('No pueden ir valores negativos en las líneas de detalle'))
+                raise UserError(_("No pueden ir valores negativos en las líneas de detalle"))
             line_number += 1
             if lines.get('PrcItem', 1) == 0:
                 del(lines['PrcItem'])
@@ -1903,10 +1905,10 @@ version="1.0">
                 disc_type = "$"
             dr_line['TpoValor'] = disc_type
             currency_base = self.env.ref('base.CLP')
-            dr_line['ValorDR'] = currency_base.round(dr.valor).with_context(date=self.date_invoice)
+            dr_line['ValorDR'] = currency_base.round(dr.valor)
             if self.currency_id != currency_base:
                 currency_id = self.currency_id
-                dr_line['ValorDROtrMnda'] = currency_base.compute(dr.valor, currency_id)
+                dr_line['ValorDROtrMnda'] = currency_base._convert(dr.valor, currency_id, self.company_id, self.date_invoice)
             if self.document_class_id.sii_code in [34] and (self.referencias and self.referencias[0].sii_referencia_TpoDocRef.sii_code == '34'):#solamente si es exento
                 dr_line['IndExeDR'] = 1
             dr_lines = [{'DscRcgGlobal':dr_line}]
@@ -2153,7 +2155,7 @@ version="1.0">
             url = server_url[r.company_id.dte_service_provider] + 'QueryEstDte.jws?WSDL'
             _server = Client(url)
             receptor = r.format_vat(r.commercial_partner_id.vat)
-            date_invoice = datetime.strptime(r.date_invoice, "%Y-%m-%d").strftime("%d-%m-%Y")
+            date_invoice = r.date_invoice.strftime("%d-%m-%Y")
             signature_id = self.env.user.get_digital_signature(r.company_id)
             rut = signature_id.subject_serial_number
             respuesta = _server.service.getEstDte(
@@ -2184,17 +2186,6 @@ version="1.0">
             except Exception as e:
                 _logger.warning("Error al obtener DTE Status: %s" %str(e))
         self.get_sii_result()
-        for r in self:
-            if r.sii_result == 'Rechazado':
-                self.env['bus.bus'].sendone((self._cr.dbname,
-                                            'account.invoice',
-                                            self.env.user.partner_id.id),
-                                            {
-                                                'title': "Documento Rechazado",
-                                                'message': "%s" % r.name,
-                                                'url': 'res_config',
-                                                'type': 'dte_notif',
-                                            })
 
     def set_dte_claim(self, rut_emisor=False, company_id=False, sii_document_number=False, document_class_id=False, claim=False):
         rut_emisor = rut_emisor or self.format_vat(self.company_id.partner_id.vat)
@@ -2279,10 +2270,10 @@ version="1.0">
     @api.multi
     def invoice_print(self):
         self.ensure_one()
-        self.sent = True
+        self.filtered(lambda inv: not inv.sent).write({'sent': True})
         if self.ticket:
             return self.env.ref('l10n_cl_fe.action_print_ticket').report_action(self)
-        return self.env.ref('account.account_invoices').report_action(self)
+        return super(AccountInvoice, self).invoice_print()
 
     @api.multi
     def print_cedible(self):
@@ -2306,7 +2297,7 @@ version="1.0">
         for dte_email in dte_receptors:
             if not dte_email.send_dte or not dte_email.email:
                 continue
-            email_to += dte_email.email+','
+            email_to += dte_email.email + ','
         values = {
                 'res_id': self.id,
                 'email_from': dte_email_id.name_get()[0][1],

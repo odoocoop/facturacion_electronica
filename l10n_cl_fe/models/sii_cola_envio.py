@@ -3,7 +3,6 @@ from odoo import fields, models, api
 from odoo.tools.translate import _
 import ast
 from datetime import datetime
-from odoo.tools import DEFAULT_SERVER_DATETIME_FORMAT as DTF
 import logging
 _logger = logging.getLogger(__name__)
 
@@ -54,7 +53,7 @@ class ColaEnvio(models.Model):
     def _es_doc(self, doc):
         if hasattr(doc, 'sii_message'):
             return doc.sii_message
-        return True
+        return False
 
     def _procesar_tipo_trabajo(self):
         if not self.user_id.active:
@@ -65,7 +64,7 @@ class ColaEnvio(models.Model):
             if docs[0].sii_xml_request and docs[0].sii_xml_request.state in ['Aceptado', 'Enviado', 'Rechazado', 'Anulado']:
                 self.unlink()
                 return
-            if self.date_time and datetime.now() >= datetime.strptime(self.date_time, DTF):
+            if self.date_time and datetime.now() >= self.date_time:
                 try:
                     envio_id = docs.do_dte_send(self.n_atencion)
                     if envio_id.sii_send_ident:
@@ -75,7 +74,7 @@ class ColaEnvio(models.Model):
                     _logger.warning(str(e))
                 docs.get_sii_result()
             return
-        if (self._es_doc(docs[0]) or self.es_boleta(docs[0])) and docs[0].sii_result in ['Proceso', 'Reparo', 'Rechazado', 'Anulado']:
+        if (self._es_doc(docs[0]) or self._es_boleta(docs[0])) and docs[0].sii_result in ['Proceso', 'Reparo', 'Rechazado', 'Anulado']:
             if self.send_email and docs[0].sii_result in ['Proceso', 'Reparo']:
                 for doc in docs:
                     self.enviar_email(doc)
@@ -96,9 +95,10 @@ class ColaEnvio(models.Model):
             except Exception as e:
                 _logger.warning("Error en envío Cola")
                 _logger.warning(str(e))
-        elif self.tipo_trabajo == 'envio' and docs[0].sii_xml_request and (docs[0].sii_xml_request.sii_send_ident or docs[0].sii_xml_request.state in [ 'Aceptado', 'Enviado', 'Rechazado']):
+        elif self.tipo_trabajo == 'envio' and docs[0].sii_xml_request \
+            and (docs[0].sii_xml_request.sii_send_ident \
+            or docs[0].sii_xml_request.state in ['Aceptado', 'Enviado', 'Rechazado']):
             self.tipo_trabajo = 'consulta'
-
 
     @api.model
     def _cron_procesar_cola(self):

@@ -30,12 +30,12 @@
               <search string="Buscar Consumo de Folios">
                   <field name="name"/>
                   <field name="fecha_inicio"/>
-                  <filter string="Procesado" domain="[('state','=','Proceso')]"/>
-                  <filter string="Rechazado" domain="[('state','=', 'Rechazado')]"/>
-                  <filter string="Anulado" domain="[('state','=','Anulado')]"/>
-                  <filter string="Posted" domain="[('state','=','done')]"/>
+                  <filter name="filter_by_process" string="Procesado" domain="[('state','=','Proceso')]"/>
+                  <filter name="filter_by_rejected" string="Rechazado" domain="[('state','=', 'Rechazado')]"/>
+                  <filter name="filter_by_cancel" string="Anulado" domain="[('state','=','Anulado')]"/>
+                  <filter name="filter_by_done" string="Posted" domain="[('state','=','done')]"/>
                   <group expand="0" string="Group By">
-                      <filter string="Consumos Mensuales Válidos" domain="[('state', '=', 'Proceso')]" context="{'group_by':'fecha_inicio'}"/>
+                      <filter name="group_by_fecha" string="Consumos Mensuales Válidos" domain="[('state', '=', 'Proceso')]" context="{'group_by':'fecha_inicio'}"/>
                   </group>
               </search>
           </field>

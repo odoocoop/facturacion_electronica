@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from odoo import fields, models, api
 from odoo.tools.translate import _
+from odoo.exceptions import UserError
 from .invoice import server_url
 from odoo.exceptions import UserError
 from lxml import etree
@@ -123,7 +124,14 @@ class SIIXMLEnvio(models.Model):
             pass
         url = server_url[company_id.dte_service_provider] + 'CrSeed.jws?WSDL'
         _server = Client(url)
-        resp = _server.service.getSeed().replace('<?xml version="1.0" encoding="UTF-8"?>','')
+        try:
+            resp = _server.service.getSeed().replace('<?xml version="1.0" encoding="UTF-8"?>','')
+        except Exception as e:
+            _logger.warning(e)
+            if str(e) == "(503, 'Service Temporarily Unavailable')":
+                raise UserError(_("Conexión SII no disponible, intente otra vez"))
+            else:
+                raise UserError(str(e))
         root = etree.fromstring(resp)
         semilla = root[0][0].text
         return semilla
@@ -236,19 +244,20 @@ class SIIXMLEnvio(models.Model):
                 self.sii_send_ident,
                 token,
             )
-        result = { "sii_receipt" : respuesta }
-        resp = xmltodict.parse( respuesta )
-        result.update({ "state": "Enviado" })
+        result = {"sii_receipt" : respuesta}
+        resp = xmltodict.parse(respuesta)
+        result.update({"state": "Enviado"})
         if resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] == "-11":
             if resp['SII:RESPUESTA']['SII:RESP_HDR']['ERR_CODE'] == "2":
                 status = {'warning':{'title':_('Estado -11'), 'message': _("Estado -11: Espere a que sea aceptado por el SII, intente en 5s más")}}
             else:
-                status = {'warning':{'title':_('Estado -11'), 'message': _("Estado -11: error 1Algo a salido mal, revisar carátula")}}
+                _logger.warning(_("Estado -11: error 1Algo a salido mal, revisar carátula"))
+                result.update({'state': 'Rechazado'})
         if resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] in ["EPR", "LOK"]:
-            result.update({ "state": "Aceptado" })
+            result.update({"state": "Aceptado"})
             if resp['SII:RESPUESTA'].get('SII:RESP_BODY') and resp['SII:RESPUESTA']['SII:RESP_BODY']['RECHAZADOS'] == "1":
                 result.update({ "state": "Rechazado" })
         elif resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] in ["RCT", "RFR", "LRH", "RCH", "RSC"]:
-            result.update({ "state": "Rechazado" })
+            result.update({"state": "Rechazado"})
             _logger.warning(resp)
-        self.write( result )
+        self.write(result)

@@ -53,21 +53,25 @@ stamp to be legally valid.''',
             related='partner_id.state_id',
             relation="res.country.state",
             string='Ubication',
+            readonly=False,
         )
     company_activities_ids = fields.Many2many(
             'partner.activities',
             related="partner_id.acteco_ids",
             string='Activities Names',
+            readonly=False,
         )
     responsability_id = fields.Many2one(
             related='partner_id.responsability_id',
             relation='sii.responsability',
             string="Responsability",
             default=lambda self: self._get_default_tp_type(),
+            readonly=False,
         )
     start_date = fields.Date(
             related='partner_id.start_date',
             string='Start-up Date',
+            readonly=False,
         )
     invoice_vat_discrimination_default = fields.Selection(
             [
@@ -90,16 +94,19 @@ stamp to be legally valid.''',
             string='Glosa Giro',
             related='partner_id.activity_description',
             relation='sii.activity.description',
+            readonly=False,
         )
     city_id = fields.Many2one(
             related='partner_id.city_id',
             relation="res.city",
             string='City',
+            readonly=False,
         )
     document_number = fields.Char(
             related='partner_id.document_number',
             string="Document Number",
             required=True,
+            readonly=False,
         )
     document_type_id = fields.Many2one(
             related="partner_id.document_type_id",
@@ -107,6 +114,7 @@ stamp to be legally valid.''',
             string='Document type',
             default=lambda self: self._get_default_doc_type(),
             required=True,
+            readonly=False,
         )
 
     @api.onchange('document_number', 'document_type_id')

@@ -5,14 +5,12 @@ from odoo.exceptions import UserError
 from datetime import datetime, timedelta
 import dateutil.relativedelta as relativedelta
 from odoo.tools import DEFAULT_SERVER_DATETIME_FORMAT as DTF
+from odoo.tools import DEFAULT_SERVER_DATE_FORMAT as DF
 import logging
 from lxml import etree
 from lxml.etree import Element, SubElement
-
 import pytz
 import struct
-
-
 import collections
 
 try:
@@ -98,7 +96,7 @@ class Libro(models.Model):
     _name = "account.move.book"
 
     sii_xml_request = fields.Many2one(
-            'sii.xml.envio',
+            "sii.xml.envio",
             string='SII XML Request',
             copy=False)
     state = fields.Selection([
@@ -112,20 +110,21 @@ class Libro(models.Model):
             ('Proceso', 'Proceso'),
             ('Reenviar', 'Reenviar'),
             ('Anulado', 'Anulado')],
-        string='Resultado',
-        index=True,
-        readonly=True,
-        default='draft',
-        track_visibility='onchange',
-        copy=False,
-        help=" * The 'Draft' status is used when a user is encoding a new and unconfirmed Invoice.\n"
+            string='Resultado',
+            index=True,
+            readonly=True,
+            default='draft',
+            track_visibility='onchange',
+            copy=False,
+            help=" * The 'Draft' status is used when a user is encoding a new and unconfirmed Invoice.\n"
              " * The 'Pro-forma' status is used the invoice does not have an invoice number.\n"
              " * The 'Open' status is used when user create invoice, an invoice number is generated. Its in open status till user does not pay invoice.\n"
              " * The 'Paid' status is set automatically when the invoice is paid. Its related journal entries may or may not be reconciled.\n"
              " * The 'Cancelled' status is used when user cancel invoice.")
-    move_ids = fields.Many2many('account.move',
-        readonly=True,
-        states={'draft': [('readonly', False)]})
+    move_ids = fields.Many2many(
+            'account.move',
+            readonly=True,
+            states={'draft': [('readonly', False)]})
 
     tipo_libro = fields.Selection([
                 ('ESPECIAL','Especial'),
@@ -246,7 +245,7 @@ class Libro(models.Model):
             required=True,
             readonly=True,
             states={'draft': [('readonly', False)]},
-            default=lambda *a: datetime.now(),
+            default=lambda self: fields.Date.context_today(self),
         )
     boletas = fields.One2many(
             'account.move.book.boletas',
@@ -618,6 +617,7 @@ version="1.0">
         self._validar()
         return self.write({'state': 'NoEnviado'})
 
+
     def _acortar_str(self, texto, size=1):
         c = 0
         cadena = ""
@@ -710,7 +710,7 @@ version="1.0">
                 continue
         #det['IndServicio']
         #det['IndSinCosto']
-        det['FchDoc'] = rec.date
+        det['FchDoc'] = rec.date.strftime(DF)
         if rec.journal_id.sii_code:
             det['CdgSIISucur'] = rec.journal_id.sii_code
         det['RUTDoc'] = self.format_vat(rec.partner_id.vat)
@@ -840,8 +840,8 @@ version="1.0">
         #    det['Anulado'] = 'A'
         det['TpoServ'] = 3
         try:
-            det['FchEmiDoc'] = rec.date
-            det['FchVencDoc'] = rec.date
+            det['FchEmiDoc'] = rec.date.strftime(DF)
+            det['FchVencDoc'] = rec.date.strftime(DF)
         except:
             util_model = self.env['cl.utils']
             fields_model = self.env['ir.fields.converter']
@@ -852,7 +852,7 @@ version="1.0">
             fields_model = self.env['ir.fields.converter']
             from_zone = pytz.UTC
             to_zone = pytz.timezone('America/Santiago')
-            date_order = util_model._change_time_zone(datetime.strptime(rec.date_order, DTF), from_zone, to_zone).strftime(DTF)
+            date_order = util_model._change_time_zone(rec.date_order, from_zone, to_zone).strftime(DTF)
             det['FchEmiDoc'] = date_order[:10]
             det['FchVencDoc'] = date_order[:10]
         #det['PeriodoDesde']
@@ -1197,35 +1197,34 @@ version="1.0">
             certp,
             doc_id,
             env)
-        self.sii_xml_request = self.env['sii.xml.envio'].create({
+        self.sii_xml_request = self.env['sii.xml.request'].create({
             'xml_envio': envio_dte,
             'name': doc_id,
-            'company_id': company_id.id,
+            'company_id': company_id.id
         }).id
-
-    @api.multi
-    def do_dte_send_book(self):
-        if self.state not in ['draft', 'NoEnviado', 'Rechazado']:
-            raise UserError("El Libro  ya ha sido enviado")
-        if not self.sii_xml_request:
-            self._validar()
-        self.env['sii.cola_envio'].create(
-                    {
-                        'doc_ids': [self.id],
-                        'model': 'account.move.book',
-                        'user_id': self.env.user.id,
-                        'tipo_trabajo': 'envio',
-                    })
-        self.state = 'EnCola'
 
     def do_dte_send(self, n_atencion=''):
         self.sii_xml_request.send_xml()
         return self.sii_xml_request
 
+    @api.multi
+    def do_dte_send_book(self):
+        if self.state not in ['draft', 'NoEnviado', 'Rechazado']:
+            raise UserError("El Libro ya ha sido enviado")
+        if not self.sii_xml_request:
+            self._validar()
+        self.env['sii.cola_envio'].create({
+            'doc_ids': [self.id],
+            'model': 'account.move.book',
+            'user_id': self.env.user.id,
+            'tipo_trabajo': 'envio',
+        })
+        self.state = 'EnCola'
+
     def _get_send_status(self):
         self.sii_xml_request.get_send_status()
-        if self.sii_xml_request.state == 'Aceptado':
-            self.state = "Proceso"
+        if self.sii_xml_request == 'Aceptado':
+            self.state = 'Proceso'
         else:
             self.state = self.sii_xml_request.state
 

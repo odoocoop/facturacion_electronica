@@ -14,8 +14,8 @@
                         placeholder="Glosa descriptiva" options="{'no_open': True}"/>
                 <field name="document_class_id"/>
               </field>
-              <xpath expr="//group[last()]" position="inside">
-                  <filter string="Document Type" icon="terp-folder-orange" domain="[]" context="{'group_by':'document_class_id'}"/>
+              <xpath expr="//filter[@name='status']" position="after">
+                  <filter name="document_type" string="Document Type" context="{'group_by':'document_class_id'}"/>
               </xpath>
           </field>
       </record>
@@ -47,7 +47,7 @@
                   <field name="sii_code" invisible="1"/>
               </form>
 
-              <button name="invoice_print" position="after">
+              <button name="preview_invoice" position="after">
                  <button string="Imprimir Copia y Cedible" type="object" name="print_copy_cedible" />
                  <button string="Imprimir Cedible" type="object" name="print_cedible" />
               </button>
@@ -66,7 +66,7 @@
                       <field name="number" readonly="1" class="oe_inline"/>
                   </div>
                   <div attrs="{'invisible': [('state','!=','draft')]}">
-                      <label string="Siguiente" /> <br/>
+                      <label for="next_invoice_number" string="Siguiente" /> <br/>
                       <field name="document_class_id" class="oe_inline"/> Número:<br/>
                       <field name="sequence_number_next_prefix" class="oe_inline"/>
                       <field name="sequence_number_next" class="oe_inline" readonly="True"/>
@@ -298,7 +298,7 @@
             <field eval="False" name="view_id"/>
             <field name="domain">[('type','in',('out_invoice','out_refund'))]</field>
             <field name="context">{'type':'out_invoice', 'journal_type': 'sale'}</field>
-            <field name="search_view_id" ref="account.view_account_invoice_filter_inherit_invoices"/>
+            <field name="search_view_id" ref="account.view_account_invoice_filter"/>
             <field name="help" type="html">
               <p class="oe_view_nocontent_create">
                 Click to create a customer invoice.

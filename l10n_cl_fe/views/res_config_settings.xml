@@ -127,7 +127,7 @@
     <field name="priority" eval="101"/>
     <field name="inherit_id" ref="mail.res_config_settings_view_form"/>
     <field name="arch" type="xml">
-      <field name="default_external_email_server" position="attributes">
+      <field name="external_email_server_default" position="attributes">
         <attribute name="required">True</attribute>
       </field>
     </field>

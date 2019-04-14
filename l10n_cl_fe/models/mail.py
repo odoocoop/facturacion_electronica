@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-
 from odoo import fields, models, api
 from odoo.tools.translate import _
+from odoo.tools.safe_eval import safe_eval
 import logging
 _logger = logging.getLogger(__name__)
 
@@ -96,7 +96,7 @@ class ProccessMail(models.Model):
         xml_id = 'l10n_cl_fe.action_dte_process'
         result = self.env.ref('%s' % (xml_id)).read()[0]
         if created:
-            domain = eval(result['domain'])
+            domain = safe_eval(result.get('domain', '[]'))
             domain.append(('id', 'in', created))
             result['domain'] = domain
         return result
@@ -214,7 +214,7 @@ class ProcessMailsDocument(models.Model):
         xml_id = 'account.action_invoice_tree2'
         result = self.env.ref('%s' % (xml_id)).read()[0]
         if created:
-            domain = eval(result['domain'])
+            domain = safe_eval(result.get('domain', '[]'))
             domain.append(('id', 'in', created))
             result['domain'] = domain
         return result
