@@ -1,9 +1,6 @@
 facturacion_electronica
-hashlib
-suds
+suds-jurko
 signxml
-ast
 num2words
 xlsxwriter
-io
 pillow
