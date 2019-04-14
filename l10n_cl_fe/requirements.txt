@@ -3,5 +3,4 @@ suds-jurko
 signxml
 num2words
 xlsxwriter
-io
 pillow
