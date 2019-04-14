@@ -1,5 +1,5 @@
 facturacion_electronica
-hashlib
+pybase64
 suds
 signxml
 ast
