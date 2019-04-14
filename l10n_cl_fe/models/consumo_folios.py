@@ -103,8 +103,8 @@ class ConsumoFolios(models.Model):
             ('Reenviar', 'Reenviar'),
             ('Anulado', 'Anulado')],
             string='Resultado',
-            index=True, re
-            adonly=True,
+            index=True,
+            readonly=True,
             default='draft',
             track_visibility='onchange',
             copy=False,

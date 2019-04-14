@@ -13,6 +13,7 @@ try:
 except:
     _logger.warning("no se ha cargado urllib3")
 
+
 class ResPartner(models.Model):
     _inherit = 'res.partner'
 
@@ -331,7 +332,7 @@ class ResPartner(models.Model):
                                                 {
                                                     'rut': self.document_number,
                                                     'token': token,
-                                                    'glosa_giro': self.glosa_giro,
+                                                    'glosa_giro': self.activity_description.name,
                                                     'razon_social': self.name,
                                                     'dte_email': self.dte_email,
                                                     'email': self.email,
