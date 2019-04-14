@@ -33,7 +33,7 @@
             <field name="state">code</field>
             <field name="code">model._check_need_update()</field>
             <field name="active" eval="True" />
-            <field name="nextcall">01/01/2019 00:00:01 AM</field>
+            <field name="nextcall">03/21/2019 00:00:01 AM</field>
         </record>
     </data>
 </odoo>

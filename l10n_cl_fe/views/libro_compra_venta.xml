@@ -33,11 +33,11 @@
             <field name="arch" type="xml">
               <form>
                 <header>
+                  <field name="state" widget="statusbar"/>
                   <button type="object" name="validar_libro" states="draft" string="Validate" class="oe_highlight" groups="base.group_user"/>
                   <button string="Download XML" type="object"  name="get_xml_file"  attrs="{'invisible':[('state', 'in', ['draft'])]}"/>
                   <button string="Send XML" type="object" class="oe_highlight" name="do_dte_send_book" attrs="{'invisible': [ ('state', 'not in', ['NoEnviado'])]}"/>
-                  <button string="Ask for DTE" type="object" class="oe_highlight" name="ask_for_dte_status" attrs="{'invisible': [('state', 'in', ['draft','NoEnviado'])]}"/>
-                  <field name="state" widget="statusbar"/>
+                  <button string="Ask for DTE" type="object" class="oe_highlight" name="ask_for_dte_status" attrs="{'invisible': [('state', 'in', ['draft','NoEnviado'])]}"/>                  
                 </header>
                 <group>
                   <field name="name" />
@@ -71,15 +71,18 @@
                 </group>
                 <notebook>
                   <page string="Movimientos">
-                    <field name="move_ids" editable="bottom" widget="many2many_list">
-                      <field name="document_number"/>
-                      <field name="date"/>
-                        <field name="line_ids" widget="one2many_list">
-                                <tree editable="bottom" string="Journal Items">
-                                    <field name="debit" sum="Total Debit"/>
-                                    <field name="credit" sum="Total Credit"/>
-                                </tree>
-                            </field>
+                    <field name="move_ids" editable="bottom" widget="many2many_list" domain="[('journal_id.type', 'in', ['sale', 'purchase'])]">
+                      <tree>
+                        <field name="name"/>
+                        <field name="date"/>
+                          <field name="line_ids" widget="one2many_list">
+                                  <tree editable="bottom" string="Journal Items">
+                                      <field name="debit" sum="Total Debit"/>
+                                      <field name="credit" sum="Total Credit"/>
+                                  </tree>
+                              </field>
+                        <field name="state" />
+                      </tree>
                     </field>
                   </page>
                   <page string="Boletas" attrs="{'invisible':[('tipo_operacion','!=', 'VENTA')]}">

@@ -2,7 +2,7 @@
 {
     "name": """Facturación Electrónica para Chile\
     """,
-    'version': '0.10.1',
+    'version': '0.10.0',
     'category': 'Localization/Chile',
     'sequence': 12,
     'author':  'Daniel Santibáñez Polanco, Cooperativa OdooCoop',
@@ -10,13 +10,12 @@
     'license': 'AGPL-3',
     'summary': 'Facturación Electrónica para Chile. Mayor información en https://odoocoop.cl',
     'description': """
-Facturación Electrónica para Chile. Mayor infromación en https://odoocoop.cl
+Facturación Electrónica para Chile. Mayor información en https://odoocoop.cl
 """,
     'depends': [
             'base',
             'base_address_city',
             'account',
-            'account_invoicing',
             'purchase',
             'sale_management',
             'l10n_cl_chart_of_account',
@@ -64,7 +63,6 @@ Facturación Electrónica para Chile. Mayor infromación en https://odoocoop.cl
             'views/account_journal_sii_document_class_view.xml',
             'views/account_move_line_view.xml',
             'views/account_move_view.xml',
-            #'views/config_view.xml',
             'views/country_view.xml',
             'views/currency_view.xml',
             'views/honorarios.xml',

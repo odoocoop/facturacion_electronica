@@ -225,13 +225,9 @@ www.sii.cl'''.format(folio)
             if int(folio) >= caffile.start_nm and int(folio) <= caffile.final_nm:
                 if caffile.expiration_date:
                     timestamp = self.time_stamp()
-                    expiration_caf = date(int(caffile.expiration_date[:4]),
-                                          int(caffile.expiration_date[5:7]),
-                                          int(caffile.expiration_date[8:10])
-                                         )
                     if date(int(timestamp[:4]),
                             int(timestamp[5:7]),
-                            int(timestamp[8:10])) > expiration_caf:
+                            int(timestamp[8:10])) > caffile.expiration_date:
                         msg = "CAF Vencido. %s" % msg
                         continue
                 return caffile.decode_caf()

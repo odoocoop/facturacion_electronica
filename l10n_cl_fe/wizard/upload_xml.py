@@ -182,6 +182,7 @@ class UploadXMLWizard(models.TransientModel):
             ])
         if not self.dte_id.company_id:
             return 3, 'Rut no corresponde a nuestra empresa'
+        '''
         partner_id = self.env['res.partner'].search(
             [
                 ('active', '=', True),
@@ -189,12 +190,13 @@ class UploadXMLWizard(models.TransientModel):
                 ('vat', '=', self.format_rut(cara['RutEmisor']))
             ]
         )
-#        if not partner_id :
-#            return 2, 'Rut no coincide con los registros'
-        #for SubTotDTE in cara['SubTotDTE']:
-        #    sii_document_class = self.env['sii.document_class'].search([('sii_code','=', str(SubTotDTE['TipoDTE']))])
-        #    if not sii_document_class:
-        #        return  99, 'Tipo de documento desconocido'
+        if not partner_id :
+            return 2, 'Rut no coincide con los registros'
+        for SubTotDTE in cara['SubTotDTE']:
+            sii_document_class = self.env['sii.document_class'].search([('sii_code','=', str(SubTotDTE['TipoDTE']))])
+            if not sii_document_class:
+                return  99, 'Tipo de documento desconocido'
+        '''
         return 0, 'Envío Ok'
 
     def _validar(self, doc):
@@ -214,11 +216,11 @@ class UploadXMLWizard(models.TransientModel):
             ('parent_id', '=', False),
             ('vat', '=', self.format_rut(doc['Encabezado']['Emisor']['RUTEmisor']))
         ])
-        sii_document_class = doc['Encabezado']['IdDoc']['TipoDTE']
+        document_class = doc['Encabezado']['IdDoc']['TipoDTE']
         res['EstadoRecepDTE'] = 0
         res['RecepDTEGlosa'] = 'DTE Recibido OK'
         res['EstadoRecepDTE'], res['RecepDTEGlosa'] = self._check_digest_dte(doc)
-        if not sii_document_class:
+        if not document_class:
             res['EstadoRecepDTE'] = 99
             res['RecepDTEGlosa'] = 'Tipo de documento desconocido'
             return res
@@ -226,7 +228,7 @@ class UploadXMLWizard(models.TransientModel):
             [
                 ('reference', '=', doc['Encabezado']['IdDoc']['Folio']),
                 ('partner_id', '=', partner_id.id),
-                ('document_class_id.sii_code', '=', sii_document_class)
+                ('document_class_id.sii_code', '=', document_class)
             ])
         company_id = self.env['res.company'].search([
                 ('vat', '=', self.format_rut(doc['Encabezado']['Receptor']['RUTRecep']))
@@ -936,7 +938,7 @@ class UploadXMLWizard(models.TransientModel):
         return self.env['mail.message.dte.document'].search(
             [
                 ('number', '=', IdDoc.find("Folio").text),
-                ('sii_document_class_id.sii_code', '=', IdDoc.find("TipoDTE").text),
+                ('document_class_id.sii_code', '=', IdDoc.find("TipoDTE").text),
                 '|',
                 ('partner_id.vat', '=', self.format_rut(Emisor.find("RUTEmisor").text)),
                 ('new_partner', '=', new_partner),

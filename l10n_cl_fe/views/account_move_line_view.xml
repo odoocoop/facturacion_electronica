@@ -8,8 +8,7 @@
             <field name="inherit_id" ref="account.view_account_move_line_filter"/>
             <field name="arch" type="xml">
                 <xpath expr='/search/group[1]' position="inside">
-                    <filter string="Document Class" domain="[]" context="{'group_by':'document_class_id'}"/>
-                    <filter string="Enviado al SII" domain="[]" context="{'group_by':'sended'}"/>
+                    <filter name="group_by_document_class" string="Document Class" domain="[]" context="{'group_by':'document_class_id'}"/>
                 </xpath>
             </field>
         </record>

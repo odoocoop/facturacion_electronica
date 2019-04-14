@@ -5,10 +5,10 @@ from odoo.exceptions import UserError
 from datetime import datetime, timedelta
 import dateutil.relativedelta as relativedelta
 from odoo.tools import DEFAULT_SERVER_DATETIME_FORMAT as DTF
+from odoo.tools import DEFAULT_SERVER_DATE_FORMAT as DF
 import logging
 from lxml import etree
 from lxml.etree import Element, SubElement
-
 import pytz
 import collections
 
@@ -58,7 +58,7 @@ try:
 except ImportError:
     _logger.info('Cannot import hashlib library')
 
-server_url = {'SIICERT': 'https://maullin.sii.cl/DTEWS/', 'SII': 'https://palena.sii.cl/DTEWS/'}
+server_url = {'SIICERT':'https://maullin.sii.cl/DTEWS/','SII':'https://palena.sii.cl/DTEWS/'}
 
 BC = '''-----BEGIN CERTIFICATE-----\n'''
 EC = '''\n-----END CERTIFICATE-----\n'''
@@ -102,13 +102,13 @@ class ConsumoFolios(models.Model):
             ('Proceso', 'Proceso'),
             ('Reenviar', 'Reenviar'),
             ('Anulado', 'Anulado')],
-        string='Resultado',
-        index=True,
-        readonly=True,
-        default='draft',
-        track_visibility='onchange',
-        copy=False,
-        help=" * The 'Draft' status is used when a user is encoding a new and unconfirmed Invoice.\n"
+            string='Resultado',
+            index=True, re
+            adonly=True,
+            default='draft',
+            track_visibility='onchange',
+            copy=False,
+            help=" * The 'Draft' status is used when a user is encoding a new and unconfirmed Invoice.\n"
              " * The 'Pro-forma' status is used the invoice does not have an invoice number.\n"
              " * The 'Open' status is used when user create invoice, an invoice number is generated. Its in open status till user does not pay invoice.\n"
              " * The 'Paid' status is set automatically when the invoice is paid. Its related journal entries may or may not be reconciled.\n"
@@ -181,7 +181,7 @@ class ConsumoFolios(models.Model):
             required=True,
         	readonly=True,
             states={'draft': [('readonly', False)]},
-            default=lambda *a: datetime.now(),
+            default=lambda self: fields.Date.context_today(self),
         )
     detalles = fields.One2many(
         'account.move.consumo_folios.detalles',
@@ -700,7 +700,7 @@ version="1.0">
                 recs.append(rec)
             #rec.sended = marc
         if 'pos.order' in self.env: # @TODO mejor forma de verificar si está instalado módulo POS
-            current = self.fecha_inicio + ' 00:00:00'
+            current = self.fecha_inicio.strftime(DF) + ' 00:00:00'
             tz = pytz.timezone('America/Santiago')
             tz_current = tz.localize(datetime.strptime(current, DTF)).astimezone(pytz.utc)
             current = tz_current.strftime(DTF)
@@ -765,9 +765,7 @@ version="1.0">
         return resumenes, TpoDocs
 
     def _validar(self):
-        cant_doc_batch = 0
         company_id = self.company_id
-        dte_service = company_id.dte_service_provider
         signature_id = self.env.user.get_digital_signature(self.company_id)
         if not signature_id:
             raise UserError(_('''There is no Signer Person with an \
@@ -778,8 +776,8 @@ version="1.0">
         certp = signature_id.cert.replace(
             BC, '').replace(EC, '').replace('\n', '')
         resumenes, TpoDocs = self._get_resumenes(marc=True)
-        Resumen=[]
-        listado = [ 'TipoDocumento', 'MntNeto', 'MntIva', 'TasaIVA', 'MntExento', 'MntTotal', 'FoliosEmitidos',  'FoliosAnulados', 'FoliosUtilizados', 'itemUtilizados' ]
+        Resumen = []
+        listado = ['TipoDocumento', 'MntNeto', 'MntIva', 'TasaIVA', 'MntExento', 'MntTotal', 'FoliosEmitidos',  'FoliosAnulados', 'FoliosUtilizados', 'itemUtilizados' ]
         xml = '<Resumen><TipoDocumento>39</TipoDocumento><MntTotal>0</MntTotal><FoliosEmitidos>0</FoliosEmitidos><FoliosAnulados>0</FoliosAnulados><FoliosUtilizados>0</FoliosUtilizados></Resumen>'
         if resumenes:
             for r, value in resumenes.items():
@@ -810,7 +808,7 @@ version="1.0">
         resol_data = self.get_resolution_data(company_id)
         RUTEmisor = self.format_vat(company_id.vat)
         RUTRecep = "60803000-K" # RUT SII
-        doc_id =  'CF_'+self.date
+        doc_id = 'CF_' + self.date.strftime(DF)
         Correlativo = self.correlativo
         SecEnvio = self.sec_envio
         cf = self.create_template_envio( RUTEmisor,
@@ -847,29 +845,28 @@ version="1.0">
             'state': 'draft',
         }).id
 
-    @api.multi
-    def do_dte_send_consumo_folios(self):
-        if self.state not in ['draft', 'NoEnviado', 'Rechazado']:
-            raise UserError("El Consumo de Folios ya ha sido enviado")
-        if not self.sii_xml_request:
-            self._validar()
-        self.env['sii.cola_envio'].create(
-                    {
-                        'doc_ids': [self.id],
-                        'model': 'account.move.consumo_folios',
-                        'user_id': self.env.user.id,
-                        'tipo_trabajo': 'envio',
-                    })
-        self.state = 'EnCola'
-
     def do_dte_send(self, n_atencion=''):
         self.sii_xml_request.send_xml()
         return self.sii_xml_request
 
+    @api.multi
+    def do_dte_send_book(self):
+        if self.state not in ['draft', 'NoEnviado', 'Rechazado']:
+            raise UserError("El Consumo de Folios ya ha sido enviado")
+        if not self.sii_xml_request:
+            self._validar()
+        self.env['sii.cola_envio'].create({
+            'doc_ids': [self.id],
+            'model': 'account.move.consumo_folios',
+            'user_id': self.env.user.id,
+            'tipo_trabajo': 'envio',
+        })
+        self.state = 'EnCola'
+
     def _get_send_status(self):
         self.sii_xml_request.get_send_status()
-        if self.sii_xml_request.state == 'Aceptado':
-            self.state = "Proceso"
+        if self.sii_xml_request == 'Aceptado':
+            self.state = 'Proceso'
         else:
             self.state = self.sii_xml_request.state
 

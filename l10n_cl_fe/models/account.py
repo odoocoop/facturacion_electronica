@@ -84,11 +84,11 @@ class account_move(models.Model):
                 }
         for key, i in move_imps.items():
             if i['code'] in [14]:
-                imps['iva']  += (i['credit'] or i['debit'])
+                imps['iva'] += (i['credit'] or i['debit'])
             elif i['code'] == 0:
                 imps['exento']  += (i['credit'] or i['debit'])
             else:
-                imps['otros_imps']  += (i['credit'] or i['debit'])
+                imps['otros_imps'] += (i['credit'] or i['debit'])
         imps['neto'] = self.amount - imps['otros_imps'] - imps['exento'] - imps['iva']
         return imps
 

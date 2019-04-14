@@ -20,6 +20,7 @@ except:
 BC = '''-----BEGIN CERTIFICATE-----\n'''
 EC = '''\n-----END CERTIFICATE-----\n'''
 
+
 class ValidarDTEWizard(models.TransientModel):
     _name = 'sii.dte.validar.wizard'
     _description = 'SII XML from Provider'
@@ -178,7 +179,6 @@ class ValidarDTEWizard(models.TransientModel):
                 id=doc.id,
                 model="mail.message.dte.document",
             )
-            partners = doc.partner_id.ids
             dte_email_id = doc.company_id.dte_email_id or self.env.user.company_id.dte_email_id
             values = {
                         'res_id': doc.id,

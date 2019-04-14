@@ -27,15 +27,16 @@
                 <sheet string="Boleta de honorarios">
                     <div class="oe_button_box" name="button_box">
                     </div>
-                    <label string="Boleta de Honorarios" attrs="{'invisible': ['|',('state','=','draft'), ('type','!=','out_refund')]}"/>
+                    <span class="o_form_label" attrs="{'invisible': ['|',('state','=','draft'), ('type','!=','out_refund')]}">Boleta de Honorarios</span>
                     <h1 class="mt0">
                         <div attrs="{'invisible': [('sequence_number_next_prefix','!=',False)]}">
-                            <label string="Draft Invoice" attrs="{'invisible': ['|',('state','not in',('draft',)), ('type','!=','out_invoice')]}"/>
-                            <label string="Draft Credit Note" attrs="{'invisible': ['|',('state','not in',('draft',)), ('type','!=','out_refund')]}"/>
-                            <field name="number" readonly="1" class="oe_inline" attrs="{'invisible': [('state','in',('draft',))]}"/>
+                            <span class="o_form_label" attrs="{'invisible': ['|',('state','&lt;&gt;','draft'), ('type','&lt;&gt;','in_invoice')]}">Draft Bill</span>
+                            <span class="o_form_label" attrs="{'invisible': ['|',('state','&lt;&gt;','draft'), ('type','&lt;&gt;','in_refund')]}">Draft Refund</span>
+                            <span class="o_form_label" attrs="{'invisible': ['|',('state', '=', 'draft'), ('type','&lt;&gt;','in_invoice')]}">Bill</span>
+                            <span class="o_form_label " attrs="{'invisible': ['|',('state', '=', 'draft'), ('type','&lt;&gt;','in_refund')]}">Refund</span>
                         </div>
                         <div  attrs="{'invisible': [('sequence_number_next_prefix','=',False)]}">
-                            <label string="Boleta Númbero:"/><br/>
+                            <span class="o_form_label">Boleta Númbero:</span><br/>
                             <field name="sequence_number_next_prefix" class="oe_inline"/>
                             <field name="sequence_number_next" class="oe_inline"/>
                         </div>
