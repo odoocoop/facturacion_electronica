@@ -116,27 +116,30 @@ TYPE2JOURNAL = {
 class AccountInvoiceLine(models.Model):
     _inherit = 'account.invoice.line'
 
+    @api.one
     @api.depends('price_unit', 'discount', 'invoice_line_tax_ids', 'quantity',
-        'product_id', 'invoice_id.partner_id', 'invoice_id.currency_id', 'invoice_id.company_id')
+        'product_id', 'invoice_id.partner_id', 'invoice_id.currency_id', 'invoice_id.company_id',
+        'invoice_id.date_invoice', 'invoice_id.date')
     def _compute_price(self):
-        for line in self:
-            currency = line.invoice_id and line.invoice_id.currency_id or None
-            taxes = False
-            total = 0
-            if line.invoice_line_tax_ids:
-                taxes = line.invoice_line_tax_ids.compute_all(line.price_unit, currency, line.quantity, product=line.product_id, partner=line.invoice_id.partner_id, discount=line.discount)
-            if taxes:
-                line.price_subtotal = price_subtotal_signed = taxes['total_excluded']
-            else:
-                total = line.currency_id.round((line.quantity * line.price_unit))
-                total_discount = line.currency_id.round((total * ((line.discount or 0.0) / 100.0)))
-                total -= total_discount
-                line.price_subtotal = price_subtotal_signed = total
-            if line.invoice_id.currency_id and line.invoice_id.currency_id != line.invoice_id.company_id.currency_id:
-                price_subtotal_signed = line.invoice_id.currency_id._convert(price_subtotal_signed, line.invoice_id.company_id.currency_id, line.invoice_id.company_id, line.invoice_id.date_invoice)
-            sign = line.invoice_id.type in ['in_refund', 'out_refund'] and -1 or 1
-            line.price_subtotal_signed = price_subtotal_signed * sign
-            line.price_total = taxes['total_included'] if (taxes and taxes['total_included'] > total) else total
+        currency = self.invoice_id and self.invoice_id.currency_id or None
+        taxes = False
+        total = 0
+        if self.invoice_line_tax_ids:
+            taxes = self.invoice_line_tax_ids.compute_all(self.price_unit, currency, self.quantity, product=self.product_id, partner=self.invoice_id.partner_id, discount=self.discount)
+        if taxes:
+            self.price_subtotal = price_subtotal_signed = taxes['total_excluded']
+        else:
+            total = self.currency_id.round((self.quantity * self.price_unit))
+            total_discount = self.currency_id.round((total * ((self.discount or 0.0) / 100.0)))
+            total -= total_discount
+            self.price_subtotal = price_subtotal_signed = total
+        if self.invoice_id.currency_id and self.invoice_id.currency_id != self.invoice_id.company_id.currency_id:
+            currency = self.invoice_id.currency_id
+            date = self.invoice_id._get_currency_rate_date()
+            price_subtotal_signed = currency._convert(price_subtotal_signed, self.invoice_id.company_id.currency_id, self.company_id or self.env.user.company_id, date or fields.Date.today())
+        sign = self.invoice_id.type in ['in_refund', 'out_refund'] and -1 or 1
+        self.price_subtotal_signed = price_subtotal_signed * sign
+        self.price_total = taxes['total_included'] if (taxes and taxes['total_included'] > total) else total
 
 class Referencias(models.Model):
     _name = 'account.invoice.referencias'
