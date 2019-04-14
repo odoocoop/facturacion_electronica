@@ -1,7 +1,6 @@
 facturacion_electronica
 suds-jurko
 signxml
-ast
 num2words
 xlsxwriter
 io
