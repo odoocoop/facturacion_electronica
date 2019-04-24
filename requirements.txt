@@ -4,3 +4,5 @@ signxml
 num2words
 xlsxwriter
 pillow
+xmltodict
+dicttoxml

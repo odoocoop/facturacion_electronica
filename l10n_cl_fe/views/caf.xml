@@ -61,6 +61,7 @@
                             <field name="company_id"/>
                             <field name="rut_n"/>
                             <field name="sequence_id"/>
+                            <field name="nivel_minimo" />
                             <field name="use_level" widget="progressbar" backgrounds="blue:status == 'in_use';red:status == 'spent'"/>
                         </group>
                     </sheet>

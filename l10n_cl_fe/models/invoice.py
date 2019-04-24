@@ -1567,8 +1567,12 @@ version="1.0">
             Emisor['Sucursal'] = self._acortar_str(self.journal_id.sucursal_id.name, 20)
             Emisor['CdgSIISucur'] = self._acortar_str(self.journal_id.sucursal_id.sii_code, 9)
         Emisor['DirOrigen'] = self._acortar_str(self.company_id.street + ' ' + (self.company_id.street2 or ''), 70)
-        Emisor['CmnaOrigen'] = self.company_id.city_id.name or ''
-        Emisor['CiudadOrigen'] = self.company_id.city or ''
+        if not self.company_id.city_id:
+            raise UserError("Debe ingresar la Comuna de compañía emisora")
+        Emisor['CmnaOrigen'] = self.company_id.city_id.name
+        if not self.company_id.city:
+            raise UserError("Debe ingresar la Ciudad de compañía emisora")
+        Emisor['CiudadOrigen'] = self.company_id.city
         return Emisor
 
     def _receptor(self):
@@ -2192,7 +2196,6 @@ version="1.0">
                                             {
                                                 'title': "Documento Rechazado",
                                                 'message': "%s" % r.name,
-                                                'url': 'res_config',
                                                 'type': 'dte_notif',
                                             })
 

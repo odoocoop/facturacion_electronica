@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="view_dte_caf_apicaf" model="ir.ui.view">
+            <field name="name">dte.caf.apicaf.form</field>
+            <field name="model">dte.caf.apicaf</field>
+            <field name="arch" type="xml">
+                <form >
+                  <form string="DTE CAF API EMISION FOLIOS">
+                    <header>
+                      <field name="etapa" widget="statusbar" />
+                    </header>
+                    <group>
+                      <field name="company_id" />
+                      <field name="firma" attrs="{'invisible': [('company_id', '=', False)]}" domain="[('user_ids', 'child_of', [uid])]"/>
+                      <field name="documentos" attrs="{'invisible': [('firma', '=', False)]}"/>
+                      <field name="id_peticion" invisible="1"/>
+                    </group>
+                    <group attrs="{'invisible': [('id_peticion', '=', 0)]}">
+                       <field name="cod_docto" domain="[('id', 'in', documentos)]"/>
+                       <field name="folios_disp" attrs="{'invisible': [('cod_docto', '=', False)]}"/>
+                       <field name="max_autor" attrs="{'invisible': [('cod_docto', '=', False)]}"/>
+                       <field name="cant_doctos" attrs="{'invisible': ['|', ('cod_docto', '=', False), ('max_autor', '=', 0)]}"/>
+                    </group>
+                    <footer>
+                        <button string='Obtener CAF' name="obtener_caf" type="object" class="btn-primary" attrs="{'invisible': ['|', ('etapa', '!=', 'confirmar'), ('cant_doctos', '=', 0)]}"/>
+                        <button string="Cancelar" class="btn-default" special="cancel"/>
+                    </footer>
+                  </form>
+               </form>
+            </field>
+        </record>
+
+        <record id="action_apicaf_form" model="ir.actions.act_window">
+            <field name="name">API Emisión de Folios</field>
+            <field name="type">ir.actions.act_window</field>
+            <field name="res_model">dte.caf.apicaf</field>
+            <field name="view_id" ref="l10n_cl_fe.view_dte_caf_apicaf"/>
+            <field name="view_type">form</field>
+            <field name="view_mode">form</field>
+            <field name="target">new</field>
+        </record>
+
+    </data>
+</odoo>

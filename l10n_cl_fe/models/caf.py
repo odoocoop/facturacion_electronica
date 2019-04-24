@@ -100,6 +100,10 @@ has been exhausted.''',
             string="Use Level",
             compute='_used_level',
         )
+    nivel_minimo = fields.Integer(
+        string="Nivel Mínimo de Folios",
+        default=5,#@TODO hacerlo configurable
+    )
     _sql_constraints = [
                 ('filename_unique', 'unique(filename)', 'Error! Filename Already Exist!'),
             ]
@@ -157,6 +161,14 @@ to work properly!''') % (self.sii_document_class, self.sequence_id.sii_document_
         post = xmltodict.parse(post.replace(
             '<?xml version="1.0"?>', '', 1))
         return post
+
+    def check_nivel(self, folio):
+        if not folio:
+            return ''
+        diff = self.final_nm - int(folio)
+        if diff <= self.nivel_minimo:
+            return 'Nivel bajo de CAF para %s, quedan %s folios' % (self.sii_document_class_id.name, diff)
+        return ''
 
 
 class sequence_caf(models.Model):
@@ -234,6 +246,18 @@ www.sii.cl'''.format(folio)
                             int(timestamp[8:10])) > expiration_caf:
                         msg = "CAF Vencido. %s" % msg
                         continue
+                alert_msg = caffile.check_nivel(folio)
+                #alert_msg += caffile.check_expiracion()
+                if alert_msg != '':
+                    self.env['bus.bus'].sendone((self._cr.dbname,
+                                            'dte.caf',
+                                            self.env.user.partner_id.id),
+                                            {
+                                                'title': "Alerta sobre CAF",
+                                                'message': alert_msg,
+                                                'url': 'res_config',
+                                                'type': 'dte_notif',
+                                            })
                 return caffile.decode_caf()
         raise UserError(_(msg))
 

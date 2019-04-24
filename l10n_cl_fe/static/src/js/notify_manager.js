@@ -10,9 +10,10 @@ odoo.define('l10n_cl_fe.notify_manager', function (require) {
     var DTENotification = Notification.extend({
         template: "DTENotification",
 
-        init: function(parent, title, text) {
-            this._super(parent, title, text, true);
-
+        init: function(parent, title, text, sticky, url) {
+            this._super(parent, title, text, sticky);
+            this.url = url;
+            console.log(url);
             this.events = _.extend(this.events || {}, {
                 'click .link2config': function() {
                     var self = this;
@@ -30,7 +31,7 @@ odoo.define('l10n_cl_fe.notify_manager', function (require) {
 
                 'click .link2recall': function() {
                     this.destroy(true);
-                    this._rpc({route: 'https://sre.cl'});
+                    this._rpc({route: url.uri});
                 },
 
                 'click .link2showed': function() {
@@ -59,8 +60,11 @@ odoo.define('l10n_cl_fe.notify_manager', function (require) {
             // For each notification, set a timeout to display it
             _.each(notifications, function(notif) {
                 self.dte_notif_timeouts[notif.id] = setTimeout(function() {
-                    console.log(notif);
-                    var notification = new DTENotification(self.notification_manager, notif.title, notif.message, notif.url);
+                    var sticky =  true;
+                    if (notif.hasOwnProperty('sticky')){
+                        sticky = notif.sticky;
+                    }
+                    var notification = new DTENotification(self.notification_manager, notif.title, notif.message, sticky, notif.url);
                     self.notification_manager.display(notification);
                     self.dte_notif[notif.id] = notification;
                 }, notif.timer * 1000);
@@ -78,8 +82,7 @@ odoo.define('l10n_cl_fe.notify_manager', function (require) {
             this.dte_notif = {};
             bus.on('notification', this, function (notifications) {
                 _.each(notifications, (function (notification) {
-                    if (notification[0][1] === 'res.partner' && notification[1].type === 'dte_notif') {
-                        console.log(notification);
+                    if (notification[1].type === 'dte_notif') {
                         this.display_dte_notif([notification[1]]);
                     }
                 }).bind(this));

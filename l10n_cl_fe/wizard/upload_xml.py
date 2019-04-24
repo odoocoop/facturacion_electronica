@@ -324,15 +324,14 @@ class UploadXMLWizard(models.TransientModel):
 
     def do_receipt_deliver(self):
         envio = self._read_xml('parse')
-        if 'Caratula' not in envio['SetDTE']:
+        if not envio.get('SetDTE') or not envio['SetDTE'].get('Caratula'):
             return True
         company_id = self.env['res.company'].search(
             [
                 ('vat', '=', self.format_rut(envio['SetDTE']['Caratula']['RutReceptor']))
             ],
             limit=1)
-        id_seq = self.env.ref('l10n_cl_fe.response_sequence').id
-        IdRespuesta = self.env['ir.sequence'].browse(id_seq).next_by_id()
+        IdRespuesta = self.env.ref('l10n_cl_fe.response_sequence').next_by_id()
         recep = self._receipt(IdRespuesta)
         NroDetalles = len(envio['SetDTE']['DTE'])
         resp_dtes = dicttoxml.dicttoxml(recep, root=False, attr_type=False).decode().replace('<item>','\n').replace('</item>','\n')

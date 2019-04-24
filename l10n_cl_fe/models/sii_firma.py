@@ -3,6 +3,8 @@ from datetime import datetime
 from odoo import models, fields, api
 from odoo.tools.translate import _
 from odoo.exceptions import UserError
+from datetime import datetime, date
+import dateutil.relativedelta as relativedelta
 import base64
 import logging
 _logger = logging.getLogger(__name__)
@@ -16,8 +18,23 @@ except ImportError:
 class SignatureCert(models.Model):
     _name = 'sii.firma'
 
+    def alerta_vencimiento(self):
+        expiration = datetime.strptime(self.expire_date, '%Y-%m-%d')
+        if expiration < (datetime.now() + relativedelta.relativedelta(days=30)):
+            alert_msg = 'Firma pronto a vencer'
+            self.env['bus.bus'].sendone((self._cr.dbname,
+                                    'sii.firma',
+                                    self.env.user.partner_id.id),
+                                    {
+                                        'title': "Alerta sobre Firma Electrónica",
+                                        'message': alert_msg,
+                                        'type': 'dte_notif',
+                                    })
+
     def check_signature(self):
         for s in self.sudo():
+            if s.state not in ['valid', 'unverified']:
+                continue
             expired = datetime.strptime(s.expire_date, '%Y-%m-%d') < datetime.now()
             state = 'expired' if expired else 'valid'
             if s.state != state:
@@ -32,7 +49,7 @@ class SignatureCert(models.Model):
                 raise UserError(_('Not Valid Subject Serial Number'))
             self.subject_serial_number = rut
             self.check_signature()
-        else:
+        elif self.file_content:
             self.state = 'incomplete'
 
     name = fields.Char(

@@ -114,6 +114,26 @@
                     </div>
                 </div>
               </div>
+              <div class="col-xs-12 col-md-6 o_setting_box" id="url_apicaf">
+                <div class="o_setting_left_pane" />
+                <div class="o_setting_right_pane" name="apicaf_right_pane">
+                    <label string="Url Api Emisión Folios" for="url_apicaf"/>
+                    <field name="url_apicaf" />
+                    <div class="text-muted">
+                       Url API Emisión de Folios
+                    </div>
+                </div>
+              </div>
+              <div class="col-xs-12 col-md-6 o_setting_box" id="token_apicaf">
+                <div class="o_setting_left_pane" />
+                <div class="o_setting_right_pane" name="token_apicaf_right_pane">
+                    <label string="Token Api Emisión de Folios" for="token_apicaf"/>
+                    <field name="token_apicaf" />
+                    <div class="text-muted">
+                       Token API Emisión de Folios
+                    </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

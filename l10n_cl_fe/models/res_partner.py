@@ -136,9 +136,9 @@ class ResPartner(models.Model):
                 self.dte_email_id.unlink()
             return
         if self.dte_email == self.email:
-           self.send_dte = True
-           self.principal = True
-           return
+            self.send_dte = True
+            self.principal = True
+            return
         if not self.dte_email_id:
             partners = []
             for rec in self.child_ids:
@@ -357,7 +357,7 @@ class ResPartner(models.Model):
             self.env['bus.bus'].sendone((self._cr.dbname, 'res.partner', self.env.user.partner_id.id), {
                 'title': "Error en conexión al sincronizar partners",
                 'message': message,
-                'url': 'res_config',
+                'url': {'name': 'ir a sre.cl', 'uri': 'https://sre.cl'},
                 'type': 'dte_notif',
             })
             return
@@ -389,7 +389,7 @@ class ResPartner(models.Model):
             self.env['bus.bus'].sendone((self._cr.dbname, 'res.partner', self.env.user.partner_id.id), {
                     'title': "Error en conexión al obtener partners",
                     'message': message,
-                    'url': 'res_config',
+                    'url': {'name': 'ir a sre.cl', 'uri': 'https://sre.cl'},
                     'type': 'dte_notif',
                 })
             return
@@ -438,7 +438,7 @@ class ResPartner(models.Model):
                 self.env['bus.bus'].sendone((self._cr.dbname, 'res.partner', self.env.user.partner_id.id), {
                     'title': "Error en conexión al consultar partners",
                     'message': message,
-                    'url': 'res_config',
+                    'url': {'name': 'ir a sre.cl', 'uri': 'https://sre.cl'},
                     'type': 'dte_notif',
                 })
                 return

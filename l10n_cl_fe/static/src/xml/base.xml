@@ -28,7 +28,7 @@
             <br/><br/>
             <button type="button" class="btn btn-sm btn-primary link2showed oe_highlight oe_form oe_button"><span>OK</span></button>
             <button type="button" class="btn btn-sm btn-link link2config">Ir a Configuración DTE</button>
-            <button type="button" class="btn btn-sm btn-link link2recall">Ir a sre</button>
+            <button t-if="widget.url" type="button" class="btn btn-sm btn-link link2recall"><t t-esc="widget.url.name" /></button>
         </t>
     </t>
 
