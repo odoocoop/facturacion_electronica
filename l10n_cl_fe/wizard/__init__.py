@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from . import apicaf
 #from . import sii_ws_consult_wizard
 #from . import sii_ws_currency_rate_wizard
 from . import journal_config_wizard

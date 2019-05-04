@@ -4,7 +4,6 @@ from odoo.tools.translate import _
 import logging
 _logger = logging.getLogger(__name__)
 
-
 class SiiTax(models.Model):
     _inherit = 'account.tax'
 
@@ -84,7 +83,8 @@ class SiiTax(models.Model):
                 total_excluded = ret['total_excluded']
                 base = ret['base'] if tax.include_base_amount else base
                 total_included = ret['total_included']
-                tax_amount = total_included - total_excluded
+                tax_amount_retencion = ret['retencion']
+                tax_amount = total_included - total_excluded + tax_amount_retencion
                 taxes += ret['taxes']
                 continue
 
@@ -93,16 +93,15 @@ class SiiTax(models.Model):
                 tax_amount = round(tax_amount, prec)
             else:
                 tax_amount = currency.round(tax_amount)
-
             tax_amount_retencion = 0
             if tax.sii_type in ['R']:
                 tax_amount_retencion = tax._compute_amount_ret(base, price_unit, quantity, product, partner)
                 if not round_tax:
                     tax_amount_retencion = round(tax_amount_retencion, prec)
-
             if price_include:
-                total_excluded -= tax_amount
-                base -= tax_amount
+                total_excluded -= (tax_amount - tax_amount_retencion)
+                total_included -= (tax_amount_retencion)
+                base -= (tax_amount - tax_amount_retencion)
             else:
                 total_included += (tax_amount - tax_amount_retencion)
 

@@ -31,6 +31,7 @@
           attachment="object.name.replace('/','')+'.pdf'"
     />
           <template t-name="l10n_cl_fe.layout_libro">
+  		          <t t-call="web.basic_layout">
   		          <style>
   		            .table{
   		            margin-bottom:0px !important;
@@ -144,12 +145,15 @@
   	                 </table>
                   </div>
                 </div>
+                </t>
           </template>
 
           <template id="libro_cv" >
+          	<t t-call="web.html_container">
               <t t-foreach="docs" t-as="o">
                   <t t-call="l10n_cl_fe.layout_libro" t-lang="o.company_id.partner_id.lang"/>
               </t>
+             </t>
           </template>
 
 

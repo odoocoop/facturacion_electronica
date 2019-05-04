@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+
 from odoo import fields, models, api
 from odoo.tools.translate import _
 from odoo.tools.safe_eval import safe_eval
@@ -36,6 +37,7 @@ class ProcessMails(models.Model):
                         dte = {
                             'mail_id': mail.id,
                             'name': name,
+                            'company_id': self.env.user.company_id.id,
                         }
             if dte:
                 val = self.env['mail.message.dte'].create(dte)
@@ -211,7 +213,7 @@ class ProcessMailsDocument(models.Model):
             val = self.env['sii.dte.upload_xml.wizard'].create(vals)
             created.extend(val.confirm(ret=True))
             r.state = 'accepted'
-        xml_id = 'account.action_invoice_tree2'
+        xml_id = 'account.action_vendor_bill_template'
         result = self.env.ref('%s' % (xml_id)).read()[0]
         if created:
             domain = safe_eval(result.get('domain', '[]'))

@@ -224,10 +224,7 @@ www.sii.cl'''.format(folio)
         for caffile in caffiles:
             if int(folio) >= caffile.start_nm and int(folio) <= caffile.final_nm:
                 if caffile.expiration_date:
-                    timestamp = self.time_stamp()
-                    if date(int(timestamp[:4]),
-                            int(timestamp[5:7]),
-                            int(timestamp[8:10])) > caffile.expiration_date:
+                    if fields.Date.context_today(self) > caffile.expiration_date:
                         msg = "CAF Vencido. %s" % msg
                         continue
                 return caffile.decode_caf()
@@ -251,8 +248,6 @@ www.sii.cl'''.format(folio)
         return False
 
     def update_next_by_caf(self, folio=None):
-        if self.sii_document_class_id:
-            return
         folio = folio or self._get_folio()
         menor = False
         cafs = self.get_caf_files(folio)

@@ -33,11 +33,13 @@
             <field name="arch" type="xml">
               <form>
                 <header>
-                  <field name="state" widget="statusbar"/>
                   <button type="object" name="validar_libro" states="draft" string="Validate" class="oe_highlight" groups="base.group_user"/>
                   <button string="Download XML" type="object"  name="get_xml_file"  attrs="{'invisible':[('state', 'in', ['draft'])]}"/>
                   <button string="Send XML" type="object" class="oe_highlight" name="do_dte_send_book" attrs="{'invisible': [ ('state', 'not in', ['NoEnviado'])]}"/>
-                  <button string="Ask for DTE" type="object" class="oe_highlight" name="ask_for_dte_status" attrs="{'invisible': [('state', 'in', ['draft','NoEnviado'])]}"/>                  
+                  <button string="Ask for DTE" type="object" class="oe_highlight" name="ask_for_dte_status" attrs="{'invisible': [('state', 'in', ['draft','NoEnviado'])]}"/>
+                  <button string="Cancelar" type="object" name="action_cancel" states="NoEnviado" confirm="Esta seguro de cancelar este registro???" />
+                  <button string="Volver a Borrador" type="object" name="action_cancel_to_draft" states="Anulado"/>
+                  <field name="state" widget="statusbar"/>
                 </header>
                 <group>
                   <field name="name" />
@@ -58,7 +60,7 @@
                   <field name="fact_prop" />
                 </group>
                 <group>
-                  <field name="impuestos" options="{'no_open': True}" context="{'tipo_operacion': tipo_operacion}">
+                  <field name="impuestos" options="{'no_edit': True}" context="{'tipo_operacion': tipo_operacion}">
                     <tree>
                       <field name="tax_id" />
                       <field name="debit" />

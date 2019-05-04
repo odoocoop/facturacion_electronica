@@ -89,7 +89,7 @@ class UploadXMLWizard(models.TransientModel):
             self.dte_id = dte_id
         if self.type == 'ventas':
             created = self.do_create_inv()
-            xml_id = 'account.action_invoice_tree2'
+            xml_id = 'account.action_vendor_bill_template'
             target_model = 'account.invoice'
         elif self.pre_process or self.action == 'upload':
             created = self.do_create_pre()
@@ -100,7 +100,7 @@ class UploadXMLWizard(models.TransientModel):
             return
         elif self.action == 'create':
             created = self.do_create_inv()
-            xml_id = 'account.action_invoice_tree2'
+            xml_id = 'account.action_vendor_bill_template'
             target_model = 'account.invoice'
         if self.action == 'create_po':
             self.do_create_po()

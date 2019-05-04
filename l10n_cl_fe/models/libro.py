@@ -3,14 +3,17 @@ from odoo import fields, models, api, tools
 from odoo.tools.translate import _
 from odoo.exceptions import UserError
 from datetime import datetime, timedelta
-import dateutil.relativedelta as relativedelta
+from dateutil.relativedelta import relativedelta
 from odoo.tools import DEFAULT_SERVER_DATETIME_FORMAT as DTF
 from odoo.tools import DEFAULT_SERVER_DATE_FORMAT as DF
 import logging
 from lxml import etree
 from lxml.etree import Element, SubElement
+
 import pytz
 import struct
+
+
 import collections
 
 try:
@@ -96,188 +99,190 @@ class Libro(models.Model):
     _name = "account.move.book"
 
     sii_xml_request = fields.Many2one(
-            "sii.xml.envio",
-            string='SII XML Request',
-            copy=False)
+        'sii.xml.envio',
+        string='SII XML Request',
+        copy=False)
     state = fields.Selection([
-            ('draft', 'Borrador'),
-            ('NoEnviado', 'No Enviado'),
-            ('EnCola', 'En Cola'),
-            ('Enviado', 'Enviado'),
-            ('Aceptado', 'Aceptado'),
-            ('Rechazado', 'Rechazado'),
-            ('Reparo', 'Reparo'),
-            ('Proceso', 'Proceso'),
-            ('Reenviar', 'Reenviar'),
-            ('Anulado', 'Anulado')],
-            string='Resultado',
-            index=True,
-            readonly=True,
-            default='draft',
-            track_visibility='onchange',
-            copy=False,
-            help=" * The 'Draft' status is used when a user is encoding a new and unconfirmed Invoice.\n"
+        ('draft', 'Borrador'),
+        ('NoEnviado', 'No Enviado'),
+        ('EnCola', 'En Cola'),
+        ('Enviado', 'Enviado'),
+        ('Aceptado', 'Aceptado'),
+        ('Rechazado', 'Rechazado'),
+        ('Reparo', 'Reparo'),
+        ('Proceso', 'Proceso'),
+        ('Reenviar', 'Reenviar'),
+        ('Anulado', 'Anulado')],
+        string='Resultado',
+        index=True,
+        readonly=True,
+        default='draft',
+        track_visibility='onchange',
+        copy=False,
+        help=" * The 'Draft' status is used when a user is encoding a new and unconfirmed Invoice.\n"
              " * The 'Pro-forma' status is used the invoice does not have an invoice number.\n"
              " * The 'Open' status is used when user create invoice, an invoice number is generated. Its in open status till user does not pay invoice.\n"
              " * The 'Paid' status is set automatically when the invoice is paid. Its related journal entries may or may not be reconciled.\n"
              " * The 'Cancelled' status is used when user cancel invoice.")
-    move_ids = fields.Many2many(
-            'account.move',
-            readonly=True,
-            states={'draft': [('readonly', False)]})
+    move_ids = fields.Many2many('account.move',
+        readonly=True,
+        states={'draft': [('readonly', False)]})
 
     tipo_libro = fields.Selection([
-                ('ESPECIAL','Especial'),
-                ('MENSUAL','Mensual'),
-                ('RECTIFICA', 'Rectifica'),
-                ],
-                string="Tipo de Libro",
-                default='MENSUAL',
-                required=True,
-                readonly=True,
-                states={'draft': [('readonly', False)]}
-            )
+        ('ESPECIAL','Especial'),
+        ('MENSUAL','Mensual'),
+        ('RECTIFICA', 'Rectifica'),
+        ],
+        string="Tipo de Libro",
+        default='MENSUAL',
+        required=True,
+        readonly=True,
+        states={'draft': [('readonly', False)]}
+    )
     tipo_operacion = fields.Selection(
-            [
-                ('COMPRA','Compras'),
-                ('VENTA','Ventas'),
-                ('BOLETA','Boleta Electrónica'),
-            ],
-            string="Tipo de operación",
-            default="COMPRA",
-            required=True,
-            readonly=True,
-            states={'draft': [('readonly', False)]},
-        )
-    tipo_envio = fields.Selection(
-            [
-                ('AJUSTE','Ajuste'),
-                ('TOTAL','Total'),
-                ('PARCIAL','Parcial'),
-                ('TOTAL','Total'),
-            ],
-            string="Tipo de Envío",
-            default="TOTAL",
-            required=True,
-            readonly=True,
-            states={'draft': [('readonly', False)]},
-        )
+        [
+            ('COMPRA','Compras'),
+            ('VENTA','Ventas'),
+            ('BOLETA','Boleta Electrónica'),
+        ],
+        string="Tipo de operación",
+        required=True,
+        readonly=True,
+        states={'draft': [('readonly', False)]},
+    )
+    tipo_envio = fields.Selection([
+        ('AJUSTE','Ajuste'),
+        ('TOTAL','Total'),
+        ('PARCIAL','Parcial'),
+        ('TOTAL','Total'),
+        ],
+        string="Tipo de Envío",
+        default="TOTAL",
+        required=True,
+        readonly=True,
+        states={'draft': [('readonly', False)]},
+    )
     folio_notificacion = fields.Char(
-            string="Folio de Notificación",
-            readonly=True,
-            states={'draft': [('readonly', False)]},
-        )
+        string="Folio de Notificación",
+        readonly=True,
+        states={'draft': [('readonly', False)]},
+    )
     impuestos = fields.One2many(
-            'account.move.book.tax',
-            'book_id',
-            string="Detalle Impuestos",
-        )
+        'account.move.book.tax',
+        'book_id',
+        string="Detalle Impuestos",
+    )
     currency_id = fields.Many2one(
-            'res.currency',
-            string='Moneda',
-            default=lambda self: self.env.user.company_id.currency_id,
-            required=True,
-            track_visibility='always',
-        )
+        'res.currency',
+        string='Moneda',
+        default=lambda self: self.env.user.company_id.currency_id,
+        required=True,
+        track_visibility='always',
+    )
     total_afecto = fields.Monetary(
-            string="Total Afecto",
-            readonly=True,
-            compute="set_resumen",
-            store=True,
-        )
+        string="Total Afecto",
+        readonly=True,
+        compute="set_resumen",
+        store=True,
+    )
     total_exento = fields.Monetary(
-            string="Total Exento",
-            readonly=True,
-            compute='set_resumen',
-            store=True,
-        )
+        string="Total Exento",
+        readonly=True,
+        compute='set_resumen',
+        store=True,
+    )
     total_iva = fields.Monetary(
-            string="Total IVA",
-            readonly=True,
-            compute='set_resumen',
-            store=True,
-        )
+        string="Total IVA",
+        readonly=True,
+        compute='set_resumen',
+        store=True,
+    )
     total_otros_imps = fields.Monetary(
-            string="Total Otros Impuestos",
-            readonly=True,
-            compute='set_resumen',
-            store=True,
-        )
+        string="Total Otros Impuestos",
+        readonly=True,
+        compute='set_resumen',
+        store=True,
+    )
     total = fields.Monetary(
-            string="Total Otros Impuestos",
-            readonly=True,
-            compute='set_resumen',
-            store=True,
-        )
+        string="Total Otros Impuestos",
+        readonly=True,
+        compute='set_resumen',
+        store=True,
+    )
     periodo_tributario = fields.Char(
-            string='Periodo Tributario',
-            required=True,
-            readonly=True,
-            states={'draft': [('readonly', False)]},
-            default=lambda *a: datetime.now().strftime('%Y-%m'),
-        )
+        string='Periodo Tributario',
+        required=True,
+        readonly=True,
+        states={'draft': [('readonly', False)]},
+        default=lambda *a: datetime.now().strftime('%Y-%m'),
+    )
     company_id = fields.Many2one(
-            'res.company',
-            string="Compañía",
-            required=True,
-            default=lambda self: self.env.user.company_id.id,
-            readonly=True,
-            states={'draft': [('readonly', False)]},
-        )
+        'res.company',
+        string="Compañía",
+        required=True,
+        default=lambda self: self.env.user.company_id.id,
+        readonly=True,
+        states={'draft': [('readonly', False)]},
+    )
     name = fields.Char(
-            string="Detalle",
-            required=True,
-            readonly=True,
-            states={'draft': [('readonly', False)]},
-        )
+        string="Detalle",
+        required=True,
+        readonly=True,
+        states={'draft': [('readonly', False)]},
+    )
     fact_prop = fields.Float(
-            string="Factor proporcionalidad",
-            readonly=True,
-            states={'draft': [('readonly', False)]},
-        )
+        string="Factor proporcionalidad",
+        readonly=True,
+        states={'draft': [('readonly', False)]},
+    )
     nro_segmento = fields.Integer(
-            string="Número de Segmento",
-            readonly=True,
-            states={'draft': [('readonly', False)]},
-        )
+        string="Número de Segmento",
+        readonly=True,
+        states={'draft': [('readonly', False)]},
+    )
     date = fields.Date(
-            string="Fecha",
-            required=True,
-            readonly=True,
-            states={'draft': [('readonly', False)]},
-            default=lambda self: fields.Date.context_today(self),
-        )
-    boletas = fields.One2many(
-            'account.move.book.boletas',
-            'book_id',
-            string="Boletas",
-            readonly=True,
-            states={'draft': [('readonly', False)]},
-        )
+        string="Fecha",
+        required=True,
+        readonly=True,
+        states={'draft': [('readonly', False)]},
+        default=lambda self: fields.Date.context_today(self),)
+    boletas = fields.One2many('account.move.book.boletas',
+        'book_id',
+        string="Boletas",
+        readonly=True,
+        states={'draft': [('readonly', False)]},
+    )
     codigo_rectificacion = fields.Char(
-            string="Código de Rectificación",
-        )
+        string="Código de Rectificación",
+    )
 
     @api.onchange('periodo_tributario', 'tipo_operacion', 'company_id')
     def set_movimientos(self):
-        current = datetime.strptime( self.periodo_tributario + '-01', '%Y-%m-%d' )
-        next_month = current + relativedelta.relativedelta(months=1)
+        if not self.periodo_tributario or not self.tipo_operacion:
+            return
+        current = datetime.strptime(self.periodo_tributario + '-01', '%Y-%m-%d' )
+        next_month = current + relativedelta(months=1)
         docs = [False, 70, 71]
         operator = 'not in'
         query = [
             ('company_id', '=', self.company_id.id),
-            #('sended', '=', False),
+            ('sended', '=', False),
             ('date' , '<', next_month.strftime('%Y-%m-%d')),
             ]
         domain = 'sale'
         if self.tipo_operacion in [ 'COMPRA' ]:
-            two_month = current + relativedelta.relativedelta(months=-2)
+            two_month = current + relativedelta(months=-2)
             query.append(('date' , '>=', two_month.strftime('%Y-%m-%d')))
             domain = 'purchase'
+        else:
+            #en ventas no considerar las boletas
+            query.append(('document_class_id.sii_code', 'not in', (35, 38, 39, 41, 70, 71)))
         query.append(('journal_id.type', '=', domain))
+        boleta_lines = [[5, ], ]
+        impuesto_lines = [[5,],]
         if self.tipo_operacion in [ 'VENTA' ]:
             cfs = self.env['account.move.consumo_folios'].search([
-                ('state', '=', 'Proceso'),
+                ('state', 'not in', ['draft', 'Anulado', 'Rechazado']),
                 ('fecha_inicio', '>=', current),
                 ('fecha_inicio', '<', next_month),
             ])
@@ -295,13 +300,14 @@ class Libro(models.Model):
                     tpo_doc = key[1]
                     impuesto = self.env['account.move.consumo_folios.impuestos'].search([('cf_id', '=', cf), ('tpo_doc.sii_code', '=', tpo_doc.sii_code)])
                     if not lineas.get(tpo_doc):
-                        lineas[tpo_doc] = {'cantidad': 0, 'neto': 0, 'monto_exento': 0}
+                        lineas[tpo_doc] = {'cantidad': 0, 'neto': 0, 'monto_exento': 0, 'monto_impuesto': 0.0, 'monto_total': 0.0}
                     lineas[tpo_doc] = {
                                 'cantidad': lineas[tpo_doc]['cantidad'] + cantidad,
                                 'neto': lineas[tpo_doc]['neto'] + impuesto.monto_neto,
                                 'monto_exento': lineas[tpo_doc]['monto_exento'] + impuesto.monto_exento,
+                                'monto_impuesto': lineas[tpo_doc]['monto_impuesto'] + impuesto.monto_iva,
+                                'monto_total': lineas[tpo_doc]['monto_total'] + impuesto.monto_total,
                             }
-                lines = [[5, ], ]
                 for tpo_doc, det in lineas.items():
                     tax_id = self.env['account.tax'].search([('sii_code', '=', 14), ('type_tax_use', '=', 'sale'), ('company_id', '=', self.company_id.id)], limit=1) if tpo_doc.sii_code == 39 else self.env['account.tax'].search([('sii_code', '=', 0), ('type_tax_use', '=', 'sale'), ('company_id', '=', self.company_id.id)], limit=1)
                     _logger.warning('tax_d %s' %tax_id)
@@ -310,34 +316,35 @@ class Libro(models.Model):
                         'tipo_boleta': tpo_doc.id,
                         'cantidad_boletas': det['cantidad'],
                         'neto': det['neto'] or det['monto_exento'],
+                        'monto_impuesto': det['monto_impuesto'],
+                        'monto_total': det['monto_total'],
                         'impuesto': tax_id.id,
                     }
-                    lines.append([0, 0, line])
-                self.boletas = lines
+                    boleta_lines.append([0, 0, line])
         elif self.tipo_operacion in ['BOLETA']:
             docs = [35, 38, 39, 41]
             cfs = self.env['account.move.consumo_folios'].search([
-                ('state', 'not in', ['draft']),
+                ('state', 'not in', ['draft', 'Anulado', 'Rechazado']),
                 ('fecha_inicio', '>=', current),
                 ('fecha_inicio', '<', next_month),
             ])
-            lines = [[5,],]
             monto_iva = 0
             monto_exento = 0
             for cf in cfs:
                 for i in cf.impuestos:
                     monto_iva += i.monto_iva
                     monto_exento += i.monto_exento
-            lines.extend([
+            impuesto_lines.extend([
                  [0,0, {'tax_id': self.env['account.tax'].search([('sii_code', '=', 14), ('type_tax_use', '=', 'sale'),('company_id', '=', self.company_id.id)], limit=1).id, 'credit': monto_iva, 'currency_id' : self.env.user.company_id.currency_id.id}],
                  [0,0, {'tax_id': self.env['account.tax'].search([('sii_code', '=', 0), ('type_tax_use', '=', 'sale'),('company_id', '=', self.company_id.id)], limit=1).id, 'credit': monto_exento, 'currency_id' : self.env.user.company_id.currency_id.id}]
                  ])
-            self.impuestos = lines
             operator = 'in'
         if self.tipo_operacion in [ 'VENTA', 'BOLETA' ]:
             query.append(('date', '>=', current.strftime('%Y-%m-%d')))
 
         query.append(('document_class_id.sii_code', operator, docs))
+        self.boletas = boleta_lines
+        self.impuestos = impuesto_lines
         self.move_ids = self.env['account.move'].search(query)
 
 
@@ -356,13 +363,14 @@ class Libro(models.Model):
 
     @api.onchange('move_ids')
     def set_resumen(self):
-        for mov in self.move_ids:
-            totales = mov.totales_por_movimiento()
-            self.total_afecto += totales['neto']
-            self.total_exento += totales['exento']
-            self.total_iva += totales['iva']
-            self.total_otros_imps += totales['otros_imps']
-            self.total += mov.amount
+        for book in self:
+            for mov in book.move_ids:
+                totales = mov.totales_por_movimiento()
+                book.total_afecto += totales['neto']
+                book.total_exento += totales['exento']
+                book.total_iva += totales['iva']
+                book.total_otros_imps += totales['otros_imps']
+                book.total += mov.amount
 
     @api.onchange('move_ids')
     def compute_taxes(self):
@@ -608,7 +616,7 @@ version="1.0">
 
     @api.onchange('periodo_tributario', 'tipo_operacion')
     def _setName(self):
-        self.name = self.tipo_operacion
+        self.name = self.tipo_operacion or ''
         if self.periodo_tributario:
             self.name += " " + self.periodo_tributario
 
@@ -616,7 +624,6 @@ version="1.0">
     def validar_libro(self):
         self._validar()
         return self.write({'state': 'NoEnviado'})
-
 
     def _acortar_str(self, texto, size=1):
         c = 0
@@ -714,7 +721,7 @@ version="1.0">
         if rec.journal_id.sii_code:
             det['CdgSIISucur'] = rec.journal_id.sii_code
         det['RUTDoc'] = self.format_vat(rec.partner_id.vat)
-        det['RznSoc'] = rec.partner_id.name[:50]
+        det['RznSoc'] = rec.partner_id and rec.partner_id.name[:50] or 'Anonimo'
         refs = []
         for ref in inv.referencias:
             if ref.sii_referencia_CodRef and ref.sii_referencia_TpoDocRef.sii_code in allowed_docs:
@@ -1101,7 +1108,6 @@ version="1.0">
         resumenes = []
         resumenesPeriodo = {}
         for rec in self.with_context(lang='es_CL').move_ids:
-            rec.sended = True
             TpoDoc = rec.document_class_id.sii_code
             if TpoDoc not in resumenesPeriodo:
                 resumenesPeriodo[TpoDoc] = {}
@@ -1119,8 +1125,8 @@ version="1.0">
                             resumenesPeriodo[TpoDoc] = {}
                         resumen = self.getResumenBoleta(order)
                         resumenesPeriodo[TpoDoc] = self._setResumenPeriodoBoleta(resumen, resumenesPeriodo[TpoDoc])
-                        del(resumen['MntNeto'])
-                        del(resumen['MntIVA'])
+                        resumen.pop('MntNeto', False)
+                        resumen.pop('MntIVA', False)
                         if 'TasaIVA' in resumen:
                             del(resumen['TasaIVA'])
                 else:
@@ -1136,11 +1142,12 @@ version="1.0">
                 resumenes.extend([{'Detalle': resumen}])
             if self.tipo_operacion != 'BOLETA':
                 resumenesPeriodo[TpoDoc] = self._setResumenPeriodo(resumen, resumenesPeriodo[TpoDoc])
+        self.with_context(lang='es_CL').move_ids.write({'sended': True})
         if self.boletas:#no es el libro de boletas especial
             for boletas in self.boletas:
                 resumenesPeriodo[boletas.tipo_boleta.id] = {}
                 resumen = self._setResumenBoletas(boletas)
-                del(resumen['TotDoc'])
+                #del(resumen['TotDoc'])
                 resumenesPeriodo[boletas.tipo_boleta.id] = self._setResumenPeriodo(resumen, resumenesPeriodo[boletas.tipo_boleta.id])
                 #resumenes.extend([{'Detalle':resumen}])
         lista = ['TpoDoc', 'TpoImp', 'TotDoc', 'TotAnulado', 'TotMntExe', 'TotMntNeto', 'TotalesServicio', 'TotOpIVARec',
@@ -1197,20 +1204,16 @@ version="1.0">
             certp,
             doc_id,
             env)
-        self.sii_xml_request = self.env['sii.xml.request'].create({
+        self.sii_xml_request = self.env['sii.xml.envio'].create({
             'xml_envio': envio_dte,
             'name': doc_id,
-            'company_id': company_id.id
+            'company_id': company_id.id,
         }).id
-
-    def do_dte_send(self, n_atencion=''):
-        self.sii_xml_request.send_xml()
-        return self.sii_xml_request
 
     @api.multi
     def do_dte_send_book(self):
         if self.state not in ['draft', 'NoEnviado', 'Rechazado']:
-            raise UserError("El Libro ya ha sido enviado")
+            raise UserError("El Libro  ya ha sido enviado")
         if not self.sii_xml_request:
             self._validar()
         self.env['sii.cola_envio'].create({
@@ -1221,10 +1224,14 @@ version="1.0">
         })
         self.state = 'EnCola'
 
+    def do_dte_send(self, n_atencion=''):
+        self.sii_xml_request.send_xml()
+        return self.sii_xml_request
+
     def _get_send_status(self):
         self.sii_xml_request.get_send_status()
-        if self.sii_xml_request == 'Aceptado':
-            self.state = 'Proceso'
+        if self.sii_xml_request.state == 'Aceptado':
+            self.state = "Proceso"
         else:
             self.state = self.sii_xml_request.state
 
@@ -1238,6 +1245,22 @@ version="1.0">
                 r.state = 'EnCola'
                 continue
             r.state = r.sii_xml_request.state
+
+    @api.multi
+    def action_cancel(self):
+        self.write({'state': 'Anulado'})
+        return True
+        
+    @api.multi
+    def action_cancel_to_draft(self):
+        if self.move_ids:
+            self.with_context(lang='es_CL').move_ids.write({'sended': False})
+        self.write({'state': 'draft',
+                    'move_ids': [(6, 0, [])],
+                    'boletas': [(6, 0, [])],
+                    'sii_xml_request': "",
+                    })
+        return True
 
 
 class Boletas(models.Model):
@@ -1269,22 +1292,12 @@ class Boletas(models.Model):
         required=True,
         domain=[('type_tax_use','!=','none'), '|', ('active', '=', False), ('active', '=', True)])
     monto_impuesto = fields.Monetary(
-        compute='_monto_total',
         string="Monto Impuesto",
         required=True)
     monto_total = fields.Monetary(
-        compute='_monto_total',
         string="Monto Total",
         required=True)
     book_id = fields.Many2one('account.move.book')
-
-    @api.onchange( 'neto', 'impuesto')
-    def _monto_total(self):
-        for b in self:
-            monto_impuesto = 0
-            if b.impuesto and b.impuesto.amount > 0:
-                monto_impuesto = b.monto_impuesto = b.neto * (b.impuesto.amount / 100)
-            b.monto_total = b.neto + monto_impuesto
 
     @api.onchange('rango_inicial', 'rango_final')
     def get_cantidad(self):

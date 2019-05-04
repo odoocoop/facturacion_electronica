@@ -28,7 +28,7 @@
             <field name="vat" position="attributes">
               <attribute name="invisible">1</attribute>
             </field>
-            <field name="email" position="after">
+            <field name="website" position="before">
                 <field name="dte_email" widget="email" attrs="{'invisible': [('parent_id', '!=', False)], 'required': [('company_type','=','company')]}"/>
             </field>
             <xpath expr="//field[@name='child_ids']/kanban/templates/t/div/div[hasclass('o_kanban_image')]/t" position="inside">
@@ -108,6 +108,17 @@
             <field name='arch' type='xml'>
                 <field name="state_id" position="after">
                     <field name="city_id" placeholder="Comuna" style="width: 100%" options='{"no_open": True}'/>
+                </field>
+            </field>
+        </record>
+        
+        <record model="ir.ui.view" id="view_res_partner_private_form">
+            <field name="name">Partners</field>
+            <field name="model">res.partner</field>
+            <field name="inherit_id" ref="base.res_partner_view_form_private"/>
+            <field name="arch" type="xml">
+                <field name="type" position="after">
+                   <field name="parent_id" invisible="1" />
                 </field>
             </field>
         </record>

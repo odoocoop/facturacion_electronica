@@ -30,10 +30,9 @@
                     <span class="o_form_label" attrs="{'invisible': ['|',('state','=','draft'), ('type','!=','out_refund')]}">Boleta de Honorarios</span>
                     <h1 class="mt0">
                         <div attrs="{'invisible': [('sequence_number_next_prefix','!=',False)]}">
-                            <span class="o_form_label" attrs="{'invisible': ['|',('state','&lt;&gt;','draft'), ('type','&lt;&gt;','in_invoice')]}">Draft Bill</span>
-                            <span class="o_form_label" attrs="{'invisible': ['|',('state','&lt;&gt;','draft'), ('type','&lt;&gt;','in_refund')]}">Draft Refund</span>
-                            <span class="o_form_label" attrs="{'invisible': ['|',('state', '=', 'draft'), ('type','&lt;&gt;','in_invoice')]}">Bill</span>
-                            <span class="o_form_label " attrs="{'invisible': ['|',('state', '=', 'draft'), ('type','&lt;&gt;','in_refund')]}">Refund</span>
+                        	<span class="o_form_label" attrs="{'invisible': ['|',('state','not in',('draft',)), ('type','!=','out_invoice')]}">Draft Invoice</span>
+                        	<span class="o_form_label" attrs="{'invisible': ['|',('state','not in',('draft',)), ('type','!=','out_refund')]}">Draft Credit Note</span>
+                        	<field name="number" readonly="1" class="oe_inline" attrs="{'invisible': [('state','in',('draft',))]}"/>
                         </div>
                         <div  attrs="{'invisible': [('sequence_number_next_prefix','=',False)]}">
                             <span class="o_form_label">Boleta Númbero:</span><br/>
@@ -73,7 +72,7 @@
                                     <field name="account_analytic_id" groups="analytic.group_analytic_accounting"
                                         domain="[('company_id', '=', parent.company_id), ('account_type', '=', 'normal')]"/>
                                     <field name="quantity"/>
-                                    <field name="uom_id" groups="product.group_uom"/>
+                                    <field name="uom_id" groups="uom.group_uom"/>
                                     <field name="price_unit"/>
                                     <field name="discount" groups="sale.group_discount_per_so_line"/>
                                     <field name="invoice_line_tax_ids" widget="many2many_tags" context="{'type':parent.type}"

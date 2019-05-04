@@ -3,6 +3,8 @@ from odoo import models
 from datetime import datetime
 
 class LibroXlsx(models.AbstractModel):
+    _name = 'report.account.move.book.xlsx'
+    _inherit = 'report.report_xlsx.abstract'
 
     def generate_xlsx_report(self, workbook, data, libro):
         for obj in libro:
@@ -29,7 +31,7 @@ class LibroXlsx(models.AbstractModel):
             for mov in obj.move_ids:
                 sheet.write(line, 0, mov.document_class_id.name)
                 sheet.write(line, 1, (mov.sii_document_number or mov.ref))
-                sheet.write(line, 2, datetime.strptime(mov.date, '%Y-%M-%d').strftime('%d/%M/%Y') )
+                sheet.write(line, 2, mov.date.strftime('%d/%M/%Y') )
                 if mov.partner_id:
                     sheet.write(line, 3, mov.partner_id.document_number)
                     sheet.write(line, 4, mov.partner_id.name)
@@ -52,10 +54,3 @@ class LibroXlsx(models.AbstractModel):
                 c +=1
             #sheet.write(line, c, obj.total_no_rec, bold)
             sheet.write(line, c, obj.total, bold)
-
-
-#LibroXlsx('report.account.move.book.xlsx',
-#            'account.move.book')
-
-#LibroXlsx('report.account.move.book.honorarios.xlsx',
-#            'account.move.book.honorarios')

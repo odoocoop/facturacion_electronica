@@ -18,7 +18,7 @@ class SignatureCert(models.Model):
 
     def check_signature(self):
         for s in self.sudo():
-            expired = s.expire_date < datetime.now().date()
+            expired = s.expire_date < fields.Date.context_today(self)
             state = 'expired' if expired else 'valid'
             if s.state != state:
                 s.state = state
@@ -32,7 +32,7 @@ class SignatureCert(models.Model):
                 raise UserError(_('Not Valid Subject Serial Number'))
             self.subject_serial_number = rut
             self.check_signature()
-        else:
+        elif self.file_content:
             self.state = 'incomplete'
 
     name = fields.Char(
@@ -137,8 +137,8 @@ class SignatureCert(models.Model):
         subject = cert.get_subject()
 
         self.write({
-            'emision_date': datetime.strptime(cert.get_notBefore().decode("utf-8"), '%Y%m%d%H%M%SZ').date(),
-            'expire_date': datetime.strptime(cert.get_notAfter().decode("utf-8"), '%Y%m%d%H%M%SZ').date(),
+            'emision_date': datetime.strptime(cert.get_notBefore().decode("utf-8"), '%Y%m%d%H%M%SZ'),
+            'expire_date': datetime.strptime(cert.get_notAfter().decode("utf-8"), '%Y%m%d%H%M%SZ'),
             'subject_c': subject.C,
             'subject_title': subject.title,
             'subject_common_name': subject.CN,

@@ -58,7 +58,7 @@ try:
 except ImportError:
     _logger.info('Cannot import hashlib library')
 
-server_url = {'SIICERT':'https://maullin.sii.cl/DTEWS/','SII':'https://palena.sii.cl/DTEWS/'}
+server_url = {'SIICERT': 'https://maullin.sii.cl/DTEWS/', 'SII': 'https://palena.sii.cl/DTEWS/'}
 
 BC = '''-----BEGIN CERTIFICATE-----\n'''
 EC = '''\n-----END CERTIFICATE-----\n'''
@@ -84,31 +84,32 @@ connection_status = {
 
 class ConsumoFolios(models.Model):
     _name = "account.move.consumo_folios"
+    order = 'fecha_inicio desc'
 
     sii_xml_request = fields.Many2one(
-            'sii.xml.envio',
-            string='SII XML Request',
-            copy=False,
-            readonly=True,
-            states={'draft': [('readonly', False)]},)
+        'sii.xml.envio',
+        string='SII XML Request',
+        copy=False,
+        readonly=True,
+        states={'draft': [('readonly', False)]},)
     state = fields.Selection([
-            ('draft', 'Borrador'),
-            ('NoEnviado', 'No Enviado'),
-            ('EnCola', 'En Cola'),
-            ('Enviado', 'Enviado'),
-            ('Aceptado', 'Aceptado'),
-            ('Rechazado', 'Rechazado'),
-            ('Reparo', 'Reparo'),
-            ('Proceso', 'Proceso'),
-            ('Reenviar', 'Reenviar'),
-            ('Anulado', 'Anulado')],
-            string='Resultado',
-            index=True,
-            readonly=True,
-            default='draft',
-            track_visibility='onchange',
-            copy=False,
-            help=" * The 'Draft' status is used when a user is encoding a new and unconfirmed Invoice.\n"
+        ('draft', 'Borrador'),
+        ('NoEnviado', 'No Enviado'),
+        ('EnCola', 'En Cola'),
+        ('Enviado', 'Enviado'),
+        ('Aceptado', 'Aceptado'),
+        ('Rechazado', 'Rechazado'),
+        ('Reparo', 'Reparo'),
+        ('Proceso', 'Proceso'),
+        ('Reenviar', 'Reenviar'),
+        ('Anulado', 'Anulado')],
+        string='Resultado',
+        index=True,
+        readonly=True,
+        default='draft',
+        track_visibility='onchange',
+        copy=False,
+        help=" * The 'Draft' status is used when a user is encoding a new and unconfirmed Invoice.\n"
              " * The 'Pro-forma' status is used the invoice does not have an invoice number.\n"
              " * The 'Open' status is used when user create invoice, an invoice number is generated. Its in open status till user does not pay invoice.\n"
              " * The 'Paid' status is set automatically when the invoice is paid. Its related journal entries may or may not be reconciled.\n"
@@ -118,28 +119,28 @@ class ConsumoFolios(models.Model):
     	readonly=True,
         states={'draft': [('readonly', False)]},)
     fecha_inicio = fields.Date(
-            string="Fecha Inicio",
-            readonly=True,
-            states={'draft': [('readonly', False)]},
-            default=lambda self: fields.Date.context_today(self),
-        )
+        string="Fecha Inicio",
+        readonly=True,
+        states={'draft': [('readonly', False)]},
+        default=lambda self: fields.Date.context_today(self),
+    )
     fecha_final = fields.Date(
-            string="Fecha Final",
-            readonly=True,
-            states={'draft': [('readonly', False)]},
-            default=lambda self: fields.Date.context_today(self),
-        )
+        string="Fecha Final",
+        readonly=True,
+        states={'draft': [('readonly', False)]},
+        default=lambda self: fields.Date.context_today(self),
+    )
     correlativo = fields.Integer(
-            string="Correlativo",
-            readonly=True,
-            states={'draft': [('readonly', False)]},
-            invisible=True,
-        )
+        string="Correlativo",
+        readonly=True,
+        states={'draft': [('readonly', False)]},
+        invisible=True,
+    )
     sec_envio = fields.Integer(
-            string="Secuencia de Envío",
-            readonly=True,
-            states={'draft': [('readonly', False)]},
-        )
+        string="Secuencia de Envío",
+        readonly=True,
+        states={'draft': [('readonly', False)]},
+    )
     total_neto = fields.Monetary(
         string="Total Neto",
         store=True,
@@ -785,8 +786,8 @@ version="1.0">
                 for i in listado:
                     if i in value:
                         ordered[i] = value[i]
-                    elif i == 'itemUtilizados':
-                        Rangos = value[ str(r)+'_folios' ]
+                    elif i == 'itemUtilizados' and str(r)+'_folios' in value:
+                        Rangos = value[str(r)+'_folios']
                         folios = []
                         if 'itemUtilizados' in Rangos:
                             utilizados = []
@@ -845,12 +846,8 @@ version="1.0">
             'state': 'draft',
         }).id
 
-    def do_dte_send(self, n_atencion=''):
-        self.sii_xml_request.send_xml()
-        return self.sii_xml_request
-
     @api.multi
-    def do_dte_send_book(self):
+    def do_dte_send_consumo_folios(self):
         if self.state not in ['draft', 'NoEnviado', 'Rechazado']:
             raise UserError("El Consumo de Folios ya ha sido enviado")
         if not self.sii_xml_request:
@@ -863,10 +860,14 @@ version="1.0">
         })
         self.state = 'EnCola'
 
+    def do_dte_send(self, n_atencion=''):
+        self.sii_xml_request.send_xml()
+        return self.sii_xml_request
+
     def _get_send_status(self):
         self.sii_xml_request.get_send_status()
-        if self.sii_xml_request == 'Aceptado':
-            self.state = 'Proceso'
+        if self.sii_xml_request.state == 'Aceptado':
+            self.state = "Proceso"
         else:
             self.state = self.sii_xml_request.state
 
@@ -886,7 +887,7 @@ class DetalleCOnsumoFolios(models.Model):
     _name = "account.move.consumo_folios.detalles"
 
     cf_id = fields.Many2one('account.move.consumo_folios',
-                            string="Consumo de Folios")
+                            string="Consumo de Folios", ondelete="cascade",)
     tpo_doc = fields.Many2one('sii.document_class',
                               string="Tipo de Documento")
     tipo_operacion = fields.Selection([('utilizados','Utilizados'), ('anulados','Anulados')])
@@ -899,7 +900,7 @@ class DetalleImpuestos(models.Model):
     _name = "account.move.consumo_folios.impuestos"
 
     cf_id = fields.Many2one('account.move.consumo_folios',
-                            string="Consumo de Folios")
+                            string="Consumo de Folios", ondelete="cascade",)
     tpo_doc = fields.Many2one('sii.document_class',
                               string="Tipo de Documento")
     impuesto = fields.Many2one('account.tax')
@@ -921,6 +922,7 @@ class Anulaciones(models.Model):
     cf_id = fields.Many2one(
             'account.move.consumo_folios',
             string="Consumo de Folios",
+            ondelete="cascade",
         )
     tpo_doc = fields.Many2one(
             'sii.document_class',

@@ -134,7 +134,7 @@ class AccountInvoiceRefund(models.TransientModel):
                 xml_id = type == 'out_invoice' and 'action_invoice_out_refund' or \
                          type == 'out_refund' and 'action_invoice_tree1' or \
                          type == 'in_invoice' and 'action_invoice_in_refund' or \
-                         type == 'in_refund' and 'action_invoice_tree2'
+                         type == 'in_refund' and 'action_vendor_bill_template'
                 # Put the reason in the chatter
                 subject = self.tipo_nota.name
                 body = description

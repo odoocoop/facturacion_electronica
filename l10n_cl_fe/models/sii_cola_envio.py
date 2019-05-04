@@ -53,7 +53,7 @@ class ColaEnvio(models.Model):
     def _es_doc(self, doc):
         if hasattr(doc, 'sii_message'):
             return doc.sii_message
-        return False
+        return True
 
     def _procesar_tipo_trabajo(self):
         if not self.user_id.active:
@@ -74,7 +74,7 @@ class ColaEnvio(models.Model):
                     _logger.warning(str(e))
                 docs.get_sii_result()
             return
-        if (self._es_doc(docs[0]) or self._es_boleta(docs[0])) and docs[0].sii_result in ['Proceso', 'Reparo', 'Rechazado', 'Anulado']:
+        if (self._es_doc(docs[0]) or self.es_boleta(docs[0])) and docs[0].sii_result in ['Proceso', 'Reparo', 'Rechazado', 'Anulado']:
             if self.send_email and docs[0].sii_result in ['Proceso', 'Reparo']:
                 for doc in docs:
                     self.enviar_email(doc)
@@ -83,6 +83,8 @@ class ColaEnvio(models.Model):
         if self.tipo_trabajo == 'consulta':
             try:
                 docs.ask_for_dte_status()
+                if docs[0].sii_xml_request.state in ['Aceptado']:
+                    self.unlink()
             except Exception as e:
                 _logger.warning("Error en Consulta")
                 _logger.warning(str(e))
