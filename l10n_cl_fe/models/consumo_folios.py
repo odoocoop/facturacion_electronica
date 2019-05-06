@@ -850,7 +850,9 @@ version="1.0">
     def do_dte_send_consumo_folios(self):
         if self.state not in ['draft', 'NoEnviado', 'Rechazado']:
             raise UserError("El Consumo de Folios ya ha sido enviado")
-        if not self.sii_xml_request:
+        if not self.sii_xml_request or self.sii_xml_request.state == "Rechazado":
+            if self.sii_xml_request:
+                self.sii_xml_request.unlink()
             self._validar()
         self.env['sii.cola_envio'].create({
             'doc_ids': [self.id],
@@ -861,6 +863,10 @@ version="1.0">
         self.state = 'EnCola'
 
     def do_dte_send(self, n_atencion=''):
+        if self.sii_xml_request and self.sii_xml_request.state == "Rechazado":
+            self.sii_xml_request.unlink()
+            self._validar()
+            self.sii_xml_request.state = 'NoEnviado'
         self.sii_xml_request.send_xml()
         return self.sii_xml_request
 

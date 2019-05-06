@@ -6,3 +6,4 @@ xlsxwriter
 pillow
 xmltodict
 dicttoxml
+requests>=2.21.0

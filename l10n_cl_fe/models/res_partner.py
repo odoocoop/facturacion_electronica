@@ -326,42 +326,45 @@ class ResPartner(models.Model):
         sync = ICPSudo.get_param('partner.sync_remote_partners')
         if not url or not token or not sync:
             return
-        resp = pool.request('PUT',
-                            url,
-                            body=json.dumps(
-                                                {
-                                                    'rut': self.document_number,
-                                                    'token': token,
-                                                    'glosa_giro': self.activity_description.name,
-                                                    'razon_social': self.name,
-                                                    'dte_email': self.dte_email,
-                                                    'email': self.email,
-                                                    'direccion': self.street,
-                                                    #'comuna': self.
-                                                    'telefono': self.phone,
-                                                    'actectos': [ac.code for ac in self.acteco_ids],
-                                                    'url': self.website,
-                                                    'origen': ICPSudo.get_param('web.base.url'),
-                                                    'logo': self.image.decode() if self.image else False,
-                                                }
-                                            ).encode('utf-8'),
-                            headers={'Content-Type': 'application/json'})
-        if resp.status != 200:
-            _logger.warning("Error en conexión al sincronizar partners %s" % resp.data)
-            message = ''
-            if resp.status == 403:
-                data = json.loads(resp.data.decode('ISO-8859-1'))
-                message = data['message']
-            else:
-                message = str(resp.data)
-            self.env['bus.bus'].sendone((self._cr.dbname, 'res.partner', self.env.user.partner_id.id),{
-                'title': "Error en conexión al sincronizar partners",
-                'message': message,
-                'url': 'res_config',
-                'type': 'dte_notif',
-            })
-            return
-        data = json.loads(resp.data.decode('ISO-8859-1'))
+        try:
+            resp = pool.request('PUT',
+                                url,
+                                body=json.dumps(
+                                                    {
+                                                        'rut': self.document_number,
+                                                        'token': token,
+                                                        'glosa_giro': self.activity_description.name,
+                                                        'razon_social': self.name,
+                                                        'dte_email': self.dte_email,
+                                                        'email': self.email,
+                                                        'direccion': self.street,
+                                                        #'comuna': self.
+                                                        'telefono': self.phone,
+                                                        'actectos': [ac.code for ac in self.acteco_ids],
+                                                        'url': self.website,
+                                                        'origen': ICPSudo.get_param('web.base.url'),
+                                                        'logo': self.image.decode() if self.image else False,
+                                                    }
+                                                ).encode('utf-8'),
+                                headers={'Content-Type': 'application/json'})
+            if resp.status != 200:
+                _logger.warning("Error en conexión al sincronizar partners %s" % resp.data)
+                message = ''
+                if resp.status == 403:
+                    data = json.loads(resp.data.decode('ISO-8859-1'))
+                    message = data['message']
+                else:
+                    message = str(resp.data)
+                self.env['bus.bus'].sendone((self._cr.dbname, 'res.partner', self.env.user.partner_id.id),{
+                    'title': "Error en conexión al sincronizar partners",
+                    'message': message,
+                    'url': 'res_config',
+                    'type': 'dte_notif',
+                })
+                return
+            data = json.loads(resp.data.decode('ISO-8859-1'))
+        except:
+            pass
 
     def get_remote_user_data(self, to_check, process_data=True):
         ICPSudo = self.env['ir.config_parameter'].sudo()
@@ -369,37 +372,40 @@ class ResPartner(models.Model):
         token = ICPSudo.get_param('partner.token_remote_partners')
         if not url or not token:
             return
-        resp = pool.request('POST',
-                            url,
-                            body=json.dumps(
-                                                {
-                                                    'rut': to_check,
-                                                    'token': token,
-                                                }
-                                            ).encode('utf-8'),
-                            headers={'Content-Type': 'application/json'})
-        if resp.status != 200:
-            _logger.warning("Error en conexión al obtener partners %s" % resp.data)
-            message = ''
-            if resp.status == 403:
-                data = json.loads(resp.data.decode('ISO-8859-1'))
-                message = data['message']
-            else:
-                message = str(resp.data)
-            self.env['bus.bus'].sendone((self._cr.dbname, 'res.partner', self.env.user.partner_id.id),{
-                'title': "Error en conexión al obtener partners",
-                'message': message,
-                'url': 'res_config',
-                'type': 'dte_notif',
-            })
-            return
-        data = json.loads(resp.data.decode('ISO-8859-1'))
-        if not process_data:
-            return data
-        if not data:
-            self.sync = False
-            return
-        self._process_data(data)
+        try:
+            resp = pool.request('POST',
+                                url,
+                                body=json.dumps(
+                                                    {
+                                                        'rut': to_check,
+                                                        'token': token,
+                                                    }
+                                                ).encode('utf-8'),
+                                headers={'Content-Type': 'application/json'})
+            if resp.status != 200:
+                _logger.warning("Error en conexión al obtener partners %s" % resp.data)
+                message = ''
+                if resp.status == 403:
+                    data = json.loads(resp.data.decode('ISO-8859-1'))
+                    message = data['message']
+                else:
+                    message = str(resp.data)
+                self.env['bus.bus'].sendone((self._cr.dbname, 'res.partner', self.env.user.partner_id.id),{
+                    'title': "Error en conexión al obtener partners",
+                    'message': message,
+                    'url': 'res_config',
+                    'type': 'dte_notif',
+                })
+                return
+            data = json.loads(resp.data.decode('ISO-8859-1'))
+            if not process_data:
+                return data
+            if not data:
+                self.sync = False
+                return
+            self._process_data(data)
+        except:
+            pass
 
     @api.onchange('name')
     def fill_partner(self):
@@ -420,31 +426,34 @@ class ResPartner(models.Model):
         for r in self.search([('document_number', 'not in', [False, 0]), ('parent_id', '=', False)]):
             if ICPSudo.get_param('partner.sync_remote_partners'):
                 r.put_remote_user_data()
-            resp = pool.request('GET',
-                                    url,
-                                    {
-                                        'rut': r.document_number,
-                                        'token': token,
-                                        'actualizado': r.last_sync_update,
-                                    })
-            if resp.status != 200:
-                _logger.warning("Error en conexión al consultar partners %s" % resp.data)
-                message = ''
-                if resp.status == 403:
-                    data = json.loads(resp.data.decode('ISO-8859-1'))
-                    message = data['message']
-                else:
-                    message = str(resp.data)
-                self.env['bus.bus'].sendone((self._cr.dbname, 'res.partner', self.env.user.partner_id.id),{
-                    'title': "Error en conexión al consultar partners",
-                    'message': message,
-                    'url': 'res_config',
-                    'type': 'dte_notif',
-                })
-                return
-            data = json.loads(resp.data.decode('ISO-8859-1'))
-            if data.get('result', False):
-                r.sync = False
-                r.fill_partner()
+            try:
+                resp = pool.request('GET',
+                                        url,
+                                        {
+                                            'rut': r.document_number,
+                                            'token': token,
+                                            'actualizado': r.last_sync_update,
+                                        })
+                if resp.status != 200:
+                    _logger.warning("Error en conexión al consultar partners %s" % resp.data)
+                    message = ''
+                    if resp.status == 403:
+                        data = json.loads(resp.data.decode('ISO-8859-1'))
+                        message = data['message']
+                    else:
+                        message = str(resp.data)
+                    self.env['bus.bus'].sendone((self._cr.dbname, 'res.partner', self.env.user.partner_id.id),{
+                        'title': "Error en conexión al consultar partners",
+                        'message': message,
+                        'url': 'res_config',
+                        'type': 'dte_notif',
+                    })
+                    return
+                data = json.loads(resp.data.decode('ISO-8859-1'))
+                if data.get('result', False):
+                    r.sync = False
+                    r.fill_partner()
+            except:
+                pass
 
 

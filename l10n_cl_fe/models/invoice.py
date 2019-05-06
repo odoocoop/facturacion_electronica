@@ -2174,19 +2174,26 @@ version="1.0">
             date_invoice = r.date_invoice.strftime("%d-%m-%Y")
             signature_id = self.env.user.get_digital_signature(r.company_id)
             rut = signature_id.subject_serial_number
-            respuesta = _server.service.getEstDte(
-                rut[:8].replace('-', ''),
-                str(rut[-1]),
-                r.company_id.vat[2:-1],
-                r.company_id.vat[-1],
-                receptor[:8].replace('-', ''),
-                receptor[-1],
-                str(r.document_class_id.sii_code),
-                str(r.sii_document_number),
-                date_invoice,
-                str(int(r.amount_total)),
-                token,
-            )
+            try:
+                respuesta = _server.service.getEstDte(
+                    rut[:8].replace('-', ''),
+                    str(rut[-1]),
+                    r.company_id.vat[2:-1],
+                    r.company_id.vat[-1],
+                    receptor[:8].replace('-', ''),
+                    receptor[-1],
+                    str(r.document_class_id.sii_code),
+                    str(r.sii_document_number),
+                    date_invoice,
+                    str(int(r.amount_total)),
+                    token,
+                )
+            except Exception as e:
+                msg = "Error al obtener Estado DTE"
+                _logger.warning("%s: %s" % (msg, str(e)))
+                if e.args[0][0] == 503:
+                    raise UserError('%s: Conexión al SII caída/rechazada o el SII está temporalmente fuera de línea, reintente la acción' % (msg))
+                raise UserError(("%s: %s" % (msg, str(e))))
             r.sii_message = respuesta
 
     @api.multi
@@ -2217,13 +2224,20 @@ version="1.0">
                 'Cookie': 'TOKEN=' + token,
                 },
         )
-        respuesta = _server.service.ingresarAceptacionReclamoDoc(
-            rut_emisor[:-2],
-            rut_emisor[-1],
-            str(document_class_id.sii_code),
-            str(sii_document_number),
-            claim,
-        )
+        try:
+            respuesta = _server.service.ingresarAceptacionReclamoDoc(
+                rut_emisor[:-2],
+                rut_emisor[-1],
+                str(document_class_id.sii_code),
+                str(sii_document_number),
+                claim,
+            )
+        except Exception as e:
+                msg = "Error al ingresar Reclamo DTE"
+                _logger.warning("%s: %s" % (msg, str(e)))
+                if e.args[0][0] == 503:
+                    raise UserError('%s: Conexión al SII caída/rechazada o el SII está temporalmente fuera de línea, reintente la acción' % (msg))
+                raise UserError(("%s: %s" % (msg, str(e))))
         if self.id:
             self.claim_description = respuesta
 

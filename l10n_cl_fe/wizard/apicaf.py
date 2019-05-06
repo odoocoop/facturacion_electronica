@@ -36,30 +36,33 @@ class apicaf(models.TransientModel):
             'etapa': self.etapa,
             'entorno': 'produccion' if self.company_id.dte_service_provider ==  'SII' else 'certificacion'
         }
-        resp = pool.request('POST', url, body=json.dumps(params))
-        if resp.status != 200:
-            _logger.warning("Error en conexión con api apicaf %s" % resp.data)
-            message = ''
-            if resp.status == 403:
-                data = json.loads(resp.data.decode('ISO-8859-1'))
-                message = data['message']
-            else:
-                message = str(resp.data)
-            self.env['bus.bus'].sendone((
-                self._cr.dbname, 'dte.caf.apicaf',
-                self.env.user.partner_id.id), {
-                        'title': "Error en conexión con apicaf",
-                        'message': message,
-                        'url': {
-                            'name': 'ir a apicaf.cl',
-                            'uri': 'https://apicaf.cl'
-                        },
-                        'type': 'dte_notif',
-                })
-            return
-        data = json.loads(resp.data.decode('ISO-8859-1'))
-        self.etapa = data['etapa']
-        self.id_peticion = data['id_peticion']
+        try:
+            resp = pool.request('POST', url, body=json.dumps(params))
+            if resp.status != 200:
+                _logger.warning("Error en conexión con api apicaf %s" % resp.data)
+                message = ''
+                if resp.status == 403:
+                    data = json.loads(resp.data.decode('ISO-8859-1'))
+                    message = data['message']
+                else:
+                    message = str(resp.data)
+                self.env['bus.bus'].sendone((
+                    self._cr.dbname, 'dte.caf.apicaf',
+                    self.env.user.partner_id.id), {
+                            'title': "Error en conexión con apicaf",
+                            'message': message,
+                            'url': {
+                                'name': 'ir a apicaf.cl',
+                                'uri': 'https://apicaf.cl'
+                            },
+                            'type': 'dte_notif',
+                    })
+                return
+            data = json.loads(resp.data.decode('ISO-8859-1'))
+            self.etapa = data['etapa']
+            self.id_peticion = data['id_peticion']
+        except:
+            raise UserError("Problemas de conexión, verifique su conexión a red")
 
     @api.depends('company_id')
     def get_docs(self):

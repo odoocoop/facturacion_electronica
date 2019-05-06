@@ -158,6 +158,14 @@ to work properly!''') % (self.sii_document_class, self.sequence_id.sii_document_
             '<?xml version="1.0"?>', '', 1))
         return post
 
+    def check_nivel(self, folio):
+        if not folio:
+            return ''
+        diff = self.final_nm - int(folio)
+        if diff <= self.nivel_minimo:
+            return 'Nivel bajo de CAF para %s, quedan %s folios' % (self.sequence_id.sii_document_class_id.name, diff)
+        return ''
+
 
 class sequence_caf(models.Model):
     _inherit = "ir.sequence"
@@ -227,6 +235,17 @@ www.sii.cl'''.format(folio)
                     if fields.Date.context_today(self) > caffile.expiration_date:
                         msg = "CAF Vencido. %s" % msg
                         continue
+                alert_msg = caffile.check_nivel(folio)
+                if alert_msg != '':
+                    self.env['bus.bus'].sendone((self._cr.dbname,
+                                            'dte.caf',
+                                            self.env.user.partner_id.id),
+                                            {
+                                                'title': "Alerta sobre CAF",
+                                                'message': alert_msg,
+                                                'url': 'res_config',
+                                                'type': 'dte_notif',
+                                            })
                 return caffile.decode_caf()
         raise UserError(_(msg))
 

@@ -127,11 +127,11 @@ class SIIXMLEnvio(models.Model):
         try:
             resp = _server.service.getSeed().replace('<?xml version="1.0" encoding="UTF-8"?>','')
         except Exception as e:
-            _logger.warning(e)
-            if str(e) == "(503, 'Service Temporarily Unavailable')":
-                raise UserError(_("Conexión SII no disponible, intente otra vez"))
-            else:
-                raise UserError(str(e))
+            msg = "Error al obtener Semilla"
+            _logger.warning("%s: %s" % (msg, str(e)))
+            if e.args[0][0] == 503:
+                raise UserError('%s: Conexión al SII caída/rechazada o el SII está temporalmente fuera de línea, reintente la acción' % (msg))
+            raise UserError(("%s: %s" % (msg, str(e))))
         root = etree.fromstring(resp)
         semilla = root[0][0].text
         return semilla
@@ -158,7 +158,14 @@ class SIIXMLEnvio(models.Model):
         _server = Client(url)
         tree = etree.fromstring(seed_file)
         ss = etree.tostring(tree, pretty_print=True, encoding='iso-8859-1').decode()
-        resp = _server.service.getToken(ss).replace('<?xml version="1.0" encoding="UTF-8"?>','')
+        try:
+            resp = _server.service.getToken(ss).replace('<?xml version="1.0" encoding="UTF-8"?>','')
+        except Exception as e:
+            msg = "Error al obtener Token"
+            _logger.warning("%s: %s" % (msg, str(e)))
+            if e.args[0][0] == 503:
+                raise UserError('%s: Conexión al SII caída/rechazada o el SII está temporalmente fuera de línea, reintente la acción' % (msg))
+            raise UserError(("%s: %s" % (msg, str(e))))
         respuesta = etree.fromstring(resp)
         token = respuesta[0][0].text
         return token
@@ -223,14 +230,22 @@ class SIIXMLEnvio(models.Model):
         params = self.init_params()
         multi = urllib3.filepost.encode_multipart_formdata(params)
         headers.update({'Content-Length': '{}'.format(len(multi[0]))})
-        response = pool.request_encode_body('POST', url+post, params, headers)
-        retorno.update({ 'sii_xml_response': response.data })
-        if response.status != 200 or not response.data or response.data == '':
-            return retorno
-        respuesta_dict = xmltodict.parse(response.data)
-        retorno = self.procesar_recepcion(retorno, respuesta_dict)
-        self.write(retorno)
+        try:
+            response = pool.request_encode_body('POST', url+post, params, headers)
+            retorno.update({ 'sii_xml_response': response.data })
+            if response.status != 200 or not response.data or response.data == '':
+                return retorno
+            respuesta_dict = xmltodict.parse(response.data)
+            retorno = self.procesar_recepcion(retorno, respuesta_dict)
+            self.write(retorno)
+        except Exception as e:
+            msg = "Error al subir DTE"
+            _logger.warning("%s: %s" % (msg, str(e)))
+            if e.args[0][0] == 503:
+                raise UserError('%s: Conexión al SII caída/rechazada o el SII está temporalmente fuera de línea, reintente la acción' % (msg))
+            raise UserError(("%s: %s" % (msg, str(e))))
         return retorno
+
 
     def get_send_status(self, user_id=False):
         user_id = user_id or self.user_id
@@ -238,12 +253,19 @@ class SIIXMLEnvio(models.Model):
         url = server_url[self.company_id.dte_service_provider] + 'QueryEstUp.jws?WSDL'
         _server = Client(url)
         rut = self.invoice_ids.format_vat( self.company_id.vat, con_cero=True)
-        respuesta = _server.service.getEstUp(
-                rut[:8].replace('-', ''),
-                str(rut[-1]),
-                self.sii_send_ident,
-                token,
-            )
+        try:
+            respuesta = _server.service.getEstUp(
+                    rut[:8].replace('-', ''),
+                    str(rut[-1]),
+                    self.sii_send_ident,
+                    token,
+                )
+        except Exception as e:
+            msg = "Error al obtener Estado Envío DTE"
+            _logger.warning("%s: %s" % (msg, str(e)))
+            if e.args[0][0] == 503:
+                raise UserError('%s: Conexión al SII caída/rechazada o el SII está temporalmente fuera de línea, reintente la acción' % (msg))
+            raise UserError(("%s: %s" % (msg, str(e))))
         result = {"sii_receipt" : respuesta}
         resp = xmltodict.parse(respuesta)
         result.update({"state": "Enviado"})

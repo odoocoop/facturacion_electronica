@@ -255,6 +255,20 @@ class Libro(models.Model):
     codigo_rectificacion = fields.Char(
         string="Código de Rectificación",
     )
+    sii_result = fields.Selection(
+            [
+                ('draft', 'Borrador'),
+                ('NoEnviado', 'No Enviado'),
+                ('Enviado', 'Enviado'),
+                ('Aceptado', 'Aceptado'),
+                ('Rechazado', 'Rechazado'),
+                ('Reparo', 'Reparo'),
+                ('Proceso', 'Proceso'),
+                ('Reenviar', 'Reenviar'),
+                ('Anulado', 'Anulado')
+            ],
+            related="state",
+        )
 
     @api.onchange('periodo_tributario', 'tipo_operacion', 'company_id')
     def set_movimientos(self):
@@ -1213,8 +1227,10 @@ version="1.0">
     @api.multi
     def do_dte_send_book(self):
         if self.state not in ['draft', 'NoEnviado', 'Rechazado']:
-            raise UserError("El Libro  ya ha sido enviado")
-        if not self.sii_xml_request:
+            raise UserError("El Libro ya ha sido enviado")
+        if not self.sii_xml_request or self.sii_xml_request.state == "Rechazado":
+            if self.sii_xml_request:
+                self.sii_xml_request.unlink()
             self._validar()
         self.env['sii.cola_envio'].create({
             'doc_ids': [self.id],
@@ -1225,6 +1241,10 @@ version="1.0">
         self.state = 'EnCola'
 
     def do_dte_send(self, n_atencion=''):
+        if self.sii_xml_request and self.sii_xml_request.state == "Rechazado":
+            self.sii_xml_request.unlink()
+            self._validar()
+            self.sii_xml_request.state = 'NoEnviado'
         self.sii_xml_request.send_xml()
         return self.sii_xml_request
 
