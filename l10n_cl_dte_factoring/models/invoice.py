@@ -2,11 +2,9 @@
 from odoo import fields, models, api, _
 from odoo.exceptions import UserError
 from datetime import datetime, timedelta, date
-import os
 import logging
 from lxml import etree
 from lxml.etree import Element, SubElement
-
 import pytz
 import collections
 
@@ -31,9 +29,6 @@ server_url = {
     'SIIHOMO': 'https://maullin.sii.cl/DTEWS/',
     'SII': 'https://palena.sii.cl/DTEWS/',
 }
-
-BC = '''-----BEGIN CERTIFICATE-----\n'''
-EC = '''\n-----END CERTIFICATE-----\n'''
 
 
 class CesionDTE(models.Model):
@@ -108,20 +103,7 @@ entregados por parte del deudor de la factura {4}, RUT {5}, de acuerdo a lo esta
                 self.format_vat(self.commercial_partner_id.vat),
             )
             self.declaracion_jurada = declaracion_jurada
-
-    def _get_xsd_types(self):
-        xsd_types = super(CesionDTE, self)._get_xsd_types()
-        xsd_types.update({
-            'aec': 'AEC_v10.xsd',
-            'dte_cedido': 'DTECedido_v10.xsd',
-            'cesion': 'Cesion_v10.xsd',
-        })
         return xsd_types
-
-    def _get_xsd_file(self, validacion, path=False):
-        if validacion in [ 'aec', 'dte_cedido', 'cesion']:
-            path = os.path.dirname(os.path.realpath(__file__)).replace('/models','/static/xsd/')
-        return super(CesionDTE, self)._get_xsd_file(validacion, path)
 
     def _caratula_aec(self, cesiones):
         xml = '''<DocumentoAEC ID="Doc1">
@@ -195,19 +177,6 @@ version="1.0">
     {}
 </AEC>'''.format(doc)
         return xml
-
-    def _append_sig(self, type, msg, message):
-        tag = False
-        if type in ['aec']:
-            tag = 'AEC'
-        if type in ['cesion']:
-            tag = 'Cesion'
-        if type in ['dte_cedido']:
-            tag = 'DTECedido'
-        if tag:
-            xml = message.replace('</'+ tag + '>', msg.decode() + '</'+ tag + '>')
-            return xml
-        return super(CesionDTE, self)._append_sig(type, msg, message)
 
     @api.multi
     def get_cesion_xml_file(self):

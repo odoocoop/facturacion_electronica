@@ -1,4 +1,4 @@
-facturacion_electronica
+facturacion_electronica>=0.5.1
 suds-jurko
 signxml
 num2words

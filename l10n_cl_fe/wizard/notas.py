@@ -75,13 +75,13 @@ class AccountInvoiceRefund(models.TransientModel):
                             ],
                             limit=1,
                         )
-                    if type == 'out_invoice':
+                    if type == 'out_invoice' and self.tipo_nota.document_type == "credit_note":
                         refund_type = 'out_refund'
-                    elif type == 'out_refund':
+                    elif type in ['out_invoice', 'out_refund']:
                         refund_type = 'out_invoice'
-                    elif type == 'in_invoice':
+                    elif type == 'in_invoice' and self.tipo_nota.document_type == "credit_note":
                         refund_type = 'in_refund'
-                    elif type == 'in_refund':
+                    else:
                         refund_type = 'in_invoice'
                     account = inv.invoice_line_ids.get_invoice_line_account(inv.type, prod, inv.fiscal_position_id, inv.company_id)
                     invoice_lines = [
@@ -131,10 +131,10 @@ class AccountInvoiceRefund(models.TransientModel):
                 if mode in ['1', '3']:
                     refund = inv.refund(form.date_invoice, date, description, inv.journal_id.id, tipo_nota=self.tipo_nota.sii_code, mode=mode)
                 created_inv.append(refund.id)
-                xml_id = type == 'out_invoice' and 'action_invoice_out_refund' or \
-                         type == 'out_refund' and 'action_invoice_tree1' or \
-                         type == 'in_invoice' and 'action_invoice_in_refund' or \
-                         type == 'in_refund' and 'action_invoice_tree2'
+                xml_id = refund.type == 'out_refund' and 'action_invoice_out_refund' or \
+                         refund.type == 'out_invoice' and 'action_invoice_tree1' or \
+                         refund.type == 'in_refund' and 'action_invoice_in_refund' or \
+                         refund.type == 'in_invoice' and 'action_invoice_tree2'
                 # Put the reason in the chatter
                 subject = self.tipo_nota.name
                 body = description

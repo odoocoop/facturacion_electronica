@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
-from . import account_tax
 from . import account
+from . import account_journal_sii_document_class
+from . import account_tax
 from . import caf
 from . import company
 from . import consumo_folios

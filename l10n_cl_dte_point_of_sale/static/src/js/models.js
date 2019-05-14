@@ -185,7 +185,7 @@ models.PosModel = models.PosModel.extend({
 			if (amount > 0){
 				order.signature = order.timbrar(order);
 			}
-	    }
+	  }
 		return PosModelSuper.push_order.call(this, order, opts);
 	}
 });
@@ -229,7 +229,6 @@ models.Order = models.Order.extend({
     	this.signature = json.signature;
     	this.orden_numero = json.orden_numero;
 			this.finalized = json.finalized;
-			console.log(json);
 	},
 	export_for_printing: function() {
 		var json = _super_order.export_for_printing.apply(this,arguments);

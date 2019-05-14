@@ -7,6 +7,6 @@ class Binary(downloader.Binary):
     @http.route(["/download/xml/boleta/<model('pos.order'):rec_id>"], type='http', auth='user')
     @serialize_exception
     def download_boleta(self, rec_id, **post):
-        filename = ('%s_%s.xml' % (rec_id.document_class_id.sii_code, rec_id.sii_document_number)).replace(' ','_')
-        filecontent = rec_id.sii_xml_request
+        filename = '%s' % rec.sii_xml_request.name
+        filecontent = rec_id.sii_xml_request.xml_envio
         return self.document(filename, filecontent)

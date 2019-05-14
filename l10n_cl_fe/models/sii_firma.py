@@ -13,7 +13,10 @@ try:
     type_ = crypto.FILETYPE_PEM
 except ImportError:
     _logger.warning('Error en cargar crypto')
-
+try:
+    from facturacion_electronica.firma import Firma
+except:
+    _logger.warning("Problema a cargar facturacion_electronica")
 
 class SignatureCert(models.Model):
     _name = 'sii.firma'
@@ -177,4 +180,24 @@ class SignatureCert(models.Model):
             'cert': crypto.dump_certificate(type_, p12.get_certificate()),
             'password': False,
         })
-        self.check_signature()
+        self.set_state()
+
+    def firmar(self, string, uri=False, type="doc"):
+        firma = Firma({
+                'priv_key': self.priv_key,
+                'cert': self.cert,
+                'rut_firmante': self.subject_serial_number,
+                'init_signature': False
+            })
+        return firma.firmar(string=string, uri=uri, type=type)
+
+    def generar_firma(self, ddxml, privkey=False):
+        if not privkey:
+            privkey = self.priv_key
+        firma = Firma({
+                'priv_key': privkey,
+                'cert': self.cert,
+                'rut_firmante': self.subject_serial_number,
+                'init_signature': False
+            })
+        return firma.generar_firma(texto=ddxml.decode())

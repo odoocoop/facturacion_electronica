@@ -8,10 +8,7 @@ from lxml import etree
 from lxml.etree import Element, SubElement
 from lxml import objectify
 from lxml.etree import XMLSyntaxError
-from odoo import SUPERUSER_ID
-
 import pytz
-
 import collections
 
 _logger = logging.getLogger(__name__)
@@ -20,58 +17,26 @@ try:
     from suds.client import Client
 except:
     pass
-
 try:
     import urllib3
+    pool = urllib3.PoolManager()
 except:
     pass
-
-pool = urllib3.PoolManager()
-import textwrap
-
 try:
     import xmltodict
 except ImportError:
     _logger.info('Cannot import xmltodict library')
-
 try:
     import dicttoxml
     dicttoxml.set_debug(False)
 except ImportError:
     _logger.info('Cannot import dicttoxml library')
-
 try:
     import base64
 except ImportError:
     _logger.info('Cannot import base64 library')
 
-try:
-    import hashlib
-except ImportError:
-    _logger.info('Cannot import hashlib library')
-
-try:
-    import cchardet
-except ImportError:
-    _logger.info('Cannot import cchardet library')
-
-try:
-    from cryptography.hazmat.backends import default_backend
-    from cryptography.hazmat.primitives.serialization import load_pem_private_key
-    import OpenSSL
-    from OpenSSL import crypto
-    type_ = crypto.FILETYPE_PEM
-except:
-    _logger.warning('Cannot import OpenSSL library')
-
 server_url = {'SIICERT':'https://maullin.sii.cl/DTEWS/','SII':'https://palena.sii.cl/DTEWS/'}
-
-BC = '''-----BEGIN CERTIFICATE-----\n'''
-EC = '''\n-----END CERTIFICATE-----\n'''
-
-# hardcodeamos este valor por ahora
-import os
-xsdpath = os.path.dirname(os.path.realpath(__file__)).replace('/models','/static/xsd/')
 
 connection_status = {
     '0': 'Upload OK',
@@ -85,12 +50,7 @@ connection_status = {
     '9': 'Sistema Bloqueado',
     'Otro': 'Error Interno.',
 }
-'''
-Extensión del modelo de datos para contener parámetros globales necesarios
- para todas las integraciones de factura electrónica.
- @author: Daniel Blanco Martin (daniel[at]blancomartin.cl)
- @version: 2016-06-11
-'''
+
 
 class LibroGuia(models.Model):
     _name = "stock.picking.book"
@@ -134,49 +94,8 @@ class LibroGuia(models.Model):
         tz = pytz.timezone('America/Santiago')
         return datetime.now(tz).strftime(formato)
 
-    '''
-    Funcion auxiliar para conversion de codificacion de strings
-     proyecto experimentos_dte
-     @author: Daniel Blanco Martin (daniel[at]blancomartin.cl)
-     @version: 2014-12-01
-    '''
-    def convert_encoding(self, data, new_coding = 'UTF-8'):
-        encoding = cchardet.detect(data)['encoding']
-        if new_coding.upper() != encoding.upper():
-            data = data.decode(encoding, data).encode(new_coding)
-        return data
-
-    def xml_validator(self, some_xml_string, validacion='doc'):
-        validacion_type = {
-            'doc': 'DTE_v10.xsd',
-            'env': 'EnvioDTE_v10.xsd',
-            'sig': 'xmldsignature_v10.xsd',
-            'libro': 'LibroGuia_v10.xsd',
-            'libroS': 'LibroCVS_v10.xsd',
-        }
-        xsd_file = xsdpath+validacion_type[validacion]
-        try:
-            xmlschema_doc = etree.parse(xsd_file)
-            xmlschema = etree.XMLSchema(xmlschema_doc)
-            xml_doc = etree.fromstring(some_xml_string)
-            result = xmlschema.validate(xml_doc)
-            if not result:
-                xmlschema.assert_(xml_doc)
-            return result
-        except AssertionError as e:
-            raise UserError(_('XML Malformed Error:  %s') % e.args)
-
     def get_seed(self, company_id):
         return self.env['account.invoice'].get_seed(company_id)
-
-    def create_template_seed(self, seed):
-        xml = u'''<getToken>
-<item>
-<Semilla>{}</Semilla>
-</item>
-</getToken>
-'''.format(seed)
-        return xml
 
     def create_template_env(self, doc,simplificado=False):
         simp = 'http://www.sii.cl/SiiDte LibroGuia_v10.xsd'
@@ -195,57 +114,12 @@ version="1.0">
     def get_token(self, seed_file, company_id):
         return self.env['account.invoice'].get_token(seed_file, company_id)
 
-    def ensure_str(self,x, encoding="utf-8", none_ok=False):
-        if none_ok is True and x is None:
-            return x
-        if not isinstance(x, str):
-            x = x.decode(encoding)
-        return x
-
-    def sign_full_xml(self, message, privkey, cert, uri, type='libro'):
-        doc = etree.fromstring(message)
-        string = etree.tostring(doc[0])
-        mess = etree.tostring(etree.fromstring(string), method="c14n")
-        digest = base64.b64encode(self.digest(mess))
-        reference_uri='#'+uri
-        signed_info = Element("SignedInfo")
-        c14n_method = SubElement(signed_info, "CanonicalizationMethod", Algorithm='http://www.w3.org/TR/2001/REC-xml-c14n-20010315')
-        sign_method = SubElement(signed_info, "SignatureMethod", Algorithm='http://www.w3.org/2000/09/xmldsig#rsa-sha1')
-        reference = SubElement(signed_info, "Reference", URI=reference_uri)
-        transforms = SubElement(reference, "Transforms")
-        SubElement(transforms, "Transform", Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315")
-        digest_method = SubElement(reference, "DigestMethod", Algorithm="http://www.w3.org/2000/09/xmldsig#sha1")
-        digest_value = SubElement(reference, "DigestValue")
-        digest_value.text = digest
-        signed_info_c14n = etree.tostring(signed_info,method="c14n",exclusive=False,with_comments=False,inclusive_ns_prefixes=None)
-        att = 'xmlns="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"'
-        #@TODO Find better way to add xmlns:xsi attrib
-        signed_info_c14n = signed_info_c14n.decode().replace("<SignedInfo>", "<SignedInfo %s>" % att )
-        xmlns = 'http://www.w3.org/2000/09/xmldsig#'
-        sig_root = Element("Signature",attrib={'xmlns':xmlns})
-        sig_root.append(etree.fromstring(signed_info_c14n))
-        signature_value = SubElement(sig_root, "SignatureValue")
-        key = crypto.load_privatekey(type_,privkey.encode('ascii'))
-        signature = crypto.sign(key,signed_info_c14n,'sha1')
-        signature_value.text =textwrap.fill(base64.b64encode(signature).decode(),64)
-        key_info = SubElement(sig_root, "KeyInfo")
-        key_value = SubElement(key_info, "KeyValue")
-        rsa_key_value = SubElement(key_value, "RSAKeyValue")
-        modulus = SubElement(rsa_key_value, "Modulus")
-        key = load_pem_private_key(privkey.encode('ascii'),password=None, backend=default_backend())
-        longs = self.env['account.invoice'].long_to_bytes(key.public_key().public_numbers().n)
-        modulus.text =  textwrap.fill(base64.b64encode(longs).decode(),64)
-        exponent = SubElement(rsa_key_value, "Exponent")
-        longs = self.env['account.invoice'].long_to_bytes(key.public_key().public_numbers().e)
-        exponent.text = self.ensure_str(base64.b64encode(longs))
-        x509_data = SubElement(key_info, "X509Data")
-        x509_certificate = SubElement(x509_data, "X509Certificate")
-        x509_certificate.text = '\n'+textwrap.fill(cert,64)
-        msg = etree.tostring(sig_root)
-        msg = msg if self.xml_validator(msg, 'sig') else ''
-        fulldoc = message.replace('</LibroGuia>','%s\n</LibroGuia>' % msg.decode())
-        fulldoc = fulldoc if self.xml_validator(fulldoc, type) else ''
-        return fulldoc
+    def sign_full_xml(self, message, uri, type='libro'):
+        user_id = self.env.user
+        signature_id = user_id.get_digital_signature(self.company_id)
+        if not signature_id:
+            raise UserError(_('''There are not a Signature Cert Available for this user, please upload your signature or tell to someelse.'''))
+        return signature_id.firmar(message, uri, type)
 
     def get_resolution_data(self, comp_id):
         resolution_data = {
@@ -307,11 +181,7 @@ version="1.0">
     def format_vat(self, value):
         return value[2:10] + '-' + value[10:]
 
-    def digest(self, data):
-        sha1 = hashlib.new('sha1', data)
-        return sha1.digest()
-
-    @api.onchange('periodo_tributario','tipo_operacion')
+    @api.onchange('periodo_tributario')
     def _setName(self):
         if self.name:
             return
@@ -514,8 +384,6 @@ version="1.0">
         signature_id = self.env.user.get_digital_signature(company_id)
         if not signature_id:
             raise UserError(_('''There are not a Signature Cert Available for this user, pleaseupload your signature or tell to someelse.'''))
-        certp = signature_id.cert.replace(
-            BC, '').replace(EC, '').replace('\n', '')
         resumenes = []
         resumenPeriodo = {}
         for rec in self.with_context(lang='es_CL').move_ids:
@@ -550,10 +418,8 @@ version="1.0">
                 .replace('<item>','\n').replace('</item>','').replace('<itemTraslado>','').replace('</itemTraslado>','\n')
         envio_dte = self.sign_full_xml(
             envio_dte,
-            signature_id.priv_key,
-            certp,
             doc_id,
-            'libro')
+            'libro_guia')
         return envio_dte, doc_id
 
     @api.multi

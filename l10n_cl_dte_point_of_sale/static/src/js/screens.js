@@ -425,15 +425,4 @@ screens.ClientListScreenWidget.include({
 		return true;
 	},
 });
-
-screens.ReceiptScreenWidget.include({
-	render_receipt: function() {
-		var order = this.pos.get_order();
-        if (order.to_invoice){
-        	this.$('.pos-receipt-container').html(QWeb.render('PosInvoice', this.get_receipt_render_env()));
-        }else{
-        	this._super();
-        }
-	}
-});
 });

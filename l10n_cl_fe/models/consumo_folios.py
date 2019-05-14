@@ -8,78 +8,17 @@ from odoo.tools import DEFAULT_SERVER_DATETIME_FORMAT as DTF
 import logging
 from lxml import etree
 from lxml.etree import Element, SubElement
-
 import pytz
 import collections
-
-try:
-    from suds.client import Client
-except:
-    pass
-try:
-    import urllib3
-except:
-    pass
-
-#urllib3.disable_warnings()
-pool = urllib3.PoolManager(timeout=30)
-
-import textwrap
-
-_logger = logging.getLogger(__name__)
-
-try:
-    from cryptography.hazmat.backends import default_backend
-    from cryptography.hazmat.primitives.serialization import load_pem_private_key
-    import OpenSSL
-    from OpenSSL import crypto
-    type_ = crypto.FILETYPE_PEM
-except:
-    _logger.warning('Cannot import OpenSSL library')
-
 try:
     import xmltodict
 except ImportError:
     _logger.info('Cannot import xmltodict library')
-
 try:
     import dicttoxml
     dicttoxml.set_debug(False)
 except ImportError:
     _logger.info('Cannot import dicttoxml library')
-
-try:
-    import base64
-except ImportError:
-    _logger.info('Cannot import base64 library')
-
-try:
-    import hashlib
-except ImportError:
-    _logger.info('Cannot import hashlib library')
-
-server_url = {'SIICERT': 'https://maullin.sii.cl/DTEWS/', 'SII': 'https://palena.sii.cl/DTEWS/'}
-
-BC = '''-----BEGIN CERTIFICATE-----\n'''
-EC = '''\n-----END CERTIFICATE-----\n'''
-
-# hardcodeamos este valor por ahora
-import os, sys
-USING_PYTHON2 = True if sys.version_info < (3, 0) else False
-xsdpath = os.path.dirname(os.path.realpath(__file__)).replace('/models','/static/xsd/')
-
-connection_status = {
-    '0': 'Upload OK',
-    '1': 'El Sender no tiene permiso para enviar',
-    '2': 'Error en tamaño del archivo (muy grande o muy chico)',
-    '3': 'Archivo cortado (tamaño <> al parámetro size)',
-    '5': 'No está autenticado',
-    '6': 'Empresa no autorizada a enviar archivos',
-    '7': 'Esquema Invalido',
-    '8': 'Firma del Documento',
-    '9': 'Sistema Bloqueado',
-    'Otro': 'Error Interno.',
-}
 
 
 class ConsumoFolios(models.Model):
@@ -323,6 +262,13 @@ class ConsumoFolios(models.Model):
 
     @api.onchange('fecha_inicio', 'company_id', 'fecha_final')
     def set_data(self):
+        current = datetime.now().strftime('%Y-%m-%d') + ' 00:00:00'
+        tz = pytz.timezone('America/Santiago')
+        tz_current = tz.localize(datetime.strptime(current, DTF)).astimezone(pytz.utc)
+        current = tz_current.strftime(DTF)
+        fi = datetime.strptime(self.fecha_inicio + " 00:00:00", DTF)
+        if fi > current:
+            raise UserError("No puede hacer Consumo de Folios de días futuros")
         self.name = self.fecha_inicio
         self.fecha_final = self.fecha_inicio
         self.move_ids = self.env['account.move'].search([
@@ -348,16 +294,10 @@ class ConsumoFolios(models.Model):
 
     @api.multi
     def unlink(self):
-        for libro in self:
-            if libro.state not in ('draft', 'cancel'):
-                raise UserError(_('You cannot delete a Validated book.'))
+        for cf in self:
+            if cf.state not in ('draft', 'cancel'):
+                raise UserError(_('You cannot delete a Validated Consumo de Folios.'))
         return super(ConsumoFolios, self).unlink()
-
-    def split_cert(self, cert):
-        certf, j = '', 0
-        for i in range(0, 29):
-            certf += cert[76 * i:76 * (i + 1)] + '\n'
-        return certf
 
     def create_template_envio(self, RutEmisor, FchResol, NroResol, FchInicio,\
                                FchFinal, Correlativo, SecEnvio, EnvioDTE,\
@@ -387,29 +327,6 @@ class ConsumoFolios(models.Model):
         tz = pytz.timezone('America/Santiago')
         return datetime.now(tz).strftime(formato)
 
-    def xml_validator(self, some_xml_string, validacion='doc'):
-        validacion_type = {
-            'consu': 'ConsumoFolio_v10.xsd',
-            'sig': 'xmldsignature_v10.xsd',
-        }
-        xsd_file = xsdpath+validacion_type[validacion]
-        try:
-            xmlschema_doc = etree.parse(xsd_file)
-            xmlschema = etree.XMLSchema(xmlschema_doc)
-            xml_doc = etree.fromstring(some_xml_string)
-            result = xmlschema.validate(xml_doc)
-            if not result:
-                xmlschema.assert_(xml_doc)
-            return result
-        except AssertionError as e:
-            raise UserError(_('XML Malformed Error:  %s') % e.args)
-
-    def get_seed(self, company_id):
-        return self.env['account.move.book'].get_seed( company_id )
-
-    def create_template_seed(self, seed):
-        return self.env['account.move.book'].create_template_seed(seed)
-
     def create_template_env(self, doc,simplificado=False):
         xsd = 'http://www.sii.cl/SiiDte ConsumoFolio_v10.xsd'
         xml = '''<ConsumoFolios xmlns="http://www.sii.cl/SiiDte" \
@@ -418,64 +335,6 @@ xsi:schemaLocation="{0}" \
 version="1.0">
 {1}</ConsumoFolios>'''.format(xsd, doc)
         return xml
-
-    def sign_seed(self, message, privkey, cert):
-        return self.env['account.move.book'].sign_seed(message, privkey, cert)
-
-    def get_token(self, seed_file, company_id):
-        return self.env['account.move.book'].get_token(seed_file, company_id)
-
-    def ensure_str(self,x, encoding="utf-8", none_ok=False):
-        if none_ok is True and x is None:
-            return x
-        if not isinstance(x, str):
-            x = x.decode(encoding)
-        return x
-
-    def sign_full_xml(self, message, privkey, cert, uri, type='consu'):
-        doc = etree.fromstring(message)
-        string = etree.tostring(doc[0])
-        mess = etree.tostring(etree.fromstring(string), method="c14n")
-        digest = base64.b64encode(self.digest(mess))
-        reference_uri='#'+uri
-        signed_info = Element("SignedInfo")
-        c14n_method = SubElement(signed_info, "CanonicalizationMethod", Algorithm='http://www.w3.org/TR/2001/REC-xml-c14n-20010315')
-        sign_method = SubElement(signed_info, "SignatureMethod", Algorithm='http://www.w3.org/2000/09/xmldsig#rsa-sha1')
-        reference = SubElement(signed_info, "Reference", URI=reference_uri)
-        transforms = SubElement(reference, "Transforms")
-        SubElement(transforms, "Transform", Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315")
-        digest_method = SubElement(reference, "DigestMethod", Algorithm="http://www.w3.org/2000/09/xmldsig#sha1")
-        digest_value = SubElement(reference, "DigestValue")
-        digest_value.text = digest
-        signed_info_c14n = etree.tostring(signed_info,method="c14n",exclusive=False,with_comments=False,inclusive_ns_prefixes=None)
-        att = 'xmlns="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"'
-        #@TODO Find better way to add xmlns:xsi attrib
-        signed_info_c14n = signed_info_c14n.decode().replace("<SignedInfo>","<SignedInfo %s>" % att)
-        sig_root = Element("Signature",attrib={'xmlns':'http://www.w3.org/2000/09/xmldsig#'})
-        sig_root.append(etree.fromstring(signed_info_c14n))
-        signature_value = SubElement(sig_root, "SignatureValue")
-        key = crypto.load_privatekey(type_,privkey.encode('ascii'))
-        signature = crypto.sign(key,signed_info_c14n,'sha1')
-        signature_value.text =textwrap.fill(base64.b64encode(signature).decode(),64)
-        key_info = SubElement(sig_root, "KeyInfo")
-        key_value = SubElement(key_info, "KeyValue")
-        rsa_key_value = SubElement(key_value, "RSAKeyValue")
-        modulus = SubElement(rsa_key_value, "Modulus")
-        key = load_pem_private_key(privkey.encode('ascii'),password=None, backend=default_backend())
-        longs = self.env['account.move.book'].long_to_bytes(key.public_key().public_numbers().n)
-        modulus.text =  textwrap.fill(base64.b64encode(longs).decode(),64)
-        exponent = SubElement(rsa_key_value, "Exponent")
-        longs = self.env['account.move.book'].long_to_bytes(key.public_key().public_numbers().e)
-        exponent.text = self.ensure_str(base64.b64encode(longs).decode())
-        x509_data = SubElement(key_info, "X509Data")
-        x509_certificate = SubElement(x509_data, "X509Certificate")
-        x509_certificate.text = '\n'+textwrap.fill(cert,64)
-        msg = etree.tostring(sig_root).decode()
-        msg = msg if self.xml_validator(msg, 'sig') else ''
-        fulldoc = message.replace('</ConsumoFolios>',msg+'\n</ConsumoFolios>')
-        fulldoc = fulldoc
-        fulldoc = '<?xml version="1.0" encoding="ISO-8859-1"?>\n'+fulldoc if self.xml_validator(fulldoc, type) else ''
-        return fulldoc
 
     def get_resolution_data(self, comp_id):
         resolution_data = {
@@ -500,10 +359,6 @@ version="1.0">
         rut = value[:10] + '-' + value[10:]
         rut = rut.replace('CL0','').replace('CL','')
         return rut
-
-    def digest(self, data):
-        sha1 = hashlib.new('sha1', data)
-        return sha1.digest()
 
     @api.multi
     def validar_consumo_folios(self):
@@ -531,6 +386,33 @@ version="1.0">
             return True
         return False
 
+    def _get_totales(self, rec):
+        Neto = 0
+        MntExe = 0
+        TaxMnt = 0
+        MntTotal = 0
+        for l in rec.line_ids:
+            if l.tax_line_id:
+                if l.tax_line_id and l.tax_line_id.amount > 0: #supuesto iva único
+                    if self._es_iva(l.tax_line_id): # diferentes tipos de IVA retenidos o no
+                        if l.credit > 0:
+                            TaxMnt += l.credit
+                        else:
+                            TaxMnt += l.debit
+            elif l.tax_ids and l.tax_ids[0].amount > 0:
+                if l.credit > 0:
+                    Neto += l.credit
+                else:
+                    Neto += l.debit
+            elif l.tax_ids and l.tax_ids[0].amount == 0: #caso monto exento
+                if l.credit > 0:
+                    MntExe += l.credit
+                else:
+                    MntExe += l.debit
+        TasaIVA = self.env['account.move.line'].search([('move_id', '=', rec.id), ('tax_line_id.amount', '>', 0)], limit=1).tax_line_id.amount
+        MntTotal = Neto + MntExe + TaxMnt
+        return Neto, MntExe, TaxMnt, MntTotal
+
     def getResumen(self, rec):
         det = collections.OrderedDict()
         det['TpoDoc'] = rec.document_class_id.sii_code
@@ -541,41 +423,7 @@ version="1.0">
         if rec.canceled:
             det['Anulado'] = 'A'
             return det
-        Neto = 0
-        MntExe = 0
-        TaxMnt = 0
-        MntTotal = 0
-        if 'lines' in rec:
-            # NC pasar a positivo
-            TaxMnt =  rec.amount_tax if rec.amount_tax > 0 else rec.amount_tax * -1
-            MntTotal = rec.amount_total if rec.amount_total > 0 else rec.amount_total * -1
-            Neto = rec.pricelist_id.currency_id.round(sum(line.price_subtotal for line in rec.lines))
-            if Neto < 0:
-                Neto *= -1
-            MntExe = rec.exento()
-            TasaIVA = self.env['pos.order.line'].search([('order_id', '=', rec.id), ('tax_ids.amount', '>', 0)], limit=1).tax_ids.amount
-            Neto -= MntExe
-        else:  # si la boleta fue hecha por contabilidad
-            for l in rec.line_ids:
-                if l.tax_line_id:
-                    if l.tax_line_id and l.tax_line_id.amount > 0: #supuesto iva único
-                        if self._es_iva(l.tax_line_id): # diferentes tipos de IVA retenidos o no
-                            if l.credit > 0:
-                                TaxMnt += l.credit
-                            else:
-                                TaxMnt += l.debit
-                elif l.tax_ids and l.tax_ids[0].amount > 0:
-                    if l.credit > 0:
-                        Neto += l.credit
-                    else:
-                        Neto += l.debit
-                elif l.tax_ids and l.tax_ids[0].amount == 0: #caso monto exento
-                    if l.credit > 0:
-                        MntExe += l.credit
-                    else:
-                        MntExe += l.debit
-            TasaIVA = self.env['account.move.line'].search([('move_id', '=', rec.id), ('tax_line_id.amount', '>', 0)], limit=1).tax_line_id.amount
-            MntTotal = Neto + MntExe + TaxMnt
+        Neto, MntExe, TaxMnt, MntTotal = self._get_totales(rec)
         if MntExe > 0 :
             det['MntExe'] = self.currency_id.round(MntExe)
         if TaxMnt > 0:
@@ -687,9 +535,7 @@ version="1.0">
         resumenP[str(resumen['TpoDoc'])+'_folios'] = self._rangosU(resumen, resumenP[str(resumen['TpoDoc'])+'_folios'], continuado)
         return resumenP
 
-    def _get_resumenes(self, marc=False):
-        resumenes = collections.OrderedDict()
-        TpoDocs = []
+    def _get_moves(self):
         recs = []
         for rec in self.with_context(lang='es_CL').move_ids:
             document_class_id = rec.document_class_id
@@ -698,24 +544,12 @@ version="1.0">
                 continue
             if rec.sii_document_number:
                 recs.append(rec)
-            #rec.sended = marc
-        if 'pos.order' in self.env: # @TODO mejor forma de verificar si está instalado módulo POS
-            current = self.fecha_inicio + ' 00:00:00'
-            tz = pytz.timezone('America/Santiago')
-            tz_current = tz.localize(datetime.strptime(current, DTF)).astimezone(pytz.utc)
-            current = tz_current.strftime(DTF)
-            next_day = (tz_current + relativedelta.relativedelta(days=1)).strftime(DTF)
-            orders_array = self.env['pos.order'].search(
-                [
-                 ('invoice_id' , '=', False),
-                 ('sii_document_number', 'not in', [False, '0']),
-                 ('document_class_id.sii_code', 'in', [39, 41, 61]),
-                 ('date_order','>=', current),
-                 ('date_order','<', next_day),
-                ]
-            ).with_context(lang='es_CL')
-            for order in orders_array:
-                recs.append(order)
+        return recs
+
+    def _get_resumenes(self, marc=False):
+        resumenes = collections.OrderedDict()
+        TpoDocs = []
+        recs = self._get_moves()
         if recs:
             recs = sorted(recs, key=lambda t: int(t.sii_document_number))
             ant = {}
@@ -775,10 +609,8 @@ version="1.0">
         'user_signature_key' module has been installed and enable a digital \
         signature, for you or make the signer to authorize you to use his \
         signature.'''))
-        certp = signature_id.cert.replace(
-            BC, '').replace(EC, '').replace('\n', '')
         resumenes, TpoDocs = self._get_resumenes(marc=True)
-        Resumen=[]
+        Resumen = []
         listado = [ 'TipoDocumento', 'MntNeto', 'MntIva', 'TasaIVA', 'MntExento', 'MntTotal', 'FoliosEmitidos',  'FoliosAnulados', 'FoliosUtilizados', 'itemUtilizados' ]
         xml = '<Resumen><TipoDocumento>39</TipoDocumento><MntTotal>0</MntTotal><FoliosEmitidos>0</FoliosEmitidos><FoliosAnulados>0</FoliosAnulados><FoliosUtilizados>0</FoliosUtilizados></Resumen>'
         if resumenes:
@@ -833,15 +665,13 @@ version="1.0">
                 .replace('<itemAnulados>','').replace('</itemAnulados>','\n')
         for TpoDoc in TpoDocs:
         	xml_pret = xml_pret.replace('<key name="'+str(TpoDoc)+'_folios">','').replace('</key>','\n').replace('<key name="'+str(TpoDoc)+'_folios"/>','\n')
-        envio_dte = self.sign_full_xml(
+        envio_dte = self.env['account.invoice'].sign_full_xml(
             xml_pret,
-            signature_id.priv_key,
-            certp,
             doc_id,
             'consu')
         doc_id += '.xml'
         self.sii_xml_request = self.env['sii.xml.envio'].create({
-            'xml_envio': envio_dte,
+            'xml_envio': '<?xml version="1.0" encoding="ISO-8859-1"?>\n%s' % envio_dte,
             'name': doc_id,
             'company_id': self.company_id.id,
             'state': 'draft',
@@ -851,7 +681,9 @@ version="1.0">
     def do_dte_send_consumo_folios(self):
         if self.state not in ['draft', 'NoEnviado', 'Rechazado']:
             raise UserError("El Consumo de Folios ya ha sido enviado")
-        if not self.sii_xml_request:
+        if not self.sii_xml_request or self.sii_xml_request.state == "Rechazado":
+            if self.sii_xml_request:
+                self.sii_xml_request.unlink()
             self._validar()
         self.env['sii.cola_envio'].create(
                     {
@@ -863,6 +695,10 @@ version="1.0">
         self.state = 'EnCola'
 
     def do_dte_send(self, n_atencion=''):
+        if self.sii_xml_request and self.sii_xml_request.state == "Rechazado":
+            self.sii_xml_request.unlink()
+            self._validar()
+            self.sii_xml_request.state = 'NoEnviado'
         self.sii_xml_request.send_xml()
         return self.sii_xml_request
 
