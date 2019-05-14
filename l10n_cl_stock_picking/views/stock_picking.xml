@@ -45,7 +45,7 @@
                     <field name="amount_tax"/>
                     <div class="oe_subtotal_footer_separator oe_inline">
                      </div>
-                    <field name="amount_total" class="oe_subtotal_footer_separator"/<name />
+                    <field name="amount_total" class="oe_subtotal_footer_separator"/>
                   </group>
                 </xpath>
                 <page name="extra" position="inside">
