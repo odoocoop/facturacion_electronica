@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 from odoo import fields, models, api, _
 from odoo.exceptions import UserError
 from odoo.tools import DEFAULT_SERVER_DATETIME_FORMAT as DTF
@@ -20,27 +19,10 @@ try:
     from io import BytesIO
 except:
     _logger.warning("no se ha cargado io")
-
 try:
     from suds.client import Client
 except:
     pass
-
-try:
-    import urllib3
-except:
-    pass
-
-try:
-    urllib3.disable_warnings()
-except:
-    pass
-
-try:
-    pool = urllib3.PoolManager()
-except:
-    pass
-
 try:
     import xmltodict
 except ImportError:
@@ -77,14 +59,6 @@ fHlAa7j08Xff95Yb2zg31sJt6lMjSKdOK+PQp25clZuECig==</FRMT></TED>"""
 result = xmltodict.parse(timbre)
 
 server_url = {'SIICERT':'https://maullin.sii.cl/DTEWS/','SII':'https://palena.sii.cl/DTEWS/'}
-
-BC = '''-----BEGIN CERTIFICATE-----\n'''
-EC = '''\n-----END CERTIFICATE-----\n'''
-
-# hardcodeamos este valor por ahora
-import os, sys
-USING_PYTHON2 = True if sys.version_info < (3, 0) else False
-xsdpath = os.path.dirname(os.path.realpath(__file__)).replace('/models','/static/xsd/')
 
 connection_status = {
     '0': 'Upload OK',
@@ -124,27 +98,6 @@ class stock_picking(models.Model):
         tz = pytz.timezone('America/Santiago')
         return datetime.now(tz).strftime(formato)
 
-    def xml_validator(self, some_xml_string, validacion='doc'):
-        validacion_type = {
-            'doc': 'DTE_v10.xsd',
-            'env': 'EnvioDTE_v10.xsd',
-            'recep' : 'Recibos_v10.xsd',
-            'env_recep' : 'EnvioRecibos_v10.xsd',
-            'env_resp': 'RespuestaEnvioDTE_v10.xsd',
-            'sig': 'xmldsignature_v10.xsd'
-        }
-        xsd_file = xsdpath+validacion_type[validacion]
-        try:
-            xmlschema_doc = etree.parse(xsd_file)
-            xmlschema = etree.XMLSchema(xmlschema_doc)
-            xml_doc = etree.fromstring(some_xml_string)
-            result = xmlschema.validate(xml_doc)
-            if not result:
-                xmlschema.assert_(xml_doc)
-            return result
-        except AssertionError as e:
-            raise UserError(_('XML Malformed Error:  %s') % e.args)
-
     def create_template_doc(self, doc):
         xml = '''<DTE xmlns="http://www.sii.cl/SiiDte" version="1.0">
 {}</DTE>'''.format(doc)
@@ -158,33 +111,6 @@ xsi:schemaLocation="http://www.sii.cl/SiiDte EnvioDTE_v10.xsd" \
 version="1.0">
 {}</EnvioDTE>'''.format(doc)
         return xml
-
-    def create_template_doc1(self, doc, sign):
-        xml = doc.replace('</DTE>',  sign.decode() + '</DTE>')
-        return xml
-
-    def create_template_env1(self, doc, sign):
-        xml = doc.replace('</EnvioDTE>', sign.decode() + '</EnvioDTE>')
-        return xml
-
-    def create_template_seed(self, seed):
-        return self.env['account.invoice'].create_template_seed(seed)
-
-    def get_seed(self, company_id):
-        return self.env['account.invoice'].get_seed(company_id)
-
-    def sign_seed(self, message, privkey, cert):
-        return self.env['account.invoice'].sign_seed(message, privkey, cert)
-
-    def get_token(self, seed_file, company_id):
-        return self.env['account.invoice'].get_token(seed_file, company_id)
-
-    def ensure_str(self,x, encoding="utf-8", none_ok=False):
-        if none_ok is True and x is None:
-            return x
-        if not isinstance(x, str):
-            x = x.decode(encoding)
-        return x
 
     def get_resolution_data(self, comp_id):
         resolution_data = {
@@ -228,9 +154,6 @@ version="1.0">
             scale=1,
         )
         return image
-
-    def signmessage(self, texto, key):
-        return self.env['account.invoice'].signmessage(texto, key)
 
     sii_batch_number = fields.Integer(
         copy=False,
@@ -501,7 +424,10 @@ version="1.0">
         keypriv = resultcaf['AUTORIZACION']['RSASK'].replace('\t','')
         root = etree.XML( ddxml )
         ddxml = etree.tostring(root)
-        frmt = self.signmessage(ddxml, keypriv)
+        signature_id = self.env.user.get_digital_signature(self.company_id)
+        if not signature_id:
+            raise UserError(_('''There are not a Signature Cert Available for this user, please upload your signature or tell to some else.'''))
+        frmt = signature_id.generar_firma(ddxml, privkey=keypriv)
         ted = (
             '''<TED version="1.0">{}<FRMT algoritmo="SHA1withRSA">{}\
 </FRMT></TED>''').format(ddxml.decode(), frmt)

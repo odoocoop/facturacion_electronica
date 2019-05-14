@@ -23,10 +23,6 @@ try:
     import xmltodict
 except ImportError:
     _logger.warning('Cannot import xmltodict library')
-try:
-    from signxml import XMLSigner, methods
-except ImportError:
-    _logger.warning('Cannot import signxml')
 
 connection_status = {
     '0': 'Upload OK',
@@ -136,22 +132,13 @@ class SIIXMLEnvio(models.Model):
         semilla = root[0][0].text
         return semilla
 
-    def create_template_seed(self, seed):
-        xml = u'''<getToken>
-<item>
-<Semilla>{}</Semilla>
-</item>
-</getToken>
-'''.format(seed)
-        return xml
-
-    def sign_seed(self, message, privkey, cert):
+    def sign_seed(self, user_id, company_id):
+        seed = self.get_seed(company_id)
+        xml_seed = u'<getToken><Semilla>%s</Semilla></getToken>' \
+            % (seed)
+        signature_id = user_id.get_digital_signature(company_id)
         doc = etree.fromstring(message)
-        signed_node = XMLSigner(method=methods.enveloped, digest_algorithm='sha1').sign(
-            doc, key=privkey.encode('ascii'), cert=cert)
-        msg = etree.tostring(
-            signed_node, pretty_print=True).decode().replace('ds:', '')
-        return msg
+        return signature_id.firmar(xml_seed, type="token")
 
     def _get_token(self, seed_file, company_id):
         url = server_url[company_id.dte_service_provider] + 'GetTokenFromSeed.jws?WSDL'
@@ -171,14 +158,7 @@ class SIIXMLEnvio(models.Model):
         return token
 
     def get_token(self, user_id, company_id):
-        signature_id = user_id.get_digital_signature(company_id)
-        seed = self.get_seed(company_id)
-        template_string = self.create_template_seed(seed)
-        seed_firmado = self.sign_seed(
-                template_string,
-                signature_id.priv_key,
-                signature_id.cert,
-            )
+        seed_firmado = self.sign_seed(user_id, company_id)
         return self._get_token(seed_firmado, company_id)
 
     def init_params(self):
@@ -248,6 +228,9 @@ class SIIXMLEnvio(models.Model):
 
 
     def get_send_status(self, user_id=False):
+        if not self.sii_send_ident:
+            self.state = "NoEnviado"
+            return
         user_id = user_id or self.user_id
         token = self.get_token(user_id, self.company_id)
         url = server_url[self.company_id.dte_service_provider] + 'QueryEstUp.jws?WSDL'
@@ -272,14 +255,11 @@ class SIIXMLEnvio(models.Model):
         if resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] == "-11":
             if resp['SII:RESPUESTA']['SII:RESP_HDR']['ERR_CODE'] == "2":
                 status = {'warning':{'title':_('Estado -11'), 'message': _("Estado -11: Espere a que sea aceptado por el SII, intente en 5s más")}}
-            else:
-                _logger.warning(_("Estado -11: error 1Algo a salido mal, revisar carátula"))
-                result.update({'state': 'Rechazado'})
         if resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] in ["EPR", "LOK"]:
             result.update({"state": "Aceptado"})
             if resp['SII:RESPUESTA'].get('SII:RESP_BODY') and resp['SII:RESPUESTA']['SII:RESP_BODY']['RECHAZADOS'] == "1":
                 result.update({ "state": "Rechazado" })
-        elif resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] in ["RCT", "RFR", "LRH", "RCH", "RSC"]:
+        elif resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] in ["RCT", "RFR", "LRH", "RCH", "RSC", "LRF"]:
             result.update({"state": "Rechazado"})
             _logger.warning(resp)
         self.write(result)

@@ -6,17 +6,12 @@ from lxml import etree
 from lxml.etree import Element, SubElement
 from odoo.tools.translate import _
 from .bigint import BigInt
-
 import logging
 _logger = logging.getLogger(__name__)
-
 import pytz
 from six import string_types
-import struct
-
 import socket
 import collections
-
 try:
     from io import BytesIO
 except:
@@ -28,20 +23,6 @@ try:
     from suds.client import Client
 except:
     pass
-try:
-    import textwrap
-except:
-    pass
-
-try:
-    from cryptography.hazmat.backends import default_backend
-    from cryptography.hazmat.primitives.serialization import load_pem_private_key
-    import OpenSSL
-    from OpenSSL import crypto
-    type_ = crypto.FILETYPE_PEM
-except:
-    _logger.warning('Cannot import OpenSSL library')
-
 try:
     import dicttoxml
 except ImportError:
@@ -56,12 +37,6 @@ try:
     import base64
 except ImportError:
     _logger.warning('Cannot import base64 library')
-
-try:
-    import hashlib
-except ImportError:
-    _logger.warning('Cannot import hashlib library')
-
 try:
     from PIL import Image, ImageDraw, ImageFont
 except:
@@ -91,20 +66,10 @@ server_url = {
     'SIICERT': 'https://maullin.sii.cl/DTEWS/',
     'SII': 'https://palena.sii.cl/DTEWS/',
 }
-
 claim_url = {
     'SIICERT': 'https://ws2.sii.cl/WSREGISTRORECLAMODTECERT/registroreclamodteservice',
     'SII': 'https://ws1.sii.cl/WSREGISTRORECLAMODTE/registroreclamodteservice',
 }
-
-BC = '''-----BEGIN CERTIFICATE-----\n'''
-EC = '''\n-----END CERTIFICATE-----\n'''
-
-# hardcodeamos este valor por ahora
-import os, sys
-USING_PYTHON2 = True if sys.version_info < (3, 0) else False
-xsdpath = os.path.dirname(os.path.realpath(__file__)).replace('/models','/static/xsd/')
-
 TYPE2JOURNAL = {
     'out_invoice': 'sale',
     'in_invoice': 'purchase',
@@ -720,24 +685,24 @@ class AccountInvoice(models.Model):
     @api.model
     def _prepare_refund(self, invoice, date_invoice=None, date=None, description=None, journal_id=None, tipo_nota=61, mode='1'):
         values = super(AccountInvoice, self)._prepare_refund(invoice, date_invoice, date, description, journal_id)
-        document_type = self.env['account.journal.sii_document_class'].search(
+        jdc = self.env['account.journal.sii_document_class'].search(
                 [
                     ('sii_document_class_id.sii_code','=', tipo_nota),
                     ('journal_id','=', invoice.journal_id.id),
                 ],
                 limit=1,
             )
-        if invoice.type == 'out_invoice':
+        if invoice.type == 'out_invoice' and jdc.sii_document_class_id.document_type == 'credit_note':
             type = 'out_refund'
-        elif invoice.type == 'out_refund':
+        elif invoice.type in ['out_refund', 'out_invoice']:
             type = 'out_invoice'
-        elif invoice.type == 'in_invoice':
+        elif invoice.type == 'in_invoice' and jdc.sii_document_class_id.document_type == 'credit_note':
             type = 'in_refund'
-        elif invoice.type == 'in_refund':
+        elif invoice.type in ['in_refund', 'in_invoice']:
             type = 'in_invoice'
         values.update({
                 'type': type,
-                'journal_document_class_id': document_type.id,
+                'journal_document_class_id': jdc.id,
                 'referencias':[[0,0, {
                         'origen': int(invoice.sii_document_number or invoice.reference),
                         'sii_referencia_TpoDocRef': invoice.document_class_id.id,
@@ -1188,37 +1153,6 @@ a VAT."""))
         tz = pytz.timezone('America/Santiago')
         return datetime.now(tz).strftime(formato)
 
-    def _get_xsd_types(self):
-        return {
-          'doc': 'DTE_v10.xsd',
-          'env': 'EnvioDTE_v10.xsd',
-          'env_boleta': 'EnvioBOLETA_v11.xsd',
-          'recep' : 'Recibos_v10.xsd',
-          'env_recep' : 'EnvioRecibos_v10.xsd',
-          'env_resp': 'RespuestaEnvioDTE_v10.xsd',
-          'sig': 'xmldsignature_v10.xsd'
-        }
-
-    def _get_xsd_file(self, validacion, path=False):
-        validacion_type = self._get_xsd_types()
-        return (path or xsdpath) + validacion_type[validacion]
-
-    def xml_validator(self, some_xml_string, validacion='doc'):
-        if validacion == 'bol':
-            return True
-        xsd_file = self._get_xsd_file(validacion)
-        try:
-            xmlschema_doc = etree.parse(xsd_file)
-            xmlschema = etree.XMLSchema(xmlschema_doc)
-            xml_doc = etree.fromstring(some_xml_string)
-            result = xmlschema.validate(xml_doc)
-            if not result:
-                xmlschema.assert_(xml_doc)
-            return result
-        except AssertionError as e:
-            _logger.warning(etree.tostring(xml_doc))
-            raise UserError(_('XML Malformed Error:  %s') % e.args)
-
     def create_template_doc(self, doc):
         xml = '''<DTE xmlns="http://www.sii.cl/SiiDte" version="1.0">
 {}
@@ -1253,117 +1187,12 @@ version="1.0">
         xml = doc.replace('</EnvioDTE>', sign.decode() + '</EnvioDTE>')
         return xml
 
-    def append_sign_recep(self, doc, sign):
-        xml = doc.replace('</Recibo>', sign.decode() + '</Recibo>')
-        return xml
-
-    def append_sign_env_recep(self, doc, sign):
-        xml = doc.replace('</EnvioRecibos>', sign.decode() + '</EnvioRecibos>')
-        return xml
-
-    def append_sign_env_resp(self, doc, sign):
-        xml = doc.replace('</RespuestaDTE>', sign.decode() + '</RespuestaDTE>')
-        return xml
-
-    def append_sign_env_bol(self, doc, sign):
-        xml = doc.replace('</EnvioBOLETA>', sign.decode() + '</EnvioBOLETA>')
-        return xml
-
-    def ensure_str(self,x, encoding="utf-8", none_ok=False):
-        if none_ok is True and x is None:
-            return x
-        if not isinstance(x, str):
-            x = x.decode(encoding)
-        return x
-
-    def long_to_bytes(self, n, blocksize=0):
-        s = b''
-        if USING_PYTHON2:
-            n = long(n)  # noqa
-        pack = struct.pack
-        while n > 0:
-            s = pack(b'>I', n & 0xffffffff) + s
-            n = n >> 32
-        # strip off leading zeros
-        for i in range(len(s)):
-            if s[i] != b'\000'[0]:
-                break
-        else:
-            # only happens when n == 0
-            s = b'\000'
-            i = 0
-        s = s[i:]
-        # add back some pad bytes.  this could be done more efficiently w.r.t. the
-        # de-padding being done above, but sigh...
-        if blocksize > 0 and len(s) % blocksize:
-            s = (blocksize - len(s) % blocksize) * b'\000' + s
-        return s
-
-    def _append_sig(self, type, msg, message):
-        if type in ['doc', 'bol']:
-            fulldoc = self.create_template_doc1(message, msg)
-        if type=='env':
-            fulldoc = self.create_template_env1(message,msg)
-        if type=='recep':
-            fulldoc = self.append_sign_recep(message,msg)
-        if type=='env_recep':
-            fulldoc = self.append_sign_env_recep(message,msg)
-        if type=='env_resp':
-            fulldoc = self.append_sign_env_resp(message,msg)
-        if type=='env_boleta':
-            fulldoc = self.append_sign_env_bol(message,msg)
-        return fulldoc
-
     def sign_full_xml(self, message, uri, type='doc'):
         user_id = self.env.user
         signature_id = user_id.get_digital_signature(self.company_id)
         if not signature_id:
-            raise UserError(_('''There are not a Signature Cert Available for this user, pleaseupload your signature or tell to someelse.'''))
-        cert = signature_id.cert.replace(
-            BC, '').replace(EC, '').replace('\n', '').replace(' ','')
-        privkey = signature_id.priv_key
-        doc = etree.fromstring(message)
-        string = etree.tostring(doc[0])
-        mess = etree.tostring(etree.fromstring(string), method="c14n")
-        digest = base64.b64encode(self.digest(mess))
-        reference_uri='#'+uri
-        signed_info = Element("SignedInfo")
-        c14n_method = SubElement(signed_info, "CanonicalizationMethod", Algorithm='http://www.w3.org/TR/2001/REC-xml-c14n-20010315')
-        sign_method = SubElement(signed_info, "SignatureMethod", Algorithm='http://www.w3.org/2000/09/xmldsig#rsa-sha1')
-        reference = SubElement(signed_info, "Reference", URI=reference_uri)
-        transforms = SubElement(reference, "Transforms")
-        SubElement(transforms, "Transform", Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315")
-        digest_method = SubElement(reference, "DigestMethod", Algorithm="http://www.w3.org/2000/09/xmldsig#sha1")
-        digest_value = SubElement(reference, "DigestValue")
-        digest_value.text = digest
-        signed_info_c14n = etree.tostring(signed_info,method="c14n",exclusive=False,with_comments=False,inclusive_ns_prefixes=None)
-        if type in ['doc','recep']:
-            att = 'xmlns="http://www.w3.org/2000/09/xmldsig#"'
-        else:
-            att = 'xmlns="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"'
-        #@TODO Find better way to add xmlns:xsi attrib
-        signed_info_c14n = signed_info_c14n.decode().replace("<SignedInfo>", "<SignedInfo %s>" % att )
-        sig_root = Element("Signature",attrib={'xmlns':'http://www.w3.org/2000/09/xmldsig#'})
-        sig_root.append(etree.fromstring(signed_info_c14n))
-        signature_value = SubElement(sig_root, "SignatureValue")
-        key = crypto.load_privatekey(type_,privkey.encode('ascii'))
-        signature = crypto.sign(key,signed_info_c14n,'sha1')
-        signature_value.text =textwrap.fill(base64.b64encode(signature).decode(),64)
-        key_info = SubElement(sig_root, "KeyInfo")
-        key_value = SubElement(key_info, "KeyValue")
-        rsa_key_value = SubElement(key_value, "RSAKeyValue")
-        modulus = SubElement(rsa_key_value, "Modulus")
-        key = load_pem_private_key(privkey.encode('ascii'), password=None, backend=default_backend())
-        modulus.text =  textwrap.fill(base64.b64encode(self.long_to_bytes(key.public_key().public_numbers().n)).decode(),64)
-        exponent = SubElement(rsa_key_value, "Exponent")
-        exponent.text = self.ensure_str(base64.b64encode(self.long_to_bytes(key.public_key().public_numbers().e)))
-        x509_data = SubElement(key_info, "X509Data")
-        x509_certificate = SubElement(x509_data, "X509Certificate")
-        x509_certificate.text = '\n'+textwrap.fill(cert,64)
-        msg = etree.tostring(sig_root)
-        msg = msg if self.xml_validator(msg, 'sig') else ''
-        fulldoc = self._append_sig(type, msg, message)
-        return fulldoc if self.xml_validator(fulldoc, type) else ''
+            raise UserError(_('''There are not a Signature Cert Available for this user, please upload your signature or tell to someelse.'''))
+        return signature_id.firmar(message, uri, type)
 
     def crear_intercambio(self):
         rut = self.format_vat(self.partner_id.commercial_partner_id.vat )
@@ -1454,16 +1283,6 @@ version="1.0">
             ratio=ratio,
         )
         return image
-
-    def digest(self, data):
-        sha1 = hashlib.new('sha1', data)
-        return sha1.digest()
-
-    def signmessage(self, texto, key):
-        key = crypto.load_privatekey(type_, key)
-        signature = crypto.sign(key, texto, 'sha1')
-        text = base64.b64encode(signature).decode()
-        return textwrap.fill( text, 64)
 
     @api.multi
     def get_related_invoices_data(self):
@@ -1803,7 +1622,10 @@ version="1.0">
         keypriv = resultcaf['AUTORIZACION']['RSASK'].replace('\t','')
         root = etree.XML( ddxml )
         ddxml = etree.tostring(root)
-        frmt = self.signmessage(ddxml, keypriv)
+        signature_id = self.env.user.get_digital_signature(self.company_id)
+        if not signature_id:
+            raise UserError(_('''There are not a Signature Cert Available for this user, please upload your signature or tell to someelse.'''))
+        frmt = signature_id.generar_firma(ddxml, privkey=keypriv)
         ted = (
             '''<TED version="1.0">{}<FRMT algoritmo="SHA1withRSA">{}\
 </FRMT></TED>''').format(ddxml.decode(), frmt)
@@ -1816,7 +1638,7 @@ version="1.0">
         if not self.invoice_line_ids or not self.invoice_line_ids[0].invoice_line_tax_ids:
             return False
         tax = self.invoice_line_ids[0].invoice_line_tax_ids[0]
-        if tax.price_include or (not tax.sii_detailed and (self._es_boleta() or self._nc_boleta()) ):
+        if tax.price_include or (not tax.sii_detailed and (self._es_boleta() or self._nc_boleta())):
             return True
         return False
 
@@ -2091,7 +1913,7 @@ version="1.0">
                 env,
             )
         return {
-                'xml_envio': '<?xml version="1.0" encoding="ISO-8859-1"?>\n' + envio_dte,
+                'xml_envio': '<?xml version="1.0" encoding="ISO-8859-1"?>\n%s' % envio_dte,
                 'name': file_name,
                 'company_id': company_id.id,
                 'user_id': self.env.uid,
@@ -2144,7 +1966,7 @@ version="1.0">
             return "Proceso"
         elif resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] == "1":
             return "Reparo"
-        elif resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] in ["DNK", "FAU", "RCT"]:
+        elif resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] in ["DNK", "FAU", "RCT", "FNA"]:
             return "Rechazado"
         elif resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] in ["FAN", "ANC"]:
             return "Anulado" #Desde El sii o por NC
@@ -2160,6 +1982,18 @@ version="1.0">
                 continue
             r.sii_result = r.sii_xml_request.state
             r.sii_message = r.sii_xml_request.sii_xml_response
+            if r.sii_result == 'Rechazado':
+                self.env['bus.bus'].sendone(
+                    (   self._cr.dbname,
+                        'account.invoice',
+                        self.env.user.partner_id.id
+                    ),
+                    {
+                        'title': "Documento Rechazado",
+                        'message': "%s" % r.name,
+                        'type': 'dte_notif',
+                    }
+                )
 
     def _get_dte_status(self):
         for r in self:

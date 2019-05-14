@@ -20,7 +20,7 @@ class PickingToInvoiceD(models.Model):
             if inv.type in ['out_invoice']:
                 mes_antes = 0
                 if inv.date_invoice:
-                    date_invoice = datetime.strptime( inv.date_invoice, '%Y-%m-%d' )
+                    date_invoice = inv.date_invoice
                     fecha_inicio = "%s-%s-01 00:00:00" % (date_invoice.year, date_invoice.month)
                     fecha_final = "%s-%s-11 00:00:00" % (date_invoice.year, date_invoice.month)
                     if date_invoice.day == 10:

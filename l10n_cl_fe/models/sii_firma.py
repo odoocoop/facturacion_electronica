@@ -11,13 +11,31 @@ try:
     type_ = crypto.FILETYPE_PEM
 except ImportError:
     _logger.warning('Error en cargar crypto')
+try:
+    from facturacion_electronica.firma import Firma
+except:
+    _logger.warning("Problema a cargar facturacion_electronica")
 
 
 class SignatureCert(models.Model):
     _name = 'sii.firma'
 
+    def alerta_vencimiento(self):
+        if self.expire_date < (datetime.now() + relativedelta.relativedelta(days=30)):
+            alert_msg = 'Firma pronto a vencer'
+            self.env['bus.bus'].sendone((self._cr.dbname,
+                                    'sii.firma',
+                                    self.env.user.partner_id.id),
+                                    {
+                                        'title': "Alerta sobre Firma Electrónica",
+                                        'message': alert_msg,
+                                        'type': 'dte_notif',
+                                    })
+
     def check_signature(self):
         for s in self.sudo():
+            if s.state not in ['valid', 'unverified']:
+                continue
             expired = s.expire_date < fields.Date.context_today(self)
             state = 'expired' if expired else 'valid'
             if s.state != state:
@@ -160,4 +178,24 @@ class SignatureCert(models.Model):
             'cert': crypto.dump_certificate(type_, p12.get_certificate()),
             'password': False,
         })
-        self.check_signature()
+        self.set_state()
+
+    def firmar(self, string, uri=False, type="doc"):
+        firma = Firma({
+                'priv_key': self.priv_key,
+                'cert': self.cert,
+                'rut_firmante': self.subject_serial_number,
+                'init_signature': False
+            })
+        return firma.firmar(string=string, uri=uri, type=type)
+
+    def generar_firma(self, ddxml, privkey=False):
+        if not privkey:
+            privkey = self.priv_key
+        firma = Firma({
+                'priv_key': privkey,
+                'cert': self.cert,
+                'rut_firmante': self.subject_serial_number,
+                'init_signature': False
+            })
+        return firma.generar_firma(texto=ddxml.decode())

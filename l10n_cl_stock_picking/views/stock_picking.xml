@@ -30,7 +30,7 @@
                   <field name="use_documents"/>
                 </field>
 
-                <xpath expr="//sheet/notebook/page/field[@name='move_lines']/tree/field[@name='product_uom']" position="after">
+                <xpath expr="//field[@name='move_ids_without_package']/tree//field[@name='product_uom']" position="after">
                   <field name="name"/>
                   <field name="precio_unitario"/>
                   <field name="price_untaxed" invisible="True" />
@@ -39,13 +39,15 @@
                   <field name="subtotal"/>
                   <field name="currency_id" invisible="1"/>
                 </xpath>
-                <field name="move_lines" position="after">
-                  <group attres="{'invisible':{[('mover_reason','not in',['2','3','8','9'])]}}">
+                <xpath expr="//field[@name='move_ids_without_package']/..//button[@name='put_in_pack']" position="after">
+                  <group class="oe_subtotal_footer oe_right">
                     <field name="amount_untaxed"/>
                     <field name="amount_tax"/>
-                    <field name="amount_total" />
+                    <div class="oe_subtotal_footer_separator oe_inline">
+                     </div>
+                    <field name="amount_total" class="oe_subtotal_footer_separator"/<name />
                   </group>
-                </field>
+                </xpath>
                 <page name="extra" position="inside">
                     <field name="reference" mode="tree" attrs="{'readonly':[('state','in',['cancel','done'])]}">
                       <form>
@@ -64,7 +66,7 @@
                 </page>
 
                 <field name="name" position="after">
-                        <label string="- Next Number: " attrs="{'invisible': ['|',('name','!=',False),('state','!=','draft')]}" class="oe_inline"/>
+                        <label for="next_number" string="- Next Number: " attrs="{'invisible': ['|',('name','!=',False),('state','!=','draft')]}" class="oe_inline"/>
                         <field name="next_number" attrs="{'invisible': ['|',('name','!=',False),('state','!=','draft')]}" class="oe_inline"/>
                 </field>
                 <field name="move_type" position="after">

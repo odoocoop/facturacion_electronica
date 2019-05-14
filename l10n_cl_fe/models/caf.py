@@ -166,7 +166,6 @@ to work properly!''') % (self.sii_document_class, self.sequence_id.sii_document_
             return 'Nivel bajo de CAF para %s, quedan %s folios' % (self.sequence_id.sii_document_class_id.name, diff)
         return ''
 
-
 class sequence_caf(models.Model):
     _inherit = "ir.sequence"
 
