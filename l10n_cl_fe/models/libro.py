@@ -654,6 +654,37 @@ version="1.0">
             return True
         return False
 
+    def _get_date(self, rec):
+        return {
+            'FchEmiDoc': rec.date.strftime(DF),
+            'FchVencDoc': rec.date.strftime(DF)
+        }
+
+    def _get_datos(self, rec):
+        Neto = 0
+        MntExe = 0
+        TaxMnt = 0
+        for l in rec.line_ids:
+            if l.tax_line_id:
+                if l.tax_line_id and l.tax_line_id.amount > 0: #supuesto iva único
+                    if self._es_iva(l.tax_line_id): # diferentes tipos de IVA retenidos o no
+                        if l.credit > 0:
+                            TaxMnt += l.credit
+                        else:
+                            TaxMnt += l.debit
+            elif l.tax_ids and l.tax_ids[0].amount > 0:
+                if l.credit > 0:
+                    Neto += l.credit
+                else:
+                    Neto += l.debit
+            elif l.tax_ids and l.tax_ids[0].amount == 0: #caso monto exento
+                if l.credit > 0:
+                    MntExe += l.credit
+                else:
+                    MntExe += l.debit
+        TasaIVA = self.env['account.move.line'].search([('move_id', '=', rec.id), ('tax_line_id.amount', '>', 0)], limit=1).tax_line_id.amount
+        return Neto, MntExe, TaxMnt, TasaIVA
+
     def getResumenBoleta(self, rec):
         det = collections.OrderedDict()
         det['TpoDoc'] = rec.document_class_id.sii_code
@@ -672,57 +703,13 @@ version="1.0">
         #    ):
         #    det['Anulado'] = 'A'
         det['TpoServ'] = 3
-        try:
-            det['FchEmiDoc'] = rec.date.strftime(DF)
-            det['FchVencDoc'] = rec.date.strftime(DF)
-        except:
-            util_model = self.env['cl.utils']
-            fields_model = self.env['ir.fields.converter']
-            from_zone = pytz.UTC
-            to_zone = pytz.timezone('America/Santiago')
-            date_order = util_model._change_time_zone(datetime.strptime(rec.date_order, DTF), from_zone, to_zone).strftime(DTF)
-            til_model = self.env['cl.utils']
-            fields_model = self.env['ir.fields.converter']
-            from_zone = pytz.UTC
-            to_zone = pytz.timezone('America/Santiago')
-            date_order = util_model._change_time_zone(rec.date_order, from_zone, to_zone).strftime(DTF)
-            det['FchEmiDoc'] = date_order[:10]
-            det['FchVencDoc'] = date_order[:10]
+        det.update(self._get_date(rec))
         #det['PeriodoDesde']
         #det['PeriodoHasta']
         #det['CdgSIISucur']
-        Neto = 0
-        MntExe = 0
-        TaxMnt = 0
         MntTotal = 0
-        if 'lines' in rec:
-            TaxMnt =  rec.amount_tax
-            MntTotal = rec.amount_total
-            Neto = rec.pricelist_id.currency_id.round(sum(line.price_subtotal for line in rec.lines))
-            MntExe = rec.exento()
-            TasaIVA = self.env['pos.order.line'].search([('order_id', '=', rec.id), ('tax_ids.amount', '>', 0)], limit=1).tax_ids.amount
-            Neto -= MntExe
-        else:  # si la boleta fue hecha por contabilidad
-            for l in rec.line_ids:
-                if l.tax_line_id:
-                    if l.tax_line_id and l.tax_line_id.amount > 0: #supuesto iva único
-                        if self._es_iva(l.tax_line_id): # diferentes tipos de IVA retenidos o no
-                            if l.credit > 0:
-                                TaxMnt += l.credit
-                            else:
-                                TaxMnt += l.debit
-                elif l.tax_ids and l.tax_ids[0].amount > 0:
-                    if l.credit > 0:
-                        Neto += l.credit
-                    else:
-                        Neto += l.debit
-                elif l.tax_ids and l.tax_ids[0].amount == 0: #caso monto exento
-                    if l.credit > 0:
-                        MntExe += l.credit
-                    else:
-                        MntExe += l.debit
-            TasaIVA = self.env['account.move.line'].search([('move_id', '=', rec.id), ('tax_line_id.amount', '>', 0)], limit=1).tax_line_id.amount
-            MntTotal = Neto + MntExe + TaxMnt
+        Neto, MntExe, TaxMnt, TasaIVA = self._get_datos(rec)
+        MntTotal = Neto + MntExe + TaxMnt
         det['RUTCliente'] = self.format_vat(rec.partner_id.vat)
         if MntExe > 0 :
             det['MntExe'] = self.currency_id.round(MntExe)
@@ -923,6 +910,17 @@ version="1.0">
             resumenP['TotalesServicio']['TotMntTotal'] += resumen['MntTotal']
         return resumenP
 
+    def _get_moves(self):
+        recs = []
+        for rec in self.with_context(lang='es_CL').move_ids:
+            rec.sended = True
+            document_class_id = rec.document_class_id
+            if not document_class_id or document_class_id.sii_code in [39, 41]:
+                continue
+            if rec.sii_document_number:
+                recs.append(rec)
+        return recs
+
     def _validar(self):
         dicttoxml.set_debug(False)
         company_id = self.company_id
@@ -931,40 +929,22 @@ version="1.0">
             raise UserError(_('''There are not a Signature Cert Available for this user, pleaseupload your signature or tell to someelse.'''))
         resumenes = []
         resumenesPeriodo = {}
-        for rec in self.with_context(lang='es_CL').move_ids:
+        recs = self._get_moves()
+        for rec in recs:
             TpoDoc = rec.document_class_id.sii_code
             if TpoDoc not in resumenesPeriodo:
                 resumenesPeriodo[TpoDoc] = {}
-            if self.tipo_operacion == 'BOLETA' and rec.document_class_id:
-                if not rec.sii_document_number:
-                    orders = sorted(self.env['pos.order'].search(
-                            [('account_move', '=', rec.id),
-                             ('invoice_id' , '=', False),
-                             ('sii_document_number', 'not in', [False, '0']),
-                             ('document_class_id.sii_code', 'in', [39, 41]),
-                            ]).with_context(lang='es_CL'), key=lambda r: r.sii_document_number)
-                    for order in orders:
-                        TpoDoc = order.document_class_id.sii_code
-                        if not TpoDoc in resumenesPeriodo:
-                            resumenesPeriodo[TpoDoc] = {}
-                        resumen = self.getResumenBoleta(order)
-                        resumenesPeriodo[TpoDoc] = self._setResumenPeriodoBoleta(resumen, resumenesPeriodo[TpoDoc])
-                        resumen.pop('MntNeto', False)
-                        resumen.pop('MntIVA', False)
-                        if 'TasaIVA' in resumen:
-                            del(resumen['TasaIVA'])
-                else:
-                    resumen = self.getResumenBoleta(rec)
-                    resumenesPeriodo[TpoDoc] = self._setResumenPeriodoBoleta(resumen, resumenesPeriodo[TpoDoc])
-                    del(resumen['MntNeto'])
-                    del(resumen['MntIVA'])
-                    if resumen.get('TasaIVA'):
-                        del(resumen['TasaIVA'])
+            if self.tipo_operacion == 'BOLETA':
+                resumen += self._get_resumen_boleta(rec)
+                resumenesPeriodo[TpoDoc] = self._setResumenPeriodoBoleta(resumen, resumenesPeriodo[TpoDoc])
+                del(resumen['MntNeto'])
+                del(resumen['MntIVA'])
+                if resumen.get('TasaIVA'):
+                    del(resumen['TasaIVA'])
                 resumenes.extend([{'Detalle': resumen}])
             else:
                 resumen = self.getResumen(rec)
                 resumenes.extend([{'Detalle': resumen}])
-            if self.tipo_operacion != 'BOLETA':
                 resumenesPeriodo[TpoDoc] = self._setResumenPeriodo(resumen, resumenesPeriodo[TpoDoc])
         self.with_context(lang='es_CL').move_ids.write({'sended': True})
         if self.boletas:#no es el libro de boletas especial

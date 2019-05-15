@@ -100,6 +100,10 @@ has been exhausted.''',
             string="Use Level",
             compute='_used_level',
         )
+    nivel_minimo = fields.Integer(
+        string="Nivel Mínimo de Folios",
+        default=5,#@TODO hacerlo configurable
+    )
     _sql_constraints = [
                 ('filename_unique', 'unique(filename)', 'Error! Filename Already Exist!'),
             ]
