@@ -15,24 +15,8 @@ try:
     from io import BytesIO
 except:
     _logger.warning("no se ha cargado io")
-# ejemplo de suds
-import traceback as tb
-import suds.metrics as metrics
 try:
     from suds.client import Client
-except:
-    pass
-try:
-    import urllib3
-except:
-    pass
-try:
-    urllib3.disable_warnings()
-except:
-    pass
-
-try:
-    pool = urllib3.PoolManager()
 except:
     pass
 try:
@@ -52,10 +36,6 @@ try:
     import base64
 except ImportError:
     _logger.info('Cannot import base64 library')
-try:
-    import hashlib
-except ImportError:
-    _logger.info('Cannot import hashlib library')
 
 # timbre patrón. Permite parsear y formar el
 # ordered-dict patrón corespondiente al documento
@@ -73,13 +53,6 @@ fHlAa7j08Xff95Yb2zg31sJt6lMjSKdOK+PQp25clZuECig==</FRMT></TED>"""
 result = xmltodict.parse(timbre)
 
 server_url = {'SIICERT': 'https://maullin.sii.cl/DTEWS/','SII':'https://palena.sii.cl/DTEWS/'}
-
-BC = '''-----BEGIN CERTIFICATE-----\n'''
-EC = '''\n-----END CERTIFICATE-----\n'''
-
-# hardcodeamos este valor por ahora
-import os
-xsdpath = os.path.dirname(os.path.realpath(__file__)).replace('/models','/static/xsd/')
 
 connection_status = {
     '0': 'Upload OK',
@@ -193,9 +166,6 @@ class POS(models.Model):
     canceled = fields.Boolean(
             string="Canceled?",
         )
-    sii_send_file_name = fields.Char(
-            string="Send File Name",
-        )
     responsable_envio = fields.Many2one(
             'res.users',
         )
@@ -255,31 +225,6 @@ class POS(models.Model):
     def time_stamp(self, formato='%Y-%m-%dT%H:%M:%S'):
         tz = pytz.timezone('America/Santiago')
         return datetime.now(tz).strftime(formato)
-
-    def xml_validator(self, some_xml_string, validacion='doc'):
-        if validacion == 'bol':
-            return True
-        validacion_type = {
-            'doc': 'DTE_v10.xsd',
-            'env': 'EnvioDTE_v10.xsd',
-            'env_boleta': 'EnvioBOLETA_v11.xsd',
-            'recep' : 'Recibos_v10.xsd',
-            'env_recep' : 'EnvioRecibos_v10.xsd',
-            'env_resp': 'RespuestaEnvioDTE_v10.xsd',
-            'sig': 'xmldsignature_v10.xsd'
-        }
-        xsd_file = xsdpath+validacion_type[validacion]
-        try:
-            xmlschema_doc = etree.parse(xsd_file)
-            xmlschema = etree.XMLSchema(xmlschema_doc)
-            xml_doc = etree.fromstring(some_xml_string)
-            result = xmlschema.validate(xml_doc)
-            if not result:
-                xmlschema.assert_(xml_doc)
-            return result
-        except AssertionError as e:
-            _logger.info(etree.tostring(xml_doc))
-            raise UserError(_('XML Malformed Error:  %s') % e.args)
 
     def get_seed(self, company_id):
         return self.env['account.invoice'].get_seed(company_id)
@@ -385,10 +330,6 @@ version="1.0">
             scale=1,
         )
         return image
-
-    def digest(self, data):
-        sha1 = hashlib.new('sha1', data)
-        return sha1.digest()
 
     def _acortar_str(self, texto, size=1):
         c = 0
@@ -564,54 +505,46 @@ version="1.0">
         return Receptor
 
     def _totales(self, MntExe=0, no_product=False, taxInclude=False):
+        currency = self.pricelist_id.currency_id
         Totales = collections.OrderedDict()
-        amount_total = amount_total = int(round(self.amount_total, 0))
+        amount_total = currency.round(self.amount_total)
         if amount_total < 0:
             amount_total *= -1
-        if self.document_class_id.sii_code in [ 34, 41]:
-            if self.amount_tax > 0:
+        if no_product:
+            amount_total = 0
+        else:
+            if self.document_class_id.sii_code in [34, 41] and self.amount_tax > 0:
                 raise UserError("NO pueden ir productos afectos en documentos exentos")
-            Totales['MntExe'] = amount_total
-            if no_product:
-                Totales['MntExe'] = 0
-        elif not no_product:
             amount_untaxed = self.amount_total - self.amount_tax
             if amount_untaxed < 0:
                 amount_untaxed *= -1
             if MntExe < 0:
-                MntExe *=-1
-            if self.amount_tax == 0 and MntExe > 0:
+                MntExe *= -1
+            if self.amount_tax == 0 and self.document_class_id.sii_code in [39]:
                 raise UserError("Debe ir almenos un Producto Afecto")
             Neto = amount_untaxed - MntExe
-            if not taxInclude and not self._es_boleta():
-                IVA = False
+            IVA = False
+            if Neto > 0 and not self._es_boleta():
                 for l in self.lines:
                     for t in l.tax_ids:
                         if t.sii_code in [14, 15]:
                             IVA = True
                             IVAAmount = round(t.amount,2)
-                if IVA :
-                    Totales['MntNeto'] = int(round((Neto), 0))
-            if MntExe > 0:
-                Totales['MntExe'] = int(round(MntExe))
-            if not taxInclude and not self._es_boleta():
                 if IVA:
-                    if not self._es_boleta():
-                        Totales['TasaIVA'] = IVAAmount
-                    iva = int(round(self.amount_tax, 0))
-                    if iva < 0:
-                        iva *= -1
-                    Totales['IVA'] = iva
-                if no_product:
-                    Totales['MntNeto'] = 0
-                    Totales['IVA'] = 0
+                    Totales['MntNeto'] = currency.round(Neto)
+            if MntExe > 0:
+                Totales['MntExe'] = currency.round(MntExe)
+            if IVA and not self._es_boleta():
+                Totales['TasaIVA'] = IVAAmount
+                iva = currency.round(self.amount_tax)
+                if iva < 0:
+                    iva *= -1
+                Totales['IVA'] = iva
             #if IVA and IVA.tax_id.sii_code in [15]:
             #    Totales['ImptoReten'] = collections.OrderedDict()
             #    Totales['ImptoReten']['TpoImp'] = IVA.tax_id.sii_code
             #    Totales['ImptoReten']['TasaImp'] = round(IVA.tax_id.amount,2)
             #    Totales['ImptoReten']['MontoImp'] = int(round(IVA.amount))
-        else:
-            amount_total = 0
         Totales['MntTotal'] = amount_total
 
         #Totales['MontoNF']
@@ -671,7 +604,10 @@ version="1.0">
         keypriv = resultcaf['AUTORIZACION']['RSASK'].replace('\t','')
         root = etree.XML( ddxml )
         ddxml = etree.tostring(root)
-        frmt = self.env['account.invoice'].signmessage(ddxml, keypriv)
+        signature_id = self.env.user.get_digital_signature(self.company_id)
+        if not signature_id:
+            raise UserError(_('''There are not a Signature Cert Available for this user, please upload your signature or tell to someelse.'''))
+        frmt = signature_id.generar_firma(ddxml, privkey=keypriv)
         ted = (
             '''<TED version="1.0">{}<FRMT algoritmo="SHA1withRSA">{}\
 </FRMT></TED>''').format(ddxml.decode(), frmt)
@@ -684,6 +620,7 @@ version="1.0">
         return ted
 
     def _invoice_lines(self):
+        currency = self.pricelist_id.currency_id
         line_number = 1
         invoice_lines = []
         no_product = False
@@ -697,12 +634,13 @@ version="1.0">
                 lines['CdgItem'] = collections.OrderedDict()
                 lines['CdgItem']['TpoCodigo'] = 'INT1'
                 lines['CdgItem']['VlrCodigo'] = line.product_id.default_code
-            taxInclude = False
+            taxInclude = True
             for t in line.tax_ids:
-                taxInclude = t.price_include
                 if t.amount == 0 or t.sii_code in [0]:#@TODO mejor manera de identificar exento de afecto
                     lines['IndExe'] = 1
-                    MntExe += int(round(line.price_subtotal_incl, 0))
+                    MntExe += currency.round(line.price_subtotal_incl)
+                else:
+                    taxInclude = t.price_include
             #if line.product_id.type == 'events':
             #   lines['ItemEspectaculo'] =
 #            if self._es_boleta():
@@ -725,11 +663,11 @@ version="1.0">
                 lines['PrcItem'] = round(line.price_unit, 4)
             if line.discount > 0:
                 lines['DescuentoPct'] = line.discount
-                lines['DescuentoMonto'] = int(round((((line.discount / 100) * lines['PrcItem'])* qty)))
+                lines['DescuentoMonto'] = currency.round((((line.discount / 100) * lines['PrcItem'])* qty))
             if not no_product and not taxInclude:
-                price = int(round(line.price_subtotal, 0))
-            elif not no_product :
-                price = int(round(line.price_subtotal_incl,0))
+                price = currency.round(line.price_subtotal)
+            elif not no_product:
+                price = currency.round(line.price_subtotal_incl)
             if price < 0:
                 price *= -1
             lines['MontoItem'] = price
@@ -739,8 +677,8 @@ version="1.0">
             invoice_lines.extend([{'Detalle': lines}])
         return {
                 'invoice_lines': invoice_lines,
-                'MntExe':MntExe,
-                'no_product':no_product,
+                'MntExe': MntExe,
+                'no_product': no_product,
                 'tax_include': taxInclude,
                 }
 
@@ -863,12 +801,12 @@ version="1.0">
                     'SetDoc',
                     env,
                 )
-            envs[(id_class_doc, company_id, env)] = '<?xml version="1.0" encoding="ISO-8859-1"?>\n' + envio_dte
-        return envs
+            envs[(id_class_doc, company_id, env)] = '<?xml version="1.0" encoding="ISO-8859-1"?>\n' + envio_dte.decode()
+        return envs, file_name
 
     @api.multi
     def do_dte_send(self, n_atencion=None):
-        envs = self._crear_envio(n_atencion=n_atencion)
+        envs, file_name = self._crear_envio(n_atencion=n_atencion)
         to_return = False
         for id_class_doc, env in envs.items():
             envio_id = self.env['sii.xml.envio'].create(
@@ -916,19 +854,26 @@ version="1.0">
             signature_id = self.env.user.get_digital_signature(r.company_id)
             rut = signature_id.subject_serial_number
             amount_total = r.amount_total if r.amount_total >= 0 else r.amount_total*-1
-            respuesta = _server.service.getEstDte(
-                rut[:8].replace('-', ''),
-                str(rut[-1]),
-                r.company_id.vat[2:-1],
-                r.company_id.vat[-1],
-                receptor[:8],
-                receptor[-1],
-                str(r.document_class_id.sii_code),
-                str(r.sii_document_number),
-                date_order,
-                str(int(amount_total)),
-                token,
-            )
+            try:
+                respuesta = _server.service.getEstDte(
+                    rut[:8].replace('-', ''),
+                    str(rut[-1]),
+                    r.company_id.vat[2:-1],
+                    r.company_id.vat[-1],
+                    receptor[:8],
+                    receptor[-1],
+                    str(r.document_class_id.sii_code),
+                    str(r.sii_document_number),
+                    date_order,
+                    str(int(amount_total)),
+                    token,
+                )
+            except Exception as e:
+                msg = "Error al obtener Estado DTE"
+                _logger.warning("%s: %s" % (msg, str(e)))
+                if e.args[0][0] == 503:
+                    raise UserError('%s: Conexión al SII caída/rechazada o el SII está temporalmente fuera de línea, reintente la acción' % (msg))
+                raise UserError(("%s: %s" % (msg, str(e))))
             r.sii_message = respuesta
 
     @api.multi
