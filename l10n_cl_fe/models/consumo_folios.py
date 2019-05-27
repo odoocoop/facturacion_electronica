@@ -410,7 +410,7 @@ version="1.0">
                     MntExe += l.debit
         TasaIVA = self.env['account.move.line'].search([('move_id', '=', rec.id), ('tax_line_id.amount', '>', 0)], limit=1).tax_line_id.amount
         MntTotal = Neto + MntExe + TaxMnt
-        return Neto, MntExe, TaxMnt, MntTotal
+        return Neto, MntExe, TaxMnt, MntTotal, TasaIVA
 
     def getResumen(self, rec):
         det = collections.OrderedDict()
@@ -422,7 +422,7 @@ version="1.0">
         if rec.canceled:
             det['Anulado'] = 'A'
             return det
-        Neto, MntExe, TaxMnt, MntTotal = self._get_totales(rec)
+        Neto, MntExe, TaxMnt, MntTotal, TasaIVA = self._get_totales(rec)
         if MntExe > 0 :
             det['MntExe'] = self.currency_id.round(MntExe)
         if TaxMnt > 0:

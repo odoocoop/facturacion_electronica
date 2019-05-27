@@ -148,10 +148,10 @@ class UploadXMLWizard(models.TransientModel):
 
     def _check_digest_caratula(self):
         xml = etree.fromstring(self._read_xml(False))
-        string = etree.tostring(xml[0])
-        mess = etree.tostring(etree.fromstring(string), method="c14n")
-        inv_obj = self.env['account.invoice']
-        our = base64.b64encode(inv_obj.digest(mess))
+        #string = etree.tostring(xml[0])
+        #mess = etree.tostring(etree.fromstring(string), method="c14n")
+        #inv_obj = self.env['account.invoice']
+        #our = base64.b64encode(inv_obj.digest(mess))
         #if our != xml.find("{http://www.w3.org/2000/09/xmldsig#}Signature/{http://www.w3.org/2000/09/xmldsig#}SignedInfo/{http://www.w3.org/2000/09/xmldsig#}Reference/{http://www.w3.org/2000/09/xmldsig#}DigestValue").text:
         #    return 2, 'Envio Rechazado - Error de Firma'
         return 0, 'Envio Ok'

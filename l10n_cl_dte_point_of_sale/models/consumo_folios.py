@@ -47,4 +47,4 @@ class ConsumoFolios(models.Model):
         MntExe = rec.exento()
         TasaIVA = self.env['pos.order.line'].search([('order_id', '=', rec.id), ('tax_ids.amount', '>', 0)], limit=1).tax_ids.amount
         Neto -= MntExe
-        return Neto, MntExe, TaxMnt, MntTotal
+        return Neto, MntExe, TaxMnt, MntTotal, TasaIVA
