@@ -2,6 +2,7 @@
 
 from odoo import fields, models, api, _
 from odoo.exceptions import UserError
+from odoo.tools import DEFAULT_SERVER_DATE_FORMAT as DF
 from datetime import datetime, timedelta
 import logging
 from lxml import etree
