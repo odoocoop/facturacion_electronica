@@ -11,6 +11,7 @@ from lxml import etree
 from lxml.etree import Element, SubElement
 import pytz
 import collections
+_logger = logging.getLogger(__name__)
 try:
     import xmltodict
 except ImportError:
@@ -21,6 +22,7 @@ try:
     dicttoxml.set_debug(False)
 except ImportError:
     _logger.info('Cannot import dicttoxml library')
+
 
 allowed_docs = [29, 30, 32, 33, 34, 35, 38, 39, 40,
                 41, 43, 45, 46, 48, 53, 55, 56, 60,
@@ -225,7 +227,7 @@ class Libro(models.Model):
             two_month = current + relativedelta(months=-2)
             query.append(('date' , '>=', two_month.strftime('%Y-%m-%d')))
             domain = 'purchase'
-        else:
+        elif self.tipo_operacion != 'BOLETA':
             #en ventas no considerar las boletas
             query.append(('document_class_id.sii_code', 'not in', (35, 38, 39, 41, 70, 71)))
         query.append(('journal_id.type', '=', domain))
@@ -261,7 +263,6 @@ class Libro(models.Model):
                             }
                 for tpo_doc, det in lineas.items():
                     tax_id = self.env['account.tax'].search([('sii_code', '=', 14), ('type_tax_use', '=', 'sale'), ('company_id', '=', self.company_id.id)], limit=1) if tpo_doc.sii_code == 39 else self.env['account.tax'].search([('sii_code', '=', 0), ('type_tax_use', '=', 'sale'), ('company_id', '=', self.company_id.id)], limit=1)
-                    _logger.warning('tax_d %s' %tax_id)
                     line = {
                         'currency_id': self.env.user.company_id.currency_id,
                         'tipo_boleta': tpo_doc.id,
@@ -292,7 +293,6 @@ class Libro(models.Model):
             operator = 'in'
         if self.tipo_operacion in [ 'VENTA', 'BOLETA' ]:
             query.append(('date', '>=', current.strftime('%Y-%m-%d')))
-
         query.append(('document_class_id.sii_code', operator, docs))
         self.boletas = boleta_lines
         self.impuestos = impuesto_lines
@@ -302,14 +302,13 @@ class Libro(models.Model):
     def _get_imps(self):
         imp = {}
         for move in self.move_ids:
-            if move.document_class_id.sii_code not in [35, 38, 39, 41, False, 0]:
-                move_imps = move._get_move_imps()
-                for key, i in move_imps.items():
-                    if not key in imp:
-                        imp[key] = i
-                    else:
-                        imp[key]['credit'] += i['credit']
-                        imp[key]['debit'] += i['debit']
+            move_imps = move._get_move_imps()
+            for key, i in move_imps.items():
+                if not key in imp:
+                    imp[key] = i
+                else:
+                    imp[key]['credit'] += i['credit']
+                    imp[key]['debit'] += i['debit']
         return imp
 
     @api.onchange('move_ids')
@@ -935,7 +934,7 @@ version="1.0">
             if TpoDoc not in resumenesPeriodo:
                 resumenesPeriodo[TpoDoc] = {}
             if self.tipo_operacion == 'BOLETA':
-                resumen += self._get_resumen_boleta(rec)
+                resumen = self._get_resumen_boleta(rec)
                 resumenesPeriodo[TpoDoc] = self._setResumenPeriodoBoleta(resumen, resumenesPeriodo[TpoDoc])
                 del(resumen['MntNeto'])
                 del(resumen['MntIVA'])

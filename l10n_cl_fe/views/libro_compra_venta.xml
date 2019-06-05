@@ -73,19 +73,7 @@
                 </group>
                 <notebook>
                   <page string="Movimientos">
-                    <field name="move_ids" editable="bottom" widget="many2many_list" domain="[('journal_id.type', 'in', ['sale', 'purchase'])]">
-                      <tree>
-                        <field name="name"/>
-                        <field name="date"/>
-                          <field name="line_ids" widget="one2many_list">
-                                  <tree editable="bottom" string="Journal Items">
-                                      <field name="debit" sum="Total Debit"/>
-                                      <field name="credit" sum="Total Credit"/>
-                                  </tree>
-                              </field>
-                        <field name="state" />
-                      </tree>
-                    </field>
+                    <field name="move_ids" editable="bottom" widget="many2many_list" domain="[('journal_id.type', 'in', ['sale', 'purchase'])]" />
                   </page>
                   <page string="Boletas" attrs="{'invisible':[('tipo_operacion','!=', 'VENTA')]}">
                     <group>
