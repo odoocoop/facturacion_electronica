@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-  <template id="dte_stock_picking" name="dte_stock_picking" inherit_id="stock.report_picking" >
+  <template id="dte_stock_picking" name="dte_stock_picking" inherit_id="stock.report_delivery_document" >
       <t t-call="web.html_container" position="replace">
-          <t t-foreach="docs" t-as="o">
             <t t-call="web.basic_layout">
               <t t-set="partner_id" t-value="o.partner_id or o.company_id.partner_id" />
                 <t  t-lang="'es_CL">
@@ -66,37 +65,36 @@
                           <div name="company_address"/>
                         </div>
                     </div>
-                <div class="article">
-                  <div class="page" style="padding-top:60px;">
+                  <div class="page" style="padding-top:50px;">
                       <div class="row" style="border: 2px solid black;">
                           <table class="table cl_invoice">
                             <tbody>
                               <tr>
                                 <td style="border-top:0px !important;padding:4px !important;"><strong >Señor (es):</strong></td>
-                                <td style="border-top:0px !important;padding:4px !important;min-width:500px;max-width:500px;"><span t-field="partner_id.commercial_partner_id.name"/></td>
+                                <td style="border-top:0px !important;padding:4px !important;min-width:450px;max-width:450px;"><span t-field="partner_id.commercial_partner_id.name"/></td>
                                 <td style="border-top:0px !important;padding:4px !important;"><strong>Fecha:</strong></td>
                                 <td style="border-top:0px !important;padding:4px !important;"><t t-if="'scheduled_date' in o and o.scheduled_date"><span t-field="o.scheduled_date"/></t></td>
                               </tr>
                               <tr>
                                 <td style="border-top:0px !important;padding:4px !important;"><strong>RUT:</strong></td>
-                                <td style="border-top:0px !important;padding:4px !important;min-width:500px;max-width:500px;"><span t-field="partner_id.commercial_partner_id.document_number"/></td>
+                                <td style="border-top:0px !important;padding:4px !important;min-width:450px;max-width:450px;"><span t-field="partner_id.commercial_partner_id.document_number"/></td>
                                 <td style="border-top:0px !important;padding:4px !important;"><strong >Comuna:</strong></td>
                                 <td style="border-top:0px !important;padding:4px !important;"><span t-field="partner_id.commercial_partner_id.city_id.name"/></td>
                               </tr>
                               <tr>
                                 <td style="border-top:0px !important;padding:4px !important;"><strong>Domicilio:</strong></td>
-                                <td style="border-top:0px !important;padding:4px !important;min-width:500px;max-width:500px;"><span  t-field="partner_id.commercial_partner_id.street"/><span t-field="partner_id.commercial_partner_id.street2"/></td>
+                                <td style="border-top:0px !important;padding:4px !important;min-width:450px;max-width:450px;"><span  t-field="partner_id.commercial_partner_id.street"/><span t-field="partner_id.commercial_partner_id.street2"/></td>
                                 <td style="border-top:0px !important;padding:4px !important;"><strong >Ciudad:</strong></td>
                                 <td style="border-top:0px !important;padding:4px !important;"><span t-field="partner_id.commercial_partner_id.city"/></td>
                               </tr>
                               <tr>
                                 <td style="border-top:0px !important;padding:4px !important;"><strong>Giro:</strong></td>
-                                <td style="border-top:0px !important;padding:4px !important;min-width:500px;max-width:500px;"><span t-field="o.activity_description.name"/></td>
+                                <td style="border-top:0px !important;padding:4px !important;min-width:450px;max-width:450px;"><span t-field="o.activity_description.name"/></td>
                                 <td style="border-top:0px !important;padding:4px !important;"><strong>Condición de Pago:</strong></td>
                               </tr>
                               <tr>
                                 <td style="border-top:0px !important;padding:4px !important;"><strong>Contacto:</strong></td>
-                                <td style="border-top:0px !important;padding:4px !important;min-width:500px;max-width:500px;"><t t-if="'contact_id' in o and o.contact_id"><span t-field="o.contact_id.name"/></t></td>
+                                <td style="border-top:0px !important;padding:4px !important;min-width:450px;max-width:450px;"><t t-if="'contact_id' in o and o.contact_id"><span t-field="o.contact_id.name"/></t></td>
                                 <td style="border-top:0px !important;padding:4px !important;"><strong>Vencimiento:</strong></td>
                                 <td style="border-top:0px !important;padding:4px !important;"><span t-field="o.scheduled_date"/></td>
                               </tr>
@@ -170,7 +168,7 @@
                            </tbody>
                        </table>
                      </div>
-                     <div class="row" style="border:1px solid black; height:30px;" >
+                     <div class="row" style="border:1px solid black; height:70px;" >
                        <table class="table table-condensed" style="height:30px;">
                                <thead>
                                  <tr style="max-height:10px; font-size:9px !important;">
@@ -204,7 +202,6 @@
                                 </tbody>
                        </table>
                      </div>
-                     <br />
                        <div class="row">
                          <div class="col-5">
                            <div class="col-12">
@@ -218,7 +215,7 @@
                                </p>
                            </div>
                          </div>
-                         <div class="col-4 pull-right">
+                         <div t-attf-class="#{'col-4' if report_type != 'html' else 'col-md-5'} text-right">
                                <table class="table table-condensed">
                                    <tr class="border-black" t-if="'global_discount' in o">
                                      <td><strong>Descuento</strong></td>
@@ -251,13 +248,15 @@
                            </div>
                        </div>
 
-                      <div class="row">
-                          <div class="col-12" style="border: 1px solid black;font-size:15px !important;">
-                            <div class="col-4">
+                      <div class="clearfix">
+                      <div class="row" style="border: 1px solid black;height:20px;font-size:15px !important;">
+                            <div class="col-md-4">
                                 <strong>Nombre:</strong>
                             </div>
-                          </div>
-                          <div class="col-12" style="border: 1px solid black;font-size:15px !important;">
+                      </div>
+                    </div>
+                    <div class="clearfix">
+                      <div class="row" style="border: 1px solid black;height:20px;font-size:15px !important;">
                             <div class="col-7">
                                 <strong>R.U.T.:</strong>
                             </div>
@@ -265,7 +264,9 @@
                                 <strong>FECHA:</strong>
                             </div>
                           </div>
-                          <div class="col-12" style="border: 1px solid black; font-size:15px !important;">
+                    </div>
+                    <div class="clearfix">
+                      <div class="row" style="border: 1px solid black;height:20px; font-size:15px !important;">
                             <div class="col-7">
                                 <strong>RECINTO:</strong>
                             </div>
@@ -273,20 +274,24 @@
                                 <strong>FIRMA:</strong>
                             </div>
                           </div>
-                          <div class="col-12" style="border: 1px solid black;">
+                    </div>
+                    <div class="clearfix">
+                      <div class="row" style="border: 1px solid black;">
                             <p style="font-size:8px">
                               "El acuse de recibo que se declara en este acto, de acuerdo a lo dispuesto en la letra b) del Artículo 4°, y la letra c) del Artículo 5° de la Ley 19.983, acredita que la entrega de mercaderías o servicio(s) prestado(s) ha(n) sido recibido(s)"
                             </p>
-                          </div>
-                     </div>
-                     <div class="row">
-                       <h6 class="pull-right" t-if="cedible"> CEDIBLE CON SU FACTURA</h6>
-                     </div>
+                      </div>
+                    </div>
+                    <div class="clearfix">
+                      <div class="row">
+                        <div class="col-12">
+                          <h6 class="text-right" t-if="cedible"> CEDIBLE CON SU FACTURA</h6>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
               </t>
           </t>
-      </t>
   </t>
 </template>
 
@@ -294,7 +299,7 @@
 <template id="stock_picking_cedible">
 <t t-call="web.html_container">
     <t t-foreach="docs" t-as="o">
-        <t t-call="stock.report_picking" >
+        <t t-call="stock.report_delivery_document" >
           <t t-set="cedible" t-value="True" />
       </t>
     </t>
