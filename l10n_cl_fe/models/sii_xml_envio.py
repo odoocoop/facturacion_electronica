@@ -137,7 +137,6 @@ class SIIXMLEnvio(models.Model):
         xml_seed = u'<getToken><Semilla>%s</Semilla></getToken>' \
             % (seed)
         signature_id = user_id.get_digital_signature(company_id)
-        doc = etree.fromstring(message)
         return signature_id.firmar(xml_seed, type="token")
 
     def _get_token(self, seed_file, company_id):
