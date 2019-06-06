@@ -16,7 +16,7 @@ class ConsumoFolios(models.Model):
     def _get_moves(self):
         recs = super(ConsumoFolios, self)._get_moves()
         tz = pytz.timezone('America/Santiago')
-        tz_current = tz.localize(self.fecha_inicio).astimezone(pytz.utc)
+        tz_current = tz.localize(datetime.strptime(self.fecha_inicio.strftime(DTF))).astimezone(pytz.utc)
         current = tz_current.strftime(DTF)
         next_day = (self.fecha_inicio + relativedelta.relativedelta(days=1)).strftime(DTF)
         _logger.warning(current)
