@@ -684,7 +684,7 @@ version="1.0">
         TasaIVA = self.env['account.move.line'].search([('move_id', '=', rec.id), ('tax_line_id.amount', '>', 0)], limit=1).tax_line_id.amount
         return Neto, MntExe, TaxMnt, TasaIVA
 
-    def getResumenBoleta(self, rec):
+    def _get_resumen_boleta(self, rec):
         det = collections.OrderedDict()
         det['TpoDoc'] = rec.document_class_id.sii_code
         det['FolioDoc'] = int(rec.sii_document_number)
