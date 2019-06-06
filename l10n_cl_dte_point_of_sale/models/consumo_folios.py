@@ -16,13 +16,17 @@ class ConsumoFolios(models.Model):
     def _get_moves(self):
         recs = super(ConsumoFolios, self)._get_moves()
         tz = pytz.timezone('America/Santiago')
+        tz_current = tz.localize(self.fecha_inicio).astimezone(pytz.utc)
+        current = tz_current.strftime(DTF)
         next_day = (self.fecha_inicio + relativedelta.relativedelta(days=1)).strftime(DTF)
+        _logger.warning(current)
+        _logger.warning(next_day)
         orders_array = self.env['pos.order'].search(
             [
              ('invoice_id' , '=', False),
              ('sii_document_number', 'not in', [False, '0']),
              ('document_class_id.sii_code', 'in', [39, 41, 61]),
-             ('date_order','>=', self.fecha_inicio.strftime(DTF)),
+             ('date_order','>=', current),
              ('date_order','<', next_day),
             ]
         ).with_context(lang='es_CL')
