@@ -801,7 +801,7 @@ version="1.0">
                     'SetDoc',
                     env,
                 )
-            envs[(id_class_doc, company_id, env)] = '<?xml version="1.0" encoding="ISO-8859-1"?>\n' + envio_dte.decode()
+            envs[(id_class_doc, company_id, env)] = '<?xml version="1.0" encoding="ISO-8859-1"?>\n' + envio_dte
         return envs, file_name
 
     @api.multi

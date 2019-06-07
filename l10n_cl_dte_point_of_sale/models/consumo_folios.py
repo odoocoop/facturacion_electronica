@@ -19,8 +19,6 @@ class ConsumoFolios(models.Model):
         tz_current = tz.localize(datetime.strptime(self.fecha_inicio.strftime(DTF), DTF)).astimezone(pytz.utc)
         current = tz_current.strftime(DTF)
         next_day = (self.fecha_inicio + relativedelta.relativedelta(days=1)).strftime(DTF)
-        _logger.warning(current)
-        _logger.warning(next_day)
         orders_array = self.env['pos.order'].search(
             [
              ('invoice_id' , '=', False),

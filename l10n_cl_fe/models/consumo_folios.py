@@ -664,7 +664,7 @@ version="1.0">
             'consu')
         doc_id += '.xml'
         self.sii_xml_request = self.env['sii.xml.envio'].create({
-            'xml_envio': envio_dte,
+            'xml_envio': '<?xml version="1.0" encoding="ISO-8859-1"?>\n%s' % envio_dte,
             'name': doc_id,
             'company_id': self.company_id.id,
             'state': 'draft',
