@@ -914,10 +914,10 @@ version="1.0">
         for rec in self.with_context(lang='es_CL').move_ids:
             rec.sended = True
             document_class_id = rec.document_class_id
-            if not document_class_id or document_class_id.sii_code in [39, 41]:
+            if not document_class_id or document_class_id.sii_code in [39, 41]\
+            or rec.sii_document_number in [False, 0]:
                 continue
-            if rec.sii_document_number:
-                recs.append(rec)
+            recs.append(rec)
         return recs
 
     def _validar(self):
