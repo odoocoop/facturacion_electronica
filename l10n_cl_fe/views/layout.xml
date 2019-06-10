@@ -624,7 +624,7 @@
                   <p style="text-align:center;color:red; font-size:8px;">
                     Timbre Electrónico SII
                     <br/>
-                    Resolución <t t-esc='doc.company_id.dte_resolution_number'/> de <t t-esc='doc.company_id.dte_resolution_date.year[:4]'/> Verifique documento en: <t t-if="not doc._es_boleta()">www.sii.cl</t><t t-if="doc._es_boleta()" t-esc="'%s/boleta/%s' % (doc.company_id.website, doc.sii_document_number)"/>
+                    Resolución <t t-esc="doc.company_id.dte_resolution_number"/> de <t t-esc="doc.company_id.dte_resolution_date.year"/> Verifique documento en: <t t-if="not doc._es_boleta()">www.sii.cl</t><t t-if="doc._es_boleta()" t-esc="'%s/boleta/%s' % (doc.company_id.website, doc.sii_document_number)"/>
                   </p>
                 </em>
             </div>
