@@ -20,9 +20,9 @@ class Boleta(http.Controller):
         if post_values.get('amount_total', ''):
             domain.append(('amount_total', '=', post_values.get('amount_total', '')))
         if post_values.get('sii_codigo', ''):
-            domain.append(('sii_document_class_id.sii_code', '=', int(post_values.get('sii_codigo', ''))))
+            domain.append(('document_class_id.sii_code', '=', int(post_values.get('sii_codigo', ''))))
         else:
-            domain.append(('sii_document_class_id.sii_code', 'in', [39, 41, 61] ))
+            domain.append(('document_class_id.sii_code', 'in', [39, 41, 61] ))
         return domain
 
     def get_orders(self, folio, post):
