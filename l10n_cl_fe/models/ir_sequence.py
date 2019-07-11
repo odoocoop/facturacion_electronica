@@ -123,7 +123,7 @@ www.sii.cl'''.format(folio)
         number_next = self.number_next
         if self.implementation == 'standard':
             number_next = self.number_next_actual
-        folio = super(sequence_caf, self)._next_do()
+        folio = super(IRSequence, self)._next_do()
         if self.sii_document_class_id and self.forced_by_caf and self.dte_caf_ids:
             self.update_next_by_caf(folio)
             actual = self.number_next
