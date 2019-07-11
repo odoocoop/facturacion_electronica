@@ -423,7 +423,7 @@ version="1.0">
             det['Anulado'] = 'A'
             return det
         Neto, MntExe, TaxMnt, MntTotal, TasaIVA = self._get_totales(rec)
-        if MntExe > 0 :
+        if MntExe > 0:
             det['MntExe'] = self.currency_id.round(MntExe)
         if TaxMnt > 0:
             det['MntIVA'] = self.currency_id.round(TaxMnt)

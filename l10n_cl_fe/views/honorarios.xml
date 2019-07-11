@@ -8,7 +8,7 @@
             <field name="priority">2</field>
             <field name="arch" type="xml">
                 <form string="Boletas Honorarios">
-                  <field name="available_journal_document_class_ids" invisible="1"/>
+                  <field name="document_class_ids" invisible="1"/>
                   <field name="use_documents" invisible="1"/>
                   <field name="sii_document_number" invisible="1"/>
                   <field name="move_name" invisible="1"/>

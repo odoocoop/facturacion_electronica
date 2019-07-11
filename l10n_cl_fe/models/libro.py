@@ -474,10 +474,7 @@ version="1.0">
         det['TpoDoc'] = rec.document_class_id.sii_code
         #det['Emisor']
         #det['IndFactCompra']
-        if self.tipo_operacion in ['COMPRA']:
-            det['NroDoc'] = int(rec.ref)
-        else:
-            det['NroDoc'] = int(rec.sii_document_number)
+        det['NroDoc'] = rec.sii_document_number
         if rec.canceled:
             det['Anulado'] = 'A'
         #det['Operacion']
@@ -687,7 +684,7 @@ version="1.0">
     def _get_resumen_boleta(self, rec):
         det = collections.OrderedDict()
         det['TpoDoc'] = rec.document_class_id.sii_code
-        det['FolioDoc'] = int(rec.sii_document_number)
+        det['FolioDoc'] = rec.sii_document_number
         #if self.env['account.invoice.referencias'].search(
         #        [('origen', '=', det['FolioDoc']),
         #         ('sii_referencia_TpoDocRef', '=', rec.document_class_id.id),
@@ -1057,7 +1054,7 @@ version="1.0">
     def action_cancel(self):
         self.write({'state': 'Anulado'})
         return True
-        
+
     @api.multi
     def action_cancel_to_draft(self):
         if self.move_ids:

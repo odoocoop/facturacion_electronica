@@ -17,9 +17,6 @@ try:
 except:
     _logger.warning('No se ha podido cargar xmltodict')
 
-BC = '''-----BEGIN CERTIFICATE-----\n'''
-EC = '''\n-----END CERTIFICATE-----\n'''
-
 
 class ValidarDTEWizard(models.TransientModel):
     _name = 'sii.dte.validar.wizard'
@@ -210,7 +207,7 @@ class ValidarDTEWizard(models.TransientModel):
                 continue
             dte = self._resultado(
                 TipoDTE=inv.document_class_id.sii_code,
-                Folio=inv.reference,
+                Folio=inv.sii_document_number,
                 FchEmis=inv.date_invoice,
                 RUTEmisor=inv.format_vat(inv.partner_id.vat),
                 RUTRecep=inv.format_vat(inv.company_id.vat),
@@ -272,7 +269,7 @@ class ValidarDTEWizard(models.TransientModel):
     def _recep(self, inv, RutFirma):
         receipt = collections.OrderedDict()
         receipt['TipoDoc'] = inv.document_class_id.sii_code
-        receipt['Folio'] = int(inv.reference)
+        receipt['Folio'] = inv.sii_document_number
         receipt['FchEmis'] = inv.date_invoice
         receipt['RUTEmisor'] = inv.format_vat(inv.partner_id.vat)
         receipt['RUTRecep'] = inv.format_vat(inv.company_id.vat)
@@ -318,10 +315,6 @@ class ValidarDTEWizard(models.TransientModel):
             'user_signature_key' module has been installed and enable a digital \
             signature, for you or make the signer to authorize you to use his \
             signature.'''))
-            certp = signature_id.cert.replace(
-                BC,
-                '',
-            ).replace(EC, '').replace('\n', '')
             dict_recept = self._recep(
                 inv,
                 signature_id.subject_serial_number,

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from . import account
+from . import account_journal
 from . import account_journal_sii_document_class
 from . import account_tax
 from . import caf
@@ -8,10 +9,10 @@ from . import consumo_folios
 from . import country
 from . import currency
 from . import export
-from . import sii
-from . import sii_document_class
 from . import honorarios
 from . import invoice
+from . import ir_module_module
+from . import ir_sequence
 from . import libro
 from . import mail
 from . import partner_activities
@@ -23,6 +24,8 @@ from . import res_state
 from . import res_users
 from . import sale_order_referencias
 from . import sale_order
+from . import sii
+from . import sii_document_class
 from . import sii_activity_description
 from . import sii_cola_envio
 from . import sii_firma

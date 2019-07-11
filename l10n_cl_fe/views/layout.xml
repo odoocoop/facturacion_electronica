@@ -347,7 +347,12 @@
               <t t-call="web.html_container" position="replace">
                 <t t-call="web.html_container">
                   <t t-foreach="docs" t-as="o">
-                      <t t-call="l10n_cl_fe.report_invoice_document_with_payments" t-lang="'es_CL'"/>
+                      <t t-if="o.ticket" >
+                          <t t-call="l10n_cl_fe.report_ticket" t-lang="'es_CL'"/>
+                      </t>
+                      <t t-else="" t-call="web.html_container">
+                        <t t-call="l10n_cl_fe.report_invoice_document_with_payments" t-lang="'es_CL'"/>
+                      </t>
                   </t>
                 </t>
               </t>
@@ -402,7 +407,7 @@
                         <h4> <span t-esc="o.company_id.partner_id.street"/> <span t-esc="o.company_id.partner_id.city"/></h4>
                     </div>
                     <div class="col-xs-12 text-center">
-                        <h4> <span t-field="o.journal_document_class_id.sii_document_class_id.name"/> N°: <span t-field="o.sii_document_number"/></h4>
+                        <img t-att-src="'data:image/png;base64,%s' % o.sii_header()"/>
                     </div>
                 </div>
 
@@ -482,7 +487,6 @@
                 </table>
                 <div class="row">
                   <div class="col-xs-12 text-left">
-                      Caja N°: <span t-field="o.journal_id.point_of_sale_id.name"/><br/>
                       Cajero: <span t-field="o.user_id.name"/><br/>
                       Fecha: <span t-field="o.date_invoice"/><br/>
                   </div>
@@ -530,7 +534,7 @@
             <t t-set="sii_document_number" t-value="doc.reference" />
           </t>
         <receipt align='center' width='45' value-thousands-separator='.' >
-            <div class="pos-center-align"> 
+            <div class="pos-center-align">
               <img t-att-src="'data:image/png;base64,%s' % doc.sii_header()"/>
             </div>
             <t t-if='doc.company_id'>
