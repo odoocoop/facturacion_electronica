@@ -180,13 +180,16 @@ class SignatureCert(models.Model):
         })
         self.set_state()
 
-    def firmar(self, string, uri=False, type="doc"):
-        firma = Firma({
+    def parametros_firma(self):
+        return {
                 'priv_key': self.priv_key,
                 'cert': self.cert,
                 'rut_firmante': self.subject_serial_number,
                 'init_signature': False
-            })
+            }
+
+    def firmar(self, string, uri=False, type="doc"):
+        firma = Firma(self.parametros_firma())
         return firma.firmar(string=string, uri=uri, type=type)
 
     def generar_firma(self, ddxml, privkey=False):
@@ -194,10 +197,4 @@ class SignatureCert(models.Model):
         if privkey:
             params['priv_key'] = privkey
         firma = Firma(params)
-        firma = Firma({
-                'priv_key': privkey,
-                'cert': self.cert,
-                'rut_firmante': self.subject_serial_number,
-                'init_signature': False
-            })
         return firma.generar_firma(texto=ddxml.decode())
