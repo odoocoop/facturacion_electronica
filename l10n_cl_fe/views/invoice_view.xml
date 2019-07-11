@@ -77,7 +77,6 @@
                   </div>
                   <div attrs="{'invisible': ['|', ('state', '!=', 'draft'), ('type', 'in', ['in_invoice', 'in_refund'])]}">
                       <span class="o_form_label" attrs="{'invisible': ['|', ('state','!=','draft')]}">Siguiente</span>
-                      <div attrs="{'invisible': [('state', '=', 'draft'), ('type', 'not in', ['in_invoice', 'in_refund'])]}">
                       <field name="journal_document_class_id"
                         attrs="{'invisible':[('use_documents', '=', False)],
                                 'required':[('use_documents', '=', True), ('state', '=', 'draft')],
