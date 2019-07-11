@@ -204,7 +204,7 @@
                   <field name="move_name" invisible="1"/>
               </form>
 
-              <xpath expr="//form/sheet/div[1]/label[1]" position="before">
+              <xpath expr="//form/sheet/div[1]/span[1]" position="before">
                   <span>Folio Interno</span>
               </xpath>
               <xpath expr="//form/sheet/div[1]" position="after">
