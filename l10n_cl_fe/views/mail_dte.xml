@@ -19,7 +19,7 @@
     <field name="arch" type="xml">
       <tree string="Documentos">
         <field name="date" />
-        <field name="sii_document_class_id" />
+        <field name="document_class_id" />
         <field name="number" />
         <field name="new_partner" />
         <field name="partner_id" />
@@ -54,7 +54,7 @@
               <field name="document_ids" editable="bottom" widget="one2many">
                 <tree editable="top/bottom">
                   <field name="date" />
-                  <field name="sii_document_class_id" />
+                  <field name="document_class_id" />
                   <field name="number" />
                   <field name="new_partner" />
                   <field name="partner_id" />
@@ -94,7 +94,7 @@
               <field name="new_partner" />
               <field name="partner_id" />
               <field name="number" />
-              <field name="sii_document_class_id" />
+              <field name="document_class_id" />
             </group>
             <group>
               <field name="amount" />

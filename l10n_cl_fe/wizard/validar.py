@@ -57,7 +57,7 @@ class ValidarDTEWizard(models.TransientModel):
 
     def send_message(self, message="RCT"):
         id = self.document_id.number or self.inv.ref
-        sii_document_class = self.document_id.sii_document_class_id or self.inv.document_class_id.sii_code
+        sii_document_class = self.document_id.document_class_id or self.inv.document_class_id.sii_code
 
     def _create_attachment(self, xml, name, id=False, model='account.invoice'):
         data = base64.b64encode(xml.encode('ISO-8859-1'))
@@ -193,7 +193,7 @@ class ValidarDTEWizard(models.TransientModel):
                 rut_emisor = xml['Encabezado']['Emisor']['RUTEmisor'],
                 company_id=doc.company_id,
                 sii_document_number=doc.number,
-                sii_document_class_id=doc.sii_document_class_id,
+                sii_document_class_id=doc.document_class_id,
                 claim='RCD',
             )
 

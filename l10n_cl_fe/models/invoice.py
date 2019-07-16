@@ -141,6 +141,8 @@ class AccountInvoice(models.Model):
     _inherit = "account.invoice"
 
     def _default_journal_document_class_id(self, default=None):
+        if self.document_clasass_id:
+            return False
         ids = self._get_available_journal_document_class()
         document_classes = self.env['account.journal.sii_document_class'].browse(ids)
         if default:
@@ -983,17 +985,20 @@ a VAT."""))
             invtype = obj_inv.type
             if obj_inv.journal_document_class_id and not obj_inv.sii_document_number:
                 if invtype in ('out_invoice', 'out_refund'):
+                    to_write = {}
                     if not obj_inv.journal_document_class_id.sequence_id:
                         raise UserError(_(
                             'Please define sequence on the journal related documents to this invoice.'))
+                    if not obj_inv.sii_document_class_Id:
+                        to_write['document_class_id'] = obj_inv.journal_document_class_id.sii_document_class.id
                     sii_document_number = obj_inv.journal_document_class_id.sequence_id.next_by_id()
                     prefix = obj_inv.document_class_id.doc_code_prefix or ''
                     move_name = (prefix + str(sii_document_number)).replace(' ','')
-                    obj_inv.write(
-                        {
+                    to_write.update({
                             'sii_document_number': int(sii_document_number),
                             'move_name': move_name
                         })
+                    obj_inv.write(to_write)
         super(AccountInvoice, self).action_move_create()
         for obj_inv in self:
             invtype = obj_inv.type

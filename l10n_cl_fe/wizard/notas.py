@@ -16,15 +16,15 @@ class AccountInvoiceRefund(models.TransientModel):
             string="Tipo De nota",
             required=True,
             domain=[
-                    ('document_type','in',['debit_note','credit_note']),
+                    ('document_type', 'in', ['debit_note','credit_note']),
                     ('dte', '=', True),
                 ]
         )
     filter_refund = fields.Selection(
             [
-                ('1','Anula Documento de Referencia'),
-                ('2','Corrige texto Documento Referencia'),
-                ('3','Corrige montos'),
+                ('1', 'Anula Documento de Referencia'),
+                ('2', 'Corrige texto Documento Referencia'),
+                ('3', 'Corrige montos'),
             ],
             default='1',
             string='Refund Method',
@@ -49,7 +49,6 @@ class AccountInvoiceRefund(models.TransientModel):
             created_inv = []
             date = False
             description = False
-            tipo_nota = form.tipo_nota
             for inv in inv_obj.browse(context.get('active_ids')):
                 if inv.state in ['draft', 'proforma2', 'cancel']:
                     raise UserError(_('Cannot refund draft/proforma/cancelled invoice.'))
@@ -65,13 +64,13 @@ class AccountInvoiceRefund(models.TransientModel):
                     del invoice['id']
                     prod = self.env['product.product'].search(
                             [
-                                    ('product_tmpl_id','=',self.env.ref('l10n_cl_fe.no_product').id),
+                                    ('product_tmpl_id', '=', self.env.ref('l10n_cl_fe.no_product').id),
                             ]
                         )
-                    document_type = self.env['account.journal.sii_document_class'].search(
+                    jdc = self.env['account.journal.sii_document_class'].search(
                             [
-                                ('sii_document_class_id.sii_code','=', self.tipo_nota.sii_code),
-                                ('journal_id','=', inv.journal_id.id),
+                                ('sii_document_class_id.sii_code', '=', self.tipo_nota.sii_code),
+                                ('journal_id', '=', inv.journal_id.id),
                             ],
                             limit=1,
                         )
@@ -89,15 +88,15 @@ class AccountInvoiceRefund(models.TransientModel):
                                         0,
                                         0,
                                         {
-                                            'product_id' : prod.id,
+                                            'product_id': prod.id,
                                             'account_id': account.id,
-                                            'name' : prod.name,
-                                            'quantity' : 1,
-                                            'price_unit' : 0
+                                            'name': prod.name,
+                                            'quantity': 1,
+                                            'price_unit': 0
                                         }
                                     ]
                                 ]
-                    referencias = [[0,0, {
+                    referencias = [[0, 0, {
                             'origen': inv.sii_document_number,
                             'sii_referencia_TpoDocRef': inv.document_class_id.id,
                             'sii_referencia_CodRef': mode,
@@ -113,7 +112,8 @@ class AccountInvoiceRefund(models.TransientModel):
                                 'origin': inv.number,
                                 'fiscal_position_id': inv.fiscal_position_id.id,
                                 'type': refund_type,
-                                'journal_document_class_id': document_type.id,
+                                'journal_document_class_id': jdc.id,
+                                'document_class_id': jdc.sii_document_class_id.id,
                                 'referencias': referencias,
                                 'invoice_line_ids': invoice_lines,
                                 'tax_line_ids': False,

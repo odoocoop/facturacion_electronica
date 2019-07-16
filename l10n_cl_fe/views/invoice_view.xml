@@ -72,6 +72,8 @@
                       <field name="document_class_id"
                           options="{'no_open': True, 'no_create': True}"
                           domain="[('id', 'in', document_class_ids)]"
+                          attr="'required':[('use_documents', '=', True), ('state', '=', 'draft')],
+                                'readonly':['|', ('state', '!=', 'draft'), ('sii_document_number', '>', 0)]}"
                           class="oe_inline"/> Número:<br/>
                        <field name="number" readonly="1" class="oe_inline"/>
                   </div>
