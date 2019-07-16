@@ -7,7 +7,7 @@
     <field name="inherit_id" ref="base.res_config_settings_view_form"/>
     <field name="arch" type="xml">
       <xpath expr="//div[hasclass('settings')]" position="inside">
-        <div class="app_settings_block" data-string="Electronic Invoice" string="Facturación Electrónica" data-key="account_electronic_invoicing" >
+        <div class="app_settings_block" data-string="Electronic Invoice" string="Facturación Electrónica" data-key="l10n_cl_fe" >
           <div >
             <h2 class="mt32">Firmas Electrónica (Certificados digitales)</h2>
             <div class="row mt16 o_settings_container">
@@ -159,7 +159,7 @@
       <field name="res_model">res.config.settings</field>
       <field name="view_mode">form</field>
       <field name="target">inline</field>
-      <field name="context">{'module' : 'account_electronic_invoicing'}</field>
+      <field name="context">{'module' : 'l10n_cl_fe'}</field>
   </record>
 
   <menuitem id="menu_account_config" name="Configuraciones DTE" parent="account.menu_finance_configuration"

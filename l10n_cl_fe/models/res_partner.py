@@ -221,7 +221,7 @@ class ResPartner(models.Model):
             exist = self.env['res.partner'].search(
                 [
                     ('vat', '=', vat),
-                    ('vat', '!=',  'CL555555555'),
+                    ('vat', '!=', 'CL555555555'),
                     ('commercial_partner_id', '!=', self.commercial_partner_id.id ),
                 ],
                 limit=1,

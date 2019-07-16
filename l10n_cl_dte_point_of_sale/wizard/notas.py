@@ -41,6 +41,8 @@ class AccountInvoiceRefund(models.TransientModel):
         active_ids = context.get('active_ids', []) or []
 
         for order in self.env['pos.order'].browse(active_ids):
+            if not order.document_class_id or not order.sii_document_number:
+                raise UserError("Por esta área solamente se puede crear Nota de Crédito a Boletas validamente emitidas, si es un pedido simple, debe presionar en retornar simple")
             current_session_ids = self.env['pos.session'].search(
                     [
                         ('state', '!=', 'closed'),

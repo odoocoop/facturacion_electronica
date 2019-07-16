@@ -8,7 +8,7 @@
                     <header>
                         <button string="Validate Certificate" type="object" name="action_process"
                                 class="oe_highlight"
-                                attrs="{'invisible':['|', ('state','!=','unverified'),('file_content', '=', False)]}"/>
+                                attrs="{'invisible':['|', ('state', 'not in', ['unverified', 'incomplete'])]}"/>
 
                         <field name="state" widget="statusbar"/>
                     </header>

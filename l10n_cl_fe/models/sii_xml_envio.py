@@ -180,6 +180,10 @@ class SIIXMLEnvio(models.Model):
     def procesar_recepcion(self, retorno, respuesta_dict):
         if respuesta_dict['RECEPCIONDTE']['STATUS'] != '0':
             _logger.warning(connection_status[respuesta_dict['RECEPCIONDTE']['STATUS']])
+            if respuesta_dict['RECEPCIONDTE']['STATUS'] in ['7']:
+                retorno.update({
+                    'state': 'Rechazado'
+                    })
         else:
             retorno.update({
                             'state': 'Enviado',

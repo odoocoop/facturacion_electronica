@@ -129,10 +129,11 @@ class ProcessMailsDocument(models.Model):
         string='Folio',
         readonly=True,
     )
-    sii_document_class_id = fields.Many2one(
+    document_class_id = fields.Many2one(
         'sii.document_class',
         string="Tipo de Documento",
         readonly=True,
+        oldname="sii_document_class_id",
     )
     amount = fields.Monetary(
         string="Monto",

@@ -267,7 +267,7 @@ class ConsumoFolios(models.Model):
         tz_current = tz.localize(datetime.strptime(current, DTF)).astimezone(pytz.utc)
         current = tz_current.strftime(DTF)
         fi = datetime.strptime(self.fecha_inicio + " 00:00:00", DTF)
-        if fi > current:
+        if fi > datetime.strptime(current, DTF):
             raise UserError("No puede hacer Consumo de Folios de días futuros")
         self.name = self.fecha_inicio
         self.fecha_final = self.fecha_inicio
@@ -409,9 +409,12 @@ version="1.0">
                     MntExe += l.credit
                 else:
                     MntExe += l.debit
-        TasaIVA = self.env['account.move.line'].search([('move_id', '=', rec.id), ('tax_line_id.amount', '>', 0)], limit=1).tax_line_id.amount
         MntTotal = Neto + MntExe + TaxMnt
-        return Neto, MntExe, TaxMnt, MntTotal
+        TasaIVA = self.env['account.move.line'].search([
+                ('move_id', '=', rec.id),
+                ('tax_line_id.amount', '>', 0)
+            ], limit=1).tax_line_id.amount
+        return Neto, MntExe, TaxMnt, MntTotal, TasaIVA
 
     def getResumen(self, rec):
         det = collections.OrderedDict()
@@ -423,7 +426,7 @@ version="1.0">
         if rec.canceled:
             det['Anulado'] = 'A'
             return det
-        Neto, MntExe, TaxMnt, MntTotal = self._get_totales(rec)
+        Neto, MntExe, TaxMnt, MntTotal, TasaIVA = self._get_totales(rec)
         if MntExe > 0 :
             det['MntExe'] = self.currency_id.round(MntExe)
         if TaxMnt > 0:
@@ -658,11 +661,11 @@ version="1.0">
         xml  = self.create_template_env(cf)
         root = etree.XML( xml )
         xml_pret = etree.tostring(root, pretty_print=True).decode()\
-                .replace('<item>','\n').replace('</item>','')\
-                .replace('<itemNoRec>','').replace('</itemNoRec>','\n')\
-                .replace('<itemOtrosImp>','').replace('</itemOtrosImp>','\n')\
-                .replace('<itemUtilizados>','').replace('</itemUtilizados>','\n')\
-                .replace('<itemAnulados>','').replace('</itemAnulados>','\n')
+                .replace('<item>','\n').replace('</item>', '')\
+                .replace('<itemNoRec>','').replace('</itemNoRec>', '\n')\
+                .replace('<itemOtrosImp>','').replace('</itemOtrosImp>', '\n')\
+                .replace('<itemUtilizados>','').replace('</itemUtilizados>', '\n')\
+                .replace('<itemAnulados>','').replace('</itemAnulados>', '\n')
         for TpoDoc in TpoDocs:
         	xml_pret = xml_pret.replace('<key name="'+str(TpoDoc)+'_folios">','').replace('</key>','\n').replace('<key name="'+str(TpoDoc)+'_folios"/>','\n')
         envio_dte = self.env['account.invoice'].sign_full_xml(

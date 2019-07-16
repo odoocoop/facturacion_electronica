@@ -36,8 +36,6 @@ class SignatureCert(models.Model):
 
     def check_signature(self):
         for s in self.sudo():
-            if s.state not in ['valid', 'unverified']:
-                continue
             expired = datetime.strptime(s.expire_date, '%Y-%m-%d') < datetime.now()
             state = 'expired' if expired else 'valid'
             if s.state != state:
@@ -51,7 +49,6 @@ class SignatureCert(models.Model):
             if not self.env.user.partner_id.check_vat_cl(rut.replace('-', '')):
                 raise UserError(_('Not Valid Subject Serial Number'))
             self.subject_serial_number = rut
-            self.check_signature()
         elif self.file_content:
             self.state = 'incomplete'
 
@@ -83,7 +80,7 @@ class SignatureCert(models.Model):
             ('valid', 'Valid'),
             ('expired', 'Expired')
         ],
-        string='state',
+        string='State',
         default='unverified',
         help='''Draft: means it has not been checked yet.\nYou must press the\
 "check" button.''',
@@ -143,6 +140,8 @@ class SignatureCert(models.Model):
 
     @api.multi
     def action_process(self):
+        if self.subject_serial_number:
+            return self.check_signature()
         filecontent = base64.b64decode(self.file_content)
         try:
             p12 = crypto.load_pkcs12(filecontent, self.password)
@@ -182,22 +181,21 @@ class SignatureCert(models.Model):
         })
         self.set_state()
 
-    def firmar(self, string, uri=False, type="doc"):
-        firma = Firma({
+    def parametros_firma(self):
+        return {
                 'priv_key': self.priv_key,
                 'cert': self.cert,
                 'rut_firmante': self.subject_serial_number,
                 'init_signature': False
-            })
+            }
+
+    def firmar(self, string, uri=False, type="doc"):
+        firma = Firma(self.parametros_firma())
         return firma.firmar(string=string, uri=uri, type=type)
 
     def generar_firma(self, ddxml, privkey=False):
-        if not privkey:
-            privkey = self.priv_key
-        firma = Firma({
-                'priv_key': privkey,
-                'cert': self.cert,
-                'rut_firmante': self.subject_serial_number,
-                'init_signature': False
-            })
+        params = self.parametros_firma()
+        if privkey:
+            params['priv_key'] = privkey
+        firma = Firma(params)
         return firma.generar_firma(texto=ddxml.decode())

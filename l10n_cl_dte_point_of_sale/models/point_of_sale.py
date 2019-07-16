@@ -200,12 +200,6 @@ class POS(models.Model):
         taxes = taxes.compute_all(line.price_unit, cur, line.qty, product=line.product_id, partner=line.order_id.partner_id or False, discount=line.discount)['taxes']
         return sum(tax.get('amount', 0.0) for tax in taxes)
 
-    def split_cert(self, cert):
-        certf, j = '', 0
-        for i in range(0, 29):
-            certf += cert[76 * i:76 * (i + 1)] + '\n'
-        return certf
-
     def create_template_envio(self, RutEmisor, RutReceptor, FchResol, NroResol,
                               TmstFirmaEnv, EnvioDTE,subject_serial_number,SubTotDTE):
         xml = '''<SetDTE ID="SetDoc">
@@ -225,18 +219,6 @@ class POS(models.Model):
     def time_stamp(self, formato='%Y-%m-%dT%H:%M:%S'):
         tz = pytz.timezone('America/Santiago')
         return datetime.now(tz).strftime(formato)
-
-    def get_seed(self, company_id):
-        return self.env['account.invoice'].get_seed(company_id)
-
-    def create_template_seed(self, seed):
-        return self.env['account.invoice'].create_template_seed(seed)
-
-    def sign_seed(self, message, privkey, cert):
-        return self.env['account.invoice'].sign_seed(message, privkey, cert)
-
-    def get_token(self, seed_file, company_id):
-        return self.env['account.invoice'].get_token(seed_file, company_id)
 
     def create_template_doc(self, doc):
         xml = '''<DTE xmlns="http://www.sii.cl/SiiDte" version="1.0">
@@ -270,8 +252,8 @@ version="1.0">
 
     def crear_intercambio(self):
         rut = self.format_vat(self.partner_id.commercial_partner_id.vat )
-        envio = self._crear_envio(RUTRecep=rut)
-        return envio[list(envio.keys())[0]].encode('ISO-8859-1')
+        envios, filename = self._crear_envio(RUTRecep=rut)
+        return envios[list(envios.keys())[0]].encode('ISO-8859-1')
 
     def _create_attachment(self,):
         url_path = '/download/xml/boleta/%s' % (self.id)
@@ -424,16 +406,6 @@ version="1.0">
             })
         self.do_dte_send()
 
-    def _es_boleta(self, id_doc=False):
-        if id_doc and id_doc in [35, 38, 39, 41, 70, 71]:
-            return True
-        elif id_doc:
-            return False
-
-        if self.document_class_id.sii_code in [35, 38, 39, 41, 70, 71]:
-            return True
-        return False
-
     def _giros_emisor(self):
         giros_emisor = []
         for turn in self.company_id.company_activities_ids:
@@ -450,7 +422,7 @@ version="1.0">
         IdDoc['TipoDTE'] = self.document_class_id.sii_code
         IdDoc['Folio'] = self.get_folio()
         IdDoc['FchEmis'] = date_order[:10]
-        if self._es_boleta():
+        if self.document_class_id.es_boleta():
             IdDoc['IndServicio'] = 3 #@TODO agregar las otras opciones a la fichade producto servicio
         else:
             IdDoc['TpoImpresion'] = "T"
@@ -459,9 +431,9 @@ version="1.0">
         #if self.tipo_servicio:
         #    Encabezado['IdDoc']['IndServicio'] = 1,2,3,4
         # todo: forma de pago y fecha de vencimiento - opcional
-        if not taxInclude:
+        if not taxInclude and self.document_class_id.es_boleta():
             IdDoc['IndMntNeto'] = 2
-        #if self._es_boleta():
+        #if self.document_class_id.es_boleta():
             #Servicios periódicos
         #    IdDoc['PeriodoDesde'] =
         #    IdDoc['PeriodoHasta'] =
@@ -470,7 +442,7 @@ version="1.0">
     def _emisor(self):
         Emisor = collections.OrderedDict()
         Emisor['RUTEmisor'] = self.format_vat(self.company_id.vat)
-        if self._es_boleta():
+        if self.document_class_id.es_boleta():
             Emisor['RznSocEmisor'] = self.company_id.partner_id.name
             Emisor['GiroEmisor'] = self._acortar_str(self.company_id.activity_description.name, 80)
         else:
@@ -494,7 +466,7 @@ version="1.0">
         Receptor['RznSocRecep'] = self._acortar_str(self.partner_id.name or "Usuario Anonimo", 100)
         if self.partner_id.phone:
             Receptor['Contacto'] = self.partner_id.phone
-        if self.partner_id.dte_email and not self._es_boleta():
+        if self.partner_id.dte_email and not self.document_class_id.es_boleta():
             Receptor['CorreoRecep'] = self.partner_id.dte_email
         if self.partner_id.street:
             Receptor['DirRecep'] = self.partner_id.street+ ' ' + (self.partner_id.street2 or '')
@@ -524,7 +496,7 @@ version="1.0">
                 raise UserError("Debe ir almenos un Producto Afecto")
             Neto = amount_untaxed - MntExe
             IVA = False
-            if Neto > 0 and not self._es_boleta():
+            if Neto > 0 and not self.document_class_id.es_boleta():
                 for l in self.lines:
                     for t in l.tax_ids:
                         if t.sii_code in [14, 15]:
@@ -534,7 +506,7 @@ version="1.0">
                     Totales['MntNeto'] = currency.round(Neto)
             if MntExe > 0:
                 Totales['MntExe'] = currency.round(MntExe)
-            if IVA and not self._es_boleta():
+            if IVA and not self.document_class_id.es_boleta():
                 Totales['TasaIVA'] = IVAAmount
                 iva = currency.round(self.amount_tax)
                 if iva < 0:
@@ -643,7 +615,7 @@ version="1.0">
                     taxInclude = t.price_include
             #if line.product_id.type == 'events':
             #   lines['ItemEspectaculo'] =
-#            if self._es_boleta():
+#            if self.document_class_id.es_boleta():
 #                lines['RUTMandante']
             lines['NmbItem'] = self._acortar_str(line.product_id.name,80) #
             lines['DscItem'] = self._acortar_str(line.name, 1000) #descripción más extenza
@@ -682,30 +654,34 @@ version="1.0">
                 'tax_include': taxInclude,
                 }
 
+    def _valida_referencia(self, ref):
+        if ref.origen in [False, '', 0]:
+            raise UserError("Debe incluir Folio de Referencia válido")
+
     def _dte(self):
         dte = collections.OrderedDict()
         invoice_lines = self._invoice_lines()
         dte['Encabezado'] = self._encabezado(invoice_lines['MntExe'], invoice_lines['no_product'], invoice_lines['tax_include'])
         lin_ref = 1
         ref_lines = []
-        if 'referencias' in self and self.referencias :
-            for ref in self.referencias:
-                ref_line = {}
-                ref_line = collections.OrderedDict()
-                ref_line['NroLinRef'] = lin_ref
-                if not self._es_boleta():
-                    if ref.sii_referencia_TpoDocRef:
-                        ref_line['TpoDocRef'] = ref.sii_referencia_TpoDocRef.sii_code
-                        ref_line['FolioRef'] = ref.origen
-                    ref_line['FchRef'] = ref.fecha_documento or datetime.strftime(datetime.now(), '%Y-%m-%d')
-                if ref.sii_referencia_CodRef not in ['','none', False]:
-                    ref_line['CodRef'] = ref.sii_referencia_CodRef
-                ref_line['RazonRef'] = ref.motivo
-                if self._es_boleta():
-                    ref_line['CodVndor'] = self.user_id.id
-                    ref_line['CodCaja'] = self.location_id.name
-                ref_lines.extend([{'Referencia':ref_line}])
-                lin_ref += 1
+        for ref in self.referencias:
+            ref_line = {}
+            ref_line = collections.OrderedDict()
+            ref_line['NroLinRef'] = lin_ref
+            self._valida_referencia(ref)
+            if not self.document_class_id.es_boleta():
+                if ref.sii_referencia_TpoDocRef:
+                    ref_line['TpoDocRef'] = ref.sii_referencia_TpoDocRef.sii_code
+                    ref_line['FolioRef'] = ref.origen
+                ref_line['FchRef'] = ref.fecha_documento or datetime.strftime(datetime.now(), '%Y-%m-%d')
+            if ref.sii_referencia_CodRef not in ['', 'none', False]:
+                ref_line['CodRef'] = ref.sii_referencia_CodRef
+            ref_line['RazonRef'] = ref.motivo
+            if self.document_class_id.es_boleta():
+                ref_line['CodVndor'] = self.user_id.id
+                ref_line['CodCaja'] = self.location_id.name
+            ref_lines.extend([{'Referencia': ref_line}])
+            lin_ref += 1
         dte['item'] = invoice_lines['invoice_lines']
         dte['reflines'] = ref_lines
         dte['TEDd'] = self.get_barcode(invoice_lines['no_product'])
@@ -745,7 +721,12 @@ version="1.0">
         DTEs = {}
         clases = {}
         company_id = False
+        es_boleta = False
         for inv in self.with_context(lang='es_CL'):
+            if inv.sii_result in ['Rechazado']:
+                inv._timbrar()
+            if inv.document_class_id.es_boleta():
+                es_boleta = True
             #@TODO Mejarorar esto en lo posible
             if not inv.document_class_id.sii_code in clases:
                 clases[inv.document_class_id.sii_code] = []
@@ -760,9 +741,8 @@ version="1.0">
             elif company_id.id != inv.company_id.id:
                 raise UserError("Está combinando compañías, no está permitido hacer eso en un envío")
             company_id = inv.company_id
-
         file_name = {}
-        dtes={}
+        dtes = {}
         SubTotDTE = {}
         documentos = {}
         resol_data = self.get_resolution_data(company_id)
@@ -791,7 +771,7 @@ version="1.0">
                 signature_id.subject_serial_number,
                 SubTotDTE[id_class_doc] )
             env = 'env'
-            if self._es_boleta(id_class_doc):
+            if es_boleta:
                 envio_dte = self.create_template_env_boleta(dtes)
                 env = 'env_boleta'
             else:
@@ -801,7 +781,7 @@ version="1.0">
                     'SetDoc',
                     env,
                 )
-            envs[(id_class_doc, company_id, env)] = '<?xml version="1.0" encoding="ISO-8859-1"?>\n' + envio_dte.decode()
+            envs[(id_class_doc, company_id, env)] = '<?xml version="1.0" encoding="ISO-8859-1"?>\n' + envio_dte
         return envs, file_name
 
     @api.multi

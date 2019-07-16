@@ -31,7 +31,6 @@ class ConsumoFolios(models.Model):
             recs.append(order)
         return recs
 
-
     def _get_totales(self, rec):
         if 'lines' not in rec:
             return super(ConsumoFolios, self)._get_totales(rec)
@@ -46,6 +45,9 @@ class ConsumoFolios(models.Model):
         if Neto < 0:
             Neto *= -1
         MntExe = rec.exento()
-        TasaIVA = self.env['pos.order.line'].search([('order_id', '=', rec.id), ('tax_ids.amount', '>', 0)], limit=1).tax_ids.amount
+        TasaIVA = self.env['pos.order.line'].search([
+            ('order_id', '=', rec.id), 
+            ('tax_ids.amount', '>', 0)
+            ], limit=1).tax_ids.amount
         Neto -= MntExe
-        return Neto, MntExe, TaxMnt, MntTotal
+        return Neto, MntExe, TaxMnt, MntTotal, TasaIVA

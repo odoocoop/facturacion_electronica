@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from . import account
+from . import account_journal
 from . import account_journal_sii_document_class
 from . import account_tax
 from . import caf
@@ -10,6 +11,8 @@ from . import currency
 #from . import export
 from . import honorarios
 from . import invoice
+from . import ir_module_module
+from . import ir_sequence
 from . import libro
 from . import mail
 from . import partner_activities

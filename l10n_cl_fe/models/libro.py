@@ -5,11 +5,12 @@ from odoo.exceptions import UserError
 from datetime import datetime, timedelta
 import dateutil.relativedelta as relativedelta
 from odoo.tools import DEFAULT_SERVER_DATETIME_FORMAT as DTF
-import logging
 from lxml import etree
 from lxml.etree import Element, SubElement
 import pytz
 import collections
+import logging
+_logger = logging.getLogger(__name__)
 try:
     import xmltodict
 except ImportError:
@@ -257,7 +258,6 @@ class Libro(models.Model):
                 lines = [[5, ], ]
                 for tpo_doc, det in lineas.items():
                     tax_id = self.env['account.tax'].search([('sii_code', '=', 14), ('type_tax_use', '=', 'sale'), ('company_id', '=', self.company_id.id)], limit=1) if tpo_doc.sii_code == 39 else self.env['account.tax'].search([('sii_code', '=', 0), ('type_tax_use', '=', 'sale'), ('company_id', '=', self.company_id.id)], limit=1)
-                    _logger.warning('tax_d %s' %tax_id)
                     line = {
                         'currency_id': self.env.user.company_id.currency_id,
                         'tipo_boleta': tpo_doc.id,
@@ -297,14 +297,13 @@ class Libro(models.Model):
     def _get_imps(self):
         imp = {}
         for move in self.move_ids:
-            if move.document_class_id.sii_code not in [35, 38, 39, 41, False, 0]:
-                move_imps = move._get_move_imps()
-                for key, i in move_imps.items():
-                    if not key in imp:
-                        imp[key] = i
-                    else:
-                        imp[key]['credit'] += i['credit']
-                        imp[key]['debit'] += i['debit']
+            move_imps = move._get_move_imps()
+            for key, i in move_imps.items():
+                if not key in imp:
+                    imp[key] = i
+                else:
+                    imp[key]['credit'] += i['credit']
+                    imp[key]['debit'] += i['debit']
         return imp
 
     @api.onchange('move_ids')
@@ -473,10 +472,7 @@ version="1.0">
         det['TpoDoc'] = rec.document_class_id.sii_code
         #det['Emisor']
         #det['IndFactCompra']
-        if self.tipo_operacion in ['COMPRA']:
-            det['NroDoc'] = int(rec.ref)
-        else:
-            det['NroDoc'] = int(rec.sii_document_number)
+        det['NroDoc'] = rec.sii_document_number
         if rec.canceled:
             det['Anulado'] = 'A'
         #det['Operacion']
@@ -652,33 +648,16 @@ version="1.0">
             return True
         return False
 
-    def getResumenBoleta(self, rec):
-        det = collections.OrderedDict()
-        det['TpoDoc'] = rec.document_class_id.sii_code
-        det['FolioDoc'] = int(rec.sii_document_number)
-        #if self.env['account.invoice.referencias'].search(
-        #        [('origen', '=', det['FolioDoc']),
-        #         ('sii_referencia_TpoDocRef', '=', rec.document_class_id.id),
-        #         ('sii_referencia_CodRef', '=', '1')
-        #        ]) or  \
-        #    (rec.document_class_id.sii_code in [39, 41] and
-        #     self.env['pos.order.referencias'].search([
-        #         ('origen', '=', det['FolioDoc']),
-        #         ('sii_referencia_TpoDocRef', '=', rec.document_class_id.id),
-        #         ('sii_referencia_CodRef', '=', '1')
-        #        ])
-        #    ):
-        #    det['Anulado'] = 'A'
-        det['TpoServ'] = 3
-        det['FchEmiDoc'] = rec.date
-        det['FchVencDoc'] = rec.date
-        #det['PeriodoDesde']
-        #det['PeriodoHasta']
-        #det['CdgSIISucur']
+    def _get_date(self, rec):
+        return {
+            'FchEmiDoc': rec.date,
+            'FchVencDoc': rec.date
+        }
+
+    def _get_datos(self, rec):
         Neto = 0
         MntExe = 0
         TaxMnt = 0
-        MntTotal = 0
         for l in rec.line_ids:
             if l.tax_line_id:
                 if l.tax_line_id and l.tax_line_id.amount > 0: #supuesto iva único
@@ -698,6 +677,32 @@ version="1.0">
                 else:
                     MntExe += l.debit
         TasaIVA = self.env['account.move.line'].search([('move_id', '=', rec.id), ('tax_line_id.amount', '>', 0)], limit=1).tax_line_id.amount
+        return Neto, MntExe, TaxMnt, TasaIVA
+
+    def _get_resumen_boleta(self, rec):
+        det = collections.OrderedDict()
+        det['TpoDoc'] = rec.document_class_id.sii_code
+        det['FolioDoc'] = int(rec.sii_document_number)
+        #if self.env['account.invoice.referencias'].search(
+        #        [('origen', '=', det['FolioDoc']),
+        #         ('sii_referencia_TpoDocRef', '=', rec.document_class_id.id),
+        #         ('sii_referencia_CodRef', '=', '1')
+        #        ]) or  \
+        #    (rec.document_class_id.sii_code in [39, 41] and
+        #     self.env['pos.order.referencias'].search([
+        #         ('origen', '=', det['FolioDoc']),
+        #         ('sii_referencia_TpoDocRef', '=', rec.document_class_id.id),
+        #         ('sii_referencia_CodRef', '=', '1')
+        #        ])
+        #    ):
+        #    det['Anulado'] = 'A'
+        det['TpoServ'] = 3
+        det.update(self._get_date(rec))
+        #det['PeriodoDesde']
+        #det['PeriodoHasta']
+        #det['CdgSIISucur']
+        MntTotal = 0
+        Neto, MntExe, TaxMnt, TasaIVA = self._get_datos(rec)
         MntTotal = Neto + MntExe + TaxMnt
         det['RUTCliente'] = self.format_vat(rec.partner_id.vat)
         if MntExe > 0 :
@@ -899,6 +904,17 @@ version="1.0">
             resumenP['TotalesServicio']['TotMntTotal'] += resumen['MntTotal']
         return resumenP
 
+    def _get_moves(self):
+        recs = []
+        for rec in self.with_context(lang='es_CL').move_ids:
+            rec.sended = True
+            document_class_id = rec.document_class_id
+            if not document_class_id or document_class_id.sii_code in [39, 41]\
+                or rec.sii_document_number in [False, 0]:
+                continue
+            recs.append(rec)
+        return recs
+
     def _validar(self):
         dicttoxml.set_debug(False)
         company_id = self.company_id
@@ -907,13 +923,13 @@ version="1.0">
             raise UserError(_('''There are not a Signature Cert Available for this user, pleaseupload your signature or tell to someelse.'''))
         resumenes = []
         resumenesPeriodo = {}
-        for rec in self.with_context(lang='es_CL').move_ids:
-            rec.sended = True
+        recs = self._get_moves()
+        for rec in recs:
             TpoDoc = rec.document_class_id.sii_code
             if TpoDoc not in resumenesPeriodo:
                 resumenesPeriodo[TpoDoc] = {}
-            if self.tipo_operacion == 'BOLETA' and rec.document_class_id:
-                resumen = self.getResumenBoleta(rec)
+            if self.tipo_operacion == 'BOLETA':
+                resumen = self._get_resumen_boleta(rec)
                 resumenesPeriodo[TpoDoc] = self._setResumenPeriodoBoleta(resumen, resumenesPeriodo[TpoDoc])
                 del(resumen['MntNeto'])
                 del(resumen['MntIVA'])
@@ -923,7 +939,6 @@ version="1.0">
             else:
                 resumen = self.getResumen(rec)
                 resumenes.extend([{'Detalle': resumen}])
-            if self.tipo_operacion != 'BOLETA':
                 resumenesPeriodo[TpoDoc] = self._setResumenPeriodo(resumen, resumenesPeriodo[TpoDoc])
         if self.boletas:#no es el libro de boletas especial
             for boletas in self.boletas:
