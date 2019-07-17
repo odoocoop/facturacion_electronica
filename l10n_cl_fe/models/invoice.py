@@ -141,7 +141,7 @@ class AccountInvoice(models.Model):
     _inherit = "account.invoice"
 
     def _default_journal_document_class_id(self, default=None):
-        if self.document_clasass_id:
+        if self.document_class_id:
             return False
         ids = self._get_available_journal_document_class()
         document_classes = self.env['account.journal.sii_document_class'].browse(ids)
