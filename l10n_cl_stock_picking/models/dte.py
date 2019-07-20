@@ -78,7 +78,8 @@ class stock_picking(models.Model):
     _inherit = "stock.picking"
 
     def create_template_envio(self, RutEmisor, RutReceptor, FchResol, NroResol,
-                              TmstFirmaEnv, EnvioDTE, subject_serial_number,SubTotDTE):
+                              TmstFirmaEnv, EnvioDTE, subject_serial_number,
+                              SubTotDTE):
         xml = '''<SetDTE ID="SetDoc">
 <Caratula version="1.0">
 <RutEmisor>{0}</RutEmisor>

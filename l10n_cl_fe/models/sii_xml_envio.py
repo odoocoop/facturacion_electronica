@@ -223,6 +223,10 @@ class SIIXMLEnvio(models.Model):
         self.write(retorno)
         return retorno
 
+    @api.multi
+    def do_send_xml(self):
+        return self.send_xml()
+
     def get_send_status(self, user_id=False):
         if not self.sii_send_ident:
             self.state = "NoEnviado"

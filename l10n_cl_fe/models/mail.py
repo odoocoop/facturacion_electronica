@@ -46,6 +46,7 @@ class ProcessMails(models.Model):
 
 class ProccessMail(models.Model):
     _name = 'mail.message.dte'
+    _description = "DTE"
     _inherit = ['mail.thread']
 
     name = fields.Char(
@@ -104,6 +105,7 @@ class ProccessMail(models.Model):
 
 class ProcessMailsDocument(models.Model):
     _name = 'mail.message.dte.document'
+    _description = "Pre Document"
     _inherit = ['mail.thread']
 
     dte_id = fields.Many2one(
@@ -236,11 +238,17 @@ class ProcessMailsDocument(models.Model):
 
 class ProcessMailsDocumentLines(models.Model):
     _name = 'mail.message.dte.document.line'
+    _description = "Pre Document Line"
+    _order = 'sequence, id'
 
     document_id = fields.Many2one(
         'mail.message.dte.document',
         string="Documento",
         ondelete='cascade',
+    )
+    sequence = fields.Integer(
+        string="Número de línea",
+        default=1
     )
     product_id = fields.Many2one(
         'product.product',

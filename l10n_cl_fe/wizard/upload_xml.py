@@ -377,10 +377,8 @@ class UploadXMLWizard(models.TransientModel):
             code = ' ' + etree.tostring(CdgItem).decode() if CdgItem is not None else ''
             line_id = self.env['mail.message.dte.document.line'].search(
                 [
-                    '|',
-                    ('new_product', '=', NmbItem + '' + code),
-                    ('product_description', '=', line.find("DescItem").text if line.find("DescItem") is not None else NmbItem),
-                    ('document_id', '=', document_id.id)
+                    ('sequence', '=', line.find('NroLinDet').text),
+                    ('document_id', '=', document_id.id),
                 ]
             )
             if line_id:
@@ -452,7 +450,7 @@ class UploadXMLWizard(models.TransientModel):
         data = {}
         product_id = self._buscar_producto(document_id, line, company_id,
                                            price_included)
-        if isinstance(product_id,int):
+        if isinstance(product_id, int):
             data.update(
                 {
                     'product_id': product_id,
@@ -470,6 +468,7 @@ class UploadXMLWizard(models.TransientModel):
         price = float(line.find("PrcItem").text) if line.find("PrcItem") is not None else price_subtotal
         DescItem = line.find("DescItem")
         data.update({
+            'sequence': line.find('NroLinDet').text,
             'name': DescItem.text if DescItem is not None else line.find("NmbItem").text,
             'price_unit': price,
             'discount': discount,
@@ -661,12 +660,11 @@ class UploadXMLWizard(models.TransientModel):
                     'global_descuentos_recargos': drs,
                 })
         Folio = IdDoc.find("Folio").text
-        dc_id= self.env['sii.document_class'].search([
+        dc_id = self.env['sii.document_class'].search([
                     ('sii_code', '=', IdDoc.find('TipoDTE').text)
             ])
         invoice.update({
                 'sii_document_number': Folio,
-                'document_class_id': dc_id.id,
                 'document_class_id': dc_id.id,
             })
         if self.type == 'ventas':
@@ -857,7 +855,7 @@ class UploadXMLWizard(models.TransientModel):
     def _create_pre(self, documento, company_id):
         dte = self._dte_exist(documento)
         if dte:
-            _logger.warning(_("El documento %s ya se encuentra registrado" % dte.name ))
+            _logger.warning(_("El documento %s %s ya se encuentra registrado" % ( dte.number, dte.document_class_id.name )))
             return dte
         data = self._get_data(documento, company_id)
         data.update({
@@ -890,7 +888,7 @@ class UploadXMLWizard(models.TransientModel):
                         limit=1,
                     )
                 if not company_id:
-                    _logger.warning("No existe compañia para %s" %documento.find("Encabezado/Receptor/RUTRecep").text)
+                    _logger.warning("No existe compañia para %s" % documento.find("Encabezado/Receptor/RUTRecep").text)
                     continue
                 pre = self._create_pre(
                     documento,

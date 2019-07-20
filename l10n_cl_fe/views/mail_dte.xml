@@ -108,6 +108,7 @@
             <page string="Líneas del documento">
               <field name="invoice_line_ids" editable="bottom" widget="one2many">
                 <tree editable="top/bottom">
+                  <field name="sequence"/>
                   <field name="document_id" invisible="True"/>
                   <field name="product_id" />
                   <field name="new_product" />
@@ -138,6 +139,7 @@
       <form string="Mail DTE Process">
         <sheet>
           <group>
+            <field name="sequence"/>
             <field name="document_id" />
             <field name="product_id" />
             <field name="new_product" />
