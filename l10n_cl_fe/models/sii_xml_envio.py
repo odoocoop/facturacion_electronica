@@ -191,7 +191,7 @@ class SIIXMLEnvio(models.Model):
         return retorno
 
     def send_xml(self, post='/cgi_dte/UPL/DTEUpload'):
-        if self.state not in ['draft', 'NoEnviado']:
+        if self.state not in ['draft', 'NoEnviado', 'Rechazado']:
             return
         retorno = {'state': 'NoEnviado'}
         if not self.company_id.dte_service_provider:
@@ -229,6 +229,9 @@ class SIIXMLEnvio(models.Model):
             raise UserError(("%s: %s" % (msg, str(e))))
         return retorno
 
+    @api.multi
+    def do_send_xml(self):
+        return self.send_xml()
 
     def get_send_status(self, user_id=False):
         if not self.sii_send_ident:
@@ -262,7 +265,7 @@ class SIIXMLEnvio(models.Model):
             result.update({"state": "Aceptado"})
             if resp['SII:RESPUESTA'].get('SII:RESP_BODY') and resp['SII:RESPUESTA']['SII:RESP_BODY']['RECHAZADOS'] == "1":
                 result.update({ "state": "Rechazado" })
-        elif resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] in ["RCT", "RFR", "LRH", "RCH", "RSC", "LRF"]:
+        elif resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] in ["RCT", "RFR", "LRH", "RCH", "RSC", "LRF", "LRS"]:
             result.update({"state": "Rechazado"})
             _logger.warning(resp)
         self.write(result)

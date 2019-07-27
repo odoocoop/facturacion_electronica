@@ -2,12 +2,13 @@
 from __future__ import print_function
 from odoo import api, models, fields
 from odoo.tools.translate import _
-import logging
 from odoo.exceptions import UserError
+import logging
 
 _logger = logging.getLogger(__name__)
 
-class account_journal_document_config(models.TransientModel):
+
+class AccountJournalDocumentConfig(models.TransientModel):
     _name = 'account.journal.document_config'
 
     def _es_compra(self):
@@ -21,9 +22,7 @@ class account_journal_document_config(models.TransientModel):
     dte_register = fields.Boolean(
             string='Register Electronic Documents?',
             default=True,
-            help="""
-This option allows you to register electronic documents (DTEs) issued by MiPyme SII Portal, Third parties services, or by
-Odoo itself (to register  DTEs issued by Odoo l10n_cl_dte/caf modules are needed.
+            help="""This option allows you to register electronic documents (DTEs).
 """)
     non_dte_register = fields.Boolean(
             'Register Manual Documents?')
@@ -75,7 +74,7 @@ Include unusual taxes documents, as transfer invoice, and reissue
         self.create_journals(journal_ids)
 
     def create_journals(self, journal_ids):
-        for journal in self.env['account.journal'].browse( journal_ids ):
+        for journal in self.env['account.journal'].browse(journal_ids):
             responsability = journal.company_id.responsability_id
             if not responsability.id:
                 raise UserError(
@@ -85,13 +84,13 @@ Include unusual taxes documents, as transfer invoice, and reissue
                 letter_ids = []
                 for x in responsability.issued_letter_ids:
                     if self.electronic_ticket or x.name != 'B':
-                        letter_ids.append( x.id )
+                        letter_ids.append(x.id)
             elif journal_type in ['purchase', 'purchase_refund']:
                 letter_ids = [x.id for x in responsability.received_letter_ids]
 
             if journal_type == 'sale':
                 for doc_type in ['invoice', 'credit_note', 'debit_note']:
-                    self.create_journal_document( letter_ids, doc_type, journal)
+                    self.create_journal_document(letter_ids, doc_type, journal)
             elif journal_type == 'purchase':
                 for doc_type in ['invoice', 'debit_note', 'credit_note', 'invoice_in']:
                     self.create_journal_document(letter_ids, doc_type, journal)
@@ -120,13 +119,19 @@ Include unusual taxes documents, as transfer invoice, and reissue
         if not self.non_dte_register and journal.type == 'sale':
             domain.append(('dte', '=', True))
         document_class_obj = self.env['sii.document_class']
-        document_class_ids = document_class_obj.search( domain )
+        document_class_ids = document_class_obj.search(domain)
+        if journal.type == 'purchase':
+            journal.document_class_ids = document_class_ids.ids
+            return
         journal_document_obj = self.env['account.journal.sii_document_class']
         sequence = 10
         for document_class in document_class_ids:
             sequence_id = self.env['ir.sequence']
-            if journal.type == "sale":
-                sequence_id =  self.env['ir.sequence'].create(self.create_sequence( document_class.name, journal, document_class))
+            seq_vals = self.create_sequence(
+                                    document_class.name,
+                                    journal,
+                                    document_class)
+            sequence_id = self.env['ir.sequence'].create(seq_vals)
             vals = {
                 'sii_document_class_id': document_class.id,
                 'sequence_id': sequence_id.id,
@@ -134,4 +139,4 @@ Include unusual taxes documents, as transfer invoice, and reissue
                 'sequence': sequence,
             }
             journal_document_obj.create(vals)
-            sequence +=10
+            sequence += 10

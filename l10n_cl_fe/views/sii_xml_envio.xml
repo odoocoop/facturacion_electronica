@@ -7,6 +7,9 @@
       <form string="XML Envío">
         <header>
           <field name='state' widget="statusbar"/>
+          <button name="do_send_xml" string="Send XML" type="object"
+              attrs="{'invisible': [('state', 'not in', ['draft', 'NoEnviado', 'Rechazado'])]}"
+            />
         </header>
         <sheet>
           <group>

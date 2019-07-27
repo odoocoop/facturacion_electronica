@@ -777,9 +777,22 @@ class AccountInvoice(models.Model):
         return recs.name_get()
 
     def action_invoice_cancel(self):
-        if self.sii_result not in [False, 'draft', 'NoEnviado', 'Rechazado', 'Anulado']:
-            raise ("No se puede Cancelar un documento validamente enviado y aceptado en el SII")
+        for r in self:
+            if r.sii_xml_request and r.sii_result not in [False, 'draft',
+                                                          'NoEnviado',
+                                                          'Anulado']:
+                raise UserError(
+                            _('You can not cancel a valid document on SII'))
         return super(AccountInvoice, self).action_invoice_cancel()
+
+    @api.multi
+    def unlink(self):
+        for r in self:
+            if r.sii_xml_request and r.sii_result in ['Aceptado', 'Reparo',
+                                                      'Rechazado']:
+                raise UserError(
+                            _('You can not delete a valid document on SII'))
+        return super(AccountInvoice, self).unlink()
 
     def _buscarTaxEquivalente(self, tax):
         tax_n = self.env['account.tax'].search(
@@ -956,7 +969,8 @@ a VAT."""))
             inv.vat_discriminated = vat_discriminated
 
     @api.one
-    @api.constrains('reference', 'partner_id', 'company_id', 'type','journal_document_class_id')
+    @api.constrains('reference', 'partner_id', 'company_id', 'type',
+                    'journal_document_class_id')
     def _check_reference_in_invoice(self):
         if self.type in ['in_invoice', 'in_refund'] and self.sii_document_number:
             domain = [('type', '=', self.type),
@@ -990,7 +1004,7 @@ a VAT."""))
                         raise UserError(_(
                             'Please define sequence on the journal related documents to this invoice.'))
                     if not obj_inv.sii_document_class_Id:
-                        to_write['document_class_id'] = obj_inv.journal_document_class_id.sii_document_class.id
+                        to_write['document_class_id'] = obj_inv.journal_document_class_id.sii_document_class_id.id
                     sii_document_number = obj_inv.journal_document_class_id.sequence_id.next_by_id()
                     prefix = obj_inv.document_class_id.doc_code_prefix or ''
                     move_name = (prefix + str(sii_document_number)).replace(' ','')
@@ -1055,7 +1069,7 @@ a VAT."""))
             domain = [('issuer_ids', '=', issuer_responsability_id)]
         else:
             raise UserError(_('Operation Type Error'),
-                             _('Operation Type Must be "Sale" or "Purchase"'))
+                            _('Operation Type Must be "Sale" or "Purchase"'))
 
         # TODO: fijar esto en el wizard, o llamar un wizard desde aca
         # if not company.partner_id.responsability_id.id:
@@ -1274,7 +1288,7 @@ version="1.0">
     def get_xml_file(self):
         url_path = '/download/xml/invoice/%s' % (self.id)
         return {
-            'type' : 'ir.actions.act_url',
+            'type': 'ir.actions.act_url',
             'url': url_path,
             'target': 'self',
         }
@@ -1295,13 +1309,13 @@ version="1.0">
     def format_vat(self, value, con_cero=False):
         ''' Se Elimina el 0 para prevenir problemas con el sii, ya que las muestras no las toma si va con
         el 0 , y tambien internamente se generan problemas, se mantiene el 0 delante, para cosultas, o sino retorna "error de datos"'''
-        if not value or value=='' or value == 0:
-            value ="CL666666666"
+        if not value or value == '' or value == 0:
+            value = "CL666666666"
             #@TODO opción de crear código de cliente en vez de rut genérico
         rut = value[:10] + '-' + value[10:]
         if not con_cero:
-            rut = rut.replace('CL0','')
-        rut = rut.replace('CL','')
+            rut = rut.replace('CL0', '')
+        rut = rut.replace('CL', '')
         return rut
 
     def pdf417bc(self, ted, columns=13, ratio=3):
@@ -1362,8 +1376,8 @@ version="1.0">
                 return
             self.env['sii.cola_envio'].create({
                                     'doc_ids': ids,
-                                    'model':'account.invoice',
-                                    'user_id':self.env.user.id,
+                                    'model': 'account.invoice',
+                                    'user_id': self.env.user.id,
                                     'tipo_trabajo': 'envio',
                                     'n_atencion': n_atencion,
                                     'send_email': False if self[0].company_id.dte_service_provider=='SIICERT' or not self.env['ir.config_parameter'].sudo().get_param('account.auto_send_email', default=True) else True,
@@ -1416,7 +1430,7 @@ version="1.0">
         return IdDoc
 
     def _emisor(self):
-        Emisor= collections.OrderedDict()
+        Emisor = collections.OrderedDict()
         Emisor['RUTEmisor'] = self.format_vat(self.company_id.vat)
         if self._es_boleta():
             Emisor['RznSocEmisor'] = self._acortar_str(self.company_id.partner_id.name, 100)
@@ -1460,32 +1474,48 @@ version="1.0">
             Receptor['CorreoRecep'] = self.commercial_partner_id.dte_email or self.partner_id.dte_email or self.commercial_partner_id.email or self.partner_id.email
         street_recep = (self.partner_id.street or self.commercial_partner_id.street or False)
         if not street_recep and not self._es_boleta() and not self._nc_boleta():
+        # or self.indicador_servicio in [1, 2]:
             raise UserError('Debe Ingresar dirección del cliente')
         street2_recep = (self.partner_id.street2 or self.commercial_partner_id.street2 or False)
-        Receptor['DirRecep'] = self._acortar_str(street_recep + (' ' + street2_recep if street2_recep else ''), 70)
-        Receptor['CmnaRecep'] = self.partner_id.city_id.name or self.commercial_partner_id.city_id.name
-        if not Receptor['CmnaRecep'] and not self._es_boleta() and not self._nc_boleta():
+        if street_recep or street2_recep:
+            Receptor['DirRecep'] = self._acortar_str(street_recep + (' ' + street2_recep if street2_recep else ''), 70)
+        cmna_recep = self.partner_id.city_id.name or self.commercial_partner_id.city_id.name
+        if not cmna_recep and not self._es_boleta() and not self._nc_boleta():
             raise UserError('Debe Ingresar Comuna del cliente')
-        Receptor['CiudadRecep'] = self.partner_id.city or self.commercial_partner_id.city
+        else:
+            Receptor['CmnaRecep'] = cmna_recep
+        ciudad_recep = self.partner_id.city or self.commercial_partner_id.city
+        if ciudad_recep:
+            Receptor['CiudadRecep'] = ciudad_recep
         return Receptor
 
-    def _totales_otra_moneda(self, currency_id, MntExe, MntNeto, IVA, TasaIVA, ImptoReten, MntTotal=0, MntBase=0):
+    def _totales_otra_moneda(self, currency_id, MntExe, MntNeto, IVA,
+                             TasaIVA, ImptoReten, MntTotal=0, MntBase=0):
         Totales = collections.OrderedDict()
         Totales['TpoMoneda'] = self._acortar_str(currency_id.abreviatura, 15)
         Totales['TpoCambio'] = round(currency_id.rate, 10)
         if MntNeto > 0:
             if currency_id != self.currency_id:
-                MntNeto = currency_id._convert(MntNeto, self.currency_id, self.company_id, self.date_invoice)
+                MntNeto = currency_id._convert(MntNeto,
+                                               self.currency_id,
+                                               self.company_id,
+                                               self.date_invoice)
             Totales['MntNetoOtrMnda'] = MntNeto
         if MntExe:
             if currency_id != self.currency_id:
-                MntExe = currency_id._convert(MntExe, self.currency_id, self.company_id, self.date_invoice)
+                MntExe = currency_id._convert(MntExe,
+                                              self.currency_id,
+                                              self.company_id,
+                                              self.date_invoice)
             Totales['MntExeOtrMnda'] = MntExe
         if MntBase and MntBase > 0:
             Totales['MntFaeCarneOtrMnda'] = MntBase
         if TasaIVA:
             if currency_id != self.currency_id:
-                IVA = currency_id._convert(IVA, self.currency_id, self.company_id, self.date_invoice)
+                IVA = currency_id._convert(IVA,
+                                           self.currency_id,
+                                           self.company_id,
+                                           self.date_invoice)
             Totales['IVAOtrMnda'] = IVA
         if ImptoReten:
             for item in ImptoReten:
@@ -1493,11 +1523,16 @@ version="1.0">
                 ret['ImptRetOtrMnda']['TipoImpOtrMnda'] = item['ImptRet']['TipoImp']
                 ret['ImptRetOtrMnda']['TasaImpOtrMnda'] = item['ImptRet']['TasaImp']
                 if currency_id != self.currency_id:
-                    ret['ImptRetOtrMnda']['MontoImp'] = currency_id._convert(item['ImptRet']['MontoImp'], self.currency_id, self.company_id, self.date_invoice)
+                    ret['ImptRetOtrMnda']['MontoImp'] = currency_id._convert(
+                                            item['ImptRet']['MontoImp'],
+                                            self.currency_id,
+                                            self.company_id,
+                                            self.date_invoice)
                 ret['ImptRetOtrMnda']['ValorImpOtrMnda'] = item['ImptRet']['MontoImp']
             Totales['item_ret_otr'] = ret
         if currency_id != self.currency_id:
-            MntTotal = currency_id._convert(MntTotal, self.currency_id, self.company_id, self.date_invoice)
+            MntTotal = currency_id._convert(MntTotal, self.currency_id,
+                                            self.company_id, self.date_invoice)
         Totales['MntTotOtrMnda'] = MntTotal
         #Totales['MontoNF']
         #Totales['TotalPeriodo']
@@ -1505,28 +1540,37 @@ version="1.0">
         #Totales['VlrPagar']
         return Totales
 
-    def _totales_normal(self, currency_id, MntExe, MntNeto, IVA, TasaIVA, ImptoReten, MntTotal=0, MntBase=0):
+    def _totales_normal(self, currency_id, MntExe, MntNeto, IVA, TasaIVA,
+                        ImptoReten, MntTotal=0, MntBase=0):
         Totales = collections.OrderedDict()
         if MntNeto > 0:
             if currency_id != self.currency_id:
-                    MntNeto = currency_id._convert(MntNeto, self.currency_id, self.company_id, self.date_invoice)
+                    MntNeto = currency_id._convert(MntNeto,
+                                                   self.currency_id,
+                                                   self.company_id,
+                                                   self.date_invoice)
             Totales['MntNeto'] = currency_id.round(MntNeto)
         if MntExe:
             if currency_id != self.currency_id:
-                MntExe = currency_id._convert(MntExe, self.currency_id, self.company_id, self.date_invoice)
+                MntExe = currency_id._convert(MntExe, self.currency_id,
+                                              self.company_id,
+                                              self.date_invoice)
             Totales['MntExe'] = currency_id.round(MntExe)
         if MntBase > 0:
             Totales['MntBase'] = currency_id.round(MntBase)
         if TasaIVA:
             Totales['TasaIVA'] = TasaIVA
             if currency_id != self.currency_id:
-                IVA = currency_id._convert(IVA, self.currency_id, self.company_id, self.date_invoice)
+                IVA = currency_id._convert(IVA, self.currency_id,
+                                           self.company_id,
+                                           self.date_invoice)
             Totales['IVA'] = currency_id.round(IVA)
         if ImptoReten:
             '''@TODO desglose ImptoReten'''
             Totales['item_ret'] = ImptoReten
         if currency_id != self.currency_id:
-            MntTotal = currency_id._convert(MntTotal, self.currency_id, self.company_id, self.date_invoice)
+            MntTotal = currency_id._convert(MntTotal, self.currency_id,
+                                            self.company_id, self.date_invoice)
         Totales['MntTotal'] = currency_id.round(MntTotal)
         #Totales['MontoNF']
         #Totales['TotalPeriodo']
@@ -1555,13 +1599,13 @@ version="1.0">
             if not self._es_boleta() or not taxInclude:
                 IVA = False
                 for t in self.tax_line_ids:
-                    if t.tax_id.sii_code in [ 14, 15 ]:
+                    if t.tax_id.sii_code in [14, 15]:
                         IVA = t
-                    elif t.tax_id.sii_code in [ 15, 17, 18, 19, 27, 271, 26 ]:
+                    elif t.tax_id.sii_code in [15, 17, 18, 19, 27, 271, 26]:
                         OtrosImp.append(t)
-                    if t.tax_id.sii_code in [ 14, 15 ]:
+                    if t.tax_id.sii_code in [14, 15]:
                         MntNeto += t.base
-                    if t.tax_id.sii_code in [ 17 ]:
+                    if t.tax_id.sii_code in [17]:
                         MntBase += IVA.base # @TODO Buscar forma de calcular la base para faenamiento
         if self.amount_tax == 0 and MntExe > 0 and not self._es_exento():
             raise UserError("Debe ir almenos un producto afecto")
@@ -1600,9 +1644,15 @@ version="1.0">
         if self.currency_id != currency_base:
             another_currency_id = self.currency_id
         MntExe, MntNeto, IVA, TasaIVA, ImptoReten, MntTotal, MntBase = self._totales(MntExe, no_product, taxInclude)
-        Encabezado['Totales'] = self._totales_normal(currency_base, MntExe, MntNeto, IVA, TasaIVA, ImptoReten, MntTotal, MntBase)
+        Encabezado['Totales'] = self._totales_normal(currency_base, MntExe,
+                                                     MntNeto, IVA, TasaIVA,
+                                                     ImptoReten, MntTotal,
+                                                     MntBase)
         if another_currency_id:
-            Encabezado['OtraMoneda'] = self._totales_otra_moneda(another_currency_id, MntExe, MntNeto, IVA, TasaIVA, ImptoReten, MntTotal, MntBase)
+            Encabezado['OtraMoneda'] = self._totales_otra_moneda(
+                                            another_currency_id, MntExe,
+                                            MntNeto, IVA, TasaIVA, ImptoReten,
+                                            MntTotal, MntBase)
         return Encabezado
 
     def _validaciones_caf(self, caf):
@@ -1639,7 +1689,8 @@ version="1.0">
                 result['TED']['DD']['IT1'] = self._acortar_str(line.product_id.name.replace('['+line.product_id.default_code+'] ',''),40)
             break
 
-        resultcaf = self.journal_document_class_id.sequence_id.get_caf_file(self.get_folio())
+        resultcaf = self.journal_document_class_id.sequence_id.get_caf_file(
+                    self.get_folio())
         result['TED']['DD']['CAF'] = resultcaf['AUTORIZACION']['CAF']
         dte = result['TED']['DD']
         timestamp = self._validaciones_caf(resultcaf['AUTORIZACION']['CAF']['DA'])
@@ -2013,23 +2064,14 @@ version="1.0">
             if r._es_boleta():
                 r.sii_result = "Proceso"
                 continue
+            if r.sii_message:
+                r.sii_result = r.process_response_xml(
+                                    xmltodict.parse(r.sii_message))
+                continue
             if r.sii_xml_request.state == 'NoEnviado':
                 r.sii_result = 'EnCola'
                 continue
             r.sii_result = r.sii_xml_request.state
-            r.sii_message = r.sii_xml_request.sii_xml_response
-            if r.sii_result == 'Rechazado':
-                self.env['bus.bus'].sendone(
-                    (   self._cr.dbname,
-                        'account.invoice',
-                        self.env.user.partner_id.id
-                    ),
-                    {
-                        'title': "Documento Rechazado",
-                        'message': "%s" % r.name,
-                        'type': 'dte_notif',
-                    }
-                )
 
     def _get_dte_status(self):
         for r in self:
@@ -2079,6 +2121,30 @@ version="1.0">
             except Exception as e:
                 _logger.warning("Error al obtener DTE Status: %s" %str(e))
         self.get_sii_result()
+        for r in self:
+            mess = False
+            if r.sii_result == 'Rechazado':
+                mess = {
+                            'title': "Documento Rechazado",
+                            'message': "%s" % r.name,
+                            'type': 'dte_notif',
+                        }
+            if r.sii_result == 'Anulado':
+                r.canceled = True
+                try:
+                    r.action_invoice_cancel()
+                except:
+                    _logger.warning("Error al cancelar Documento")
+                mess = {
+                            'title': "Documento Anulado",
+                            'message': "%s" % r.name,
+                            'type': 'dte_notif',
+                        }
+            if mess:
+                self.env['bus.bus'].sendone((self._cr.dbname,
+                                            'account.invoice',
+                                            r.user_id.partner_id.id),
+                                            mess)
 
     def set_dte_claim(self, rut_emisor=False, company_id=False,
                       sii_document_number=False, document_class_id=False,

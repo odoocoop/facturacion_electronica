@@ -84,7 +84,8 @@
                                 'required':[('use_documents', '=', True), ('state', '=', 'draft')],
                                 'readonly':['|', ('state', '!=', 'draft'), ('sii_document_number', '>', 0)]}"
                         options="{'no_create': True}"
-                        domain="[('sii_document_class_id', 'in', document_class_ids)]"/> Número:<br/>
+                        domain="[('sii_document_class_id', 'in', document_class_ids)]"
+                        style="width: 60%"/> Número:<br/>
                       <field name="sequence_number_next" class="oe_inline" readonly="1" attrs="{'invisible': [('sii_document_number','&gt;', 0)]}" />
                       <field name="sii_document_number" class="oe_inline" readonly="1" attrs="{'invisible': [('sii_document_number','&lt;=', 0)]}" />
                       <field name="sequence_number_next_prefix" invisible="1" class="oe_inline"/>

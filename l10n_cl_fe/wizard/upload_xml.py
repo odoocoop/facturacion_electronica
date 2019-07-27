@@ -106,11 +106,11 @@ class UploadXMLWizard(models.TransientModel):
         return {
             'type': 'ir.actions.act_window',
             'name': _('List of Results'),
-            'view_type': 'form',
+            'view_type': 'form' if self.dte_id else 'tree',
             'view_mode': 'tree',
             'res_model': target_model,
             'domain': str([('id', 'in', created)]),
-            'views': [(self.env.ref('%s' % (xml_id)).id, 'tree')],
+            'views': [(self.env.ref("%s" % xml_id).id, 'tree')],
         }
 
     def format_rut(self, RUTEmisor=None):
@@ -280,9 +280,9 @@ class UploadXMLWizard(models.TransientModel):
             )
         return partner
 
-    def create_partner(self, data):
+    def _create_partner(self, data):
         partner_id = False
-        partner = self._get_data_partner(data)
+        partner = self._get_partner(data)
         if partner:
             if self.type == 'compras':
                 partner.update({'supplier': True})
@@ -366,8 +366,9 @@ class UploadXMLWizard(models.TransientModel):
                 values['default_code'] = VlrCodigo
         return values
 
-    def _create_prod(self, data, price_included=False):
-        product_id = self.env['product.product'].create(self.get_product_values(data, price_included))
+    def _create_prod(self, data, company_id, price_included=False):
+        product_id = self.env['product.product'].create(
+                    self.get_product_values(data, company_id, price_included))
         return product_id
 
     def _buscar_producto(self, document_id, line, company_id,
@@ -381,9 +382,7 @@ class UploadXMLWizard(models.TransientModel):
             code = ' ' + etree.tostring(CdgItem).decode() if CdgItem is not None else ''
             line_id = self.env['mail.message.dte.document.line'].search(
                 [
-                    '|',
-                    ('new_product', '=', NmbItem + '' + code),
-                    ('product_description', '=', line.find("DescItem").text if line.find("DescItem") is not None else NmbItem),
+                    ('sequence', '=', line.find('NroLinDet').text),
                     ('document_id', '=', document_id.id)
                 ]
             )
@@ -474,6 +473,7 @@ class UploadXMLWizard(models.TransientModel):
         price = float(line.find("PrcItem").text) if line.find("PrcItem") is not None else price_subtotal
         DescItem = line.find("DescItem")
         data.update({
+            'sequence': line.find('NroLinDet').text,
             'name': DescItem.text if DescItem is not None else line.find("NmbItem").text,
             'price_unit': price,
             'discount': discount,
@@ -664,7 +664,7 @@ class UploadXMLWizard(models.TransientModel):
                     'global_descuentos_recargos': drs,
                 })
         Folio = IdDoc.find("Folio").text
-        dc_id= self.env['sii.document_class'].search([
+        dc_id = self.env['sii.document_class'].search([
                     ('sii_code', '=', IdDoc.find('TipoDTE').text)
             ])
         invoice.update({
@@ -694,7 +694,7 @@ class UploadXMLWizard(models.TransientModel):
         type = 'purchase'
         if self.type == 'ventas':
             type = 'sale'
-        journal_id = self.env['account.journal.sii_document_class'].search(
+        journal_id = self.env['account.journal'].search(
             [
                 ('document_class_ids', '=', dc_id.id),
                 ('type', '=', type),
@@ -859,7 +859,7 @@ class UploadXMLWizard(models.TransientModel):
     def _create_pre(self, documento, company_id):
         dte = self._dte_exist(documento)
         if dte:
-            _logger.warning(_("El documento %s ya se encuentra registrado" % dte.name ))
+            _logger.warning(_("El documento %s %s ya se encuentra registrado" % ( dte.number, dte.document_class_id.name )))
             return dte
         data = self._get_data(documento, company_id)
         data.update({
@@ -892,7 +892,7 @@ class UploadXMLWizard(models.TransientModel):
                         limit=1,
                     )
                 if not company_id:
-                    _logger.warning("No existe compañia para %s" %documento.find("Encabezado/Receptor/RUTRecep").text)
+                    _logger.warning("No existe compañia para %s" % documento.find("Encabezado/Receptor/RUTRecep").text)
                     continue
                 pre = self._create_pre(
                     documento,
