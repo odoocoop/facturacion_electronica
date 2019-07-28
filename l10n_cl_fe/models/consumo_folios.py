@@ -679,6 +679,7 @@ version="1.0">
                 self.sii_xml_request.unlink()
             self._validar()
         self.env['sii.cola_envio'].create({
+            'company_id': self.company_id.id,
             'doc_ids': [self.id],
             'model': 'account.move.consumo_folios',
             'user_id': self.env.user.id,

@@ -242,6 +242,7 @@ version="1.0">
                 s.sii_result = 'NoEnviado'
                 s._timbrar()
                 self.env['sii.cola_envio'].create({
+                                            'company_id': s.company_id.id,
                                             'doc_ids': [s.id],
                                             'model': 'stock.picking',
                                             'user_id': self.env.uid,
@@ -264,10 +265,11 @@ version="1.0">
                 ids.append(rec.id)
         if ids:
             self.env['sii.cola_envio'].create({
+                                    'company_id': self[0].company_id.id,
                                     'doc_ids': ids,
-                                    'model':'stock.picking',
-                                    'user_id':self.env.uid,
-                                    'tipo_trabajo':'envio',
+                                    'model': 'stock.picking',
+                                    'user_id': self.env.uid,
+                                    'tipo_trabajo': 'envio',
                                     'n_atencion': n_atencion
                                     })
     def _giros_emisor(self):

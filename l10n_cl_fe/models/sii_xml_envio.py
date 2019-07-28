@@ -3,7 +3,6 @@ from odoo import fields, models, api
 from odoo.tools.translate import _
 from odoo.exceptions import UserError
 from .invoice import server_url
-from odoo.exceptions import UserError
 from lxml import etree
 import collections
 import logging

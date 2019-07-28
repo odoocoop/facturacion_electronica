@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from odoo import fields, models, api
+from odoo import fields, models, api, SUPERUSER_ID
 from odoo.tools.translate import _
 import ast
 from datetime import datetime
@@ -41,6 +41,10 @@ class ColaEnvio(models.Model):
             string="Auto Enviar Email",
             default=False,
         )
+    company_id = fields.Many2one(
+        'res.company',
+        string="Company"
+    )
 
     def enviar_email(self, doc):
         doc.send_exchange()
@@ -56,12 +60,19 @@ class ColaEnvio(models.Model):
         return True
 
     def _procesar_tipo_trabajo(self):
-        if not self.user_id.active:
+        admin = self.env.ref('base.user_admin')
+        if self.user_id.id != admin.id and not self.user_id.active:
             _logger.warning("¡Usuario %s desactivado!" % self.user_id.name)
             return
-        docs = self.env[self.model].sudo(self.user_id.id).browse(ast.literal_eval(self.doc_ids))
+        if self.user_id.id == SUPERUSER_ID:
+            self.user_id = admin.id
+        docs = self.env[self.model].with_context(
+                    user=self.user_id.id,
+                    company_id=self.company_id.id).browse(
+                                            ast.literal_eval(self.doc_ids))
         if self.tipo_trabajo == 'pasivo':
-            if docs[0].sii_xml_request and docs[0].sii_xml_request.state in ['Aceptado', 'Enviado', 'Rechazado', 'Anulado']:
+            if docs[0].sii_xml_request and docs[0].sii_xml_request.state in [
+                            'Aceptado', 'Enviado', 'Rechazado', 'Anulado']:
                 self.unlink()
                 return
             if self.date_time and datetime.now() >= self.date_time:
@@ -90,7 +101,8 @@ class ColaEnvio(models.Model):
                 _logger.warning(str(e))
         elif self.tipo_trabajo == 'envio' and (not docs[0].sii_xml_request or not docs[0].sii_xml_request.sii_send_ident or docs[0].sii_xml_request.state not in ['Aceptado', 'Enviado']):
             try:
-                envio_id = docs.with_context(user=self.user_id.id).do_dte_send(self.n_atencion)
+                envio_id = docs.with_context(user=self.user_id.id).do_dte_send(
+                                    self.n_atencion)
                 if envio_id.sii_send_ident:
                     self.tipo_trabajo = 'consulta'
                 docs.get_sii_result()

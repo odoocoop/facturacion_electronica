@@ -35,8 +35,6 @@ class SignatureCert(models.Model):
 
     def check_signature(self):
         for s in self.sudo():
-            if s.state not in ['valid', 'unverified']:
-                continue
             expired = s.expire_date < fields.Date.context_today(self)
             state = 'expired' if expired else 'valid'
             if s.state != state:
@@ -50,7 +48,6 @@ class SignatureCert(models.Model):
             if not self.env.user.partner_id.check_vat_cl(rut.replace('-', '')):
                 raise UserError(_('Not Valid Subject Serial Number'))
             self.subject_serial_number = rut
-            self.check_signature()
         elif self.file_content:
             self.state = 'incomplete'
 
@@ -142,6 +139,8 @@ class SignatureCert(models.Model):
 
     @api.multi
     def action_process(self):
+        if self.subject_serial_number:
+            return self.check_signature()
         filecontent = base64.b64decode(self.file_content)
         try:
             p12 = crypto.load_pkcs12(filecontent, self.password)

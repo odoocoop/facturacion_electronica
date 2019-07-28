@@ -68,7 +68,7 @@
                   <div class="page" style="padding-top:50px;">
                       <div class="row" style="border: 2px solid black;">
                           <table class="table cl_invoice">
-                            <tbody>
+                            <tbody style="font-size: 9px !important;">
                               <tr>
                                 <td style="border-top:0px !important;padding:4px !important;"><strong >Señor (es):</strong></td>
                                 <td style="border-top:0px !important;padding:4px !important;min-width:450px;max-width:450px;"><span t-field="partner_id.commercial_partner_id.name"/></td>
@@ -147,20 +147,20 @@
                                   <th class="text-right">Precio</th>
                                </tr>
                            </thead>
-                           <tbody class="invoice_tbody">
+                           <tbody class="invoice_tbody" style="font-size: 9px; !important">
                                <tr t-foreach="o.move_lines.sorted(key=lambda m: m.product_id.id)" t-as="l">
-                                   <td>
+                                   <td style="padding:4px !important;">
                                        <span t-field="l.quantity_done"/>
                                        <span t-field="l.product_uom"  groups="product.group_uom"/>
                                    </td>
-                                   <td><span t-field="l.product_id.name"/> <t t-if="l.product_id.name != l.name"><span t-field="l.name"/></t></td>
-                                   <td class="text-right">
+                                   <td style="padding:4px !important;"><span t-field="l.product_id.name"/> <t t-if="l.product_id.name != l.name"><span t-field="l.name"/></t></td>
+                                   <td class="text-right" style="padding:4px !important;">
                                        <span t-field="l.precio_unitario" t-field-options='{"widget": "monetary", "display_currency": "o.currency_id"}'/>
                                    </td>
-                                   <td t-if="display_discount" class="text-right" groups="sale.group_discount_per_so_line">
+                                   <td t-if="display_discount" class="text-right" groups="sale.group_discount_per_so_line" style="padding:4px !important;">
                                        <span t-field="l.discount"/>
                                    </td>
-                                   <td class="text-right" t-if="'subtotal' in l">
+                                   <td class="text-right" t-if="'subtotal' in l" style="padding:4px !important;">
                                        <span t-field="l.subtotal"
                                            t-field-options='{"widget": "monetary", "display_currency": "o.currency_id"}'/>
                                    </td>
@@ -211,7 +211,7 @@
                                <p style="text-align:center;color:red; font-size:8px;">
                                  Timbre Electrónico SII
                                  <br/>
-                                 Resolución <t t-esc='o.company_id.dte_resolution_number'/> de <t t-esc='o.company_id.dte_resolution_date.strftime("%Y")'/> Verifique documento: www.sii.cl
+                                 Resolución <t t-esc='o.company_id.dte_resolution_number'/> de <t t-esc='o.company_id.dte_resolution_date.year'/> Verifique documento: www.sii.cl
                                </p>
                            </div>
                          </div>

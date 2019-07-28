@@ -397,6 +397,7 @@ version="1.0">
         if ids:
             tiempo_pasivo = (datetime.now() + timedelta(hours=int(self.env['ir.config_parameter'].sudo().get_param('account.auto_send_dte', default=12))))
             self.env['sii.cola_envio'].create({
+                'company_id': self[0].company_id.id,
                 'doc_ids': ids,
                 'model': 'pos.order',
                 'user_id': self.env.uid,
@@ -416,6 +417,7 @@ version="1.0">
                     ids.append(order.id)
         if ids:
             self.env['sii.cola_envio'].create({
+                'company_id': self[0].company_id.id,
                 'doc_ids': ids,
                 'model': 'pos.order',
                 'user_id': self.env.uid,
