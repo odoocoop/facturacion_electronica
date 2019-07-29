@@ -1,15 +1,9 @@
 # -*- coding: utf-8 -*-
 from odoo import fields, models, api, _
 from odoo.exceptions import UserError
-from datetime import datetime, timedelta, date
-import os
-import logging
 from lxml import etree
-from lxml.etree import Element, SubElement
-
-import pytz
 import collections
-
+import logging
 _logger = logging.getLogger(__name__)
 
 try:
@@ -28,12 +22,28 @@ except ImportError:
     _logger.warning('Cannot import suds')
 
 server_url = {
-    'SIIHOMO': 'https://maullin.sii.cl/DTEWS/',
+    'SIICERT': 'https://maullin.sii.cl/DTEWS/',
     'SII': 'https://palena.sii.cl/DTEWS/',
 }
 
-BC = '''-----BEGIN CERTIFICATE-----\n'''
-EC = '''\n-----END CERTIFICATE-----\n'''
+
+class CesionDTEAR(models.Model):
+    _name = 'account.invoice.imagen_ar'
+    _description = 'Cesion Image'
+
+    name = fields.Char(
+        string='File Name',
+    )
+    image = fields.Binary(
+        string='Imagen',
+        filters='*.pdf,*.png, *.jpg',
+        store=True,
+        help='Upload Image',
+    )
+    invoice_id = fields.Many2one(
+        'account.invoice',
+        string="Factura",
+    )
 
 
 class CesionDTE(models.Model):
@@ -58,7 +68,7 @@ class CesionDTE(models.Model):
     sii_cesion_result = fields.Selection([
         ('', 'n/a'),
         ('NoEnviado', 'No Enviado'),
-        ('EnCola','En cola de envío'),
+        ('EnCola', 'En cola de envío'),
         ('Enviado', 'Enviado'),
         ('Aceptado', 'Aceptado'),
         ('Rechazado', 'Rechazado'),
@@ -108,20 +118,6 @@ entregados por parte del deudor de la factura {4}, RUT {5}, de acuerdo a lo esta
                 self.format_vat(self.commercial_partner_id.vat),
             )
             self.declaracion_jurada = declaracion_jurada
-
-    def _get_xsd_types(self):
-        xsd_types = super(CesionDTE, self)._get_xsd_types()
-        xsd_types.update({
-            'aec': 'AEC_v10.xsd',
-            'dte_cedido': 'DTECedido_v10.xsd',
-            'cesion': 'Cesion_v10.xsd',
-        })
-        return xsd_types
-
-    def _get_xsd_file(self, validacion, path=False):
-        if validacion in [ 'aec', 'dte_cedido', 'cesion']:
-            path = os.path.dirname(os.path.realpath(__file__)).replace('/models','/static/xsd/')
-        return super(CesionDTE, self)._get_xsd_file(validacion, path)
 
     def _caratula_aec(self, cesiones):
         xml = '''<DocumentoAEC ID="Doc1">
@@ -196,24 +192,11 @@ version="1.0">
 </AEC>'''.format(doc)
         return xml
 
-    def _append_sig(self, type, msg, message):
-        tag = False
-        if type in ['aec']:
-            tag = 'AEC'
-        if type in ['cesion']:
-            tag = 'Cesion'
-        if type in ['dte_cedido']:
-            tag = 'DTECedido'
-        if tag:
-            xml = message.replace('</'+ tag + '>', msg.decode() + '</'+ tag + '>')
-            return xml
-        return super(CesionDTE, self)._append_sig(type, msg, message)
-
     @api.multi
     def get_cesion_xml_file(self):
         url_path = '/download/xml/cesion/%s' % (self.id)
         return {
-            'type' : 'ir.actions.act_url',
+            'type': 'ir.actions.act_url',
             'url': url_path,
             'target': 'self',
         }
@@ -229,14 +212,15 @@ version="1.0">
 
     def _id_dte(self):
         IdDoc = collections.OrderedDict()
-        IdDoc['TipoDTE'] = self.document_class_id.sii_code
+        IdDoc['TipoDTE'] = self.sii_document_class_id.sii_code
         IdDoc['RUTEmisor'] = self.format_vat(self.company_id.vat)
         if not self.partner_id.commercial_partner_id.vat:
             raise UserError("Debe Ingresar RUT Receptor")
-        IdDoc['RUTReceptor'] = self.format_vat(self.partner_id.commercial_partner_id.vat)
+        IdDoc['RUTReceptor'] = self.format_vat(
+                    self.partner_id.commercial_partner_id.vat)
         IdDoc['Folio'] = self.get_folio()
         IdDoc['FchEmis'] = self.date_invoice
-        IdDoc['MntTotal'] = self.currency_id.round(self.amount_total )
+        IdDoc['MntTotal'] = self.currency_id.round(self.amount_total)
         return IdDoc
 
     def _cedente(self):
@@ -255,8 +239,10 @@ version="1.0">
         Receptor = collections.OrderedDict()
         if not self.cesionario_id.commercial_partner_id.vat:
             raise UserError("Debe Ingresar RUT Cesionario")
-        Receptor['RUT'] = self.format_vat(self.cesionario_id.commercial_partner_id.vat)
-        Receptor['RazonSocial'] = self._acortar_str(self.cesionario_id.commercial_partner_id.name, 100)
+        Receptor['RUT'] = self.format_vat(
+                    self.cesionario_id.commercial_partner_id.vat)
+        Receptor['RazonSocial'] = self._acortar_str(
+                    self.cesionario_id.commercial_partner_id.name, 100)
         Receptor['Direccion'] = self._acortar_str((self.cesionario_id.street or self.cesionario_id.commercial_partner_id.street) + ' ' + (self.cesionario_id.street2 or self.cesionario_id.commercial_partner_id.street2 or ''),70)
         Receptor['eMail'] = self.cesionario_id.commercial_partner_id.email
         return Receptor
@@ -288,8 +274,8 @@ version="1.0">
         xml = dicttoxml.dicttoxml(
             {'item':data}, root=False, attr_type=False).decode() \
             .replace('<item>', '').replace('</item>', '')
-        doc_cesion_xml =  self._crear_info_trans_elec_aec(xml, id)
-        cesion_xml =  self._crear_info_cesion(doc_cesion_xml)
+        doc_cesion_xml = self._crear_info_trans_elec_aec(xml, id)
+        cesion_xml = self._crear_info_cesion(doc_cesion_xml)
         root = etree.XML(cesion_xml)
         xml_formated = etree.tostring(root).decode()
         cesion = self.sign_full_xml(
@@ -297,7 +283,8 @@ version="1.0">
             id,
             'cesion',
         )
-        return cesion.replace('<?xml version="1.0" encoding="ISO-8859-1"?>\n','')
+        return cesion.replace('<?xml version="1.0" encoding="ISO-8859-1"?>\n',
+                              '')
 
     def _crear_envio_cesion(self):
         dicttoxml.set_debug(False)
@@ -315,7 +302,7 @@ version="1.0">
             'aec',
         )
         return {
-            'xml_envio':  '<?xml version="1.0" encoding="ISO-8859-1"?>\n'+envio_dte,
+            'xml_envio': '<?xml version="1.0" encoding="ISO-8859-1"?>\n%s' % envio_dte,
             'name': file_name,
             'company_id': self.company_id.id,
             'user_id': self.env.uid,
@@ -325,18 +312,20 @@ version="1.0">
     def validate_cesion(self):
         for inv in self.with_context(lang='es_CL'):
             inv.sii_cesion_result = 'NoEnviado'
-            if inv.type in ['out_invoice' ] and inv.document_class_id.sii_code in [ 33, 34]:
+            if inv.type in ['out_invoice' ] and inv.sii_document_class_id.sii_code in [33, 34]:
                 if inv.journal_id.restore_mode:
                     inv.sii_result = 'Proceso'
                 else:
                     inv._crear_envio_cesion()
                     inv.sii_cesion_result = 'EnCola'
                     self.env['sii.cola_envio'].create({
-                                                'doc_ids': [inv.id],
-                                                'model': 'account.invoice',
-                                                'user_id': self.env.uid,
-                                                'tipo_trabajo': 'cesion',
-                                                })
+                                            'company_id': inv.company_id.id,
+                                            'doc_ids': [inv.id],
+                                            'model': 'account.invoice',
+                                            'user_id': self.env.uid,
+                                            'tipo_trabajo': 'cesion',
+                                            })
+
     @api.multi
     def cesion_dte_send(self):
         if  1== 1:#not self[0].sii_cesion_request or self[0].sii_cesion_result in ['Rechazado'] :
@@ -356,13 +345,14 @@ version="1.0">
     def do_cesion_dte_send(self):
         ids = []
         for inv in self.with_context(lang='es_CL'):
-            if inv.sii_cesion_result in ['', 'NoEnviado','Rechazado'] and inv.type in ['out_invoice' ] and inv.document_class_id.sii_code in [ 33, 34]:
+            if inv.sii_cesion_result in ['', 'NoEnviado', 'Rechazado'] and inv.type in ['out_invoice' ] and inv.sii_document_class_id.sii_code in [ 33, 34]:
                 if inv.sii_cesion_result in ['Rechazado']:
                     inv._crear_envio_cesion()
                 inv.sii_cesion_result = 'EnCola'
                 ids.append(inv.id)
         if ids:
             self.env['sii.cola_envio'].create({
+                                    'company_id': self[0].company_id,
                                     'doc_ids': ids,
                                     'model': 'account.invoice',
                                     'user_id': self.env.user.id,
@@ -372,7 +362,6 @@ version="1.0">
     def _get_cesion_send_status(self, track_id, token):
         url = server_url[self.company_id.dte_service_provider] + 'services/wsRPETCConsulta?wsdl'
         _server = Client(url)
-        rut = self.format_vat(self.company_id.vat, con_cero=True)
         respuesta = _server.service.getEstEnvio(
             token,
             track_id,
@@ -395,8 +384,8 @@ version="1.0">
                 status = {'warning':{'title':_('Error RCT'), 'message': _(resp['SII:RESPUESTA']['SII:RESP_BODY']['DESC_ESTADO'])}}
         else:
             sii_result = "Rechazado"
-            _logger.warning("rechazado %s" %resp)
-            status = {'warning':{'title':_('Error RCT'), 'message': _(resp['SII:RESPUESTA']['SII:RESP_BODY']['DESC_ESTADO'])}}
+            _logger.warning("rechazado %s" % resp)
+            status = {'warning': {'title':_('Error RCT'), 'message': _(resp['SII:RESPUESTA']['SII:RESP_BODY']['DESC_ESTADO'])}}
         if sii_result:
             self.sii_cesion_result = sii_result
         return status
@@ -408,7 +397,7 @@ version="1.0">
             token,
             rut[:8],
             str(rut[-1]),
-            str(self.document_class_id.sii_code),
+            str(self.sii_document_class_id.sii_code),
             str(self.sii_document_number),
         )
         self.sii_cesion_message = respuesta
@@ -433,7 +422,7 @@ version="1.0">
             token,
             rut[:8],
             str(rut[-1]),
-            str(self.document_class_id.sii_code),
+            str(self.sii_document_class_id.sii_code),
             str(self.sii_document_number),
             tenedor_rut[2:-1],
             tenedor_rut[-1],
@@ -456,7 +445,8 @@ version="1.0">
 
     @api.multi
     def ask_for_cesion_dte_status(self):
-        token = self.sii_cesion_request.get_token(self.env.user, self.company_id)
+        token = self.sii_cesion_request.get_token(self.env.user,
+                                                  self.company_id)
         signature_id = self.env.user.get_digital_signature(self.company_id)
         if not self.sii_cesion_request.sii_send_ident:
             raise UserError('No se ha enviado aún el documento, aún está en cola de envío interna en odoo')
@@ -472,21 +462,5 @@ version="1.0">
             )
             if self.sii_cesion_result != 'Procesado':
                 return status
-        return self._get_cesion_dte_status(signature_id.subject_serial_number, token)
-
-class CesionDTEAR(models.Model):
-    _name = 'account.invoice.imagen_ar'
-
-    name = fields.Char(
-        string='File Name',
-    )
-    image = fields.Binary(
-        string='Imagen',
-        filters='*.pdf,*.png, *.jpg',
-        store=True,
-        help='Upload Image',
-    )
-    invoice_id = fields.Many2one(
-        'account.invoice',
-        string="Factura",
-    )
+        return self._get_cesion_dte_status(signature_id.subject_serial_number,
+                                           token)

@@ -1003,7 +1003,7 @@ a VAT."""))
                     if not obj_inv.journal_document_class_id.sequence_id:
                         raise UserError(_(
                             'Please define sequence on the journal related documents to this invoice.'))
-                    if not obj_inv.sii_document_class_Id:
+                    if not obj_inv.sii_document_class_id:
                         to_write['document_class_id'] = obj_inv.journal_document_class_id.sii_document_class_id.id
                     sii_document_number = obj_inv.journal_document_class_id.sequence_id.next_by_id()
                     prefix = obj_inv.document_class_id.doc_code_prefix or ''
