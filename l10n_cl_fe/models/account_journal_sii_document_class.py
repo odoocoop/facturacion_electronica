@@ -40,6 +40,9 @@ class AccountJournalSiiDocumentClass(models.Model):
     sequence = fields.Integer(
             string='Sequence',
         )
+    company_id = fields.Many2one(
+        'res.company',
+    )
 
     @api.onchange('sii_document_class_id')
     def check_sii_document_class(self):

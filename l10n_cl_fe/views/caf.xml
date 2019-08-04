@@ -13,6 +13,10 @@
                     <field name="is_dte"/>
                     <field name="forced_by_caf"
                         attrs="{'invisible': [('is_dte', '=', False)]}"/>
+                    <button name="%(action_apicaf_form)d"
+                                string="Obtener Folios desde el SII" type="action"
+                                context="{'default_company_id': company_id,
+                                          'default_sequence_id': active_id}" class="btn-primary"/>
                 </field>
                 <xpath expr='//notebook' position="inside">
                     <page string="CAF Files"

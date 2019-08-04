@@ -19,7 +19,7 @@ class apicaf(models.TransientModel):
 
     @api.onchange('firma')
     def conectar_api(self):
-        if not self.firma or not self.documentos:
+        if not self.firma:
             return
         ICPSudo = self.env['ir.config_parameter'].sudo()
         url = ICPSudo.get_param('dte.url_apicaf')
@@ -60,24 +60,27 @@ class apicaf(models.TransientModel):
         data = json.loads(resp.data.decode('ISO-8859-1'))
         self.etapa = data['etapa']
         self.id_peticion = data['id_peticion']
-
-    @api.depends('company_id')
-    def get_docs(self):
-        journal_obj = self.env['account.journal']
-        context = dict(self._context or {})
-        for j in journal_obj.browse(context.get('active_ids')):
-            self.documentos += j.journal_document_class_ids
-            self.company_id = j.company_id.id            
+        '''@TODO verificación de folios autorizados en el SII'''
+        if self.cod_docto:
+            self.get_disp()
 
     documentos = fields.Many2many(
             'account.journal.sii_document_class',
             string="Documentos disponibles",
-            compute='get_docs'
         )
-
-    cod_docto = fields.Many2one(
+    jdc_id = fields.Many2one(
             'account.journal.sii_document_class',
-            string="Código Documento"
+            string="Secuencia de diario"
+        )
+    sequence_id = fields.Many2one(
+            'ir.sequence',
+            string="Secuencia"
+        )
+    cod_docto = fields.Many2one(
+            'sii.document_class',
+            related="sequence_id.sii_document_class_id",
+            string="Código Documento",
+            readonly=True,
         )
     etapa = fields.Selection(
             [
@@ -119,9 +122,16 @@ class apicaf(models.TransientModel):
             default=0,
         )
 
+    @api.onchange('jdc_id')
+    def _set_cod_docto(self):
+        if not self.documentos:
+            return
+        self.cod_docto = self.jdc_id.sii_document_class_id.id
+        self.sequence_id = self.jdc_id.sequence_id.id
+
     @api.onchange('cod_docto')
     def get_disp(self):
-        if not self.cod_docto:
+        if not self.id_peticion:
             return
         ICPSudo = self.env['ir.config_parameter'].sudo()
         url = ICPSudo.get_param('dte.url_apicaf')
@@ -130,7 +140,7 @@ class apicaf(models.TransientModel):
                 'token': token,
                 'etapa': self.etapa,
                 'id_peticion': self.id_peticion,
-                'cod_docto': self.cod_docto.sii_document_class_id.sii_code,
+                'cod_docto': self.cod_docto.sii_code,
                 }
         resp = pool.request('POST', url, body=json.dumps(params))
         if resp.status != 200:
@@ -176,9 +186,10 @@ class apicaf(models.TransientModel):
                 })
             return
         data = json.loads(resp.data.decode('ISO-8859-1'))
+        max_autor = int(data['max_autor'])
         self.folios_disp = data['folios_disp']
-        self.max_autor = data['max_autor']
-        self.cant_doctos = data['max_autor']
+        self.max_autor = max_autor
+        self.cant_doctos = max_autor if max_autor >= 0 else 1
         self.etapa = data['etapa']
 
     @api.multi
@@ -272,7 +283,7 @@ class apicaf(models.TransientModel):
         data = json.loads(resp.data.decode('ISO-8859-1'))
         caf = self.env['dte.caf'].create({
                 'caf_file': data['archivo_caf'],
-                'sequence_id': self.cod_docto.sequence_id.id,
+                'sequence_id': self.sequence_id.id,
                 'company_id': self.company_id.id,
             })
         caf._compute_data()

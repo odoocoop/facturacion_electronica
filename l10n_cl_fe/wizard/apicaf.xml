@@ -13,13 +13,23 @@
                     <group>
                       <field name="company_id" />
                       <field name="firma" attrs="{'invisible': [('company_id', '=', False)]}" domain="[('user_ids', 'child_of', [uid])]"/>
-                      <field name="documentos" attrs="{'invisible': [('firma', '=', False)]}"/>
+                      <field name="documentos" attrs="{'invisible': ['|', ('firma', '=', False), ('documentos', '=', [])]}"
+                             readonly="1"
+                             widget="many2many_tags"/>
                       <field name="id_peticion" invisible="1"/>
                     </group>
-                    <group attrs="{'invisible': [('id_peticion', '=', 0)]}">
-                       <field name="cod_docto" domain="[('id', 'in', documentos)]"/>
+                    <group attrs="{'invisible': [('id_peticion', '=', 0)]}" string="Recuerde emitir una cantidad que pueda gastar en un plazo máximo de 6 meses, ya que después de ese tiempo los CAF Vencen y deberá anular en la página del SII los Folios Vencidos">
+                       <field name="jdc_id" domain="[('id', 'in', documentos)]"
+                                            attrs="{'invisible': [('documentos', '=', [])]}"
+                                            options="{'no_create': True, 'no_open': True}"/>
+                       <field name="sequence_id" invisible="1"/>
+                       <field name="cod_docto" domain="[('is_dte', '=', True)]"
+                                               attrs="{'invisible': [('sequence_id', '=', False)]}"/>
                        <field name="folios_disp" attrs="{'invisible': [('cod_docto', '=', False)]}"/>
-                       <field name="max_autor" attrs="{'invisible': [('cod_docto', '=', False)]}"/>
+                       <field name="max_autor" attrs="{'invisible': ['|', ('cod_docto', '=', False), ('max_autor', '=', -1)]}"/>
+                       <span attrs="{'invisible': ['|', ('cod_docto', '=', False), ('max_autor', '!=', -1)]}">
+                           Cantidad máxima no especificada
+                       </span>
                        <field name="cant_doctos" attrs="{'invisible': ['|', ('cod_docto', '=', False), ('max_autor', '=', 0)]}"/>
                     </group>
                     <footer>

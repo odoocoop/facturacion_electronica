@@ -26,7 +26,7 @@ class IRSequence(models.Model):
                 elif folio <= c.final_nm:
                     available += (c.final_nm - c.start_nm) + 1
                 if folio > c.start_nm:
-                    available +=1
+                    available += 1
         return available
 
     def _qty_available(self):
@@ -77,7 +77,8 @@ www.sii.cl'''.format(folio)
                         continue
                 alert_msg = caffile.check_nivel(folio)
                 if alert_msg != '':
-                    self.env['bus.bus'].sendone((self._cr.dbname,
+                    self.env['bus.bus'].sendone((
+                                            self._cr.dbname,
                                             'dte.caf',
                                             self.env.user.partner_id.id),
                                             {

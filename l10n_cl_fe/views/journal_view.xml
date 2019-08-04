@@ -42,8 +42,10 @@
                                 string="Create Journal Documents" type="action" class="oe_highlight"
                                 context="{'type':type}"/>
                         <button name="%(action_apicaf_form)d"
+                                attrs="{'invisible': [('type', '!=', 'sale'), ('use_documents', '=', False), ('journal_document_class_ids', '=', [])]}"
                                 string="Obtener Folios desde el SII" type="action"
-                                context="{'type':type}" class="btn-primary"/>
+                                context="{'default_company_id': company_id,
+                                          'default_documentos': journal_document_class_ids}" class="btn-primary"/>
                         <group>
                             <field name="company_activity_ids" invisible="1"/>
                             <field name="journal_activities_ids"

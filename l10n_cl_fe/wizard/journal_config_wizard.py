@@ -101,6 +101,7 @@ Include unusual taxes documents, as transfer invoice, and reissue
             'padding': 6,
             'implementation': 'no_gap',
             'sii_document_class_id': document_class.id,
+            'company_id': journal.company_id.id,
         }
         return vals
 
