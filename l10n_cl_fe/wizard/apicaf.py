@@ -64,6 +64,11 @@ class apicaf(models.TransientModel):
         if self.cod_docto:
             self.get_disp()
 
+    @api.depends('api_folios_disp', 'api_max_autor')
+    def _details(self):
+        self.folios_disp = self.api_folios_disp
+        self.max_autor = self.api_max_autor
+
     documentos = fields.Many2many(
             'account.journal.sii_document_class',
             string="Documentos disponibles",
@@ -96,14 +101,21 @@ class apicaf(models.TransientModel):
             required=True,
         )
     folios_disp = fields.Integer(
-            string="Folios disponibles SIN USAR",
+            string="Folios Emitidos SIN USAR",
+            compute='_details',
+            help='Debe Revisar si ha tenido algún salto de folios, si piensa que ya no debiera tener folios disponibles o puede que no se hayan enviado al SII o estén recahzados, por loque debe revisar el estado de facturas lo antes posible',
+        )
+    api_folios_disp = fields.Integer(
+            string="Folios Emitidos SIN USAR",
             default=0,
-            readonly=True,
         )
     max_autor = fields.Integer(
             string="Cantidad Máxima Autorizada para el Documento",
+            compute='_details'
+        )
+    api_max_autor = fields.Integer(
+            string="Cantidad Máxima Autorizada para el Documento",
             default=0,
-            readonly=True,
         )
     cant_doctos = fields.Integer(
             string="Cantidad de Folios a Solicitar",
@@ -133,6 +145,7 @@ class apicaf(models.TransientModel):
     def get_disp(self):
         if not self.id_peticion:
             return
+        self.etapa = 'disponibles'
         ICPSudo = self.env['ir.config_parameter'].sudo()
         url = ICPSudo.get_param('dte.url_apicaf')
         token = ICPSudo.get_param('dte.token_apicaf')
@@ -187,13 +200,18 @@ class apicaf(models.TransientModel):
             return
         data = json.loads(resp.data.decode('ISO-8859-1'))
         max_autor = int(data['max_autor'])
-        self.folios_disp = data['folios_disp']
-        self.max_autor = max_autor
+        self.api_folios_disp = data['folios_disp']
+        self.api_max_autor = max_autor
         self.cant_doctos = max_autor if max_autor >= 0 else 1
         self.etapa = data['etapa']
 
     @api.multi
     def obtener_caf(self):
+        if self.api_max_autor == 0:
+            raise UserError("No tiene folios disponibles")
+        if(self.api_max_autor > -1 and self.cant_doctos > self.api_max_autor)\
+                or self.cant_doctos < 1:
+            raise UserError("Debe ingresar una cantidad mayor a 0 y hasta la cantidad máxima autorizada")
         ICPSudo = self.env['ir.config_parameter'].sudo()
         url = ICPSudo.get_param('dte.url_apicaf')
         token = ICPSudo.get_param('dte.token_apicaf')
@@ -213,7 +231,8 @@ class apicaf(models.TransientModel):
             else:
                 message = str(resp.data)
             self.env['bus.bus'].sendone((
-                self._cr.dbname, 'dte.caf.apicaf', self.env.user.partner_id.id),
+                self._cr.dbname, 'dte.caf.apicaf',
+                self.env.user.partner_id.id),
                 {
                     'title': "Error en conexión con apicaf",
                     'message': message,

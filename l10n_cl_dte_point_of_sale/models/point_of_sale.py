@@ -200,12 +200,6 @@ class POS(models.Model):
         taxes = taxes.compute_all(line.price_unit, cur, line.qty, product=line.product_id, partner=line.order_id.partner_id or False, discount=line.discount)['taxes']
         return sum(tax.get('amount', 0.0) for tax in taxes)
 
-    def split_cert(self, cert):
-        certf, j = '', 0
-        for i in range(0, 29):
-            certf += cert[76 * i:76 * (i + 1)] + '\n'
-        return certf
-
     def create_template_envio(self, RutEmisor, RutReceptor, FchResol, NroResol,
                               TmstFirmaEnv, EnvioDTE,subject_serial_number,SubTotDTE):
         xml = '''<SetDTE ID="SetDoc">
@@ -225,18 +219,6 @@ class POS(models.Model):
     def time_stamp(self, formato='%Y-%m-%dT%H:%M:%S'):
         tz = pytz.timezone('America/Santiago')
         return datetime.now(tz).strftime(formato)
-
-    def get_seed(self, company_id):
-        return self.env['account.invoice'].get_seed(company_id)
-
-    def create_template_seed(self, seed):
-        return self.env['account.invoice'].create_template_seed(seed)
-
-    def sign_seed(self, message, privkey, cert):
-        return self.env['account.invoice'].sign_seed(message, privkey, cert)
-
-    def get_token(self, seed_file, company_id):
-        return self.env['account.invoice'].get_token(seed_file, company_id)
 
     def create_template_doc(self, doc):
         xml = '''<DTE xmlns="http://www.sii.cl/SiiDte" version="1.0">
@@ -270,8 +252,8 @@ version="1.0">
 
     def crear_intercambio(self):
         rut = self.format_vat(self.partner_id.commercial_partner_id.vat )
-        envio = self._crear_envio(RUTRecep=rut)
-        return envio[list(envio.keys())[0]].encode('ISO-8859-1')
+        envios, filename = self._crear_envio(RUTRecep=rut)
+        return envios[list(envios.keys())[0]].encode('ISO-8859-1')
 
     def _create_attachment(self,):
         url_path = '/download/xml/boleta/%s' % (self.id)
@@ -426,16 +408,6 @@ version="1.0">
             })
         self.do_dte_send()
 
-    def _es_boleta(self, id_doc=False):
-        if id_doc and id_doc in [35, 38, 39, 41, 70, 71]:
-            return True
-        elif id_doc:
-            return False
-
-        if self.document_class_id.sii_code in [35, 38, 39, 41, 70, 71]:
-            return True
-        return False
-
     def _giros_emisor(self):
         giros_emisor = []
         for turn in self.company_id.company_activities_ids:
@@ -452,7 +424,7 @@ version="1.0">
         IdDoc['TipoDTE'] = self.document_class_id.sii_code
         IdDoc['Folio'] = self.get_folio()
         IdDoc['FchEmis'] = date_order[:10]
-        if self._es_boleta():
+        if self.document_class_id.es_boleta():
             IdDoc['IndServicio'] = 3 #@TODO agregar las otras opciones a la fichade producto servicio
         else:
             IdDoc['TpoImpresion'] = "T"
@@ -461,9 +433,9 @@ version="1.0">
         #if self.tipo_servicio:
         #    Encabezado['IdDoc']['IndServicio'] = 1,2,3,4
         # todo: forma de pago y fecha de vencimiento - opcional
-        if not taxInclude:
+        if not taxInclude and self.document_class_id.es_boleta():
             IdDoc['IndMntNeto'] = 2
-        #if self._es_boleta():
+        #if self.document_class_id.es_boleta():
             #Servicios periódicos
         #    IdDoc['PeriodoDesde'] =
         #    IdDoc['PeriodoHasta'] =
@@ -472,7 +444,7 @@ version="1.0">
     def _emisor(self):
         Emisor = collections.OrderedDict()
         Emisor['RUTEmisor'] = self.format_vat(self.company_id.vat)
-        if self._es_boleta():
+        if self.document_class_id.es_boleta():
             Emisor['RznSocEmisor'] = self.company_id.partner_id.name
             Emisor['GiroEmisor'] = self._acortar_str(self.company_id.activity_description.name, 80)
         else:
@@ -496,7 +468,7 @@ version="1.0">
         Receptor['RznSocRecep'] = self._acortar_str(self.partner_id.name or "Usuario Anonimo", 100)
         if self.partner_id.phone:
             Receptor['Contacto'] = self.partner_id.phone
-        if self.partner_id.dte_email and not self._es_boleta():
+        if self.partner_id.dte_email and not self.document_class_id.es_boleta():
             Receptor['CorreoRecep'] = self.partner_id.dte_email
         if self.partner_id.street:
             Receptor['DirRecep'] = self.partner_id.street+ ' ' + (self.partner_id.street2 or '')
@@ -526,7 +498,7 @@ version="1.0">
                 raise UserError("Debe ir almenos un Producto Afecto")
             Neto = amount_untaxed - MntExe
             IVA = False
-            if Neto > 0 and not self._es_boleta():
+            if Neto > 0 and not self.document_class_id.es_boleta():
                 for l in self.lines:
                     for t in l.tax_ids:
                         if t.sii_code in [14, 15]:
@@ -536,7 +508,7 @@ version="1.0">
                     Totales['MntNeto'] = currency.round(Neto)
             if MntExe > 0:
                 Totales['MntExe'] = currency.round(MntExe)
-            if IVA and not self._es_boleta():
+            if IVA and not self.document_class_id.es_boleta():
                 Totales['TasaIVA'] = IVAAmount
                 iva = currency.round(self.amount_tax)
                 if iva < 0:
@@ -686,30 +658,34 @@ version="1.0">
                 'tax_include': taxInclude,
                 }
 
+    def _valida_referencia(self, ref):
+        if ref.origen in [False, '', 0]:
+            raise UserError("Debe incluir Folio de Referencia válido")
+
     def _dte(self):
         dte = collections.OrderedDict()
         invoice_lines = self._invoice_lines()
         dte['Encabezado'] = self._encabezado(invoice_lines['MntExe'], invoice_lines['no_product'], invoice_lines['tax_include'])
         lin_ref = 1
         ref_lines = []
-        if 'referencias' in self and self.referencias :
-            for ref in self.referencias:
-                ref_line = {}
-                ref_line = collections.OrderedDict()
-                ref_line['NroLinRef'] = lin_ref
-                if not self._es_boleta():
-                    if ref.sii_referencia_TpoDocRef:
-                        ref_line['TpoDocRef'] = ref.sii_referencia_TpoDocRef.sii_code
-                        ref_line['FolioRef'] = ref.origen
-                    ref_line['FchRef'] = ref.fecha_documento or datetime.strftime(datetime.now(), '%Y-%m-%d')
-                if ref.sii_referencia_CodRef not in ['','none', False]:
-                    ref_line['CodRef'] = ref.sii_referencia_CodRef
-                ref_line['RazonRef'] = ref.motivo
-                if self._es_boleta():
-                    ref_line['CodVndor'] = self.user_id.id
-                    ref_line['CodCaja'] = self.location_id.name
-                ref_lines.extend([{'Referencia':ref_line}])
-                lin_ref += 1
+        for ref in self.referencias:
+            ref_line = {}
+            ref_line = collections.OrderedDict()
+            ref_line['NroLinRef'] = lin_ref
+            self._valida_referencia(ref)
+            if not self.document_class_id.es_boleta():
+                if ref.sii_referencia_TpoDocRef:
+                    ref_line['TpoDocRef'] = ref.sii_referencia_TpoDocRef.sii_code
+                    ref_line['FolioRef'] = ref.origen
+                ref_line['FchRef'] = ref.fecha_documento or datetime.strftime(datetime.now(), '%Y-%m-%d')
+            if ref.sii_referencia_CodRef not in ['', 'none', False]:
+                ref_line['CodRef'] = ref.sii_referencia_CodRef
+            ref_line['RazonRef'] = ref.motivo
+            if self.document_class_id.es_boleta():
+                ref_line['CodVndor'] = self.user_id.id
+                ref_line['CodCaja'] = self.location_id.name
+            ref_lines.extend([{'Referencia': ref_line}])
+            lin_ref += 1
         dte['item'] = invoice_lines['invoice_lines']
         dte['reflines'] = ref_lines
         dte['TEDd'] = self.get_barcode(invoice_lines['no_product'])
@@ -749,7 +725,12 @@ version="1.0">
         DTEs = {}
         clases = {}
         company_id = False
+        es_boleta = False
         for inv in self.with_context(lang='es_CL'):
+            if inv.sii_result in ['Rechazado']:
+                inv._timbrar()
+            if inv.document_class_id.es_boleta():
+                es_boleta = True
             #@TODO Mejarorar esto en lo posible
             if not inv.document_class_id.sii_code in clases:
                 clases[inv.document_class_id.sii_code] = []
@@ -766,7 +747,7 @@ version="1.0">
             company_id = inv.company_id
 
         file_name = {}
-        dtes={}
+        dtes = {}
         SubTotDTE = {}
         documentos = {}
         resol_data = self.get_resolution_data(company_id)
@@ -795,7 +776,7 @@ version="1.0">
                 signature_id.subject_serial_number,
                 SubTotDTE[id_class_doc] )
             env = 'env'
-            if self._es_boleta(id_class_doc):
+            if es_boleta:
                 envio_dte = self.create_template_env_boleta(dtes)
                 env = 'env_boleta'
             else:
@@ -829,6 +810,7 @@ version="1.0">
             for order in self:
                 if order.document_class_id.sii_code == id_class_doc[0]:
                     order.sii_xml_request = envio_id.id
+                order.ask_for_dte_status()
         return to_return
 
     @api.onchange('sii_message')
@@ -918,6 +900,16 @@ version="1.0">
         send_mail.send()
 
     def _create_account_move_line(self, session=None, move=None):
+        def _flatten_tax_and_children(taxes, group_done=None):
+            children = self.env['account.tax']
+            if group_done is None:
+                group_done = set()
+            for tax in taxes.filtered(lambda t: t.amount_type == 'group'):
+                if tax.id not in group_done:
+                    group_done.add(tax.id)
+                    children |= _flatten_tax_and_children(tax.children_tax_ids, group_done)
+            return taxes + children
+
         # Tricky, via the workflow, we only have one id in the ids variable
         """Create a account move line of order grouped by products or not."""
         IrProperty = self.env['ir.property']
@@ -929,6 +921,41 @@ version="1.0">
         grouped_data = {}
         have_to_group_by = session and session.config_id.group_by or False
         rounding_method = session and session.config_id.company_id.tax_calculation_rounding_method
+
+        def add_anglosaxon_lines(grouped_data):
+            Product = self.env['product.product']
+            Analytic = self.env['account.analytic.account']
+            for product_key in list(grouped_data.keys()):
+                if product_key[0] == "product":
+                    line = grouped_data[product_key][0]
+                    product = Product.browse(line['product_id'])
+                    # In the SO part, the entries will be inverted by function compute_invoice_totals
+                    price_unit = self._get_pos_anglo_saxon_price_unit(product, line['partner_id'], line['quantity'])
+                    account_analytic = Analytic.browse(line.get('analytic_account_id'))
+                    res = Product._anglo_saxon_sale_move_lines(
+                        line['name'], product, product.uom_id, line['quantity'], price_unit,
+                            fiscal_position=order.fiscal_position_id,
+                            account_analytic=account_analytic)
+                    if res:
+                        line1, line2 = res
+                        line1 = Product._convert_prepared_anglosaxon_line(line1, line['partner_id'])
+                        insert_data('counter_part', {
+                            'name': line1['name'],
+                            'account_id': line1['account_id'],
+                            'credit': line1['credit'] or 0.0,
+                            'debit': line1['debit'] or 0.0,
+                            'partner_id': line1['partner_id']
+
+                        })
+
+                        line2 = Product._convert_prepared_anglosaxon_line(line2, line['partner_id'])
+                        insert_data('counter_part', {
+                            'name': line2['name'],
+                            'account_id': line2['account_id'],
+                            'credit': line2['credit'] or 0.0,
+                            'debit': line2['debit'] or 0.0,
+                            'partner_id': line2['partner_id']
+                        })
         document_class_id = False
         for order in self.filtered(lambda o: not o.account_move or o.state == 'paid'):
             if order.document_class_id:
@@ -948,14 +975,11 @@ version="1.0">
 
             def insert_data(data_type, values):
                 # if have_to_group_by:
-
-                # 'quantity': line.qty,
-                # 'product_id': line.product_id.id,
                 values.update({
-                    'partner_id': partner_id,
                     'move_id': move.id,
                 })
-                key = self._get_account_move_line_group_data_type_key(data_type, values)
+
+                key = self._get_account_move_line_group_data_type_key(data_type, values, {'rounding_method': rounding_method})
                 if not key:
                     return
 
@@ -969,6 +993,16 @@ version="1.0">
                         current_value['quantity'] = current_value.get('quantity', 0.0) + values.get('quantity', 0.0)
                         current_value['credit'] = current_value.get('credit', 0.0) + values.get('credit', 0.0)
                         current_value['debit'] = current_value.get('debit', 0.0) + values.get('debit', 0.0)
+                        if 'currency_id' in values:
+                            current_value['amount_currency'] = current_value.get('amount_currency', 0.0) + values.get('amount_currency', 0.0)
+                        if key[0] == 'tax' and rounding_method == 'round_globally':
+                            if current_value['debit'] - current_value['credit'] > 0:
+                                current_value['debit'] = current_value['debit'] - current_value['credit']
+                                current_value['credit'] = 0
+                            else:
+                                current_value['credit'] = current_value['credit'] - current_value['debit']
+                                current_value['debit'] = 0
+
                 else:
                     grouped_data[key].append(values)
 
@@ -980,14 +1014,19 @@ version="1.0">
             assert order.lines, _('The POS order must have lines when calling this method')
             # Create an move for each order line
             cur = order.pricelist_id.currency_id
-            # Create an move for each order line
+            cur_company = order.company_id.currency_id
+            amount_cur_company = 0.0
+            date_order = order.date_order.date() if order.date_order else fields.Date.today()
             taxes = {}
-            cur = order.pricelist_id.currency_id
             Afecto = 0
             Exento = 0
             Taxes = 0
             for line in order.lines:
-                amount = line.price_subtotal
+                if cur != cur_company:
+                    amount_subtotal = cur._convert(line.price_subtotal, cur_company, order.company_id, date_order)
+                else:
+                    amount_subtotal = line.price_subtotal
+
                 # Search for the income account
                 if line.product_id.property_account_income_id.id:
                     income_account = line.product_id.property_account_income_id.id
@@ -1004,17 +1043,26 @@ version="1.0">
                     name = name + ' (' + line.notice + ')'
 
                 # Create a move for the line for the order line
-                insert_data('product', {
+                # Just like for invoices, a group of taxes must be present on this base line
+                # As well as its children
+                base_line_tax_ids = _flatten_tax_and_children(line.tax_ids_after_fiscal_position).filtered(lambda tax: tax.type_tax_use in ['sale', 'none'])
+                data = {
                     'name': name,
                     'quantity': line.qty,
                     'product_id': line.product_id.id,
                     'account_id': income_account,
                     'analytic_account_id': self._prepare_analytic_account(line),
-                    'credit': ((amount > 0) and amount) or 0.0,
-                    'debit': ((amount < 0) and -amount) or 0.0,
-                    'tax_ids': [(6, 0, line.tax_ids_after_fiscal_position.ids)],
+                    'credit': ((amount_subtotal > 0) and amount_subtotal) or 0.0,
+                    'debit': ((amount_subtotal < 0) and -amount_subtotal) or 0.0,
+                    'tax_ids': [(6, 0, base_line_tax_ids.ids)],
                     'partner_id': partner_id
-                })
+                }
+
+                if cur != cur_company:
+                    data['currency_id'] = cur.id
+                    data['amount_currency'] = -abs(line.price_subtotal) if data.get('credit') else abs(line.price_subtotal)
+                    amount_cur_company += data['credit'] - data['debit']
+                insert_data('product', data)
 
                 # Create the tax lines
                 line_taxes = line.tax_ids_after_fiscal_position.filtered(lambda t: t.company_id.id == current_company.id)
@@ -1026,33 +1074,46 @@ version="1.0">
                     continue
                 for t in line_taxes:
                     taxes.setdefault(t, 0)
-                    taxes[t] += line_amount
+                    taxes[t] = line_amount
                     if t.amount > 0:
-                        Afecto += amount
+                        Afecto += amount_subtotal
                     else:
-                        Exento += amount
+                        Exento += amount_subtotal
                 pending_line = line
-            #el Cálculo se hace sumando todos los valores redondeados, luego se cimprueba si hay descuadre de $1 y se agrega como línea de ajuste
-            for t, value in taxes.items():
-                tax = t.compute_all(value , cur, 1)['taxes'][0]
-                insert_data('tax', {
-                    'name': _('Tax') + ' ' + tax['name'],
-                    'product_id': line.product_id.id,
-                    'quantity': line.qty,
-                    'account_id': tax['account_id'] or income_account,
-                    'credit': int(round(((tax['amount']>0) and tax['amount']) or 0.0)),
-                    'debit': int(round(((tax['amount']<0) and -tax['amount']) or 0.0)),
-                    'tax_line_id': tax['id'],
-                    'partner_id': partner_id
-                })
-                if t.amount > 0:
-                    t_amount = int(round(tax['amount']))
-                    Taxes += t_amount
+                for t, value in taxes.items():
+                    tax = t.compute_all(value, cur, 1)['taxes'][0]
+                    if cur != cur_company:
+                        round_tax = False if rounding_method == 'round_globally' else True
+                        amount_tax = cur._convert(tax['amount'], cur_company, order.company_id, date_order, round=round_tax)
+                        # amount_tax = cur.with_context(date=date_order).compute(tax['amount'], cur_company, round=round_tax)
+                    else:
+                        amount_tax = tax['amount']
+                    '''@redondear según moneda base '''
+                    amount_tax = int(round(amount_tax))
+                    data = {
+                        'name': _('Tax') + ' ' + tax['name'],
+                        'product_id': line.product_id.id,
+                        'quantity': line.qty,
+                        'account_id': tax['account_id'] or income_account,
+                        'credit': ((amount_tax > 0) and amount_tax) or 0.0,
+                        'debit': ((amount_tax < 0) and -amount_tax) or 0.0,
+                        'tax_line_id': tax['id'],
+                        'partner_id': partner_id,
+                        'order_id': order.id
+                    }
+                    if cur != cur_company:
+                        data['currency_id'] = cur.id
+                        data['amount_currency'] = -abs(tax['amount']) if data.get('credit') else abs(tax['amount'])
+                        amount_cur_company += data['credit'] - data['debit']
+                    insert_data('tax', data)
+                    if t.amount > 0:
+                        t_amount = amount_tax
+                        Taxes += t_amount
             dif = ( order.amount_total - (Exento + Afecto + Taxes))
             if dif != 0:
                 insert_data('product', {
-                    'name': name,
-                    'quantity': (1 * dif),
+                    'name': "DIF %s" %name,
+                    'quantity': 1 if (dif)>0 else -1,
                     'product_id': pending_line.product_id.id,
                     'account_id': income_account,
                     'analytic_account_id': self._prepare_analytic_account(line),
@@ -1061,38 +1122,51 @@ version="1.0">
                     'tax_ids': [(6, 0, pending_line.tax_ids_after_fiscal_position.ids)],
                     'partner_id': partner_id
                 })
-
             #@TODO testear si esto ya repara los problemas de redondeo original de odoo
             # round tax lines per order
-            #if rounding_method == 'round_globally':
-            #    for group_key, group_value in grouped_data.items():
-            #        if group_key[0] == 'tax':
-            #            for line in group_value:
-            #                line['credit'] = cur.round(line['credit'])
-            #                line['debit'] = cur.round(line['debit'])
-
+            '''if rounding_method == 'round_globally':
+                for group_key, group_value in grouped_data.items():
+                    if group_key[0] == 'tax':
+                        for line in group_value:
+                            line['credit'] = cur_company.round(line['credit'])
+                            line['debit'] = cur_company.round(line['debit'])
+                            if line.get('currency_id'):
+                                line['amount_currency'] = cur.round(line.get('amount_currency', 0.0))
+            '''
             # counterpart
-            insert_data('counter_part', {
+            if cur != cur_company:
+                # 'amount_cur_company' contains the sum of the AML converted in the company
+                # currency. This makes the logic consistent with 'compute_invoice_totals' from
+                # 'account.invoice'. It ensures that the counterpart line is the same amount than
+                # the sum of the product and taxes lines.
+                amount_total = amount_cur_company
+            else:
+                amount_total = order.amount_total
+            data = {
                 'name': _("Trade Receivables"),  # order.name,
                 'account_id': order_account,
-                'credit': ((order.amount_total < 0) and -order.amount_total) or 0.0,
-                'debit': ((order.amount_total > 0) and order.amount_total) or 0.0,
+                'credit': ((amount_total < 0) and -amount_total) or 0.0,
+                'debit': ((amount_total > 0) and amount_total) or 0.0,
                 'partner_id': partner_id
-            })
+            }
+            if cur != cur_company:
+                data['currency_id'] = cur.id
+                data['amount_currency'] = -abs(order.amount_total) if data.get('credit') else abs(order.amount_total)
+            insert_data('counter_part', data)
 
             order.write({'state': 'done', 'account_move': move.id})
+        if self and order.company_id.anglo_saxon_accounting:
+            add_anglosaxon_lines(grouped_data)
 
         all_lines = []
         for group_key, group_data in grouped_data.items():
             for value in group_data:
                 all_lines.append((0, 0, value),)
         if move:  # In case no order was changed
-            move.sudo().write(
-                    {
-                            'line_ids': all_lines,
-                            'document_class_id':  (document_class_id.id if document_class_id else False ),
-                    }
-                )
+            move.sudo().write({
+                'line_ids': all_lines,
+                'document_class_id':  (document_class_id.id if document_class_id else False ),
+                })
             move.sudo().post()
         return True
 

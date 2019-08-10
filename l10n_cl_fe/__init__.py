@@ -10,6 +10,7 @@ def _set_default_configs(cr, registry):
     ICPSudo = env['ir.config_parameter'].sudo()
     ICPSudo.set_param('account.auto_send_dte', 12)
     ICPSudo.set_param('account.auto_send_email', True)
+    ICPSudo.set_param('account.auto_send_persistencia', 24)
     ICPSudo.set_param('account.limit_dte_lines', False)
     ICPSudo.set_param('partner.url_remote_partners', 'https://sre.cl/api/company_info')
     ICPSudo.set_param('partner.token_remote_partners', 'token_publico')

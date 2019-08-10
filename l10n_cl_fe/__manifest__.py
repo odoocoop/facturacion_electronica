@@ -2,7 +2,7 @@
 {
     "name": """Facturación Electrónica para Chile\
     """,
-    'version': '0.14.11',
+    'version': '0.15.0',
     'category': 'Localization/Chile',
     'sequence': 12,
     'author':  'Daniel Santibáñez Polanco, Cooperativa OdooCoop',
@@ -41,7 +41,7 @@ Facturación Electrónica para Chile. Mayor información en https://odoocoop.cl
             'views/assets.xml',
             'wizard/journal_config_wizard_view.xml',
             'views/sii_menuitem.xml',
-            'views/invoice_view.xml',
+            'views/account_invoice.xml',
             'views/consumo_folios.xml',
             'views/caf.xml',
             'views/export.xml',
@@ -74,6 +74,7 @@ Facturación Electrónica para Chile. Mayor información en https://odoocoop.cl
             'views/sii_document_type_view.xml',
             'views/sii_optional_type_view.xml',
             'views/sii_responsability_view.xml',
+            'views/sii_respuesta_cliente.xml',
             'views/sii_sucursal_view.xml',
             'views/sii_xml_envio.xml',
             'views/global_descuento_recargo.xml',

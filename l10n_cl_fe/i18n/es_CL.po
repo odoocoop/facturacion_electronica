@@ -11290,7 +11290,7 @@ msgstr "Letras de documentos recibidos"
 #: model:ir.ui.menu,name:l10n_cl_fe.menu_action_recept_xml
 #: model:ir.ui.menu,name:l10n_cl_fe.menu_recept_xml
 msgid "Recepcionar XML de Envío"
-msgstr "Recepcionar XML de Envío"
+msgstr "Aceptar / Rechazar Documentos"
 
 #. module: l10n_cl_fe
 #: model:partner.activities,name:l10n_cl_fe.eco_acti_741140

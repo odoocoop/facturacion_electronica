@@ -184,7 +184,7 @@
                          <tr t-foreach="o.invoice_line_ids.filtered('account_id')" t-as="l" style="max-height:8px;line-height:10px !important; font-size:12px !important;">
                              <td style="max-height:8px;line-height:10px !important;">
                                  <span t-field="l.quantity"/>
-                                 <span t-field="l.uom_id" groups="product.group_uom"/>
+                                 <span t-field="l.uom_id" groups="uom.group_uom"/>
                              </td>
                              <td style="max-height:8px;line-height:10px !important;"><span t-field="l.product_id.default_code"/></td>
                              <td style="max-height:8px;line-height:10px !important;"><span t-field="l.name"/></td>

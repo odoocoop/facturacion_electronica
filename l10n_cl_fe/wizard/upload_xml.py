@@ -543,9 +543,9 @@ class UploadXMLWizard(models.TransientModel):
         return [0, 0, data]
 
     def _create_tpo_doc(self, TpoDocRef, RazonRef=None):
-        vals = {
-                'name': RazonRef.text + ' ' + str(TpoDocRef)
-            }
+        vals = dict(name=str(TpoDocRef))
+        if RazonRef is not None:
+            vals['name'] = "%s %s" % (vals['name'], RazonRef.text)
         if str(TpoDocRef).isdigit():
             vals.update({
                     'sii_code': TpoDocRef,

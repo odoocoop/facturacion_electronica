@@ -290,7 +290,7 @@ class ResPartner(models.Model):
     def _process_data(self, data={}):
         if data.get('razon_social'):
             self.name = data['razon_social']
-        if data.get('dte_email'):
+        if data.get('dte_email') and data['dte_email'].lower() not in ['facturacionmipyme2@sii.cl', 'facturacionmipyme@sii.cl']:
             self.dte_email = data['dte_email']
         if data.get('email'):
             self.name = data['email']
@@ -327,26 +327,27 @@ class ResPartner(models.Model):
         if not url or not token or not sync:
             return
         try:
-            resp = pool.request('PUT',
-                                url,
-                                body=json.dumps(
-                                                    {
-                                                        'rut': self.document_number,
-                                                        'token': token,
-                                                        'glosa_giro': self.activity_description.name,
-                                                        'razon_social': self.name,
-                                                        'dte_email': self.dte_email,
-                                                        'email': self.email,
-                                                        'direccion': self.street,
-                                                        #'comuna': self.
-                                                        'telefono': self.phone,
-                                                        'actectos': [ac.code for ac in self.acteco_ids],
-                                                        'url': self.website,
-                                                        'origen': ICPSudo.get_param('web.base.url'),
-                                                        'logo': self.image.decode() if self.image else False,
-                                                    }
-                                                ).encode('utf-8'),
-                                headers={'Content-Type': 'application/json'})
+            resp = pool.request(
+                'PUT',
+                url,
+                body=json.dumps(
+                    {
+                        'rut': self.document_number,
+                        'token': token,
+                        'glosa_giro': self.activity_description.name,
+                        'razon_social': self.name,
+                        'dte_email': self.dte_email,
+                        'email': self.email,
+                        'direccion': self.street,
+                        #'comuna': self.
+                        'telefono': self.phone,
+                        'actectos': [ac.code for ac in self.acteco_ids],
+                        'url': self.website,
+                        'origen': ICPSudo.get_param('web.base.url'),
+                        'logo': self.image.decode() if self.image else False,
+                    }
+                ).encode('utf-8'),
+                headers={'Content-Type': 'application/json'})
             if resp.status != 200:
                 _logger.warning("Error en conexión al sincronizar partners %s" % resp.data)
                 message = ''

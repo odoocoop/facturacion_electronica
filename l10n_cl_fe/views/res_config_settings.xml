@@ -57,6 +57,17 @@
                     </div>
                 </div>
               </div>
+              <div class="col-xs-12 col-md-6 o_setting_box" id="envio_email_persistencia" attrs="{'invisible': [('auto_send_email', '=', False)]}">
+                <div class="o_setting_left_pane">
+                    <field name="auto_send_persistencia" />
+                </div>
+                <div class="o_setting_right_pane" name="envios_persistencia_right_pane">
+                    <label string="Auto Enviar Email Persistencia" for="auto_send_persistencia"/>
+                    <div class="text-muted">
+                       Auto Enviar Email DTE al Cliente hasta que acepte, Cada n Horas
+                    </div>
+                </div>
+              </div>
             </div>
             <h2>Mantenedores</h2>
             <div class="row mt16 o_settings_container">

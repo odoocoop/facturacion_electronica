@@ -14,6 +14,10 @@ class ResConfigSettings(models.TransientModel):
             string="Enviar Email automático al Auto Enviar DTE al SII",
             default=True,
         )
+    auto_send_persistencia = fields.Integer(
+            string="Enviar Email automático al Cliente cada  n horas",
+            default=24,
+        )
     dte_email_id = fields.Many2one(
         'mail.alias',
         related="company_id.dte_email_id"
@@ -47,17 +51,29 @@ class ResConfigSettings(models.TransientModel):
     def get_values(self):
         res = super(ResConfigSettings, self).get_values()
         ICPSudo = self.env['ir.config_parameter'].sudo()
-        account_auto_send_dte = int(ICPSudo.get_param('account.auto_send_dte', default=12))
-        account_auto_send_email = ICPSudo.get_param('account.auto_send_email', default=True)
-        account_limit_dte_lines = ICPSudo.get_param('account.limit_dte_lines', default=False)
-        partner_url_remote_partners = ICPSudo.get_param('partner.url_remote_partners', default='https://sre.cl/api/company_info')
-        partner_token_remote_partners = ICPSudo.get_param('partner.token_remote_partners', default="token_publico")
-        partner_sync_remote_partners = ICPSudo.get_param('partner.sync_remote_partners', default=True)
-        dte_url_apicaf = ICPSudo.get_param('dte.url_apicaf', default='https://apicaf.cl/api/caf')
-        dte_token_apicaf = ICPSudo.get_param('dte.token_apicaf', default="token_publico")
+        account_auto_send_dte = int(ICPSudo.get_param(
+                    'account.auto_send_dte', default=12))
+        account_auto_send_email = ICPSudo.get_param(
+                    'account.auto_send_email', default=True)
+        account_auto_send_persistencia = ICPSudo.get_param(
+                    'account.auto_send_persistencia', default=24)
+        account_limit_dte_lines = ICPSudo.get_param(
+                    'account.limit_dte_lines', default=False)
+        partner_url_remote_partners = ICPSudo.get_param(
+                    'partner.url_remote_partners',
+                    default='https://sre.cl/api/company_info')
+        partner_token_remote_partners = ICPSudo.get_param(
+                    'partner.token_remote_partners', default="token_publico")
+        partner_sync_remote_partners = ICPSudo.get_param(
+                    'partner.sync_remote_partners', default=True)
+        dte_url_apicaf = ICPSudo.get_param(
+                    'dte.url_apicaf', default='https://apicaf.cl/api/caf')
+        dte_token_apicaf = ICPSudo.get_param(
+                    'dte.token_apicaf', default="token_publico")
         res.update(
                 auto_send_email=account_auto_send_email,
                 auto_send_dte=account_auto_send_dte,
+                auto_send_persistencia=account_auto_send_persistencia,
                 limit_dte_lines=account_limit_dte_lines,
                 url_remote_partners=partner_url_remote_partners,
                 token_remote_partners=partner_token_remote_partners,
@@ -73,11 +89,21 @@ class ResConfigSettings(models.TransientModel):
         ICPSudo = self.env['ir.config_parameter'].sudo()
         if self.dte_email_id and not self.external_email_server_default:
             raise UserError('Debe Cofigurar Servidor de Correo Externo en la pestaña Opciones Generales')
-        ICPSudo.set_param('account.auto_send_dte', self.auto_send_dte)
-        ICPSudo.set_param('account.auto_send_email', self.auto_send_email)
-        ICPSudo.set_param('account.limit_dte_lines', self.limit_dte_lines)
-        ICPSudo.set_param('partner.url_remote_partners', self.url_remote_partners)
-        ICPSudo.set_param('partner.token_remote_partners', self.token_remote_partners)
-        ICPSudo.set_param('partner.sync_remote_partners', self.sync_remote_partners)
-        ICPSudo.set_param('dte.url_apicaf', self.url_apicaf)
-        ICPSudo.set_param('dte.token_apicaf', self.token_apicaf)
+        ICPSudo.set_param('account.auto_send_dte',
+                          self.auto_send_dte)
+        ICPSudo.set_param('account.auto_send_email',
+                          self.auto_send_email)
+        ICPSudo.set_param('account.auto_send_peresistencia',
+                          self.auto_send_persistencia)
+        ICPSudo.set_param('account.limit_dte_lines',
+                          self.limit_dte_lines)
+        ICPSudo.set_param('partner.url_remote_partners',
+                          self.url_remote_partners)
+        ICPSudo.set_param('partner.token_remote_partners',
+                          self.token_remote_partners)
+        ICPSudo.set_param('partner.sync_remote_partners',
+                          self.sync_remote_partners)
+        ICPSudo.set_param('dte.url_apicaf',
+                          self.url_apicaf)
+        ICPSudo.set_param('dte.token_apicaf',
+                          self.token_apicaf)

@@ -22,6 +22,14 @@
             <field name="xml_envio"/>
             <field name="invoice_ids" readonly="True"/>
           </group>
+          <notebook attrs="{'invisible': [('state', 'not in', ['Enviado', 'Aceptado'])]}">
+              <page string="Respuesta Email SII">
+                  <field name="email_respuesta" />
+                  <field name="email_estado" />
+                  <field name="email_glosa" />
+                  <field name="attachment_id" />
+              </page>
+          </notebook>
         </sheet>
       </form>
     </field>

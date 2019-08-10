@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
-
-from odoo import fields, models, api
-from odoo.tools.translate import _
-from odoo.tools.safe_eval import safe_eval
+from odoo import models, api
+from lxml import etree
+from base64 import b64decode
 import logging
 _logger = logging.getLogger(__name__)
 
@@ -21,268 +20,117 @@ status_dte = [
 class ProcessMails(models.Model):
     _inherit = "mail.message"
 
+    def _parse_xml(self, string_xml):
+        string_xml = b64decode(string_xml).decode('ISO-8859-1')
+        xml = string_xml\
+            .replace('<?xml version="1.0" encoding="ISO-8859-1"?>', '')\
+            .replace('<?xml version="1.0" encoding="ISO-8859-1" ?>', '')
+        xml = xml.replace(' xmlns="http://www.sii.cl/SiiDte"', '')
+        parser = etree.XMLParser(remove_blank_text=True)
+        return etree.fromstring(xml, parser=parser)
+
+    def _format_rut(self, text):
+            rut = text.replace('-', '')
+            if int(rut[:-1]) < 10000000:
+                rut = '0' + str(rut)
+            return 'CL' + rut
+
+    def _process_recepcion_comercial(self, doc, company_id, att):
+        id_respuesta = doc.getparent().find('Caratula/IdRespuesta').text
+        partner_id = self.env['res.partner'].search([
+                ('vat', '=', self._format_rut(
+                                    doc.find('RUTRecep').text)),
+                ('parent_id', '=', False),
+            ])
+        inv = self.env['account.invoice'].sudo().search([
+            ('document_class_id.sii_code', '=', doc.find(
+                                    'TipoDTE').text),
+            ('sii_document_number', '=', doc.find('Folio').text),
+            ('company_id', '=', company_id.id),
+            ('partner_id', '=', partner_id.id)
+        ])
+        resp = {
+            'id_respuesta': id_respuesta,
+            'recep_comercial': doc.find('EstadoDTE').text,
+            'glosa': doc.find('EstadoDTEGlosa').text,
+            'type': doc.tag,
+            'attachment_id': att.id,
+            'company_id': company_id.id,
+            }
+        resp_id = self.env['sii.respuesta.cliente'].sudo().create(resp)
+        inv.respuesta_ids += resp_id
+
+    def _process_recepcion_mercaderias(self, el, company_id, att):
+        for recibo in el.findall('Recibo'):
+            doc = recibo.find("DocumentoRecibo")
+            partner_id = self.env['res.partner'].search([
+                ('vat', '=', self._format_rut(
+                                    doc.find('RUTRecep').text)),
+                ('parent_id', '=', False),
+            ])
+            inv = self.env['account.invoice'].sudo().search([
+                ('document_class_id.sii_code', '=', doc.find(
+                                        'TipoDTE').text),
+                ('sii_document_number', '=', doc.find('Folio').text),
+                ('company_id', '=', company_id.id),
+                ('partner_id', '=', partner_id.id)
+            ])
+            resp = {
+                'merc_recinto': doc.find('Recinto').text,
+                'merc_fecha': doc.find('FchEmis').text,
+                'merc_declaracion': doc.find('Declaracion').text,
+                'merc_rut': doc.find('RutFirma').text,
+                'type': doc.tag,
+                'attachment_id': att.id,
+                'company_id': company_id.id,
+                }
+            resp_id = self.env['sii.respuesta.cliente'].sudo().create(resp)
+            inv.respuesta_ids += resp_id
+
+    def _proccess_respuesta(self, el_root, att):
+        el = el_root.find('Resultado')
+        if el is None:
+            el = el_root.find('SetRecibos')
+        caratula = el.find('Caratula')
+        rut_company = self._format_rut(caratula.find('RutRecibe').text)
+        company_id = self.env['res.company'].sudo().search([
+            ('vat', '=', rut_company),
+        ])
+        if el.tag == 'Resultado':
+            self._process_recepcion_envio(el,
+                                          company_id, att)
+        elif el.tag == 'SetRecibo':
+            self._process_recepcion_mercaderias(el,
+                                                company_id, att)
+
+    def _process_xml(self, att):
+        el = self._parse_xml(att.datas)
+        data = {
+            'mail_id': self.id,
+            'name': att.name,
+            'attachment_id': att.id,
+        }
+        if el.tag == 'EnvioDTE':
+            val = self.env['mail.message.dte'].sudo().create(data)
+            val.pre_process()
+        elif el.tag in ['RespuestaDTE', 'EnvioRecibos']:
+            self._proccess_respuesta(el, att)
+
+    @api.multi
+    def process_mess(self):
+        for att in self.attachment_ids:
+            if not att.name:
+                continue
+            name = att.name.upper()
+            if att.mimetype in ['text/plain'] and name.find('.XML') > -1:
+                if not self.env['mail.message.dte'].search([
+                                        ('name', '=', name)]):
+                    self._process_xml(att)
+
     @api.model
     def create(self, vals):
         mail = super(ProcessMails, self).create(vals)
         if mail.message_type in ['email'] and mail.attachment_ids and \
                 not mail.mail_server_id:
-            dte = False
-            for att in mail.attachment_ids:
-                if not att.name:
-                    continue
-                name = att.name.upper()
-                if att.mimetype in ['text/plain'] and name.find('.XML') > -1:
-                    if not self.env['mail.message.dte'].search([
-                                            ('name', '=', name)]):
-                        dte = {
-                            'mail_id': mail.id,
-                            'name': name,
-                            'company_id': self.env.user.company_id.id,
-                        }
-            if dte:
-                val = self.env['mail.message.dte'].create(dte)
-                val.pre_process()
-                val.mail_id = mail.id
+            mail.process_mess()
         return mail
-
-
-class ProccessMail(models.Model):
-    _name = 'mail.message.dte'
-    _description = "DTE"
-    _inherit = ['mail.thread']
-
-    name = fields.Char(
-        string="Nombre Envío",
-        readonly=True,
-    )
-    mail_id = fields.Many2one(
-        'mail.message',
-        string="Email",
-        readonly=True,
-        ondelete='cascade',
-    )
-    document_ids = fields.One2many(
-        'mail.message.dte.document',
-        'dte_id',
-        string="Documents",
-        readonly=True,
-    )
-    company_id = fields.Many2one(
-        'res.company',
-        string="Compañía",
-        readonly=True,
-    )
-
-    _order = 'create_date DESC'
-
-    def pre_process(self):
-        self.process_message(pre=True)
-
-    @api.multi
-    def process_message(self, pre=False, option=False):
-        created = []
-        for r in self:
-            for att in r.sudo().mail_id.attachment_ids:
-                if not att.name:
-                    continue
-                name = att.name.upper()
-                if att.mimetype in ['text/plain'] and name.find('.XML') > -1:
-                    vals = {
-                        'xml_file': att.datas,
-                        'filename': att.name,
-                        'pre_process': pre,
-                        'dte_id': r.id,
-                        'option': option,
-                    }
-                    val = self.env['sii.dte.upload_xml.wizard'].create(vals)
-                    created.extend(val.confirm(ret=True))
-        xml_id = 'l10n_cl_fe.action_dte_process'
-        result = self.env.ref('%s' % (xml_id)).read()[0]
-        if created:
-            domain = safe_eval(result.get('domain', '[]'))
-            domain.append(('id', 'in', created))
-            result['domain'] = domain
-        return result
-
-
-class ProcessMailsDocument(models.Model):
-    _name = 'mail.message.dte.document'
-    _description = "Pre Document"
-    _inherit = ['mail.thread']
-
-    dte_id = fields.Many2one(
-        'mail.message.dte',
-        string="DTE",
-        readonly=True,
-        ondelete='cascade',
-    )
-    new_partner = fields.Char(
-        string="Proveedor Nuevo",
-        readonly=True,
-    )
-    partner_id = fields.Many2one(
-        'res.partner',
-        string='Proveedor',
-        domain=[('supplier', '=', True)],
-    )
-    date = fields.Date(
-        string="Fecha Emsisión",
-        readonly=True,
-    )
-    number = fields.Char(
-        string='Folio',
-        readonly=True,
-    )
-    document_class_id = fields.Many2one(
-        'sii.document_class',
-        string="Tipo de Documento",
-        readonly=True,
-        oldname="sii_document_class_id",
-    )
-    amount = fields.Monetary(
-        string="Monto",
-        readonly=True,
-    )
-    currency_id = fields.Many2one(
-        'res.currency',
-        string="Moneda",
-        readonly=True,
-        default=lambda self: self.env.user.company_id.currency_id,
-    )
-    invoice_line_ids = fields.One2many(
-        'mail.message.dte.document.line',
-        'document_id',
-        string="Líneas del Documento",
-    )
-    company_id = fields.Many2one(
-        'res.company',
-        string="Compañía",
-        readonly=True,
-    )
-    state = fields.Selection(
-        [
-            ('draft', 'Recibido'),
-            ('accepted', 'Aceptado'),
-            ('rejected', 'Rechazado'),
-        ],
-        default='draft',
-    )
-    invoice_id = fields.Many2one(
-        'account.invoice',
-        string="Factura",
-        readonly=True,
-    )
-    xml = fields.Text(
-        string="XML Documento",
-        readonly=True,
-    )
-    purchase_to_done = fields.Many2many(
-        'purchase.order',
-        string="Ordenes de Compra a validar",
-        domain=[('state', 'not in', ['accepted', 'rejected'])],
-    )
-
-    _order = 'create_date DESC'
-
-    @api.model
-    def auto_accept_documents(self):
-        self.env.cr.execute(
-            """
-            select
-                id
-            from
-                mail_message_dte_document
-            where
-                create_date + interval '8 days' < now()
-                and
-                state = 'draft'
-            """
-        )
-        for d in self.browse([line.get('id') for line in \
-                              self.env.cr.dictfetchall()]):
-            d.accept_document()
-
-    @api.multi
-    def accept_document(self):
-        created = []
-        for r in self:
-            vals = {
-                'xml_file': r.xml.encode('ISO-8859-1'),
-                'filename': r.dte_id.name,
-                'pre_process': False,
-                'document_id': r.id,
-                'option': 'accept'
-            }
-            val = self.env['sii.dte.upload_xml.wizard'].create(vals)
-            created.extend(val.confirm(ret=True))
-            r.state = 'accepted'
-        xml_id = 'account.action_vendor_bill_template'
-        result = self.env.ref('%s' % (xml_id)).read()[0]
-        if created:
-            domain = safe_eval(result.get('domain', '[]'))
-            domain.append(('id', 'in', created))
-            result['domain'] = domain
-        return result
-
-    @api.multi
-    def reject_document(self):
-        for r in self:
-            r.state = 'rejected'
-
-        wiz_accept = self.env['sii.dte.validar.wizard'].create(
-            {
-                'action': 'validate',
-                'option': 'reject',
-            }
-        )
-        wiz_accept.do_reject(self)
-
-
-class ProcessMailsDocumentLines(models.Model):
-    _name = 'mail.message.dte.document.line'
-    _description = "Pre Document Line"
-    _order = 'sequence, id'
-
-    document_id = fields.Many2one(
-        'mail.message.dte.document',
-        string="Documento",
-        ondelete='cascade',
-    )
-    sequence = fields.Integer(
-        string="Número de línea",
-        default=1
-    )
-    product_id = fields.Many2one(
-        'product.product',
-        string="Producto",
-    )
-    new_product = fields.Char(
-        string='Nuevo Producto',
-        readonly=True,
-    )
-    description = fields.Char(
-        string='Descripción',
-        readonly=True,
-    )
-    product_description = fields.Char(
-        string='Descripción Producto',
-        readonly=True,
-    )
-    quantity = fields.Float(
-        string="Cantidad",
-        readonly=True,
-    )
-    price_unit = fields.Monetary(
-        string="Precio Unitario",
-        readonly=True,
-    )
-    price_subtotal = fields.Monetary(
-        string="Total",
-        readonly=True,
-    )
-    currency_id = fields.Many2one(
-        'res.currency',
-        string="Moneda",
-        readonly=True,
-        default=lambda self: self.env.user.company_id.currency_id,
-    )

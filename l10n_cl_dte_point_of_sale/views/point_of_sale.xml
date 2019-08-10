@@ -21,7 +21,24 @@
               <field name="sequence_id"
                      options="{'no_create': True}" />
               <field name="document_class_id" />
-              <field name="referencias" />
+              <field name="referencias" mode="tree">
+                <form>
+                  <group>
+                    <field name="origen" required="True"/>
+                    <field name="sii_referencia_TpoDocRef" required="True" />
+                    <field name="sii_referencia_CodRef"/>
+                    <field name="motivo"/>
+                    <field name="fecha_documento"/>
+                  </group>
+                </form>
+                <tree>
+                  <field name="origen" required="True"/>
+                  <field name="sii_referencia_TpoDocRef" required="True" />
+                  <field name="sii_referencia_CodRef"/>
+                  <field name="motivo"/>
+                  <field name="fecha_documento"/>
+                </tree>
+              </field>
              </field>
 
               <notebook>

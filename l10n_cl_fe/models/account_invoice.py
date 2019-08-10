@@ -388,6 +388,11 @@ class AccountInvoice(models.Model):
         readonly=True,
         states={'draft': [('readonly', False)]},
     )
+    respuesta_ids = fields.Many2many(
+        'sii.respuesta.cliente',
+        string="Recepción del Cliente",
+        readonly=True,
+    )
 
     @api.depends('state', 'journal_id', 'date_invoice', 'document_class_id')
     def _get_sequence_prefix(self):
@@ -1244,7 +1249,7 @@ version="1.0">
         return signature_id.firmar(message, uri, type)
 
     def crear_intercambio(self):
-        rut = self.format_vat(self.partner_id.commercial_partner_id.vat )
+        rut = self.format_vat(self.partner_id.commercial_partner_id.vat)
         envio = self._crear_envio(RUTRecep=rut)
         return envio['xml_envio'].encode('ISO-8859-1')
 
@@ -1259,6 +1264,13 @@ version="1.0">
                 ],
                 limit=1,
             )
+        self.env['sii.respuesta.cliente'].create(
+            {
+                'exchange_id': att.id,
+                'type': 'RecepcionEnvio',
+                'recep_envio': 'no_revisado',
+            }
+        )
         if att:
             return att
         xml_intercambio = self.crear_intercambio()
@@ -2268,7 +2280,15 @@ version="1.0">
         for dte_email in dte_receptors:
             if not dte_email.send_dte or not dte_email.email:
                 continue
+            if dte_email.email in ['facturacionmipyme2@sii.cl',
+                                   'facturacionmipyme@sii.cl']:
+                resp = self.env['sii.respuesta.cliente'].sudo().search([
+                        ('exchange_id', '=', att.id)])
+                resp.estado = '0'
+                continue
             email_to += dte_email.email + ','
+        if email_to == '':
+            return
         values = {
                 'res_id': self.id,
                 'email_from': dte_email_id.name_get()[0][1],

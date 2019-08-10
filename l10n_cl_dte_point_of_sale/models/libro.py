@@ -5,10 +5,11 @@ from odoo.exceptions import UserError
 from datetime import datetime, timedelta
 import dateutil.relativedelta as relativedelta
 from odoo.tools import DEFAULT_SERVER_DATETIME_FORMAT as DTF
-import logging
 import pytz
+import logging
 
 _logger = logging.getLogger(__name__)
+
 
 class Libro(models.Model):
     _inherit = "account.move.book"
@@ -56,4 +57,3 @@ class Libro(models.Model):
                 for r in orders:
                     recs.append(r)
         return recs
-    

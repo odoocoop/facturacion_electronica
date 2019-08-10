@@ -35,19 +35,21 @@ class AccountInvoiceRefund(models.TransientModel):
     @api.multi
     def confirm(self):
         """Create a copy of order  for refund order"""
-        clone_list = []
-        line_obj = self.env['pos.order.line']
+        clone_list = self.env['pos.order']
         context = dict(self._context or {})
         active_ids = context.get('active_ids', []) or []
 
         for order in self.env['pos.order'].browse(active_ids):
-            current_session_ids = self.env['pos.session'].search(
+            if not order.document_class_id or not order.sii_document_number:
+                raise UserError("Por esta área solamente se puede crear Nota de Crédito a Boletas validamente emitidas, si es un pedido simple, debe presionar en retornar simple")
+            current_session = self.env['pos.session'].search(
                     [
                         ('state', '!=', 'closed'),
-                        ('user_id', '=', self.env.user.id),
-                    ]
+                        ('user_id', '=', self.env.uid),
+                    ],
+                    limit=1
                 )
-            if not current_session_ids:
+            if not current_session:
                 raise UserError(_('To return product(s), you need to open a session that will be used to register the refund.'))
             jdc_ob = self.env['account.journal.sii_document_class']
             journal_document_class_id = jdc_ob.search(
@@ -58,35 +60,40 @@ class AccountInvoiceRefund(models.TransientModel):
                 )
             if not journal_document_class_id:
                 raise UserError("Por favor defina Secuencia de Notas de Crédito para el Journal del POS")
-            clone_id = order.copy( {
+            clone_id = order.copy({
                 'name': order.name + ' REFUND', # not used, name forced by create
-                'session_id': current_session_ids[0].id,
+                'session_id': current_session.id,
                 'date_order': time.strftime('%Y-%m-%d %H:%M:%S'),
                 'sequence_id': journal_document_class_id.sequence_id.id,
                 'document_class_id': journal_document_class_id.sii_document_class_id.id,
                 'sii_document_number': 0,
                 'signature': False,
-                'referencias':[[5,],[0,0, {
+                'referencias': [[5,],[0,0, {
                     'origen': int(order.sii_document_number),
                     'sii_referencia_TpoDocRef': order.document_class_id.id,
                     'sii_referencia_CodRef': self.filter_refund,
                     'motivo': self.motivo,
                     'fecha_documento': self.date_order
                 }]],
+                'lines': False,
+                'amount_tax': -order.amount_tax,
+                'amount_total': -order.amount_total,
+                'amount_paid': 0,
             })
-            clone_list.append(clone_id.id)
-        clone_list = self.env['pos.order'].browse(clone_list)
-        for clone in clone_list:
-            for order_line in clone.lines:
-                order_line.write( {
-                    'qty': -order_line.qty
-                })
+            clone_list += clone_id
+            for line in order.lines:
+                line.copy({
+                        'qty': -line.qty,
+                        'order_id': clone_id.id,
+                        'price_subtotal': -line.price_subtotal,
+                        'price_subtotal_incl': -line.price_subtotal_incl,
+                    })
         abs = {
             'name': _('Return Products'),
             'view_type': 'form',
             'view_mode': 'form',
             'res_model': 'pos.order',
-            'res_id':clone_list.id,
+            'res_id': clone_list.ids[0],
             'view_id': False,
             'context': context,
             'type': 'ir.actions.act_window',

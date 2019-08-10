@@ -161,7 +161,7 @@
               </field>
 
               <notebook>
-                  <page string="Electronic Invoice" name="electronic_invoice" >
+                  <page string="Electronic Invoice" name="electronic_invoice" attrs="{'invisible': [('use_documents', '=', False)]}">
                       <header attrs="{'invisible': [('sii_code','=',39)]}">
                           <button string="Download XML" type="object"
                           	name="get_xml_file"  attrs="{'invisible':['|',('state', 'in', ['draft']), ('sii_xml_request','=',False)]}"/>
@@ -182,7 +182,7 @@
                       </group>
                   </page>
 
-                  <page name="client_claim" string="Registro de Reclamo en SII">
+                  <page name="client_claim" string="Registro de Reclamo en SII" attrs="{'invisible': ['|', ('use_documents', '=', False), ('sii_result', 'in', [False, '', 'NoEnviado', 'Rechazado'])]}">
                     <header>
                       <button name="get_dte_claim" string="Consultar estado de Reclamo" type="object"/>
                       <field name='claim' widget="statusbar"/>
@@ -190,6 +190,16 @@
                     <group>
                       <field name="claim_description" />
                     </group>
+                  </page>
+
+                  <page name="client_reception" string="Respuesta Cliente"  attrs="{'invisible': ['|', ('use_documents', '=', False), ('sii_result', 'in', [False, '', 'NoEnviado', 'Rechazado'])]}">
+                      <group string="La respuesta puede variar, todo depende de si el cliente cumple con darla">
+                          <field name="respuesta_ids" mode="tree">
+                              <tree>
+                                  <field name="type" />
+                              </tree>
+                          </field>
+                      </group>
                   </page>
               </notebook>
             </field>

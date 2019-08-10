@@ -2,7 +2,7 @@
 from odoo import fields, models, api
 from odoo.tools.translate import _
 from odoo.exceptions import UserError
-from .invoice import server_url
+from .account_invoice import server_url
 from lxml import etree
 import collections
 import logging
@@ -35,6 +35,17 @@ connection_status = {
     '9': 'Sistema Bloqueado',
     'Otro': 'Error Interno.',
 }
+
+status_dte = [
+    ('no_revisado', 'No Revisado'),
+    ('0', 'Conforme'),
+    ('1', 'Error de Schema'),
+    ('2', 'Error de Firma'),
+    ('3', 'RUT Receptor No Corresponde'),
+    ('90', 'Archivo Repetido'),
+    ('91', 'Archivo Ilegible'),
+    ('99', 'Envio Rechazado - Otros')
+]
 
 
 class SIIXMLEnvio(models.Model):
@@ -86,7 +97,8 @@ class SIIXMLEnvio(models.Model):
             string='SII Mensaje de recepción',
             copy=False,
             readonly=False,
-            states={'Aceptado': [('readonly', False)], 'Rechazado': [('readonly', False)]},
+            states={'Aceptado': [('readonly', False)],
+                    'Rechazado': [('readonly', False)]},
         )
     user_id = fields.Many2one(
             'res.users',
@@ -101,6 +113,24 @@ class SIIXMLEnvio(models.Model):
             string="Facturas",
             readonly=True,
             states={'draft': [('readonly', False)]},
+        )
+    attachment_id = fields.Many2one(
+            'ir.attachment',
+            string="XML Recepción",
+            readonly=True,
+        )
+    email_respuesta = fields.Text(
+            string="Email SII",
+            readonly=True,
+        )
+    email_estado = fields.Selection(
+            status_dte,
+            string="Respuesta Envío",
+            readonly=True,
+        )
+    email_glosa = fields.Text(
+            string="Glosa Recepción",
+            readonly=True,
         )
 
     @api.multi
