@@ -11,10 +11,15 @@
                       <group>
                           <group>
                             <field name="name" readonly="True"/>
+                              <field name="company_id" invisible="1" />
                               <field name="sequence" invisible="True"/>
                               <field name="journal_id"/>
                               <field name="sii_document_class_id" options="{'no_open': True, 'no_create': True}"/>
                               <field name="sequence_id" required="True"/>
+                              <button name="%(action_apicaf_form)d"
+                                string="Obtener Folios desde el SII" type="action"
+                                context="{'default_company_id': company_id,
+                                          'default_sequence_id': sequence_id}" class="btn-primary"/>
                           </group>
                       </group>
                   </sheet>

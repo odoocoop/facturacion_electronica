@@ -11,7 +11,12 @@
                 <field name="number_next_actual" position="after">
                     <field name="sii_document_class_id" options="{'no_open': True, 'no_create': True}" />
                     <field name="is_dte"/>
-                    <field name="forced_by_caf"/>
+                    <field name="forced_by_caf"
+                        attrs="{'invisible': [('is_dte', '=', False)]}"/>
+                    <button name="%(action_apicaf_form)d"
+                                string="Obtener Folios desde el SII" type="action"
+                                context="{'default_company_id': company_id,
+                                          'default_sequence_id': active_id}" class="btn-primary"/>
                 </field>
                 <xpath expr='//notebook' position="inside">
                     <page string="CAF Files"

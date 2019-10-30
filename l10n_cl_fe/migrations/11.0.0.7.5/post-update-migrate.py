@@ -20,7 +20,7 @@ def migrate(cr, installed_version):
         if len(users) == 0:
             users.append(1)
         env = api.Environment(cr, SUPERUSER_ID, {})
-        firma = env['sii.firma'].create({
+        env['sii.firma'].create({
                     'file_content': row['key_file_temp'].tobytes(),
                     'name': row['filename_temp'],
                     'cert': row['cert_temp'],
@@ -28,13 +28,12 @@ def migrate(cr, installed_version):
                     'expire_date': row['expire_temp'],
                     'emision_date': row['emision_temp'],
                     'subject_serial_number': row['serial_temp'],
-                    'company_ids': [env.user.company_id.id],
-                    'user_ids': users,
+                    'company_ids': [(6, 0, env.user.company_id.ids)],
+                    'user_ids': [(6, 0, users)],
                     'priority': 1,
                     'active': True,
                     'state': 'valid',
         })
-        #firma.action_process()
     cr.execute(
         "SELECT filename_temp, key_file_temp, cert_temp, priv_temp, expire_temp, emision_temp, serial_temp, company_id, id as user_id FROM res_users ru WHERE ru.key_file_temp!=''")
     for row in cr.dictfetchall():

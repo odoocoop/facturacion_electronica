@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="respuesta_xml_form" model="ir.ui.view">
+        <field name="name">respuesta_xml.form</field>
+        <field name="model">sii.respuesta.cliente</field>
+        <field name="arch" type="xml">
+          <form string="XML Respuesta">
+              <field name="type" />
+              <field name="recep_envio" attrs="{'invisible': [('recep_envio', '=', False)]}"/>
+              <field name="merc_recinto" attrs="{'invisible': [('merc_recinto', '=', False)]}"/>
+              <field name="merc_fecha" attrs="{'invisible': [('merc_fecha', '=', False)]}"/>
+              <field name="merc_declaracion" attrs="{'invisible': [('merc_declaracion', '=', False)]}"/>
+              <field name="merc_rut" attrs="{'invisible': [('merc_rut', '=', False)]}"/>
+              <field name="attachment_id" attrs="{'invisible': [('attachment_id', '=', False)]}"/>
+              <field name="glosa" attrs="{'invisible': [('glosa', '=', False)]}"/>
+              <field name="id_respuesta" attrs="{'invisible': [('id_respuesta', '=', False)]}"/>
+              <field name="recep_dte" attrs="{'invisible': [('recep_dte', '=', False)]}"/>
+              <field name="merc_estado" attrs="{'invisible': [('merc_estado', '=', False)]}"/>
+              <field name="recep_comercial" attrs="{'invisible': [('recep_comercial', '=', False)]}"/>
+              <field name="exchange_id" attrs="{'invisible': [('exchange_id', '=', False)]}"/>
+          </form>
+        </field>
+    </record>
+</odoo>

@@ -8,22 +8,85 @@
                 <form >
                   <form string="DTE CAF API EMISION FOLIOS">
                     <header>
-                      <field name="etapa" widget="statusbar" />
+                      <field name="etapa" widget="statusbar"
+                          attrs="{'invisible': [('operacion', '!=', 'obtener')]}"/>
+                     <field name="reob_etapa" widget="statusbar"
+                          attrs="{'invisible': [('operacion', '!=', 'reobtener')]}"/>
+                     <field name="an_etapa" widget="statusbar"
+                          attrs="{'invisible': [('operacion', '!=', 'anular')]}"/>
                     </header>
                     <group>
+                      <field name="operacion" widget="radio"/>
                       <field name="company_id" />
-                      <field name="firma" attrs="{'invisible': [('company_id', '=', False)]}" domain="[('user_ids', 'child_of', [uid])]"/>
-                      <field name="documentos" attrs="{'invisible': [('firma', '=', False)]}"/>
+                      <field name="firma" attrs="{'invisible': [('company_id', '=', False)]}" domain="[('user_ids', '=', uid), ('company_ids', '=', company_id)]"/>
+                      <field name="documentos" attrs="{'invisible': ['|', ('firma', '=', False), ('documentos', '=', [])]}"
+                             readonly="1"
+                             widget="many2many_tags"/>
                       <field name="id_peticion" invisible="1"/>
                     </group>
                     <group attrs="{'invisible': [('id_peticion', '=', 0)]}">
-                       <field name="cod_docto" domain="[('id', 'in', documentos)]"/>
+                        <field name="jdc_id" domain="[('id', 'in', documentos)]"
+                                            attrs="{'invisible': [('documentos', '=', [])]}"
+                                            options="{'no_create': True, 'no_open': True}"/>
+                       <field name="sequence_id" invisible="1"/>
+                       <field name="cod_docto" domain="[('is_dte', '=', True)]"
+                                               attrs="{'invisible': [('sequence_id', '=', False)]}"/>
+                    </group>
+                    <group attrs="{'invisible': ['|', ('id_peticion', '=', 0), ('operacion', '!=', 'obtener')]}" string="Recuerde emitir una cantidad que pueda gastar en un plazo máximo de 6 meses, ya que después de ese tiempo los CAF Vencen y deberá anular en la página del SII los Folios Vencidos">
                        <field name="folios_disp" attrs="{'invisible': [('cod_docto', '=', False)]}"/>
-                       <field name="max_autor" attrs="{'invisible': [('cod_docto', '=', False)]}"/>
+                       <field name="max_autor" attrs="{'invisible': ['|', ('cod_docto', '=', False), ('max_autor', '=', -1)]}"/>
+                       <span attrs="{'invisible': ['|', ('cod_docto', '=', False), ('max_autor', '!=', -1)]}">
+                           Cantidad máxima no especificada
+                       </span>
                        <field name="cant_doctos" attrs="{'invisible': ['|', ('cod_docto', '=', False), ('max_autor', '=', 0)]}"/>
+                       <field name="api_max_autor" invisible="1" />
+                       <field name="api_folios_disp" invisible="1" />
+                    </group>
+                    <group attrs="{'invisible': ['|', ('id_peticion', '=', 0), ('operacion', 'not in', ['reobtener', 'anular'])]}">
+                        <field name="lineas_disponibles" widget="one2many_list" mode="tree" context="{'default_apicaf_id': active_id}">
+                              <tree string="CAFs disponibles" editable="bottom">
+                                  <field name="apicaf_id" invisible="1" />
+                                  <field name="fecha" readonly="1"/>
+                                  <field name="inicial" readonly="1"/>
+                                  <field name="final" readonly="1"/>
+                                  <field name="cantidad" readonly="1"/>
+                                  <field name="selected" />
+                                  <field name="sequence" invisible="1"/>
+                                  <field name="form_name" invisible="1"/>
+                              </tree>
+                        </field>
+                    </group>
+                    <group attrs="{'invisible': ['|', ('id_peticion', '=', 0), ('an_etapa', '!=', 'an_motivo')]}" string="Ingrese Rango a anular">
+                        <field name="api_folio_ini" readonly='1'/>
+                        <field name="api_folio_fin" readonly='1'/>
+                        <div>
+                            <ul>
+                                <li>Recordar de que debe ser rango continuado, incluso si hay documentos ya recibidos por el SII, se anularán solamente los que no esten recibidos</li>
+                                <li>Ejemplo:</li>
+                                <li>CAF de la secuencia 1 - 10</li>
+                                <li>Anular Solio folio 3 y 8 , pero 4,5,6,7 están recibidos</li>
+                                <li>Folio ini = 3 , folio fin = 8</li>
+                                <li>El SII anulará solamente los folios 3 y 8 </li>
+                                <li>NO se puede anular Folio ya recibido aunque sea incluído en el rango</li>
+                                <li>Para anular un folio recibido, debe seguir el procedimiento correspondiente al tipo de documento ( ejemplo, para factura crear una NC de tipo anula documento)</li>
+                            </ul>
+                        </div>
+                        <field name="folio_ini" />
+                        <field name="folio_fin" />
+                        <field name="motivo" />
                     </group>
                     <footer>
-                        <button string='Obtener CAF' name="obtener_caf" type="object" class="btn-primary" attrs="{'invisible': ['|', ('etapa', '!=', 'confirmar'), ('cant_doctos', '=', 0)]}"/>
+                        <button string='Obtener CAF' name="obtener_caf"
+                                type="object" class="btn-primary"
+                                attrs="{'invisible':
+                                    [
+                                        ('etapa', '!=', 'confirmar'),
+                                        ('reob_etapa', '!=', 'reob_confirmar')
+                                    ]}"/>
+                        <button string='Anular Folios' name="confirmar"
+                                type="object" class="btn-primary"
+                                attrs="{'invisible':
+                                    [('an_etapa', '!=', 'an_motivo')]}"/>
                         <button string="Cancelar" class="btn-default" special="cancel"/>
                     </footer>
                   </form>

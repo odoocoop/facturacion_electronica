@@ -18,6 +18,7 @@ try:
 except:
     _logger.warning("Problema a cargar facturacion_electronica")
 
+
 class SignatureCert(models.Model):
     _name = 'sii.firma'
 

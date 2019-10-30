@@ -6,22 +6,14 @@ from datetime import datetime, timedelta
 import dateutil.relativedelta as relativedelta
 from odoo.tools import DEFAULT_SERVER_DATETIME_FORMAT as DTF
 from lxml import etree
-from lxml.etree import Element, SubElement
 import pytz
-import collections
 import logging
 _logger = logging.getLogger(__name__)
-try:
-    import xmltodict
-except ImportError:
-    _logger.info('Cannot import xmltodict library')
 
 try:
-    import dicttoxml
-    dicttoxml.set_debug(False)
-except ImportError:
-    _logger.info('Cannot import dicttoxml library')
-
+    from facturacion_electronica import facturacion_electronica as fe
+except Exception as e:
+    _logger.warning("Problema al cargar Facturación electrónica: %s" % str(e))
 
 allowed_docs = [29, 30, 32, 33, 34, 35, 38, 39, 40,
                 41, 43, 45, 46, 48, 53, 55, 56, 60,
@@ -341,86 +333,6 @@ class Libro(models.Model):
                 raise UserError(_('You cannot delete a Validated book.'))
         return super(Libro, self).unlink()
 
-    def create_template_envio(self, RutEmisor, PeriodoTributario, FchResol,\
-                              NroResol, EnvioDTE, subject_serial_number,\
-                              TipoOperacion='VENTA',TipoLibro='MENSUAL',\
-                              TipoEnvio='TOTAL',FolioNotificacion="123",\
-                              IdEnvio='SetDoc'):
-        if TipoOperacion == 'BOLETA' and TipoLibro not in ['ESPECIAL', 'RECTIFICA']:
-            raise UserError("Boletas debe ser solamente Tipo Operación ESPECIAL")
-        CodigoRectificacion = ''
-        if TipoLibro in ['ESPECIAL'] or TipoOperacion in ['BOLETA']:
-            FolioNotificacion = '\n<FolioNotificacion>' + FolioNotificacion + '</FolioNotificacion>'
-        else:
-            FolioNotificacion =''
-        if TipoLibro == 'RECTIFICA':
-            CodigoRectificacion = '\n<CodAutRec>' + self.codigo_rectificacion + '</CodAutRec>'
-
-        if TipoOperacion in ['BOLETA']:
-            TipoOperacion = ''
-        else:
-            TipoOperacion = '\n<TipoOperacion>'+TipoOperacion+'</TipoOperacion>'
-        xml = '''<EnvioLibro ID="{10}">
-<Caratula>
-<RutEmisorLibro>{0}</RutEmisorLibro>
-<RutEnvia>{1}</RutEnvia>
-<PeriodoTributario>{2}</PeriodoTributario>
-<FchResol>{3}</FchResol>
-<NroResol>{4}</NroResol>{5}
-<TipoLibro>{6}</TipoLibro>
-<TipoEnvio>{7}</TipoEnvio>{8}{11}
-</Caratula>
-{9}
-</EnvioLibro>
-'''.format(RutEmisor,
-           subject_serial_number,
-           PeriodoTributario,
-           FchResol,
-           NroResol,
-           TipoOperacion,
-           TipoLibro,
-           TipoEnvio,
-           FolioNotificacion,
-           EnvioDTE,
-           IdEnvio,
-           CodigoRectificacion,
-       )
-        return xml
-
-    def time_stamp(self, formato='%Y-%m-%dT%H:%M:%S'):
-        tz = pytz.timezone('America/Santiago')
-        return datetime.now(tz).strftime(formato)
-
-    def create_template_env(self, doc,simplificado=False):
-        simp = 'http://www.sii.cl/SiiDte LibroCV_v10.xsd'
-        if simplificado:
-            simp ='http://www.sii.cl/SiiDte LibroCVS_v10.xsd'
-        xml = '''<LibroCompraVenta xmlns="http://www.sii.cl/SiiDte" \
-xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
-xsi:schemaLocation="{0}" \
-version="1.0">
-{1}</LibroCompraVenta>'''.format(simp, doc)
-        return xml
-
-    def create_template_env_boleta(self, doc):
-        xsd = 'http://www.sii.cl/SiiDte LibroBOLETA_v10.xsd'
-        xml = '''<LibroBoleta xmlns="http://www.sii.cl/SiiDte" \
-xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
-xsi:schemaLocation="{0}" \
-version="1.0">
-{1}</LibroBoleta>'''.format(xsd, doc)
-        return xml
-
-    def sign_full_xml(self, message, uri, type='libro'):
-        envio_dte = self.env['account.invoice'].sign_full_xml(message, uri, type)
-        return  '<?xml version="1.0" encoding="ISO-8859-1"?>\n%s' % envio_dte
-
-    def get_resolution_data(self, comp_id):
-        resolution_data = {
-            'dte_resolution_date': comp_id.dte_resolution_date,
-            'dte_resolution_number': comp_id.dte_resolution_number}
-        return resolution_data
-
     @api.multi
     def get_xml_file(self):
         return {
@@ -448,462 +360,6 @@ version="1.0">
         self._validar()
         return self.write({'state': 'NoEnviado'})
 
-    def _acortar_str(self, texto, size=1):
-        c = 0
-        cadena = ""
-        while c < size and c < len(texto):
-            cadena += texto[c]
-            c += 1
-        return cadena
-
-    def _TpoImp(self, tasa):
-        #if tasa.sii_code in [14, 1]:
-        return 1
-        #if tasa.sii_code in []: determinar cuando es 18.211 // zona franca
-        #    return 2
-
-    def getResumen(self, rec):
-        no_product = False
-        ob = self.env['account.invoice']
-        inv = ob.search([
-                        ('move_id','=',rec.id),
-                        ])
-        det = collections.OrderedDict()
-        det['TpoDoc'] = rec.document_class_id.sii_code
-        #det['Emisor']
-        #det['IndFactCompra']
-        det['NroDoc'] = rec.sii_document_number
-        if rec.canceled:
-            det['Anulado'] = 'A'
-        #det['Operacion']
-        #det['TotalesServicio']
-        imp = {}
-        TaxMnt = 0
-        MntExe = 0
-        MntIVA = 0
-        Neto = 0
-        ActivoFijo = [0,0]
-        ivas = {}
-        for l in rec.line_ids:
-            if l.tax_line_id:
-                if l.tax_line_id and l.tax_line_id.amount > 0:
-                    if l.tax_line_id.sii_code in [14, 15, 17, 18, 19, 30,31, 32 ,33, 34, 36, 37, 38, 39, 41, 47, 48]: # diferentes tipos de IVA retenidos o no
-                        if not l.tax_line_id.id in ivas:
-                            ivas[l.tax_line_id.id] = {'det': l.tax_line_id, 'credit':0, 'debit': 0}
-                        if l.credit > 0:
-                            ivas[l.tax_line_id.id]['credit'] += l.credit
-                            if l.tax_line_id.activo_fijo:
-                                ActivoFijo[1] += l.credit
-                        else:
-                            ivas[l.tax_line_id.id]['debit'] += l.debit
-                            if l.tax_line_id.activo_fijo:
-                                ActivoFijo[1] += l.debit
-                    else:
-                        if not l.tax_line_id.id in imp:
-                            imp[l.tax_line_id.id] = {'imp':l.tax_line_id, 'Mnt':0}
-                        if l.credit > 0:
-                            imp[l.tax_line_id.id]['Mnt'] += l.credit
-                            TaxMnt += l.credit
-                        else:
-                            imp[l.tax_line_id.id]['Mnt'] += l.debit
-                            TaxMnt += l.debit
-            elif l.tax_ids and l.tax_ids[0].no_rec:
-                if not l.tax_ids[0].id in imp:
-                    imp[l.tax_ids[0].id] = {'imp':l.tax_ids[0], 'Mnt':0}
-                if l.credit > 0:
-                    imp[l.tax_ids[0].id]['Mnt'] += l.credit
-                    TaxMnt += l.credit
-                else:
-                    imp[l.tax_ids[0].id]['Mnt'] += l.debit
-                    TaxMnt += l.debit
-            elif l.tax_ids and l.tax_ids[0].amount > 0:
-                if l.credit > 0:
-                    Neto += l.credit
-                    if l.tax_ids[0].activo_fijo:
-                        ActivoFijo[0] += l.credit
-                else:
-                    Neto += l.debit
-                    if l.tax_ids[0].activo_fijo:
-                        ActivoFijo[0] += l.debit
-            elif l.tax_ids and l.tax_ids[0].amount == 0: #caso monto exento
-                if l.credit > 0:
-                    MntExe += l.credit
-                else:
-                    MntExe += l.debit
-        if ivas:
-            for i, value in ivas.items():
-                det['TpoImp'] = self._TpoImp(value['det'])
-                det['TasaImp'] = round(value['det'].amount,2)
-                continue
-        #det['IndServicio']
-        #det['IndSinCosto']
-        det['FchDoc'] = rec.date
-        if rec.journal_id.sii_code:
-            det['CdgSIISucur'] = rec.journal_id.sii_code
-        det['RUTDoc'] = self.format_vat(rec.partner_id.vat)
-        det['RznSoc'] = rec.partner_id.name[:50]
-        refs = []
-        for ref in inv.referencias:
-            if ref.sii_referencia_CodRef and ref.sii_referencia_TpoDocRef.sii_code in allowed_docs:
-                ref_line = collections.OrderedDict()
-                ref_line['TpoDocRef'] = ref.sii_referencia_TpoDocRef.sii_code
-                ref_line['FolioDocRef'] = ref.origen
-                refs.append(ref_line)
-        if refs:
-            det['item_refs'] = refs
-        if MntExe > 0 :
-            det['MntExe'] = int(round(MntExe,0))
-        elif self.tipo_operacion in ['VENTA'] and not Neto > 0:
-            det['MntExe'] = 0
-        if Neto > 0:
-            det['MntNeto'] = int(round(Neto))
-            if ivas: # Es algún tipo de iva que puede ser adicional o anticipado
-                MntIVA = 0
-                for key, i in ivas.items():
-                    Mnt = i['credit'] or i['debit']
-                    if round(i['credit'] - i['debit']) != 0:
-                        Mnt = i['credit'] + i['debit']
-                    if i['det'].sii_code not in [14]:
-                        imp[i['det'].id] = {'imp': i['det'], 'Mnt': Mnt}
-                    MntIVA += int(round(Mnt))
-                if not rec.no_rec_code and not rec.iva_uso_comun:
-                    det['MntIVA'] = MntIVA
-                if ActivoFijo != [0, 0]:
-                    det['MntActivoFijo'] = ActivoFijo[0]
-                    det['MntIVAActivoFijo'] = ActivoFijo[1]
-                if rec.no_rec_code:
-                    det['IVANoRec'] = collections.OrderedDict()
-                    det['IVANoRec']['CodIVANoRec'] = rec.no_rec_code
-                    det['IVANoRec']['MntIVANoRec'] = MntIVA
-                if rec.iva_uso_comun:
-                    det['IVAUsoComun'] = MntIVA
-        if imp:
-            imps = []
-            for key, t in imp.items():
-                otro = {}
-                if t['imp'].no_rec:
-                    otro['MntSinCred'] = int(round(t['Mnt']))
-                else:
-                    otro['OtrosImp'] = collections.OrderedDict()
-                    otro['OtrosImp']['CodImp'] = t['imp'].sii_code
-                    otro['OtrosImp']['TasaImp'] = round(t['imp'].amount, 2)
-                    otro['OtrosImp']['MntImp'] = int(round(t['Mnt']))
-                imps.append(otro)
-            det['itemOtrosImp'] = imps
-        if ivas:
-            for key, i in ivas.items():
-                tasa = i['det']
-                if tasa.sii_type in ['R']:
-                    if tasa.retencion == tasa.amount:
-                        det['IVARetTotal'] = int(round(i['credit'] or i['debit']))
-                        MntIVA -= det['IVARetTotal']
-                    else:
-                        reten = i['credit']
-                        tax = i['debit']
-                        if self.tipo_operacion in ['VENTA']:
-                            tax = i['credit']
-                            reten = i['debit']
-                        det['IVARetParcial'] = int(round(reten))
-                        det['IVANoRetenido'] = int(round(tax))
-                        MntIVA -= det['IVARetParcial']
-        monto_total = int(round((Neto + MntExe + TaxMnt + MntIVA), 0))
-        if no_product :
-            monto_total = 0
-        det['MntTotal'] = monto_total
-        return det
-
-    def _setResumenBoletas(self, rec):
-        det = collections.OrderedDict()
-        det['TpoDoc'] = rec.tipo_boleta.sii_code
-        det['TotDoc'] = det['NroDoc'] = rec.cantidad_boletas
-        if rec.impuesto.amount > 0:
-            #det['TpoImp'] = self._TpoImp(rec.impuesto)
-            det['TasaImp'] = round(rec.impuesto.amount,2)
-            det['MntNeto'] = int(round(rec.neto))
-            det['MntIVA'] = int(round(rec.monto_impuesto))
-        else:
-            det['MntExe'] = int(round(rec.neto))
-        det['MntTotal'] = int(round(rec.monto_total))
-        return det
-
-    def _process_imps(self, tax_line_id, totales=0, currency=None, Neto=0, TaxMnt=0, MntExe=0, ivas={}, imp={}):
-        mnt = tax_line_id.compute_all(totales,  currency, 1)['taxes'][0]
-        if mnt['amount'] < 0:
-            mnt['amount'] *= -1
-            mnt['base'] *= -1
-        if tax_line_id.sii_code in [14, 15, 17, 18, 19, 30, 31, 32, 33, 34, 36, 37, 38, 39, 41, 47, 48]: # diferentes tipos de IVA retenidos o no
-            ivas.setdefault(tax_line_id.id, [tax_line_id, 0])
-            ivas[tax_line_id.id][1] += mnt['amount']
-            TaxMnt += mnt['amount']
-            Neto += mnt['base']
-        else:
-            imp.setdefault(tax_line_id.id, [tax_line_id, 0])
-            imp[tax_line_id.id][1] += mnt['amount']
-            if tax_line_id.amount == 0:
-                MntExe += mnt['base']
-        return Neto, TaxMnt, MntExe, ivas, imp
-
-    def _es_iva(self, tax):
-        if tax.sii_code in [14, 15, 17, 18, 19, 30,31, 32 ,33, 34, 36, 37, 38, 39, 41, 47, 48]:
-            return True
-        return False
-
-    def _get_date(self, rec):
-        return {
-            'FchEmiDoc': rec.date,
-            'FchVencDoc': rec.date
-        }
-
-    def _get_datos(self, rec):
-        Neto = 0
-        MntExe = 0
-        TaxMnt = 0
-        for l in rec.line_ids:
-            if l.tax_line_id:
-                if l.tax_line_id and l.tax_line_id.amount > 0: #supuesto iva único
-                    if self._es_iva(l.tax_line_id): # diferentes tipos de IVA retenidos o no
-                        if l.credit > 0:
-                            TaxMnt += l.credit
-                        else:
-                            TaxMnt += l.debit
-            elif l.tax_ids and l.tax_ids[0].amount > 0:
-                if l.credit > 0:
-                    Neto += l.credit
-                else:
-                    Neto += l.debit
-            elif l.tax_ids and l.tax_ids[0].amount == 0: #caso monto exento
-                if l.credit > 0:
-                    MntExe += l.credit
-                else:
-                    MntExe += l.debit
-        TasaIVA = self.env['account.move.line'].search([('move_id', '=', rec.id), ('tax_line_id.amount', '>', 0)], limit=1).tax_line_id.amount
-        return Neto, MntExe, TaxMnt, TasaIVA
-
-    def _get_resumen_boleta(self, rec):
-        det = collections.OrderedDict()
-        det['TpoDoc'] = rec.document_class_id.sii_code
-        det['FolioDoc'] = int(rec.sii_document_number)
-        #if self.env['account.invoice.referencias'].search(
-        #        [('origen', '=', det['FolioDoc']),
-        #         ('sii_referencia_TpoDocRef', '=', rec.document_class_id.id),
-        #         ('sii_referencia_CodRef', '=', '1')
-        #        ]) or  \
-        #    (rec.document_class_id.sii_code in [39, 41] and
-        #     self.env['pos.order.referencias'].search([
-        #         ('origen', '=', det['FolioDoc']),
-        #         ('sii_referencia_TpoDocRef', '=', rec.document_class_id.id),
-        #         ('sii_referencia_CodRef', '=', '1')
-        #        ])
-        #    ):
-        #    det['Anulado'] = 'A'
-        det['TpoServ'] = 3
-        det.update(self._get_date(rec))
-        #det['PeriodoDesde']
-        #det['PeriodoHasta']
-        #det['CdgSIISucur']
-        MntTotal = 0
-        Neto, MntExe, TaxMnt, TasaIVA = self._get_datos(rec)
-        MntTotal = Neto + MntExe + TaxMnt
-        det['RUTCliente'] = self.format_vat(rec.partner_id.vat)
-        if MntExe > 0 :
-            det['MntExe'] = self.currency_id.round(MntExe)
-        if TaxMnt > 0:
-            det['MntIVA'] = self.currency_id.round(TaxMnt)
-            det['TasaIVA'] = TasaIVA
-        det['MntNeto'] = self.currency_id.round(Neto)
-        det['MntTotal'] = self.currency_id.round(MntTotal)
-        return det
-
-    def _procesar_otros_imp(self, resumen, resumenP):
-        no_rec = 0 if 'TotImpSinCredito' not in resumenP else resumenP['TotImpSinCredito']
-        if not 'itemOtrosImp' in resumenP :
-            tots = []
-            for o in resumen['itemOtrosImp']:
-                tot = {}
-                if 'MntSinCred' not in o:
-                    cod = o['OtrosImp']['CodImp']
-                    tot['TotOtrosImp'] = collections.OrderedDict()
-                    tot['TotOtrosImp']['CodImp']  = cod
-                    tot['TotOtrosImp']['TotMntImp']  = o['OtrosImp']['MntImp']
-                    #tot['FctImpAdic']
-                    tot['TotOtrosImp']['TotCredImp']  = o['OtrosImp']['MntImp']
-                    tots.append(tot)
-                else:
-                    no_rec += o['MntSinCred']
-            if tots:
-                resumenP['itemOtrosImp'] = tots
-            if no_rec > 0:
-                resumenP['TotImpSinCredito'] = no_rec
-            return resumenP
-        seted = False
-        itemOtrosImp = []
-        for r in resumen['itemOtrosImp']:
-            cod = r['OtrosImp']['CodImp'].replace('_no_rec','')
-            for o in resumenP['itemOtrosImp']:
-                if o['TotOtrosImp']['CodImp'] == cod:
-                    o['TotOtrosImp']['TotMntImp'] += r['OtrosImp']['MntImp']
-                    if cod == r['OtrosImp']['CodImp'] and not 'TotCredImp' in o['TotOtrosImp']:
-                        o['TotOtrosImp']['TotCredImp'] = r['OtrosImp']['MntImp']
-                    elif cod == r['OtrosImp']['CodImp']:
-                        o['TotOtrosImp']['TotCredImp'] += r['OtrosImp']['MntImp']
-                    seted = True
-                    itemOtrosImp.append(o)
-                else:
-                    no_rec += o['OtrosImp']['MntImp']
-            if not seted:
-                if cod == o['OtrosImp']['CodImp']:
-                    tot = {}
-                    tot['TotOtrosImp'] = collections.OrderedDict()
-                    tot['TotOtrosImp']['CodImp'] = cod
-                    tot['TotOtrosImp']['TotMntImp'] = r['OtrosImp']['MntImp']
-                    #tot['FctImpAdic']
-                    tot['TotOtrosImp']['TotCredImp'] += o['OtrosImp']['MntImp']
-                    itemOtrosImp.append(tot)
-                else:
-                    no_rec += o['OtrosImp']['MntImp']
-
-        resumenP['itemOtrosImp'] = itemOtrosImp
-        if not 'TotImpSinCredito' in resumenP and no_rec > 0:
-            resumenP['TotImpSinCredito'] += no_rec
-        elif no_rec:
-            resumenP['TotImpSinCredito'] = no_rec
-        return resumenP
-
-    def _setResumenPeriodo(self, resumen, resumenP):
-        resumenP['TpoDoc'] = resumen['TpoDoc']
-        if 'TpoImp' in resumen:
-            resumenP['TpoImp'] = resumen['TpoImp'] or 1
-        if not 'TotDoc' in resumenP:
-            resumenP['TotDoc'] = 1
-            if 'TotDoc' in resumen:
-                resumenP['TotDoc'] = resumen['TotDoc']
-        else:
-            resumenP['TotDoc'] += 1
-        if 'TotAnulado' in resumenP and 'Anulado' in resumen:
-            resumenP['TotAnulado'] += 1
-            return resumenP
-        elif 'Anulado' in resumen:
-            resumenP['TotAnulado'] = 1
-            return resumenP
-        if 'MntExe' in resumen and not 'TotMntExe' in resumenP:
-            resumenP['TotMntExe'] = resumen['MntExe']
-        elif 'MntExe' in resumen:
-            resumenP['TotMntExe'] += resumen['MntExe']
-        elif not 'TotMntExe' in resumenP:
-            resumenP['TotMntExe'] = 0
-        if 'MntNeto' in resumen and not 'TotMntNeto' in resumenP:
-            resumenP['TotMntNeto'] = resumen['MntNeto']
-        elif 'MntNeto' in resumen:
-            resumenP['TotMntNeto'] += resumen['MntNeto']
-        elif not 'TotMntNeto' in resumenP:
-            resumenP['TotMntNeto'] = 0
-        if 'TotOpIVARec' in resumen:
-            resumenP['TotOpIVARec'] = resumen['OpIVARec']
-        if 'MntIVA' in resumen and not 'TotMntIVA' in resumenP:
-            resumenP['TotMntIVA'] = resumen['MntIVA']
-        elif 'MntIVA' in resumen:
-            resumenP['TotMntIVA'] += resumen['MntIVA']
-        elif not 'TotMntIVA' in resumenP:
-            resumenP['TotMntIVA'] = 0
-        if 'MntActivoFijo' in resumen and not 'TotOpActivoFijo'in resumenP:
-            resumenP['TotOpActivoFijo'] = resumen['MntActivoFijo']
-            resumenP['TotMntIVAActivoFijo'] = resumen['MntIVAActivoFijo']
-        elif 'MntActivoFijo' in resumen:
-            resumenP['TotOpActivoFijo'] += resumen['MntActivoFijo']
-            resumenP['TotMntIVAActivoFijo'] += resumen['MntIVAActivoFijo']
-        if 'IVANoRec' in resumen and not 'itemNoRec' in resumenP:
-            tot = {}
-            tot['TotIVANoRec'] = collections.OrderedDict()
-            tot['TotIVANoRec']['CodIVANoRec'] = resumen['IVANoRec']['CodIVANoRec']
-            tot['TotIVANoRec']['TotOpIVANoRec'] = 1
-            tot['TotIVANoRec']['TotMntIVANoRec'] = resumen['IVANoRec']['MntIVANoRec']
-            resumenP['itemNoRec'] = [tot]
-        elif 'IVANoRec' in resumen:
-            seted = False
-            itemNoRec = []
-            for r in resumenP['itemNoRec']:
-                if r['TotIVANoRec']['CodIVANoRec'] == resumen['IVANoRec']['CodIVANoRec']:
-                    r['TotIVANoRec']['TotOpIVANoRec'] += 1
-                    r['TotIVANoRec']['TotMntIVANoRec'] += resumen['IVANoRec']['MntIVANoRec']
-                    seted = True
-                itemNoRec.extend([r])
-            if not seted:
-                tot = {}
-                tot['TotIVANoRec'] = collections.OrderedDict()
-                tot['TotIVANoRec']['CodIVANoRec'] = resumen['IVANoRec']['CodIVANoRec']
-                tot['TotIVANoRec']['TotOpIVANoRec'] = 1
-                tot['TotIVANoRec']['TotMntIVANoRec'] = resumen['IVANoRec']['MntIVANoRec']
-                itemNoRec.extend([tot])
-            resumenP['itemNoRec'] = itemNoRec
-
-        if 'IVAUsoComun' in resumen and not 'TotOpIVAUsoComun' in resumenP:
-            resumenP['TotOpIVAUsoComun'] = 1
-            resumenP['TotIVAUsoComun'] = resumen['IVAUsoComun']
-            resumenP['FctProp'] = self.fact_prop
-            resumenP['TotCredIVAUsoComun'] = int(round((resumen['IVAUsoComun'] * self.fact_prop )))
-        elif 'IVAUsoComun' in resumen:
-            resumenP['TotOpIVAUsoComun'] += 1
-            resumenP['TotIVAUsoComun'] += resumen['IVAUsoComun']
-            resumenP['TotCredIVAUsoComun'] += int(round((resumen['IVAUsoComun'] * self.fact_prop )))
-        if 'itemOtrosImp' in resumen:
-            resumenP = self._procesar_otros_imp(resumen, resumenP)
-        if 'IVARetTotal' in resumen and not 'TotOpIVARetTotal' in resumenP:
-            resumenP['TotIVARetTotal'] = resumen['IVARetTotal']
-        elif 'IVARetTotal' in resumen:
-            resumenP['TotIVARetTotal'] += resumen['IVARetTotal']
-        if 'IVARetParcial' in resumen and not 'TotOpIVARetParcial' in resumenP:
-            resumenP['TotIVARetParcial'] = resumen['IVARetParcial']
-            resumenP['TotIVANoRetenido'] = resumen['IVANoRetenido']
-        elif 'IVARetParcial' in resumen:
-            resumenP['TotIVARetParcial'] += resumen['IVARetParcial']
-            resumenP['TotIVANoRetenido'] += resumen['IVANoRetenido']
-
-        #@TODO otros tipos IVA
-        if not 'TotMntTotal' in resumenP:
-            resumenP['TotMntTotal'] = resumen['MntTotal']
-        else:
-            resumenP['TotMntTotal'] += resumen['MntTotal']
-        return resumenP
-
-    def _setResumenPeriodoBoleta(self, resumen, resumenP):
-        resumenP['TpoDoc'] = resumen['TpoDoc']
-        if 'Anulado' in resumen and 'TotAnulado' in resumenP:
-            resumenP['TotAnulado'] += 1
-            return resumenP
-        elif 'Anulado' in resumen:
-            resumenP['TotAnulado'] = 1
-            return resumenP
-        if not 'TotalesServicio' in resumenP:
-            resumenP['TotalesServicio'] = collections.OrderedDict()
-            resumenP['TotalesServicio']['TpoServ'] = resumen['TpoServ']#@TODO separar por tipo de servicio
-            resumenP['TotalesServicio']['TotDoc'] = 0
-        resumenP['TotalesServicio']['TotDoc'] += 1
-        if 'MntExe' in resumen and not 'TotMntExe' in resumenP['TotalesServicio']:
-            resumenP['TotalesServicio']['TotMntExe'] = resumen['MntExe']
-        elif 'MntExe' in resumen:
-            resumenP['TotalesServicio']['TotMntExe'] += resumen['MntExe']
-        elif not 'TotMntExe' in resumenP['TotalesServicio']:
-            resumenP['TotalesServicio']['TotMntExe'] = 0
-        if 'MntNeto' in resumen and 'TotMntNeto' not in resumenP['TotalesServicio']:
-            resumenP['TotalesServicio']['TotMntNeto'] = resumen['MntNeto']
-        elif 'MntNeto' in resumen:
-            resumenP['TotalesServicio']['TotMntNeto'] += resumen['MntNeto']
-        elif not 'TotMntNeto' in resumenP['TotalesServicio']:
-            resumenP['TotalesServicio']['TotMntNeto'] = 0
-        if 'MntIVA' in resumen and resumen['MntIVA'] > 0:
-            resumenP['TotalesServicio']['TasaIVA'] = resumen['TasaIVA']
-        if 'MntIVA' in resumen and not 'TotMntIVA' in resumenP['TotalesServicio']:
-            resumenP['TotalesServicio']['TotMntIVA'] = resumen['MntIVA']
-        elif 'MntIVA' in resumen:
-            resumenP['TotalesServicio']['TotMntIVA'] += resumen['MntIVA']
-        elif not 'TotMntIVA' in resumenP['TotalesServicio']:
-            resumenP['TotalesServicio']['TotMntIVA'] = 0
-        if not 'TotMntTotal' in resumenP['TotalesServicio']:
-            resumenP['TotalesServicio']['TotMntTotal'] = resumen['MntTotal']
-        else:
-            resumenP['TotalesServicio']['TotMntTotal'] += resumen['MntTotal']
-        return resumenP
-
     def _get_moves(self):
         recs = []
         for rec in self.with_context(lang='es_CL').move_ids:
@@ -912,97 +368,66 @@ version="1.0">
             if not document_class_id or document_class_id.sii_code in [39, 41]\
                 or rec.sii_document_number in [False, 0]:
                 continue
-            recs.append(rec)
+            query = [
+                ('sii_document_number', '=', rec.sii_document_number),
+                ('document_class_id', '=', document_class_id.id),
+                ('partner_id', '=', rec.partner_id.id),
+                ('journal_id', '=', rec.journal_id.id),
+                ('state', 'not in', ['cancel', 'draft']),
+            ]
+            ref = self.env['account.invoice'].search(query)
+            recs.append(ref._dte())
         return recs
 
-    def _validar(self):
-        dicttoxml.set_debug(False)
-        company_id = self.company_id
-        signature_id = self.env.user.get_digital_signature(self.company_id)
+    def _emisor(self):
+        Emisor = {}
+        Emisor['RUTEmisor'] = self.format_vat(self.company_id.vat)
+        Emisor['RznSoc'] = self.company_id.name
+        Emisor["Modo"] = "produccion" if self.company_id.dte_service_provider == 'SII'\
+                  else 'certificacion'
+        Emisor["NroResol"] = self.company_id.dte_resolution_number
+        Emisor["FchResol"] = self.company_id.dte_resolution_date
+        Emisor["ValorIva"] = 19
+        return Emisor
+
+    def _get_datos_empresa(self, company_id):
+        signature_id = self.env.user.get_digital_signature(company_id)
         if not signature_id:
-            raise UserError(_('''There are not a Signature Cert Available for this user, pleaseupload your signature or tell to someelse.'''))
-        resumenes = []
-        resumenesPeriodo = {}
+            raise UserError(_('''There are not a Signature Cert Available for this user, please upload your signature or tell to someelse.'''))
+        emisor = self._emisor()
+        return {
+            "Emisor": emisor,
+            "firma_electronica": signature_id.parametros_firma(),
+        }
+
+    def _validar(self):
+        datos = self._get_datos_empresa(self.company_id)
+        grupos = {}
         recs = self._get_moves()
-        for rec in recs:
-            TpoDoc = rec.document_class_id.sii_code
-            if TpoDoc not in resumenesPeriodo:
-                resumenesPeriodo[TpoDoc] = {}
-            if self.tipo_operacion == 'BOLETA':
-                resumen = self._get_resumen_boleta(rec)
-                resumenesPeriodo[TpoDoc] = self._setResumenPeriodoBoleta(resumen, resumenesPeriodo[TpoDoc])
-                del(resumen['MntNeto'])
-                del(resumen['MntIVA'])
-                if resumen.get('TasaIVA'):
-                    del(resumen['TasaIVA'])
-                resumenes.extend([{'Detalle': resumen}])
-            else:
-                resumen = self.getResumen(rec)
-                resumenes.extend([{'Detalle': resumen}])
-                resumenesPeriodo[TpoDoc] = self._setResumenPeriodo(resumen, resumenesPeriodo[TpoDoc])
-        if self.boletas:#no es el libro de boletas especial
-            for boletas in self.boletas:
-                resumenesPeriodo[boletas.tipo_boleta.id] = {}
-                resumen = self._setResumenBoletas(boletas)
-                del(resumen['TotDoc'])
-                resumenesPeriodo[boletas.tipo_boleta.id] = self._setResumenPeriodo(resumen, resumenesPeriodo[boletas.tipo_boleta.id])
-                #resumenes.extend([{'Detalle':resumen}])
-        lista = ['TpoDoc', 'TpoImp', 'TotDoc', 'TotAnulado', 'TotMntExe', 'TotMntNeto', 'TotalesServicio', 'TotOpIVARec',
-                'TotMntIVA', 'TotMntIVA', 'TotOpActivoFijo', 'TotMntIVAActivoFijo', 'itemNoRec', 'TotOpIVAUsoComun',
-                'TotIVAUsoComun', 'FctProp', 'TotCredIVAUsoComun', 'itemOtrosImp', 'TotImpSinCredito', 'TotIVARetTotal',
-                  'TotIVARetParcial', 'TotMntTotal', 'TotIVANoRetenido',
-                 'TotTabPuros', 'TotTabCigarrillos', 'TotTabElaborado', 'TotImpVehiculo',]
-        ResumenPeriodo=[]
-        for r, value in resumenesPeriodo.items():
-            total = collections.OrderedDict()
-            if value:
-                for v in lista:
-                    if v in value:
-                        total[v] = value[v]
-                ResumenPeriodo.extend([{'TotalesPeriodo':total}])
-        dte = collections.OrderedDict()
-        if ResumenPeriodo:
-            dte['ResumenPeriodo'] = ResumenPeriodo
-            dte['item'] = resumenes
-        dte['TmstFirma'] = self.time_stamp()
-        resol_data = self.get_resolution_data(company_id)
-        RUTEmisor = self.format_vat(company_id.vat)
-        xml = dicttoxml.dicttoxml(
-            dte, root=False, attr_type=False).decode()
-        doc_id =  self.tipo_operacion+'_'+self.periodo_tributario
-        libro = self.create_template_envio(
-                    RUTEmisor,
-                    self.periodo_tributario,
-                    resol_data['dte_resolution_date'],
-                    resol_data['dte_resolution_number'],
-                    xml,
-                    signature_id.subject_serial_number,
-                    self.tipo_operacion,
-                    self.tipo_libro,
-                    self.tipo_envio,
-                    self.folio_notificacion,
-                    doc_id)
-        xml  = self.create_template_env(libro)
-        env = 'libro'
-        if self.tipo_operacion in['BOLETA']:
-                xml = self.create_template_env_boleta(libro)
-                env = 'libro_boleta'
-        root = etree.XML( xml )
-        xml_pret = etree.tostring(root, pretty_print=True).decode('iso-8859-1')\
-                .replace('<item/>','\n')\
-                .replace('<item>','\n').replace('</item>','')\
-                .replace('<itemNoRec>','').replace('</itemNoRec>','\n')\
-                .replace('<itemOtrosImp>','').replace('</itemOtrosImp>','\n')\
-                .replace('<item_refs>','').replace('</item_refs>','\n')\
-                .replace('_no_rec','')
-        envio_dte = self.sign_full_xml(
-            xml_pret,
-            doc_id,
-            env)
+        for r in recs:
+            grupos.setdefault(r['Encabezado']['IdDoc']['TipoDTE'], [])
+            grupos[r['Encabezado']['IdDoc']['TipoDTE']].append(r)
+        for boletas in self.boletas:
+            resumenesPeriodo[boletas.tipo_boleta.id] = {}
+            resumen = self._setResumenBoletas(boletas)
+        datos['Libro'] = {
+            "PeriodoTributario": self.periodo_tributario,
+            "TipoOperacion": self.tipo_operacion,
+            "TipoLibro": self.tipo_libro,
+            "FolioNotificacion": self.folio_notificacion,
+            "TipoEnvio": self.tipo_envio,
+            "CodigoRectificacion": self.codigo_rectificacion,
+            "Documento": [{'TipoDTE': k, 'documentos': v} for k, v in grupos.items()],
+            'FctProp': self.fact_prop,
+        }
+        datos['test'] = True
+        result = fe.libro(datos)
+        envio_dte = result['sii_xml_request']
+        doc_id = '%s_%s' % (self.tipo_operacion, self.periodo_tributario)
         self.sii_xml_request = self.env['sii.xml.envio'].create({
             'xml_envio': envio_dte,
             'name': doc_id,
-            'company_id': company_id.id,
+            'company_id': self.company_id.id,
         }).id
 
     @api.multi
@@ -1015,6 +440,7 @@ version="1.0">
             self._validar()
         self.env['sii.cola_envio'].create(
                     {
+                        'company_id': self.company_id.id,
                         'doc_ids': [self.id],
                         'model': 'account.move.book',
                         'user_id': self.env.user.id,
@@ -1027,7 +453,8 @@ version="1.0">
             self.sii_xml_request.unlink()
             self._validar()
             self.sii_xml_request.state = 'NoEnviado'
-        self.sii_xml_request.send_xml()
+        if self.state in ['NoEnviado', 'EnCola']:
+            self.sii_xml_request.send_xml()
         return self.sii_xml_request
 
     def _get_send_status(self):

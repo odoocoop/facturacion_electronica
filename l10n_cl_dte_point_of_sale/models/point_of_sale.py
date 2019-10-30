@@ -379,6 +379,7 @@ version="1.0">
         if ids:
             tiempo_pasivo = (datetime.now() + timedelta(hours=int(self.env['ir.config_parameter'].sudo().get_param('account.auto_send_dte', default=12))))
             self.env['sii.cola_envio'].create({
+                'company_id': self[0].company_id.id,
                 'doc_ids': ids,
                 'model': 'pos.order',
                 'user_id': self.env.uid,
@@ -394,10 +395,11 @@ version="1.0">
             if not order.invoice_id:
                 if order.sii_result not in [False, '', 'NoEnviado']:
                     raise UserError("El documento %s ya ha sido enviado o está en cola de envío" % order.sii_document_number)
-                if order.document_class_id.sii_code in [ 61 ]:
+                if order.document_class_id.sii_code in [61]:
                     ids.append(order.id)
         if ids:
             self.env['sii.cola_envio'].create({
+                'company_id': self[0].company_id.id,
                 'doc_ids': ids,
                 'model': 'pos.order',
                 'user_id': self.env.uid,
@@ -646,6 +648,8 @@ version="1.0">
             if no_product:
                 lines['MontoItem'] = 0
             line_number += 1
+            if lines.get('PrcItem', 1) == 0:
+                del(lines['PrcItem'])
             invoice_lines.extend([{'Detalle': lines}])
         return {
                 'invoice_lines': invoice_lines,

@@ -26,7 +26,7 @@ except ImportError:
     _logger.warning('Cannot import suds')
 
 server_url = {
-    'SIIHOMO': 'https://maullin.sii.cl/DTEWS/',
+    'SIICERT': 'https://maullin.sii.cl/DTEWS/',
     'SII': 'https://palena.sii.cl/DTEWS/',
 }
 
@@ -284,7 +284,7 @@ version="1.0">
             'aec',
         )
         return {
-            'xml_envio':  '<?xml version="1.0" encoding="ISO-8859-1"?>\n'+envio_dte,
+            'xml_envio': '<?xml version="1.0" encoding="ISO-8859-1"?>\n%s' % envio_dte,
             'name': file_name,
             'company_id': self.company_id.id,
             'user_id': self.env.uid,
@@ -294,18 +294,19 @@ version="1.0">
     def validate_cesion(self):
         for inv in self.with_context(lang='es_CL'):
             inv.sii_cesion_result = 'NoEnviado'
-            if inv.type in ['out_invoice' ] and inv.document_class_id.sii_code in [ 33, 34]:
+            if inv.type in ['out_invoice' ] and inv.document_class_id.sii_code in [33, 34]:
                 if inv.journal_id.restore_mode:
                     inv.sii_result = 'Proceso'
                 else:
                     inv._crear_envio_cesion()
                     inv.sii_cesion_result = 'EnCola'
                     self.env['sii.cola_envio'].create({
-                                                'doc_ids': [inv.id],
-                                                'model': 'account.invoice',
-                                                'user_id': self.env.uid,
-                                                'tipo_trabajo': 'cesion',
-                                                })
+                                            'company_id': inv.company_id.id,
+                                            'doc_ids': [inv.id],
+                                            'model': 'account.invoice',
+                                            'user_id': self.env.uid,
+                                            'tipo_trabajo': 'cesion',
+                                            })
     @api.multi
     def cesion_dte_send(self):
         if  1== 1:#not self[0].sii_cesion_request or self[0].sii_cesion_result in ['Rechazado'] :
@@ -332,6 +333,7 @@ version="1.0">
                 ids.append(inv.id)
         if ids:
             self.env['sii.cola_envio'].create({
+                                    'company_id': self[0].company_id.id,
                                     'doc_ids': ids,
                                     'model': 'account.invoice',
                                     'user_id': self.env.user.id,

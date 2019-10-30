@@ -153,6 +153,17 @@
     </field>
   </record>
 
+  <record id="dte_message_process" model="ir.ui.view">
+    <field name="name">mail.message.form</field>
+    <field name="model">mail.message</field>
+    <field name="inherit_id" ref="mail.view_message_form" />
+    <field name="arch" type="xml">
+        <field name="subject" position="after">
+            <button name="process_mess" type="object" string="Manual XML Process" attrs="{'invisible': [('message_type', '!=', 'email'), ('mail_server_id', '=', False)]}"/>
+        </field>
+    </field>
+  </record>
+
   <record model="ir.ui.view" id="dte_document_search_view">
        <field name="name">dte.document.search</field>
        <field name="model">mail.message.dte.document</field>
@@ -165,7 +176,7 @@
 
   <record id="action_dte_process" model="ir.actions.act_window">
       <field name="type">ir.actions.act_window</field>
-      <field name="name">Recepcionar XML de Envío</field>
+      <field name="name">Aceptar / Rechazar Documentos</field>
       <field name="domain">[]</field>
       <field name="res_model">mail.message.dte.document</field>
       <field name="view_type">form</field>
@@ -174,27 +185,24 @@
 
   <record id="act_xml_recept" model="ir.actions.act_window">
       <field name="type">ir.actions.act_window</field>
-      <field name="name">XML Recepcionados</field>
+      <field name="name">XML Recibidos</field>
       <field name="res_model">mail.message.dte</field>
       <field name="view_type">form</field>
       <field name="target">current</field>
   </record>
 
   <menuitem
-     id="menu_recept_xml"
-     action="action_dte_process"
-     parent="purchase.menu_purchase_control" />
-
-  <menuitem
      action="action_dte_process"
      id="menu_action_recept_xml"
-     parent="account.menu_finance_payables" />
+     parent="l10n_cl_fe.menu_sii_exchange"
+     sequence="1"/>
 
   <menuitem
       name="XML Recibidos"
       action="act_xml_recept"
       id="menu_action_xml_recept"
-      parent="l10n_cl_fe.menu_sii_config"/>
+      parent="l10n_cl_fe.menu_sii_exchange"
+      sequence="2"/>
 
   <act_window id="action_masive_validate"
           multi="True"

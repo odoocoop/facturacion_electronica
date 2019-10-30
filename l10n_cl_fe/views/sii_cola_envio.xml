@@ -6,6 +6,7 @@
           <field name="arch" type="xml">
               <form string="SII Cola de envío">
                   <group>
+                    <field name="company_id" />
                     <field name="doc_ids"/>
                     <field name="model"/>
                     <field name="user_id" />

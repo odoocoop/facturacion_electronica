@@ -149,7 +149,12 @@ class StockPicking(models.Model):
     invoiced = fields.Boolean(
             string='Invoiced?',
             readonly=True,
-    )
+        )
+    respuesta_ids = fields.Many2many(
+            'sii.respuesta.cliente',
+            string="Recepción del Cliente",
+            readonly=True,
+        )
 
     @api.onchange('picking_type_id')
     def onchange_picking_type(self,):
