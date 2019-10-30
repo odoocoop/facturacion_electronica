@@ -6,6 +6,7 @@ from odoo.exceptions import Warning
 
 class SIISucursal(models.Model):
     _name = 'sii.sucursal'
+    _description = 'Sucursales empresa con Código SII'
 
     name = fields.Char(string='Nombre de la Sucursal', required=True)
     sii_code = fields.Char(string="Código SII de la Sucursal", )

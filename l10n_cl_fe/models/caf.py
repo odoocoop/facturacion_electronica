@@ -21,6 +21,7 @@ except ImportError:
 
 class CAF(models.Model):
     _name = 'dte.caf'
+    _description = 'CAF DTE'
 
     @api.depends('caf_file')
     def _compute_data(self):
@@ -117,7 +118,8 @@ has been exhausted.''',
         self.final_nm = result['RNG']['H']
         self.sii_document_class = result['TD']
         self.issued_date = result['FA']
-        if self.sequence_id.sii_document_class_id.sii_code not in [34, 52]:
+        if self.sequence_id.sii_document_class_id.sii_code not in [34, 52]\
+           and not self.sequence_id.sii_document_class_id.es_boleta():
             self.expiration_date = date(int(result['FA'][:4]),
                                     int(result['FA'][5:7]),
                                     int(result['FA'][8:10])

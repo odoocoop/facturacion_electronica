@@ -1,8 +1,10 @@
 # -*- encoding: utf-8 -*-
 from odoo import models, fields
 
+
 class ResStateRegion(models.Model):
     _name = 'res.country.state.region'
+    _description = 'Subdivisión Regiónes'
 
     name = fields.Char(
             string='Region Name',

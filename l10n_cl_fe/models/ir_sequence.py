@@ -68,7 +68,7 @@ class IRSequence(models.Model):
         msg = '''No Hay caf para el documento: {}, está fuera de rango . Solicite un nuevo CAF en el sitio \
 www.sii.cl'''.format(folio)
         if not caffiles:
-            raise UserError(_('''No hay caf disponible para el documento %s folio %s. Por favor solicite suba un CAF o solicite uno en el SII.''' % (self.name, folio)))
+            raise UserError(_('''No hay caf disponible para el documento %s folio %s. Por favor solicite y suba un CAF o solicite uno en el SII o Utilice la opción obtener folios en la secuencia (usando apicaf.cl).''' % (self.name, folio)))
         for caffile in caffiles:
             if int(folio) >= caffile.start_nm and int(folio) <= caffile.final_nm:
                 if caffile.expiration_date:

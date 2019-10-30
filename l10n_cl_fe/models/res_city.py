@@ -2,6 +2,7 @@
 from odoo import fields, models, api
 from odoo.tools.translate import _
 
+
 class ResCity(models.Model):
     _inherit = 'res.city'
 

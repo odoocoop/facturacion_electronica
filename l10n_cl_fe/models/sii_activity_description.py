@@ -1,15 +1,16 @@
 # -*- coding: utf-8 -*-
 from odoo import models, fields
-class partner_activities(models.Model):
 
-    _description = 'SII Economical Activities Printable Description'
+
+class partner_activities(models.Model):
     _name = 'sii.activity.description'
+    _description = 'SII Economical Activities Printable Description'
 
     name = fields.Char(
             string='Glosa',
             required=True,
             translate=True,
-        )    
+        )
     vat_affected = fields.Selection(
             (
                     ('SI', 'Si'),

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from odoo import fields, models, api
 
+
 class paymentTerm(models.Model):
     _inherit = 'account.payment.term'
 

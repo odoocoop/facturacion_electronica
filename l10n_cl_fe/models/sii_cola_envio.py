@@ -9,6 +9,7 @@ _logger = logging.getLogger(__name__)
 
 class ColaEnvio(models.Model):
     _name = "sii.cola_envio"
+    _description = 'Cola de envío DTE Persistente al SII'
 
     doc_ids = fields.Char(
             string="Id Documentos",

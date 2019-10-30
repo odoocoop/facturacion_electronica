@@ -88,9 +88,20 @@
                     <field name="limit_dte_lines" widget="upgrade_odoocoop_boolean"/>
                 </div>
                 <div class="o_setting_right_pane" name="limit_dte_lines_right_pane">
-                    <label string="Limitar Líenas" for="limit_dte_lines"/>
+                    <label string="Limitar Líneas" for="limit_dte_lines"/>
                     <div class="text-muted">
                        Limitar la cantidad de líneas por documento (legalmente debe ser una por hoja)
+                    </div>
+                </div>
+              </div>
+              <div class="col-xs-12 col-md-6 o_setting_box" id="cf_autosend">
+                <div class="o_setting_left_pane">
+                    <field name="cf_autosend" widget="upgrade_odoocoop_boolean"/>
+                </div>
+                <div class="o_setting_right_pane" name="cf_autosend_right_pane">
+                    <label string="Auto Enviar CF" for="cf_autosend"/>
+                    <div class="text-muted">
+                       Auto Enviar Consumo de Folios a una hora definida
                     </div>
                 </div>
               </div>

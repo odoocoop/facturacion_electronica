@@ -4,8 +4,10 @@ from odoo.exceptions import UserError
 import logging
 _logger = logging.getLogger(__name__)
 
+
 class GlobalDescuentoRecargo(models.Model):
     _name = "account.invoice.gdr"
+    _description = 'Línea de descuento / Recargo Global DTE'
 
     type = fields.Selection(
             [
@@ -100,7 +102,7 @@ class GlobalDescuentoRecargo(models.Model):
         ctx = self.env.context.copy()
         # FIX: la accion de Notas de credito pasa por contexto default_type: 'out_refund'
         # pero al existir en esta clase de descuentos un campo llamado type
-        # el ORM lo interpreta como un valor para ese campo, 
+        # el ORM lo interpreta como un valor para ese campo,
         # pero el valor no esta dentro de las opciones del selection, por ello sale error
         # asi que si no esta en los valores soportados, eliminarlo del contexto
         if 'default_type' in ctx and ctx.get('default_type') not in ('D', 'R'):

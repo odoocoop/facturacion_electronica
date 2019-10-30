@@ -211,7 +211,7 @@
                                <p style="text-align:center;color:red; font-size:8px;">
                                  Timbre Electrónico SII
                                  <br/>
-                                 Resolución <t t-esc='o.company_id.dte_resolution_number'/> de <t t-esc='o.company_id.dte_resolution_date.year'/> Verifique documento: www.sii.cl
+                                 Resolución <t t-esc='o.company_id.dte_resolution_number'/> de <t t-esc='o.company_id.dte_resolution_date.strftime("%Y")'/> Verifique documento: www.sii.cl
                                </p>
                            </div>
                          </div>

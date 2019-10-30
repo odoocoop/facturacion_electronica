@@ -8,7 +8,7 @@ _logger = logging.getLogger(__name__)
 
 class ProcessMailsDocument(models.Model):
     _name = 'mail.message.dte.document'
-    _description = "Pre Document"
+    _description = "Pre Documento Recibido"
     _inherit = ['mail.thread']
 
     dte_id = fields.Many2one(

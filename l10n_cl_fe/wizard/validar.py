@@ -4,19 +4,12 @@ from odoo.tools.translate import _
 from odoo.exceptions import UserError
 import logging
 import base64
-import collections
 _logger = logging.getLogger(__name__)
 
 try:
-    import dicttoxml
+    from facturacion_electronica import facturacion_electronica as fe
 except:
-    _logger.warning('No se ha podido cargar dicttoxml')
-
-try:
-    import xmltodict
-except:
-    _logger.warning('No se ha podido cargar xmltodict')
-
+    _logger.warning('No se ha podido cargar fe')
 
 class ValidarDTEWizard(models.TransientModel):
     _name = 'sii.dte.validar.wizard'
@@ -61,7 +54,7 @@ class ValidarDTEWizard(models.TransientModel):
 
     def _create_attachment(self, xml, name, id=False, model='account.invoice'):
         data = base64.b64encode(xml.encode('ISO-8859-1'))
-        filename = (name + '.xml').replace(' ', '')
+        filename = (name).replace(' ', '')
         url_path = '/web/binary/download_document?model=' + model + '\
     &field=sii_xml_request&id=%s&filename=%s' % (id, filename)
         att = self.env['ir.attachment'].search(
@@ -85,50 +78,6 @@ class ValidarDTEWizard(models.TransientModel):
                     )
         att = self.env['ir.attachment'].create(values)
         return att
-
-    def _caratula_respuesta(self, RutResponde, RutRecibe, IdRespuesta="1", NroDetalles=0):
-        caratula = collections.OrderedDict()
-        caratula['RutResponde'] = RutResponde
-        caratula['RutRecibe'] = RutRecibe
-        caratula['IdRespuesta'] = IdRespuesta
-        caratula['NroDetalles'] = NroDetalles
-        caratula['NmbContacto'] = self.env.user.partner_id.name
-        caratula['FonoContacto'] = self.env.user.partner_id.phone
-        caratula['MailContacto'] = self.env.user.partner_id.email
-        caratula['TmstFirmaResp'] = self.env['account.invoice'].time_stamp()
-        return caratula
-
-    def _resultado(self, TipoDTE, Folio, FchEmis, RUTEmisor, RUTRecep, MntTotal, IdRespuesta):
-        res = collections.OrderedDict()
-        res['TipoDTE'] = TipoDTE
-        res['Folio'] = Folio
-        res['FchEmis'] = FchEmis
-        res['RUTEmisor'] = RUTEmisor
-        res['RUTRecep'] = RUTRecep
-        res['MntTotal'] = MntTotal
-        res['CodEnvio'] = str(IdRespuesta)
-        res['EstadoDTE'] = 0
-        res['EstadoDTEGlosa'] = 'DTE Aceptado OK'
-        if self.option == "reject":
-            res['EstadoDTE'] = 2
-            res['EstadoDTEGlosa'] = 'DTE Rechazado'
-            res['CodRchDsc'] = "-1" #User Reject
-        return { 'ResultadoDTE': res }
-
-    def _ResultadoDTE(self, Caratula, resultado):
-        resp='''<?xml version="1.0" encoding="ISO-8859-1"?>
-<RespuestaDTE version="1.0" xmlns="http://www.sii.cl/SiiDte" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.sii.cl/SiiDte RespuestaEnvioDTE_v10.xsd" >
-    <Resultado ID="Odoo_resp">
-        <Caratula version="1.0">
-            {0}
-        </Caratula>
-            {1}
-    </Resultado>
-</RespuestaDTE>'''.format(
-            Caratula,
-            resultado,
-        )
-        return resp
 
     def do_reject(self, document_ids):
         dicttoxml.set_debug(False)
@@ -176,6 +125,7 @@ class ValidarDTEWizard(models.TransientModel):
                 id=doc.id,
                 model="mail.message.dte.document",
             )
+            partners = doc.partner_id.ids
             dte_email_id = doc.company_id.dte_email_id or self.env.user.company_id.dte_email_id
             values = {
                         'res_id': doc.id,
@@ -201,49 +151,33 @@ class ValidarDTEWizard(models.TransientModel):
         id_seq = self.env.ref('l10n_cl_fe.response_sequence').id
         IdRespuesta = self.env['ir.sequence'].browse(id_seq).next_by_id()
         NroDetalles = 1
-        dicttoxml.set_debug(False)
         for inv in self.invoice_ids:
-            if inv.claim in ['ACD', 'RCD']:
+            if inv.claim in ['ACD', 'RCD'] or inv.type in ['out_invoice', 'out_refund']:
                 continue
-            dte = self._resultado(
-                TipoDTE=inv.document_class_id.sii_code,
-                Folio=inv.sii_document_number,
-                FchEmis=inv.date_invoice,
-                RUTEmisor=inv.format_vat(inv.partner_id.vat),
-                RUTRecep=inv.format_vat(inv.company_id.vat),
-                MntTotal=int(round(inv.amount_total, 0)),
-                IdRespuesta=IdRespuesta,
-            )
-            ResultadoDTE = dicttoxml.dicttoxml(
-                dte,
-                root=False,
-                attr_type=False,
-            ).decode().replace('<item>','\n').replace('</item>','\n')
-            RutRecibe = inv.format_vat(inv.partner_id.vat)
-            caratula_validacion_comercial = self._caratula_respuesta(
-                inv.format_vat(inv.company_id.vat),
-                RutRecibe,
-                IdRespuesta,
-                NroDetalles,
-            )
-            caratula = dicttoxml.dicttoxml(
-                caratula_validacion_comercial,
-                root=False,
-                attr_type=False,
-            ).decode().replace('<item>','\n').replace('</item>','\n')
-            resp = self._ResultadoDTE(
-                caratula,
-                ResultadoDTE,
-            )
-            respuesta = '<?xml version="1.0" encoding="ISO-8859-1"?>\n' + inv.sign_full_xml(
-                resp.replace('<?xml version="1.0" encoding="ISO-8859-1"?>\n', ''),
-                'Odoo_resp',
-                'env_resp',
-            )
-            inv.sii_message = respuesta
+            datos = inv._get_datos_empresa(inv.company_id)
+            dte = inv._dte()
+            ''' @TODO separar estos dos'''
+            dte['CodEnvio'] = IdRespuesta
+            datos["ValidacionCom"] = {
+                "RutResponde": inv.format_vat(
+                                inv.company_id.vat),
+                'IdRespuesta': IdRespuesta,
+                'NroDetalles': NroDetalles,
+                "RutResponde": inv.format_vat(
+                                inv.company_id.vat),
+                'NmbContacto': self.env.user.partner_id.name,
+                'FonoContacto': self.env.user.partner_id.phone,
+                'MailContacto': self.env.user.partner_id.email,
+                "Receptor": {
+                	    "RUTRecep": inv.commercial_partner_id.document_number,
+                },
+                "DTEs": [dte],
+            }
+            resp = fe.validacion_comercial(datos)
+            inv.sii_message = resp['respuesta_xml']
             att = self._create_attachment(
-                respuesta,
-                'validacion_comercial_' + str(IdRespuesta),
+                resp['respuesta_xml'],
+                resp['nombre_xml'],
             )
             dte_email_id = inv.company_id.dte_email_id or self.env.user.company_id.dte_email_id
             values = {
@@ -252,7 +186,7 @@ class ValidarDTEWizard(models.TransientModel):
                         'email_to': inv.commercial_partner_id.dte_email,
                         'auto_delete': False,
                         'model': "account.invoice",
-                        'body': 'XML de Validación Comercial, Estado: %s, Glosa: %s' % (dte['ResultadoDTE']['EstadoDTE'], dte['ResultadoDTE']['EstadoDTEGlosa']),
+                        'body': 'XML de Validación Comercial, Estado: %s, Glosa: %s' % (resp['EstadoDTE'], resp['EstadoDTEGlosa']),
                         'subject': 'XML de Validación Comercial',
                         'attachment_ids': [[6, 0, att.ids]],
                     }
@@ -266,102 +200,31 @@ class ValidarDTEWizard(models.TransientModel):
             except:
                 _logger.warning("@TODO crear código que encole la respuesta")
 
-    def _recep(self, inv, RutFirma):
-        receipt = collections.OrderedDict()
-        receipt['TipoDoc'] = inv.document_class_id.sii_code
-        receipt['Folio'] = inv.sii_document_number
-        receipt['FchEmis'] = inv.date_invoice
-        receipt['RUTEmisor'] = inv.format_vat(inv.partner_id.vat)
-        receipt['RUTRecep'] = inv.format_vat(inv.company_id.vat)
-        receipt['MntTotal'] = int(round(inv.amount_total))
-        receipt['Recinto'] = self.env['account.invoice']._acortar_str(inv.company_id.street, 80)
-        receipt['RutFirma'] = RutFirma
-        receipt['Declaracion'] = 'El acuse de recibo que se declara en este acto, de acuerdo a lo dispuesto en la letra b) del Art. 4, y la letra c) del Art. 5 de la Ley 19.983, acredita que la entrega de mercaderias o servicio(s) prestado(s) ha(n) sido recibido(s).'
-        receipt['TmstFirmaRecibo'] = inv.time_stamp()
-        return receipt
-
-    def _envio_recep(self,caratula, recep):
-        xml = '''<?xml version="1.0" encoding="ISO-8859-1"?>
-<EnvioRecibos xmlns='http://www.sii.cl/SiiDte' xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' xsi:schemaLocation='http://www.sii.cl/SiiDte EnvioRecibos_v10.xsd' version="1.0">
-    <SetRecibos ID="SetDteRecibidos">
-        <Caratula version="1.0">
-        {0}
-        </Caratula>
-        {1}
-    </SetRecibos>
-</EnvioRecibos>'''.format(caratula, recep)
-        return xml
-
-    def _caratula_recep(self, RutResponde, RutRecibe):
-        caratula = collections.OrderedDict()
-        caratula['RutResponde'] = RutResponde
-        caratula['RutRecibe'] = RutRecibe
-        caratula['NmbContacto'] = self.env.user.partner_id.name
-        caratula['FonoContacto'] = self.env.user.partner_id.phone
-        caratula['MailContacto'] = self.env.user.partner_id.email
-        caratula['TmstFirmaEnv'] = self.env['account.invoice'].time_stamp()
-        return caratula
-
     @api.multi
     def do_receipt(self):
         message = ""
         for inv in self.invoice_ids:
             if inv.claim in ['ACD', 'RCD']:
                 continue
-            signature_id = self.env['res.users'].sudo().get_digital_signature(inv.company_id)
-            if not signature_id:
-                raise UserError(_('''There is no Signer Person with an \
-            authorized signature for you in the system. Please make sure that \
-            'user_signature_key' module has been installed and enable a digital \
-            signature, for you or make the signer to authorize you to use his \
-            signature.'''))
-            dict_recept = self._recep(
-                inv,
-                signature_id.subject_serial_number,
-            )
-            id = "T" + str(inv.document_class_id.sii_code) + "F" + str(inv.get_folio())
-            doc = '''
-<Recibo version="1.0" xmlns="http://www.sii.cl/SiiDte" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.sii.cl/SiiDte Recibos_v10.xsd" >
-    <DocumentoRecibo ID="{0}" >
-    {1}
-    </DocumentoRecibo>
-</Recibo>
-            '''.format(
-                id,
-                dicttoxml.dicttoxml(
-                    dict_recept,
-                    root=False,
-                    attr_type=False,
-                ).decode(),
-            )
-            message += '\n ' + str(dict_recept['Folio']) + ' ' + dict_recept['Declaracion']
-            receipt ='<?xml version="1.0" encoding="ISO-8859-1"?>\n' + inv.sign_full_xml(
-                doc.replace('<?xml version="1.0" encoding="ISO-8859-1"?>\n', ''),
-                'Recibo',
-                'recep')
-            RutRecibe = inv.format_vat(inv.partner_id.vat)
-            dict_caratula = self._caratula_recep(
-                inv.format_vat(inv.company_id.vat),
-                RutRecibe,
-            )
-            caratula = dicttoxml.dicttoxml(
-                dict_caratula,
-                root=False,
-                attr_type=False,
-            ).decode()
-            envio_dte = self._envio_recep(
-                caratula,
-                receipt,
-            )
-            envio_dte = '<?xml version="1.0" encoding="ISO-8859-1"?>\n' + inv.sign_full_xml(
-                envio_dte.replace('<?xml version="1.0" encoding="ISO-8859-1"?>\n', ''),
-                'SetDteRecibidos',
-                'env_recep',
-            )
+            datos = inv._get_datos_empresa(inv.company_id)
+            datos["RecepcionMer"] = {
+                "RutResponde": inv.format_vat(
+                                inv.company_id.vat),
+                'Recinto': inv.company_id.street,
+                'NmbContacto': self.env.user.partner_id.name,
+                'FonoContacto': self.env.user.partner_id.phone,
+                'MailContacto': self.env.user.partner_id.email,
+                "Receptor": {
+                	    "RUTRecep": inv.commercial_partner_id.document_number,
+                },
+                "DTEs": [inv._dte()],
+            }
+            resp = fe.recepcion_mercaderias(datos)
+            inv.sii_message = resp['respuesta_xml']
             att = self._create_attachment(
-                envio_dte,
-                'recepcion_mercaderias_' + str(inv.sii_xml_request.name),
-                )
+                resp['respuesta_xml'],
+                resp['nombre_xml'],
+            )
             dte_email_id = inv.company_id.dte_email_id or self.env.user.company_id.dte_email_id
             values = {
                         'res_id': inv.id,

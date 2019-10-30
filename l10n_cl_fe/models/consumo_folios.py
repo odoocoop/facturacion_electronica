@@ -3,29 +3,22 @@ from odoo import fields, models, api, tools
 from odoo.tools.translate import _
 from odoo.exceptions import UserError
 from datetime import datetime, timedelta
-import dateutil.relativedelta as relativedelta
 from odoo.tools import DEFAULT_SERVER_DATETIME_FORMAT as DTF
-from odoo.tools import DEFAULT_SERVER_DATE_FORMAT as DF
 import logging
 from lxml import etree
 from lxml.etree import Element, SubElement
 import pytz
-import collections
+import logging
 _logger = logging.getLogger(__name__)
 try:
-    import xmltodict
-except ImportError:
-    _logger.info('Cannot import xmltodict library')
-
-try:
-    import dicttoxml
-    dicttoxml.set_debug(False)
-except ImportError:
-    _logger.info('Cannot import dicttoxml library')
+    from facturacion_electronica import facturacion_electronica as fe
+except Exception as e:
+    _logger.warning("Problema al cargar Facturación electrónica: %s" % str(e))
 
 
 class ConsumoFolios(models.Model):
     _name = "account.move.consumo_folios"
+    _description = 'Consumo Diario de Folios'
     order = 'fecha_inicio desc'
 
     sii_xml_request = fields.Many2one(
@@ -298,49 +291,6 @@ class ConsumoFolios(models.Model):
                 raise UserError(_('You cannot delete a Validated book.'))
         return super(ConsumoFolios, self).unlink()
 
-    def create_template_envio(self, RutEmisor, FchResol, NroResol, FchInicio,\
-                               FchFinal, Correlativo, SecEnvio, EnvioDTE,\
-                               subject_serial_number, IdEnvio='SetDoc'):
-        if Correlativo != 0:
-            Correlativo = "<Correlativo>"+str(Correlativo)+"</Correlativo>"
-        else:
-            Correlativo = ''
-        xml = '''<DocumentoConsumoFolios ID="{10}">
-<Caratula  version="1.0" >
-<RutEmisor>{0}</RutEmisor>
-<RutEnvia>{1}</RutEnvia>
-<FchResol>{2}</FchResol>
-<NroResol>{3}</NroResol>
-<FchInicio>{4}</FchInicio>
-<FchFinal>{5}</FchFinal>{6}
-<SecEnvio>{7}</SecEnvio>
-<TmstFirmaEnv>{8}</TmstFirmaEnv>
-</Caratula>
-{9}
-</DocumentoConsumoFolios>
-'''.format(RutEmisor, subject_serial_number,
-           FchResol, NroResol, FchInicio, FchFinal, str(Correlativo), str(SecEnvio), self.time_stamp(), EnvioDTE,  IdEnvio)
-        return xml
-
-    def time_stamp(self, formato='%Y-%m-%dT%H:%M:%S'):
-        tz = pytz.timezone('America/Santiago')
-        return datetime.now(tz).strftime(formato)
-
-    def create_template_env(self, doc,simplificado=False):
-        xsd = 'http://www.sii.cl/SiiDte ConsumoFolio_v10.xsd'
-        xml = '''<ConsumoFolios xmlns="http://www.sii.cl/SiiDte" \
-xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
-xsi:schemaLocation="{0}" \
-version="1.0">
-{1}</ConsumoFolios>'''.format(xsd, doc)
-        return xml
-
-    def get_resolution_data(self, comp_id):
-        resolution_data = {
-            'dte_resolution_date': comp_id.dte_resolution_date,
-            'dte_resolution_number': comp_id.dte_resolution_number}
-        return resolution_data
-
     @api.multi
     def get_xml_file(self):
         return {
@@ -350,8 +300,6 @@ version="1.0">
         }
 
     def format_vat(self, value):
-        ''' Se Elimina el 0 para prevenir problemas con el sii, ya que las muestras no las toma si va con
-        el 0 , y tambien internamente se generan problemas'''
         if not value or value=='' or value == 0:
             value ="CL666666666"
             #@TODO opción de crear código de cliente en vez de rut genérico
@@ -359,315 +307,71 @@ version="1.0">
         rut = rut.replace('CL0','').replace('CL','')
         return rut
 
-    @api.multi
-    def validar_consumo_folios(self):
-        self._validar()
-        consumos = self.search([
-            ('fecha_inicio', '=', self.fecha_inicio),
-            ('state', 'not in', ['draft', 'Rechazado', 'Anulado']),
-            ('company_id', '=', self.company_id.id),
-            ('id', '!=', self.id),
-            ])
-        for r in consumos:
-            r.state = "Anulado"
-        return self.write({'state': 'NoEnviado'})
+    def _emisor(self):
+        Emisor = {}
+        Emisor['RUTEmisor'] = self.format_vat(self.company_id.vat)
+        Emisor['RznSoc'] = self.company_id.name
+        Emisor["Modo"] = "produccion" if self.company_id.dte_service_provider == 'SII'\
+                  else 'certificacion'
+        Emisor["NroResol"] = self.company_id.dte_resolution_number
+        Emisor["FchResol"] = self.company_id.dte_resolution_date
+        Emisor["ValorIva"] = 19
+        return Emisor
 
-    def _acortar_str(self, texto, size=1):
-        c = 0
-        cadena = ""
-        while c < size and c < len(texto):
-            cadena += texto[c]
-            c += 1
-        return cadena
-
-    def _es_iva(self, tax):
-        if tax.sii_code in [14, 15, 17, 18, 19, 30,31, 32 ,33, 34, 36, 37, 38, 39, 41, 47, 48]:
-            return True
-        return False
-
-    def _get_totales(self, rec):
-        Neto = 0
-        MntExe = 0
-        TaxMnt = 0
-        MntTotal = 0
-        for l in rec.line_ids:
-            if l.tax_line_id:
-                if l.tax_line_id and l.tax_line_id.amount > 0: #supuesto iva único
-                    if self._es_iva(l.tax_line_id): # diferentes tipos de IVA retenidos o no
-                        if l.credit > 0:
-                            TaxMnt += l.credit
-                        else:
-                            TaxMnt += l.debit
-            elif l.tax_ids and l.tax_ids[0].amount > 0:
-                if l.credit > 0:
-                    Neto += l.credit
-                else:
-                    Neto += l.debit
-            elif l.tax_ids and l.tax_ids[0].amount == 0: #caso monto exento
-                if l.credit > 0:
-                    MntExe += l.credit
-                else:
-                    MntExe += l.debit
-        TasaIVA = self.env['account.move.line'].search([('move_id', '=', rec.id), ('tax_line_id.amount', '>', 0)], limit=1).tax_line_id.amount
-        MntTotal = Neto + MntExe + TaxMnt
-        return Neto, MntExe, TaxMnt, MntTotal, TasaIVA
-
-    def getResumen(self, rec):
-        det = collections.OrderedDict()
-        det['TpoDoc'] = rec.document_class_id.sii_code
-        det['NroDoc'] = int(rec.sii_document_number)
-        for a in self.anulaciones:
-            if a.rango_inicio <= det['NroDoc'] and det['NroDoc'] <= a.rango_final and a.tpo_doc.id == rec.document_class_id.id:
-                rec.canceled = True
-        if rec.canceled:
-            det['Anulado'] = 'A'
-            return det
-        Neto, MntExe, TaxMnt, MntTotal, TasaIVA = self._get_totales(rec)
-        if MntExe > 0:
-            det['MntExe'] = self.currency_id.round(MntExe)
-        if TaxMnt > 0:
-            det['MntIVA'] = self.currency_id.round(TaxMnt)
-            det['TasaIVA'] = TasaIVA
-        det['MntNeto'] = self.currency_id.round(Neto)
-        det['MntTotal'] = self.currency_id.round(MntTotal)
-        return det
-
-    def _last(self, folio, items):# se asumen que vienen ordenados de menor a mayor
-        last = False
-        for c in items:
-            if folio > c['Final'] and folio > c['Inicial']:
-                if not last or last['Inicial'] < c['Inicial']:
-                    last = c
-        return last
-
-    def _nuevo_rango(self, folio, f_contrario, contrarios):
-        last = self._last(folio, contrarios)#obtengo el último tramo de los contrarios
-        if last and last['Inicial'] > f_contrario:
-            return True
-        return False
-
-    def _orden(self, folio, rangos, contrarios, continuado=True):
-        last = self._last(folio, rangos)
-        if not continuado or not last or  self._nuevo_rango(folio, last['Final'], contrarios):
-            r = collections.OrderedDict()
-            r['Inicial'] = folio
-            r['Final'] = folio
-            rangos.append(r)
-            return rangos
-        result = []
-        for r in rangos:
-            if r['Final'] == last['Final'] and folio > last['Final']:
-                r['Final'] = folio
-            result.append(r)
-        return result
-
-    def _rangosU(self, resumen, rangos, continuado=True):
-        if not rangos:
-            rangos = collections.OrderedDict()
-        folio = resumen['NroDoc']
-        if 'Anulado' in resumen and resumen['Anulado']:
-            utilizados = rangos['itemUtilizados'] if 'itemUtilizados' in rangos else []
-            if not 'itemAnulados' in rangos:
-                rangos['itemAnulados'] = []
-                r = collections.OrderedDict()
-                r['Inicial'] = folio
-                r['Final'] = folio
-                rangos['itemAnulados'].append(r)
-            else:
-                rangos['itemAnulados'] = self._orden(resumen['NroDoc'], rangos['itemAnulados'], utilizados, continuado)
-            return rangos
-        anulados = rangos['itemAnulados'] if 'itemAnulados' in rangos else []
-        if not 'itemUtilizados' in rangos:
-            rangos['itemUtilizados'] = []
-            r = collections.OrderedDict()
-            r['Inicial'] = folio
-            r['Final'] = folio
-            rangos['itemUtilizados'].append(r)
-        else:
-            rangos['itemUtilizados'] = self._orden(resumen['NroDoc'], rangos['itemUtilizados'], anulados, continuado)
-        return rangos
-
-    def _setResumen(self,resumen,resumenP,continuado=True):
-        resumenP['TipoDocumento'] = resumen['TpoDoc']
-        if not 'Anulado' in resumen:
-            if 'MntNeto' in resumen and not 'MntNeto' in resumenP:
-                resumenP['MntNeto'] = resumen['MntNeto']
-            elif 'MntNeto' in resumen:
-                resumenP['MntNeto'] += resumen['MntNeto']
-            elif not 'MntNeto' in resumenP:
-                resumenP['MntNeto'] = 0
-            if 'MntIVA' in resumen and not 'MntIva' in resumenP:
-                resumenP['MntIva'] = resumen['MntIVA']
-            elif 'MntIVA' in resumen:
-                resumenP['MntIva'] += resumen['MntIVA']
-            elif not 'MntIva' in resumenP:
-                resumenP['MntIva'] = 0
-            if 'TasaIVA' in resumen and not 'TasaIVA' in resumenP:
-                resumenP['TasaIVA'] = resumen['TasaIVA']
-            if 'MntExe' in resumen and not 'MntExento' in resumenP:
-                resumenP['MntExento'] = resumen['MntExe']
-            elif 'MntExe' in resumen:
-                resumenP['MntExento'] += resumen['MntExe']
-            elif not 'MntExento' in resumenP:
-                resumenP['MntExento'] = 0
-        if not 'MntTotal' in resumenP:
-            resumenP['MntTotal'] = resumen.get('MntTotal', 0)
-        else:
-            resumenP['MntTotal'] += resumen.get('MntTotal', 0)
-        if 'FoliosEmitidos' in resumenP:
-            resumenP['FoliosEmitidos'] +=1
-        else:
-            resumenP['FoliosEmitidos'] = 1
-
-        if not 'FoliosAnulados' in resumenP:
-            resumenP['FoliosAnulados'] = 0
-        if 'Anulado' in resumen : # opción de indiar de que está anulado por panel SII no por nota
-            resumenP['FoliosAnulados'] += 1
-        elif 'FoliosUtilizados' in resumenP:
-            resumenP['FoliosUtilizados'] += 1
-        else:
-            resumenP['FoliosUtilizados'] = 1
-        if not resumenP.get('FoliosUtilizados', False):
-            resumenP['FoliosUtilizados'] = 0
-        if not str(resumen['TpoDoc'])+'_folios' in resumenP:
-            resumenP[str(resumen['TpoDoc'])+'_folios'] = collections.OrderedDict()
-        resumenP[str(resumen['TpoDoc'])+'_folios'] = self._rangosU(resumen, resumenP[str(resumen['TpoDoc'])+'_folios'], continuado)
-        return resumenP
+    def _get_datos_empresa(self, company_id):
+        signature_id = self.env.user.get_digital_signature(company_id)
+        if not signature_id:
+            raise UserError(_('''There are not a Signature Cert Available for this user, please upload your signature or tell to someelse.'''))
+        emisor = self._emisor()
+        return {
+            "Emisor": emisor,
+            "firma_electronica": signature_id.parametros_firma(),
+        }
 
     def _get_moves(self):
         recs = []
         for rec in self.with_context(lang='es_CL').move_ids:
+            rec.sended = True
             document_class_id = rec.document_class_id
-            if not document_class_id or document_class_id.sii_code not in [39, 41, 61]:
-                _logger.warning("Por este medio solamente se pueden declarar Boletas o Notas de crédito Electrónicas, por favor elimine el documento %s del listado" % rec.name)
+            if not document_class_id or document_class_id.sii_code not in [39, 41]\
+                or rec.sii_document_number in [False, 0]:
                 continue
-            if rec.sii_document_number:
-                recs.append(rec)
+            ref = self.env['account.invoice'].search([
+                ('sii_document_number', '=', rec.sii_document_number),
+                ('document_class_id', '=', document_class_id.id),
+                ('partner_id', '=', rec.partner_id.id),
+                ('journal_id', '=', rec.journal_id.id),
+                ('state', 'not in', ['cancel', 'draft']),
+            ])
+            recs.append(ref._dte())
         return recs
 
-    def _get_resumenes(self, marc=False):
-        resumenes = collections.OrderedDict()
-        TpoDocs = []
-        recs = self._get_moves()
-        if recs:
-            recs = sorted(recs, key=lambda t: int(t.sii_document_number))
-            ant = {}
-            for order in recs:
-                canceled = (hasattr(order, 'canceled') and order.canceled)
-                resumen = self.getResumen(order)
-                TpoDoc = str(resumen['TpoDoc'])
-                if TpoDoc not in ant:
-                    ant[TpoDoc] = [0, canceled]
-                if int(order.sii_document_number) == ant[TpoDoc][0]:
-                    raise UserError("¡El Folio %s está duplicado!" % order.sii_document_number)
-                if TpoDoc not in TpoDocs:
-                    TpoDocs.append(TpoDoc)
-                if TpoDoc not in resumenes:
-                    resumenes[TpoDoc] = collections.OrderedDict()
-                continuado = ((ant[TpoDoc][0]+1) == int(order.sii_document_number) and (ant[TpoDoc][1]) == canceled)
-                resumenes[TpoDoc] = self._setResumen(resumen, resumenes[TpoDoc], continuado)
-                ant[TpoDoc] = [int(order.sii_document_number), canceled]
-        for an in self.anulaciones:
-            TpoDoc = str(an.tpo_doc.sii_code)
-            if TpoDoc not in TpoDocs:
-                TpoDocs.append(TpoDoc)
-            if TpoDoc not in resumenes:
-                resumenes[TpoDoc] = collections.OrderedDict()
-            i = an.rango_inicio
-            while i <= an.rango_final:
-                continuado  = False
-                seted = False
-                for r, value in resumenes.items():
-                    Rangos = value.get(str(r)+'_folios', collections.OrderedDict())
-                    if 'itemAnulados' in Rangos:
-                        for rango in Rangos['itemAnulados']:
-                            if rango['Inicial'] <= i and i <= rango['Final']:
-                                seted = True
-                            if not(seted) and (i-1) == rango['Final']:
-                                    continuado = True
-                if not seted:
-                    resumen = {
-                        'TpoDoc': TpoDoc,
-                        'NroDoc': i,
-                        'Anulado': 'A',
-                    }
-                    if not resumenes.get(TpoDoc):
-                        resumenes[TpoDoc] = collections.OrderedDict()
-                    resumenes[TpoDoc] = self._setResumen(resumen, resumenes[TpoDoc], continuado)
-                i += 1
-        return resumenes, TpoDocs
-
     def _validar(self):
-        company_id = self.company_id
-        signature_id = self.env.user.get_digital_signature(self.company_id)
-        if not signature_id:
-            raise UserError(_('''There are not a Signature Cert Available for this user, pleaseupload your signature or tell to someelse.'''))
-        resumenes, TpoDocs = self._get_resumenes(marc=True)
-        Resumen = []
-        listado = ['TipoDocumento', 'MntNeto', 'MntIva', 'TasaIVA', 'MntExento', 'MntTotal', 'FoliosEmitidos',  'FoliosAnulados', 'FoliosUtilizados', 'itemUtilizados' ]
-        xml = '<Resumen><TipoDocumento>39</TipoDocumento><MntTotal>0</MntTotal><FoliosEmitidos>0</FoliosEmitidos><FoliosAnulados>0</FoliosAnulados><FoliosUtilizados>0</FoliosUtilizados></Resumen>'
-        if resumenes:
-            for r, value in resumenes.items():
-                ordered = collections.OrderedDict()
-                for i in listado:
-                    if i in value:
-                        ordered[i] = value[i]
-                    elif i == 'itemUtilizados' and str(r)+'_folios' in value:
-                        Rangos = value[str(r)+'_folios']
-                        folios = []
-                        if 'itemUtilizados' in Rangos:
-                            utilizados = []
-                            for rango in Rangos['itemUtilizados']:
-                                utilizados.append({'RangoUtilizados': rango})
-                            folios.append({'itemUtilizados': utilizados})
-                        if 'itemAnulados' in Rangos:
-                            anulados = []
-                            for rango in Rangos['itemAnulados']:
-                                anulados.append({'RangoAnulados': rango})
-                            folios.append({'itemAnulados': anulados})
-                        ordered[ str(r)+'_folios' ] = folios
-                Resumen.extend([ {'Resumen': ordered}])
-            dte = collections.OrderedDict({'item':Resumen})
-            xml = dicttoxml.dicttoxml(
-                dte,
-                root=False,
-                attr_type=False).decode()
-        resol_data = self.get_resolution_data(company_id)
-        RUTEmisor = self.format_vat(company_id.vat)
-        RUTRecep = "60803000-K" # RUT SII
-        doc_id = 'CF_' + self.date.strftime(DF)
-        Correlativo = self.correlativo
-        SecEnvio = self.sec_envio
-        cf = self.create_template_envio( RUTEmisor,
-            resol_data['dte_resolution_date'],
-            resol_data['dte_resolution_number'],
-            self.fecha_inicio,
-            self.fecha_final,
-            Correlativo,
-            SecEnvio,
-            xml,
-            signature_id.subject_serial_number,
-            doc_id)
-        xml  = self.create_template_env(cf)
-        root = etree.XML(xml)
-        xml_pret = etree.tostring(root, pretty_print=True).decode()\
-                .replace('<item>','\n').replace('</item>','')\
-                .replace('<itemNoRec>','').replace('</itemNoRec>','\n')\
-                .replace('<itemOtrosImp>','').replace('</itemOtrosImp>','\n')\
-                .replace('<itemUtilizados>','').replace('</itemUtilizados>','\n')\
-                .replace('<itemAnulados>','').replace('</itemAnulados>','\n')
-        for TpoDoc in TpoDocs:
-        	xml_pret = xml_pret.replace('<key name="'+str(TpoDoc)+'_folios">','').replace('</key>','\n').replace('<key name="'+str(TpoDoc)+'_folios"/>','\n')
-        envio_dte = self.env['account.invoice'].sign_full_xml(
-            xml_pret,
-            doc_id,
-            'consu')
-        doc_id += '.xml'
+        datos = self._get_datos_empresa(self.company_id)
+        grupos = {}
+        recs = self._get_moves()
+        for r in recs:
+            grupos.setdefault(r.document_class_id.sii_code, [])
+            grupos[r.document_class_id.sii_code].append(r)
+        for anulaciones in self.anulaciones:
+            raise UserError("terminar código anulaciones manuales")
+            grupos.setdefault(r.document_class_id.sii_code, [])
+            grupos[r.document_class_id.sii_code].append(r)
+        datos['ConsumoFolios'] = {
+            "FchInicio": self.fecha_inicio,
+            "FchFinal": self.fecha_final,
+            "SecEnvio": self.sec_envio,
+            "Correlativo": self.correlativo,
+            "Documento": [{'TipoDTE': k, 'documentos': v} for k, v in grupos.items()]
+        }
+        datos['test'] = True
+        result = fe.libro(datos)[0]
+        envio_dte = result['sii_xml_request']
+        doc_id = '%s_%s' % (self.tipo_operacion, self.periodo_tributario)
         self.sii_xml_request = self.env['sii.xml.envio'].create({
-            'xml_envio': '<?xml version="1.0" encoding="ISO-8859-1"?>\n%s' % envio_dte,
+            'xml_envio': envio_dte,
             'name': doc_id,
             'company_id': self.company_id.id,
-            'state': 'draft',
         }).id
 
     @api.multi
@@ -678,13 +382,14 @@ version="1.0">
             if self.sii_xml_request:
                 self.sii_xml_request.unlink()
             self._validar()
-        self.env['sii.cola_envio'].create({
-            'company_id': self.company_id.id,
-            'doc_ids': [self.id],
-            'model': 'account.move.consumo_folios',
-            'user_id': self.env.user.id,
-            'tipo_trabajo': 'envio',
-        })
+        self.env['sii.cola_envio'].create(
+                    {
+                        'company_id': self.company_id.id,
+                        'doc_ids': [self.id],
+                        'model': 'account.move.consumo_folios',
+                        'user_id': self.env.user.id,
+                        'tipo_trabajo': 'envio',
+                    })
         self.state = 'EnCola'
 
     def do_dte_send(self, n_atencion=''):
@@ -692,7 +397,8 @@ version="1.0">
             self.sii_xml_request.unlink()
             self._validar()
             self.sii_xml_request.state = 'NoEnviado'
-        self.sii_xml_request.send_xml()
+        if self.state in ['NoEnviado', 'EnCola']:
+            self.sii_xml_request.send_xml()
         return self.sii_xml_request
 
     def _get_send_status(self):
@@ -716,6 +422,7 @@ version="1.0">
 
 class DetalleCOnsumoFolios(models.Model):
     _name = "account.move.consumo_folios.detalles"
+    _description = 'Línea detalle Consumo de folios'
 
     cf_id = fields.Many2one('account.move.consumo_folios',
                             string="Consumo de Folios", ondelete="cascade",)
@@ -729,6 +436,7 @@ class DetalleCOnsumoFolios(models.Model):
 
 class DetalleImpuestos(models.Model):
     _name = "account.move.consumo_folios.impuestos"
+    _description = 'Línea Impuestos Consumo de folios'
 
     cf_id = fields.Many2one('account.move.consumo_folios',
                             string="Consumo de Folios", ondelete="cascade",)
@@ -749,6 +457,7 @@ class DetalleImpuestos(models.Model):
 
 class Anulaciones(models.Model):
     _name = 'account.move.consumo_folios.anulaciones'
+    _description = 'Línea anulación de folios para Consumo de folios'
 
     cf_id = fields.Many2one(
             'account.move.consumo_folios',

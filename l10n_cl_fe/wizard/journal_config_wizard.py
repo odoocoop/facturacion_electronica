@@ -10,6 +10,7 @@ _logger = logging.getLogger(__name__)
 
 class AccountJournalDocumentConfig(models.TransientModel):
     _name = 'account.journal.document_config'
+    _description = 'Wizard configuración secuencias para diarios DTE'
 
     def _es_compra(self):
         context = dict(self._context or {})

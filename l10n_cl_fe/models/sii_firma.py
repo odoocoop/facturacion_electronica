@@ -20,6 +20,7 @@ except:
 
 class SignatureCert(models.Model):
     _name = 'sii.firma'
+    _description = 'Certificado Digital para Firma Electrónica SII'
 
     def alerta_vencimiento(self):
         if self.expire_date < (datetime.now() + relativedelta.relativedelta(days=30)):

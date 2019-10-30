@@ -4,6 +4,7 @@ from odoo.tools.translate import _
 
 class SOR(models.Model):
     _name = 'sale.order.referencias'
+    _description = 'Línea de Referencias DTE para Pedidos de Venta'
 
     fecha_documento = fields.Date(
             string="Fecha Documento",

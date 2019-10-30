@@ -4,7 +4,7 @@ from odoo.tools.translate import _
 from odoo.exceptions import UserError
 
 
-class sii_document_class(models.Model):
+class SIIDocumentClass(models.Model):
     _name = 'sii.document_class'
     _description = 'SII Document Class'
 

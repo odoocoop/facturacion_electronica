@@ -46,6 +46,10 @@ class ResConfigSettings(models.TransientModel):
             string="Token APICAF",
             default='token_publico',
     )
+    cf_autosend = fields.Boolean(
+            string="AutoEnviar Consumo de Folios",
+            default=False,
+        )
 
     @api.model
     def get_values(self):
@@ -55,8 +59,8 @@ class ResConfigSettings(models.TransientModel):
                     'account.auto_send_dte', default=12))
         account_auto_send_email = ICPSudo.get_param(
                     'account.auto_send_email', default=True)
-        account_auto_send_persistencia = ICPSudo.get_param(
-                    'account.auto_send_persistencia', default=24)
+        account_auto_send_persistencia = int(ICPSudo.get_param(
+                    'account.auto_send_persistencia', default=24))
         account_limit_dte_lines = ICPSudo.get_param(
                     'account.limit_dte_lines', default=False)
         partner_url_remote_partners = ICPSudo.get_param(
@@ -70,6 +74,8 @@ class ResConfigSettings(models.TransientModel):
                     'dte.url_apicaf', default='https://apicaf.cl/api/caf')
         dte_token_apicaf = ICPSudo.get_param(
                     'dte.token_apicaf', default="token_publico")
+        cf_autosend = ICPSudo.get_param(
+                    'cf_extras.cf_autosend', default=False)
         res.update(
                 auto_send_email=account_auto_send_email,
                 auto_send_dte=account_auto_send_dte,
@@ -80,6 +86,7 @@ class ResConfigSettings(models.TransientModel):
                 sync_remote_partners=partner_sync_remote_partners,
                 url_apicaf=dte_url_apicaf,
                 token_apicaf=dte_token_apicaf,
+                cf_autosend=cf_autosend,
             )
         return res
 
@@ -107,3 +114,5 @@ class ResConfigSettings(models.TransientModel):
                           self.url_apicaf)
         ICPSudo.set_param('dte.token_apicaf',
                           self.token_apicaf)
+        ICPSudo.set_param('cf_extras.cf_autosend',
+                          self.cf_autosend)

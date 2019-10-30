@@ -326,6 +326,8 @@ class ResPartner(models.Model):
         sync = ICPSudo.get_param('partner.sync_remote_partners')
         if not url or not token or not sync:
             return
+        if self.document_number in [False, 0, '0']:
+            return
         try:
             resp = pool.request(
                 'PUT',
@@ -372,6 +374,8 @@ class ResPartner(models.Model):
         url = ICPSudo.get_param('partner.url_remote_partners')
         token = ICPSudo.get_param('partner.token_remote_partners')
         if not url or not token:
+            return
+        if self.document_number in [False, 0, '0']:
             return
         try:
             resp = pool.request('POST',

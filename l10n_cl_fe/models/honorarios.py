@@ -7,8 +7,10 @@ import dateutil.relativedelta as relativedelta
 import logging
 _logger = logging.getLogger(__name__)
 
+
 class Honorarios(models.Model):
     _name = 'account.move.book.honorarios'
+    _description = 'Libro de Honorarios'
 
     date = fields.Date(
             string="Date",
@@ -118,8 +120,10 @@ class Honorarios(models.Model):
     def validar_libro(self):
         return self.write({'state': 'done'})
 
+
 class ImpuestosLibro(models.Model):
     _name="account.move.book.honorarios.tax"
+    _description = 'Línea Impuesto libro Honorarios'
 
     def get_monto(self):
         for t in self:

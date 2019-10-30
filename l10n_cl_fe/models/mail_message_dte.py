@@ -7,7 +7,7 @@ _logger = logging.getLogger(__name__)
 
 class ProccessMail(models.Model):
     _name = 'mail.message.dte'
-    _description = "DTE"
+    _description = "DTE Recibido"
     _inherit = ['mail.thread']
 
     name = fields.Char(

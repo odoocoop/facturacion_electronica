@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from odoo import models, fields, api
+from odoo.tools.safe_eval import safe_eval
 from odoo.tools.translate import _
 from odoo.exceptions import UserError
 import base64
@@ -121,7 +122,7 @@ class UploadXMLWizard(models.TransientModel):
         rut = 'CL' + rut
         return rut
 
-    def _get_xml(self, mode="text", check=False):
+    def _get_xml(self):
         if self.document_id:
             xml = self.document_id.xml
         elif self.xml_file:
@@ -191,8 +192,7 @@ class UploadXMLWizard(models.TransientModel):
                                     'SetDTE/Caratula/RutReceptor').text))
             ],
             limit=1)
-        id_seq = self.env.ref('l10n_cl_fe.response_sequence').id
-        IdRespuesta = self.env['ir.sequence'].browse(id_seq).next_by_id()
+        IdRespuesta = self.env.ref('l10n_cl_fe.response_sequence').next_by_id()
         vals = self._get_datos_empresa(company_id)
         vals.update({
                 "Recepciones":
@@ -213,16 +213,28 @@ class UploadXMLWizard(models.TransientModel):
         if self.dte_id:
             for r in respuesta:
                 att = self._create_attachment(
-                    r['sii_xml_response'],
-                    r['respuesta'],
+                    r['respuesta_xml'],
+                    r['nombre_xml'],
                     self.dte_id.id,
                     'mail.message.dte')
                 dte_email_id = self.dte_id.company_id.dte_email_id or\
                     self.env.user.company_id.dte_email_id
+                email_to = self.sudo().dte_id.mail_id.email_from
+                if envio is not None:
+                    RUT = envio.find('SetDTE/Caratula/RutEmisor').text
+                    partner_id = self.env['res.partner'].search(
+                        [
+                            ('active', '=', True),
+                            ('parent_id', '=', False),
+                            ('vat', '=', self.format_rut(RUT))
+                        ]
+                    )
+                    if partner_id.dte_email:
+                        email_to = partner_id.dte_email
                 values = {
                         'res_id': self.dte_id.id,
                         'email_from': dte_email_id.name_get()[0][1],
-                        'email_to': self.sudo().dte_id.mail_id.email_from,
+                        'email_to': email_to,
                         'auto_delete': False,
                         'model': "mail.message.dte",
                         'body': 'XML de Respuesta Envío, Estado: %s , Glosa: %s ' % (r['EstadoRecepEnv'], r['RecepEnvGlosa'] ),
@@ -232,7 +244,7 @@ class UploadXMLWizard(models.TransientModel):
                 send_mail = self.env['mail.mail'].sudo().create(values)
                 send_mail.send()
 
-    def _get_partner(self, data):
+    def _get_data_partner(self, data):
         if self.pre_process and self.type == 'compras':
             return False
         type = "Emis"
@@ -273,7 +285,7 @@ class UploadXMLWizard(models.TransientModel):
             'street': data.find('Dir%s' % dest).text,
             'city': data.find('Ciudad%s' % dest).text,
             'company_type': 'company',
-            'city_id': city_id.id,
+            'city_id': city_id.id
         }
         if data.find('CorreoEmisor') is not None  or data.find('CorreRecep') is not None:
             partner.update(
@@ -286,14 +298,14 @@ class UploadXMLWizard(models.TransientModel):
 
     def _create_partner(self, data):
         partner_id = False
-        partner = self._get_partner(data)
+        partner = self._get_data_partner(data)
         if partner:
             if self.type == 'compras':
                 partner.update({'supplier': True})
             partner_id = self.env['res.partner'].create(partner)
         return partner_id
 
-    def _default_category(self,):
+    def _default_category(self):
         md = self.env['ir.model.data']
         res = False
         try:
@@ -309,7 +321,7 @@ class UploadXMLWizard(models.TransientModel):
             ('sii_code', '=', sii_code),
             ('type_tax_use', '=', ('purchase' if self.type == 'compras' else 'sale')),
             ('activo_fijo', '=', False),
-            ('company_id', '=', company_id.id),
+            ('company_id', '=', company_id.id)
         ]
         if IndExe:
             query.append(
@@ -387,7 +399,7 @@ class UploadXMLWizard(models.TransientModel):
             line_id = self.env['mail.message.dte.document.line'].search(
                 [
                     ('sequence', '=', line.find('NroLinDet').text),
-                    ('document_id', '=', document_id.id)
+                    ('document_id', '=', document_id.id),
                 ]
             )
             if line_id:
@@ -519,6 +531,7 @@ class UploadXMLWizard(models.TransientModel):
                                         price_subtotal,
                                         self.env.user.company_id.currency_id,
                                         1)['total_included']
+
             data.update({
                 'account_id': account.id,
                 'invoice_line_tax_ids': [(6, 0, tax_ids.ids)],
@@ -587,7 +600,7 @@ class UploadXMLWizard(models.TransientModel):
             disc_type = "amount"
         data['gdr_type'] = disc_type
         data['valor'] = dr.find("ValorDR").text
-        data['gdr_dtail'] = dr.find("GlosaDR").text if dr.find("GlosaDR") is not None else 'Descuento globla'
+        data['gdr_detail'] = dr.find("GlosaDR").text if dr.find("GlosaDR") is not None else 'Descuento globla'
         return data
 
     def _prepare_invoice(self, documento, company_id, journal_id):
@@ -645,7 +658,7 @@ class UploadXMLWizard(models.TransientModel):
         #xml_envio = self.env['sii.xml.envio'].create(
         #    {
         #        'name': 'ENVIO_%s' % name.decode(),
-        #        'xml_envio': string.decode(),
+        #        'xml_envio': etree.tostring(dte),
         #        'state': 'Aceptado',
         #    }
         #)
@@ -663,7 +676,7 @@ class UploadXMLWizard(models.TransientModel):
         if DscRcgGlobal:
             drs = [(5,)]
             for dr in DscRcgGlobal:
-                drs.append((0, 0, self.process_dr(dr)))
+                drs.append((0,  0,  self.process_dr(dr)))
             invoice.update({
                     'global_descuentos_recargos': drs,
                 })
@@ -674,7 +687,7 @@ class UploadXMLWizard(models.TransientModel):
         invoice.update({
                 'sii_document_number': Folio,
                 'document_class_id': dc_id.id,
-             })
+            })
         if self.type == 'ventas':
             invoice.update({
                 'move_name': '%s%s' % (dc_id.doc_code_prefix, Folio),
@@ -702,7 +715,7 @@ class UploadXMLWizard(models.TransientModel):
             [
                 ('document_class_ids', '=', dc_id.id),
                 ('type', '=', type),
-                ('company_id', '=', company_id.id)
+                ('company_id', '=', company_id.id),
             ],
             limit=1,
         )
@@ -762,14 +775,14 @@ class UploadXMLWizard(models.TransientModel):
                                         price_subtotal,
                                         self.env.user.company_id.currency_id,
                                         1)['total_excluded']
-                lines.append([0, 0, {
+                lines.append([0,  0,   {
                     'invoice_line_tax_ids': ((6, 0, imp.ids)),
                     'product_id': product_id,
                     'name': 'MontoImpuesto %s' % i.find('TipoImp').text,
                     'price_unit': price,
                     'quantity': 1,
                     'price_subtotal': price_subtotal,
-                    #'account_id':  journal_document_class_id.journal_id.default_debit_account_id.id
+                    #'account_id':
                     }]
                 )
         #if 'IVATerc' in dte['Encabezado']['Totales']:
@@ -792,6 +805,7 @@ class UploadXMLWizard(models.TransientModel):
             data['referencias'] = refs
         data['invoice_line_ids'] = lines
         MntNeto = Encabezado.find('Totales/MntNeto')
+        mnt_neto = 0
         if MntNeto is not None:
             mnt_neto = int(MntNeto.text or 0)
         MntExe = Encabezado.find('Totales/MntExe')
@@ -809,18 +823,21 @@ class UploadXMLWizard(models.TransientModel):
 
     def _inv_exist(self, documento):
         encabezado = documento.find("Encabezado")
-        Emisor = encabezado.find("Emisor")
         IdDoc = encabezado.find("IdDoc")
-        type = ['in_invoice', 'in_refund']
+        query = [
+            ('sii_document_number', '=', IdDoc.find("Folio").text),
+            ('document_class_id.sii_code', '=', IdDoc.find("TipoDTE").text),
+
+        ]
         if self.type == 'ventas':
-            type = ['out_invoice', 'out_refund']
-        return self.env['account.invoice'].search(
-            [
-                ('sii_document_number', '=', IdDoc.find("Folio").text),
-                ('type', 'in', type),
-                ('document_class_id.sii_code', '=', IdDoc.find("TipoDTE").text),
-                ('partner_id.vat', '=', self.format_rut(Emisor.find("RUTEmisor").text)),
-            ])
+            query.append(('type', 'in', ['out_invoice', 'out_refund']))
+            Receptor = encabezado.find("Receptor")
+            query.append(('partner_id.vat', '=', self.format_rut(Receptor.find("RUTRecep").text)))
+        else:
+            Emisor = encabezado.find("Emisor")
+            query.append(('partner_id.vat', '=', self.format_rut(Emisor.find("RUTEmisor").text)))
+            query.append(('type', 'in', ['in_invoice', 'in_refund']))
+        return self.env['account.invoice'].search(query)
 
     def _create_inv(self, documento, company_id):
         inv = self._inv_exist(documento)
@@ -942,14 +959,16 @@ class UploadXMLWizard(models.TransientModel):
                 if not inv:
                     raise UserError('El archivo XML no contiene documentos para alguna empresa registrada en Odoo, o ya ha sido procesado anteriormente ')
                 if self.type == 'ventas' or self.option == 'accept':
-                    inv._onchange_invoice_line_ids()
                     inv._onchange_partner_id()
+                    inv._onchange_invoice_line_ids()
                     inv.action_move_create()
                     guardar = {
                         'document_class_id': inv.document_class_id.id,
                         'sii_document_number': inv.sii_document_number
                     }
-                    inv.move_id.write(guardar)
+                    if self.type == 'ventas':
+                        inv.move_id.write(guardar)
+                        inv.state = 'open'
             except Exception as e:
                 _logger.warning('Error en crear 1 factura con error:  %s' % str(e))
         if created and self.option not in [False, 'upload'] and self.type == 'compras':
@@ -1066,4 +1085,3 @@ class UploadXMLWizard(models.TransientModel):
                 self._create_po(documento, company)
             elif tipo_dte in ['56', '61']:
                 self._create_inv(documento, company)
-

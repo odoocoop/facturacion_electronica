@@ -50,6 +50,7 @@ status_dte = [
 
 class SIIXMLEnvio(models.Model):
     _name = 'sii.xml.envio'
+    _description = 'XML de envío DTE'
 
     name = fields.Char(
             string='Nombre de envío',
