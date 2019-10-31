@@ -32,7 +32,7 @@ class GlobalDescuentoRecargo(models.Model):
             default="percent",
             required=True,
         )
-    gdr_dtail = fields.Char(
+    gdr_detail = fields.Char(
             string="Razón del descuento",
         )
     amount_untaxed_global_dr = fields.Float(
@@ -62,27 +62,32 @@ class GlobalDescuentoRecargo(models.Model):
 
     @api.depends('gdr_type', 'valor', 'type')
     def _untaxed_gdr(self):
-        afecto = self._get_afecto()
-        des = 0
-        rec = 0
+        groups = {}
         for gdr in self:
-            dr = gdr.valor
+            if gdr.invoice_id.id not in groups:
+                groups[gdr.invoice_id.id] = dict(
+                    afecto=gdr._get_afecto(),
+                    des=0,
+                    rec=0,
+                )
+            groups[gdr.invoice_id.id]['dr'] = gdr.valor
             if gdr.gdr_type in ['percent']:
-                if afecto == 0.00:
+                if groups[gdr.invoice_id.id]['afecto'] == 0.00:
                     continue
                 #exento = 0 #@TODO Descuento Global para exentos
-                if afecto > 0:
-                    dr = gdr.invoice_id.currency_id.round((afecto *  (dr / 100.0) ))
+                if groups[gdr.invoice_id.id]['afecto'] > 0:
+                    groups[gdr.invoice_id.id]['dr'] = gdr.invoice_id.currency_id.round((groups[gdr.invoice_id.id]['afecto'] *  (groups[gdr.invoice_id.id]['dr'] / 100.0) ))
             if gdr.type == 'D':
-                des += dr
+                groups[gdr.invoice_id.id]['des'] += groups[gdr.invoice_id.id]['dr']
             else:
-                rec += dr
-            gdr.amount_untaxed_global_dr = dr
-        if des >= (afecto + rec):
-            raise UserError('El descuento no puede ser mayor o igual a la suma de los recargos + neto')
+                groups[gdr.invoice_id.id]['rec'] += groups[gdr.invoice_id.id]['dr']
+            gdr.amount_untaxed_global_dr = groups[gdr.invoice_id.id]['dr']
+        for key, dr in groups.items():
+            if dr['des'] >= (dr['afecto'] + dr['rec']):
+                raise UserError('El descuento no puede ser mayor o igual a la suma de los recargos + neto (f: %s)' %(key))
 
     def get_agrupados(self):
-        result = {'D':0.00, 'R':0.00}
+        result = {'D': 0.00, 'R': 0.00}
         for gdr in self:
             result[gdr.type] += gdr.amount_untaxed_global_dr
         return result

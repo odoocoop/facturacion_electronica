@@ -10,7 +10,7 @@
               <field name="type"/>
               <field name="valor"/>
               <field name="gdr_type"/>
-              <field name="gdr_dtail"/>
+              <field name="gdr_detail"/>
               <field name="amount_untaxed_global_dr"/>
               <field name="invoice_id" invisible="1"/>
           </group>

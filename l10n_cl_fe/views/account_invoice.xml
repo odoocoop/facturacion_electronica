@@ -123,7 +123,7 @@
                     <field name="type"/>
                     <field name="gdr_type"/>
                     <field name="valor"/>
-                    <field name="gdr_dtail"/>
+                    <field name="gdr_detail"/>
                     <field name="aplicacion"/>
                     <field name="amount_untaxed_global_dr" invisible="1"/>
                     <field name="invoice_id" invisible="1"/>
@@ -260,7 +260,7 @@
                       <field name="type"/>
                       <field name="gdr_type"/>
                       <field name="valor"/>
-                      <field name="gdr_dtail"/>
+                      <field name="gdr_detail"/>
                       <field name="aplicacion"/>
                       <field name="amount_untaxed_global_dr" invisible="1"/>
                       <field name="invoice_id" invisible="1"/>

@@ -109,7 +109,10 @@ class ColaEnvio(models.Model):
                 except Exception as e:
                     _logger.warning('Error en Envío automático')
                     _logger.warning(str(e))
-                docs.get_sii_result()
+                try:
+                    docs.get_sii_result()
+                except Exception as e:
+                    _logger.warning("Error temporal de conexión en consulta %s" % str(e))
             return
         if (self._es_doc(docs[0]) or self.es_boleta(docs[0])) and docs[0].sii_result in ['Proceso', 'Reparo', 'Rechazado', 'Anulado']:
             if self.send_email and docs[0].sii_result in ['Proceso', 'Reparo']:
@@ -135,6 +138,7 @@ class ColaEnvio(models.Model):
                 _logger.warning("Error en Consulta")
                 _logger.warning(str(e))
         elif self.tipo_trabajo == 'envio' and (not docs[0].sii_xml_request or not docs[0].sii_xml_request.sii_send_ident or docs[0].sii_xml_request.state not in ['Aceptado', 'Enviado']):
+            envio_id = False
             try:
                 envio_id = docs.with_context(
                             user=self.user_id.id,
@@ -142,10 +146,14 @@ class ColaEnvio(models.Model):
                                                             self.n_atencion)
                 if envio_id.sii_send_ident:
                     self.tipo_trabajo = 'consulta'
-                docs.get_sii_result()
             except Exception as e:
                 _logger.warning("Error en envío Cola")
                 _logger.warning(str(e))
+            if envio_id:
+                try:
+                    docs.get_sii_result()
+                except Exception as e:
+                    _logger.warning("Error temporal de conexión en consulta %s" % str(e))
         elif self.tipo_trabajo == 'envio' and docs[0].sii_xml_request \
             and (docs[0].sii_xml_request.sii_send_ident \
             or docs[0].sii_xml_request.state in ['Aceptado', 'Enviado', 'Rechazado']):

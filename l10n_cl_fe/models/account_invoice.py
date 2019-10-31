@@ -380,10 +380,11 @@ class AccountInvoice(models.Model):
 
     @api.onchange('invoice_line_ids')
     def _onchange_invoice_line_ids(self):
-        lines = len(self.invoice_line_ids)
+        i = 0
         for l in self.invoice_line_ids:
-            if l.sequence == -1:
-                l.sequence = lines
+            i += 1
+            if l.sequence == -1 or l.sequence == 0:
+                l.sequence = i
         return super(AccountInvoice, self)._onchange_invoice_line_ids()
 
     @api.depends('state', 'journal_id', 'date_invoice', 'document_class_id')
@@ -498,6 +499,7 @@ class AccountInvoice(models.Model):
     def _compute_amount(self):
         neto = 0
         if self.global_descuentos_recargos:
+            self.global_descuentos_recargos._untaxed_gdr()
             neto = self.global_descuentos_recargos.get_monto_aplicar()
             agrupados = self.global_descuentos_recargos.get_agrupados()
             self.amount_untaxed_global_discount = agrupados['D']
@@ -1641,10 +1643,10 @@ a VAT."""))
                 continue
             if line.product_id.default_code == 'NO_PRODUCT':
                 no_product = True
-            lines = collections.OrderedDict()
+            lines = {}
             lines['NroLinDet'] = line.sequence
             if line.product_id.default_code and not no_product:
-                lines['CdgItem'] = collections.OrderedDict()
+                lines['CdgItem'] = {}
                 lines['CdgItem']['TpoCodigo'] = 'INT1'
                 lines['CdgItem']['VlrCodigo'] = line.product_id.default_code
             taxInclude = False
@@ -1893,7 +1895,7 @@ a VAT."""))
         if resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] == '2':
             status = {'warning':{'title':_("Error code: 2"), 'message': _(resp['SII:RESPUESTA']['SII:RESP_HDR']['GLOSA'])}}
             return "Enviado"
-        if resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] in ["EPR", "MMC", "DOK", "TMC"]:
+        if resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] in ["EPR", "MMC", "DOK", "TMC", "AND", "MMD"]:
             return "Proceso"
         elif resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] in ["DNK"]:
             return "Reparo"

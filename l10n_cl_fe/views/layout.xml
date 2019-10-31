@@ -19,19 +19,14 @@
               <t t-if="not o or not 'company_id' in o">
                   <t t-set="company" t-value="res_company"/>
               </t>
-              <t t-if="'journal_document_class_id' in o and o.journal_document_class_id">
-                <t t-set="document_class_id" t-value="o.journal_document_class_id.sii_document_class_id"/>
-              </t>
               <t t-set="partner_id" t-value="o.partner_id"/>
               <t t-set="commercial_partner_id" t-value="o.partner_id.commercial_partner_id"/>
               <t t-set="logo" t-value="company.logo"/>
-              <t t-set="sii_document_number" t-value="o.sii_document_number"/>
               <t t-if="o.type in ['in_invoice', 'in_refund']">
                 <t t-set="partner_id" t-value="company.partner_id"/>
                 <t t-set="commercial_partner_id" t-value="company.partner_id"/>
                 <t t-set="company" t-value="o.partner_id"/>
                 <t t-set="logo" t-value="o.partner_id.image"/>
-                <t t-set="sii_document_number" t-value="o.reference"/>
               </t>
               <div class="header">
                 <div class="row">
@@ -62,11 +57,11 @@
                           <h6 style="color:red;font-size:20px;padding-bottom:10px; padding-top:5px; font-family:Arial;">
                               R.U.T.: <span t-field="company.document_number"/>
                           </h6>
-                          <h6 name="document_class_id" t-if="document_class_id" style="line-height:23px;font-size:20px;color:red;text-align:center;text-transform:uppercase;padding-bottom:10px;font-family:Arial;">
-                             <span t-field="document_class_id.name"/>
+                          <h6 name="document_class_id" t-if="o.document_class_id" style="line-height:23px;font-size:20px;color:red;text-align:center;text-transform:uppercase;padding-bottom:10px;font-family:Arial;">
+                             <span t-field="o.document_class_id.name"/>
                           </h6>
-                          <h6 t-if="sii_document_number" style="color: red;text-align: center;font-size:20px;padding-bottom:5px;font-family:Arial;">
-                              N° <span t-esc="sii_document_number"/>
+                          <h6 t-if="o.sii_document_number" style="color: red;text-align: center;font-size:20px;padding-bottom:5px;font-family:Arial;">
+                            N° <span t-esc="o.sii_document_number"/>
                           </h6>
                           <br/>
                       </div>
