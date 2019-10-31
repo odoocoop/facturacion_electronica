@@ -1794,6 +1794,16 @@ a VAT."""))
             tpo_dte = 'Liquidacion'
         return tpo_dte
 
+    def _get_datos_empresa(self, company_id):
+        signature_id = self.env.user.get_digital_signature(company_id)
+        if not signature_id:
+            raise UserError(_('''There are not a Signature Cert Available for this user, please upload your signature or tell to someelse.'''))
+        emisor = self._emisor()
+        return {
+            "Emisor": emisor,
+            "firma_electronica": signature_id.parametros_firma(),
+        }
+
     def _timbrar(self, n_atencion=None):
         folio = self.get_folio()
         tpo_dte = self._tpo_dte()
