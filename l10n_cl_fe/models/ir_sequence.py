@@ -62,7 +62,7 @@ class IRSequence(models.Model):
         tz = pytz.timezone('America/Santiago')
         return datetime.now(tz).strftime(formato)
 
-    def get_caf_file(self, folio=False):
+    def get_caf_file(self, folio=False, decoded=True):
         folio = folio or self._get_folio()
         caffiles = self.get_caf_files(folio)
         msg = '''No Hay caf para el documento: {}, está fuera de rango . Solicite un nuevo CAF en el sitio \
@@ -87,7 +87,9 @@ www.sii.cl'''.format(folio)
                                                 'url': 'res_config',
                                                 'type': 'dte_notif',
                                             })
-                return caffile.decode_caf()
+                if decoded:
+                    return caffile.decode_caf()
+                return caffile.caf_file
         raise UserError(_(msg))
 
     def get_caf_files(self, folio=None):
