@@ -47,7 +47,7 @@ class LibroGuia(models.Model):
     def get_xml_file(self):
         return {
             'type' : 'ir.actions.act_url',
-            'url': '/download/xml/libro_guia/%s' % (self.id),
+            'url': '/download/xml/libro_guia%s' % (self.id),
             'target': 'self',
         }
 
