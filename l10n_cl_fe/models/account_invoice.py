@@ -710,7 +710,7 @@ class AccountInvoice(models.Model):
                         'sii_referencia_TpoDocRef': invoice.document_class_id.id,
                         'sii_referencia_CodRef': mode,
                         'motivo': description,
-                        'fecha_documento': invoice.date_invoice
+                        'fecha_documento': invoice.date_invoice.strftime("%Y-%m-%d")
                     }]],
             })
         return values
@@ -1353,7 +1353,7 @@ a VAT."""))
         IdDoc = {}
         IdDoc['TipoDTE'] = self.document_class_id.sii_code
         IdDoc['Folio'] = self.get_folio()
-        IdDoc['FchEmis'] = self.date_invoice
+        IdDoc['FchEmis'] = self.date_invoice.strftime('%Y-%m-%d')
         if self._es_boleta():
             IdDoc['IndServicio'] = 3 #@TODO agregar las otras opciones a la fichade producto servicio
         if self.ticket and not self._es_boleta():
@@ -1372,7 +1372,7 @@ a VAT."""))
         #    IdDoc['PeriodoDesde'] =
         #    IdDoc['PeriodoHasta'] =
         if not self._es_boleta():
-            IdDoc['FchVenc'] = self.date_due or datetime.strftime(datetime.now(), '%Y-%m-%d')
+            IdDoc['FchVenc'] = self.date_due.strftime('%Y-%m-%d') or datetime.strftime(datetime.now(), '%Y-%m-%d')
         return IdDoc
 
     def _emisor(self):
