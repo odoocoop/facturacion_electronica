@@ -1752,9 +1752,11 @@ a VAT."""))
     def _dte(self, n_atencion=None):
         dte = {}
         invoice_lines = self._invoice_lines()
-        dte['Encabezado'] = self._encabezado(invoice_lines['MntExe'],
-                                             invoice_lines['no_product'],
-                                             invoice_lines['tax_include'])
+        dte['Encabezado'] = self._encabezado(
+            invoice_lines['MntExe'],
+            invoice_lines['no_product'],
+            invoice_lines['tax_include']
+        )
         lin_ref = 1
         ref_lines = []
         if self.company_id.dte_service_provider == 'SIICERT' and isinstance(n_atencion, string_types) and n_atencion != '' and not self._es_boleta():
@@ -1783,11 +1785,11 @@ a VAT."""))
                     ref_lines['CodCaja'] = self.journal_id.point_of_sale_id.name
                 ref_lines.append(ref_line)
                 lin_ref += 1
-        dte['item'] = invoice_lines['invoice_lines']
-        if self.global_descuentos_recargos:
-            dte['drlines'] = self._gdr()
-        dte['reflines'] = ref_lines
-        dte['TEDd'] = self.get_barcode(invoice_lines['no_product'])
+        dte['Detalle'] = invoice_lines['Detalle']
+        dte['DscRcgGlobal'] = self._gdr()
+        dte['Referencia'] = ref_lines
+        dte['CodIVANoRec'] = self.no_rec_code
+        dte['IVAUsoComun'] = self.iva_uso_comun
         return dte
 
     def _tpo_dte(self):
