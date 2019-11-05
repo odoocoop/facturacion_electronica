@@ -1732,7 +1732,7 @@ a VAT."""))
             dr_line = {}
             dr_line['NroLinDR'] = lin_dr
             dr_line['TpoMov'] = dr.type
-            if dr.gdr_dtail:
+            if dr.gdr_detail:
                 dr_line['GlosaDR'] = dr.gdr_detail
             disc_type = "%"
             if dr.gdr_type == "amount":
@@ -1893,18 +1893,24 @@ a VAT."""))
             envio_id.write(envio)
         return envio_id
 
-    def process_response_xml(self, resp):
-        if resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] == '2':
-            status = {'warning':{'title':_("Error code: 2"), 'message': _(resp['SII:RESPUESTA']['SII:RESP_HDR']['GLOSA'])}}
+    def process_response_xml(self, respuesta):
+        resp = etree.XML(
+            respuesta.replace('<?xml version="1.0" encoding="UTF-8"?>', '')\
+            .replace('SII:', '')\
+            .replace(' xmlns="http://www.sii.cl/XMLSchema"', '')
+            )
+        estado = resp.find('RESP_HDR/ESTADO')
+        if estado.text == '2':
+            status = {'warning':{'title':_("Error code: 2"), 'message': _(resp.find('RESP_HDR/GLOSA_ESTADO').text)}}
             return "Enviado"
-        if resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] in ["EPR", "MMC", "DOK", "TMC", "AND", "MMD"]:
+        if estado.text in ["EPR", "MMC", "DOK", "TMC", "AND", "MMD", "ANC"]:
             return "Proceso"
-        elif resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] in ["DNK"]:
+        elif estado.text in ["DNK"]:
             return "Reparo"
-        elif resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] in ["FAU", "RCT", "FNA"]:
+        elif estado.text in ["FAU", "RCT", "FNA"]:
             return "Rechazado"
-        elif resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] in ["FAN", "ANC"]:
-            return "Anulado" #Desde El sii o por NC
+        elif estado.text in ["FAN"]:
+            return "Anulado"  #Desde El sii o por NC
 
     @api.onchange('sii_message')
     def get_sii_result(self):
