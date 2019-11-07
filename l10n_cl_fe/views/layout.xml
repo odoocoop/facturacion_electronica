@@ -120,7 +120,7 @@
                       </tbody>
                     </table>
                   </div>
-                <div style="min-height:530px; max-height:530px; padding-top:5px;">
+                <div style="min-height:450px; max-height:450px; padding-top:5px;">
                   <t t-if="o.referencias">
                     <span style="font-size:8px;"> Documento de Referencia</span>
                     <div class="row" style="border: 2px solid black; min-height:10px;" name="reference">
@@ -226,7 +226,7 @@
                                 <tr t-foreach="o.global_descuentos_recargos" t-as="gdr" class="border-black" style="max-height:11px; font-size:12px !important;">
                                   <td><strong>Descuento o Recargo Global</strong></td>
                                   <td class="text-right">
-                                      <span t-esc="gdr.valor if gdr.gdr_type=='amount' else gdr.amount_untaxed_global_dr" t-esc-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
+                                      <span t-esc="gdr.valor if gdr.gdr_type=='amount' else gdr.amount_untaxed_global_dr" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
                                   </td>
                                 </tr>
                               </t>
@@ -239,14 +239,14 @@
                               <tr name="discount" t-if="display_discount" class="border-black" style="max-height:11px; font-size:12px !important;">
                                <td><strong>Descuento</strong></td>
                                <td class="text-right">
-                                   <span t-esc="o.getTotalDiscount()" t-esc-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
+                                   <span t-esc="o.getTotalDiscount()" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
                                </td>
                               </tr>
                               <t t-foreach="o.tax_line_ids" t-as="t">
                                 <tr t-if="not o._es_boleta() or t.tax_id.sii_detailed or t.tax_id.amount == 0" style="max-height:11px; font-size:12px !important;">
                                  <td><span t-field="t.tax_id.description"/></td>
                                  <td class="text-right">
-                                     <span t-esc="t.amount if t.amount &gt; 0 else t.base" t-esc-options="{&quot;widget&quot;: &quot;monetary&quot;, &quot;display_currency&quot;: &quot;o.currency_id&quot;}"/>
+                                     <span t-esc="t.amount if t.amount &gt; 0 else t.base" t-options="{&quot;widget&quot;: &quot;monetary&quot;, &quot;display_currency&quot;: &quot;o.currency_id&quot;}"/>
                                  </td>
                                 </tr>
                               </t>
@@ -481,7 +481,7 @@
                                 Efectivo
                             </td>
                             <td>
-                              <span t-field="o.amount_total" t-field-options="{&quot;widget&quot;: &quot;monetary&quot;, &quot;display_currency&quot;: &quot;o.currency_id&quot;}"/>
+                              <span t-field="o.amount_total" t-field-options="{'widget': 'monetary', 'display_currency': 'o.currency_id'}"/>
                             </td>
                         </tr>
                     </tbody>
@@ -495,7 +495,7 @@
 
                 <div class="row">
                   <div class="col-xs-12" >
-                     <span t-field="o.sii_barcode_img" t-field-options="{&quot;widget&quot;: &quot;image&quot;}" style="margin-left:25%;"/>
+                     <img t-att-src="'data:image/png;base64,%s' % to_text(o.sii_barcode_img)" />
                   </div>
                   <div class="col-xs-12">
                       <p style="text-align:center;color:red; font-size:8px;">
@@ -605,7 +605,7 @@
             <line t-if="doc.global_descuentos_recargos">
               <t t-foreach="doc.global_descuentos_recargos" t-as="gdr">
                 <left><pre>        Descuento o Recargo Global</pre></left>
-                <right>$ <value value-decimals='0'><t t-esc="gdr.valor if gdr.gdr_type=='amount' else gdr.amount_untaxed_global_dr" t-esc-options="{'widget': 'monetary', 'display_currency': doc.currency_id}"/></value></right>
+                <right>$ <value value-decimals='0'><t t-esc="gdr.valor if gdr.gdr_type=='amount' else gdr.amount_untaxed_global_dr" t-options="{'widget': 'monetary', 'display_currency': doc.currency_id}"/></value></right>
               </t>
             </line>
             <line t-if="doc.amount_untaxed and not doc._es_boleta()" class='total'>
