@@ -246,7 +246,7 @@
                                 <tr t-if="not o._es_boleta() or t.tax_id.sii_detailed or t.tax_id.amount == 0" style="max-height:11px; font-size:12px !important;">
                                  <td><span t-field="t.tax_id.description"/></td>
                                  <td class="text-right">
-                                     <span t-esc="t.amount if t.amount &gt; 0 else t.base" t-options="{&quot;widget&quot;: &quot;monetary&quot;, &quot;display_currency&quot;: &quot;o.currency_id&quot;}"/>
+                                     <span t-esc="t.amount if t.amount &gt; 0 else t.base" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
                                  </td>
                                 </tr>
                               </t>
@@ -437,10 +437,10 @@
                                 <span t-field="line.quantity"/>
                             </td>
                             <td class="text-right">
-                              <span t-field="line.price_unit" t-field-options="{&quot;widget&quot;: &quot;monetary&quot;, &quot;display_currency&quot;: &quot;o.currency_id&quot;}"/>
+                              <span t-field="line.price_unit" t-field-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
                             </td>
                             <td class="text-right">
-                                <span t-field="line.price_total" t-field-options="{&quot;widget&quot;: &quot;monetary&quot;, &quot;display_currency&quot;: &quot;o.currency_id&quot;}"/>
+                                <span t-field="line.price_total" t-field-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
                             </td>
                         </tr>
                     </tbody>
