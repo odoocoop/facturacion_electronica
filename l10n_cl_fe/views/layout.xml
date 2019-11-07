@@ -220,7 +220,7 @@
                              <span t-field="o.comment"/>
                         </p>
                       </div>
-                    <div id="total" t-attf-class="#{'col-7' if report_type != 'html' else 'col-md-5'}">
+                    <div id="total" t-attf-class="#{'col-4' if report_type != 'html' else 'col-md-5'}">
                           <table class="table table-sm">
                               <t t-if="o.global_descuentos_recargos">
                                 <tr t-foreach="o.global_descuentos_recargos" t-as="gdr" class="border-black" style="max-height:11px; font-size:12px !important;">
@@ -453,7 +453,7 @@
                               <tr class="border-black" t-if="t.amount == 0">
                                 <td>MONTO EXENTO</td>
                                 <td class="text-right">
-                                  <span t-field="t.base" t-field-options="{&quot;widget&quot;: &quot;monetary&quot;, &quot;display_currency&quot;: &quot;o.currency_id&quot;}"/>
+                                  <span t-field="t.base" t-field-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
                                 </td>
                               </tr>
                             </t>
@@ -461,7 +461,7 @@
                             <tr>
                                 <td><strong>MONTO TOTAL</strong></td>
                                 <td class="text-right">
-                                    <span t-field="o.amount_total" t-field-options="{&quot;widget&quot;: &quot;monetary&quot;, &quot;display_currency&quot;: &quot;o.currency_id&quot;}"/>
+                                    <span t-field="o.amount_total" t-field-options="{'widget': 'monetary', 'display_currency':o.currency_id}"/>
                                 </td>
                             </tr>
                         </table>
@@ -481,7 +481,7 @@
                                 Efectivo
                             </td>
                             <td>
-                              <span t-field="o.amount_total" t-field-options="{'widget': 'monetary', 'display_currency': 'o.currency_id'}"/>
+                              <span t-field="o.amount_total" t-field-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
                             </td>
                         </tr>
                     </tbody>
