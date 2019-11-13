@@ -75,16 +75,17 @@ class stock_picking(models.Model):
         rut = rut.replace('CL','')
         return rut
 
-    def pdf417bc(self, ted):
+    def pdf417bc(self, ted, columns=13, ratio=3):
         bc = pdf417gen.encode(
             ted,
             security_level=5,
-            columns=13,
+            columns=columns,
         )
         image = pdf417gen.render_image(
             bc,
             padding=15,
             scale=1,
+            ratio=ratio,
         )
         return image
 
