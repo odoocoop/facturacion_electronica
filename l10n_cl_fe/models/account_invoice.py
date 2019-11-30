@@ -1305,7 +1305,7 @@ a VAT."""))
             if inv.sii_result in ['','NoEnviado','Rechazado'] or inv.company_id.dte_service_provider == 'SIICERT':
                 if inv.sii_result in ['Rechazado']:
                     inv._timbrar()
-                    if len(inv.sii_xml_request) == 1:
+                    if len(inv.sii_xml_request.invoice_ids) == 1:
                         inv.sii_xml_request.unlink()
                     else:
                         inv.sii_xml_request = False

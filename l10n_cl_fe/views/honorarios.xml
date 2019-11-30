@@ -5,7 +5,7 @@
     <record id="honorarios_form" model="ir.ui.view">
             <field name="name">account.honorarios.form</field>
             <field name="model">account.invoice</field>
-            <field name="priority">2</field>
+            <field name="priority">5</field>
             <field name="arch" type="xml">
                 <form string="Boletas Honorarios">
                   <field name="document_class_ids" invisible="1"/>

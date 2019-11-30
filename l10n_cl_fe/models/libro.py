@@ -3,7 +3,7 @@ from odoo import fields, models, api, tools
 from odoo.tools.translate import _
 from odoo.exceptions import UserError
 from datetime import datetime, timedelta
-import dateutil.relativedelta as relativedelta
+from dateutil.relativedelta import relativedelta
 from odoo.tools import DEFAULT_SERVER_DATETIME_FORMAT as DTF
 from lxml import etree
 import pytz
@@ -80,6 +80,7 @@ class Libro(models.Model):
         required=True,
         readonly=True,
         states={'draft': [('readonly', False)]},
+        default="COMPRA",
     )
     tipo_envio = fields.Selection([
         ('AJUSTE','Ajuste'),
@@ -207,7 +208,7 @@ class Libro(models.Model):
             return
         current = datetime.strptime(self.periodo_tributario + '-01', '%Y-%m-%d' )
         next_month = current + relativedelta(months=1)
-        docs = [False, 70, 71]
+        docs = [False, 70, 71, 35, 38, 39, 41]
         operator = 'not in'
         query = [
             ('company_id', '=', self.company_id.id),
@@ -358,7 +359,7 @@ class Libro(models.Model):
     @api.onchange('periodo_tributario', 'tipo_operacion')
     def _setName(self):
         self.name = self.tipo_operacion
-        if self.periodo_tributario:
+        if self.periodo_tributario and self.name:
             self.name += " " + self.periodo_tributario
 
     @api.multi
