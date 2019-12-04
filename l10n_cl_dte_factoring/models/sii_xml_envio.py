@@ -1,10 +1,19 @@
 # -*- coding: utf-8 -*-
 from odoo import fields, models, api
 from odoo.tools.translate import _
+from lxml import etree
 import collections
 import logging
 _logger = logging.getLogger(__name__)
+try:
+    from suds.client import Client
+except ImportError:
+    _logger.warning('Cannot import suds')
 
+server_url = {
+    'SIICERT': 'https://maullin.sii.cl/DTEWS/',
+    'SII': 'https://palena.sii.cl/DTEWS/',
+}
 
 class SIIXMLEnvio(models.Model):
     _inherit = 'sii.xml.envio'
@@ -39,3 +48,40 @@ class SIIXMLEnvio(models.Model):
         else:
             super(SIIXMLEnvio, self).procesar_recepcion(retorno, respuesta_dict)
         return retorno
+
+    def get_cesion_send_status(self):
+        token = self.get_token(self.env.user, self.company_id)
+        url = server_url[self.company_id.dte_service_provider] + 'services/wsRPETCConsulta?wsdl'
+        _server = Client(url)
+        rut = self.env['account.invoice'].format_vat(self.company_id.vat, con_cero=True)
+        respuesta = _server.service.getEstEnvio(
+            token,
+            self.sii_send_ident,
+        )
+        self.sii_receipt = respuesta
+        resp = etree.XML(respuesta.replace(
+                '<?xml version="1.0" encoding="UTF-8"?>', '')\
+            .replace('SII:', '')\
+            .replace(' xmlns="http://www.sii.cl/XMLSchema"', ''))
+        status = False
+        sii_result = False
+        if resp.find('RESP_HDR/ESTADO').text == "-11":
+            if resp.find('RESP_HDR/ERR_CODE').text == "2":
+                status =  {'warning':{'title':_('Estado -11'), 'message': _("Estado -11: Espere a que sea aceptado por el SII, intente en 5s más")}}
+            else:
+                status =  {'warning':{'title':_('Estado -11'), 'message': _("Estado -11: error Algo a salido mal, revisar carátula")}}
+        if resp.find('RESP_HDR/ESTADO').text == '0':
+            if resp.find('RESP_BODY/ESTADO_ENVIO').text in ["EPR", "EOK"]:
+                sii_result = "Procesado"
+                self.state = "Aceptado"
+            elif resp.find('RESP_HDR/ESTADO').text in ["RCT", 'RDC'] or \
+                resp.find('RESP_BODY/ESTADO_ENVIO').text in ["RDC"]:
+                sii_result = "Rechazado"
+                self.state = "Rechazado"
+                status = {'warning':{'title':_('Error RCT'), 'message': _(resp.find('RESP_BODY/DESC_ESTADO').text)}}
+        else:
+            sii_result = "Rechazado"
+            _logger.warning("rechazado %s" %resp)
+            status = {'warning':{'title':_('Error RCT'), 'message': _(resp.find('RESP_BODY/DESC_ESTADO').text)}}
+            self.state = "Rechazado"
+        return status

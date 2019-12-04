@@ -12,11 +12,11 @@
                             <button string="Crear Cesión" type="object" name="validate_cesion"  attrs="{'invisible':[('sii_cesion_result', 'not in', [ False])]}"/>
                             <button string="Download XML" type="object" name="get_cesion_xml_file"  attrs="{'invisible':[('sii_cesion_result', 'in', [ '', False ])]}"/>
                             <button string="Send XML Cesion" type="object" class="oe_highlight" name="do_cesion_dte_send" attrs="{'invisible': ['|', ('sii_cesion_result', 'not in', ['NoEnviado', 'Rechazado'])]}" />
-                            <button string="Ask for DTE Cesion" type="object" class="oe_highlight" name="ask_for_cesion_dte_status" attrs="{'invisible':[('sii_cesion_send_ident','=', False)]}"/>
+                            <button string="Ask for DTE Cesion" type="object" class="oe_highlight" name="ask_for_cesion_dte_status" attrs="{'invisible':[('sii_cesion_request','=', False)]}"/>
                             <field name='sii_cesion_result' widget="statusbar"/>
                         </header>
                         <group>
-                            <field name='sii_cesion_send_ident' readonly="True"/>
+                            <field name='sii_cesion_request' readonly="True" attrs="{'invisible':[('sii_cesion_request','=', False)]}"/>
                             <field name='cesionario_id' attrs="{'readonly':[('sii_cesion_result', 'not in', ['', False, 'Rechazado'])]}"/>
                             <field name='cesion_number'  attrs="{'readonly':[('sii_cesion_result', 'not in', ['', False, 'Rechazado'])]}"/>
                             <field name='declaracion_jurada'  attrs="{'readonly':[('sii_cesion_result', 'not in', ['', False, 'Rechazado'])]}"/>
@@ -27,9 +27,8 @@
                                 <field name="invoice_id" invisible="True" />
                               </tree>
                             </field>
-                            <field name='sii_cesion_receipt' readonly="True"/>
                             <field name='sii_cesion_message' readonly="True"/>
-                            <field name='sii_cesion_request' readonly="True"/>
+
                         </group>
                     </page>
                 </notebook>
