@@ -60,6 +60,45 @@ class ProcessMails(models.Model):
         resp_id = self.env['sii.respuesta.cliente'].sudo().create(resp)
         inv.respuesta_ids += resp_id
 
+    def _process_recepcion_envio(self, el_root, company_id, att):
+        el = el_root.find('ResultadoDTE')
+        if el is not None:
+            return self._process_recepcion_comercial(el, company_id, att)
+        el = el_root.find('RecepcionEnvio')
+        caratula = el_root.find('Caratula')
+        resp_id = self.env['sii.respuesta.cliente'].sudo().search([
+                ('exchange_id.name', '=',  el.find('NmbEnvio').text),
+                ('company_id', '=', company_id.id),
+            ])
+        data = {
+            'id_respuesta': caratula.find('IdRespuesta').text,
+            'recep_envio': el.find('EstadoRecepEnv').text,
+            'glosa': el.find('RecepEnvGlosa').text,
+            'attachment_id': att.id
+        }
+        resp_id.write(data)
+        for doc in el.findall('RecepcionDTE'):
+            partner_id = self.env['res.partner'].search([
+                ('vat', '=', self._format_rut(
+                                    doc.find('RUTRecep').text)),
+                ('parent_id', '=', False),
+            ])
+            inv = self.env['account.invoice'].sudo().search([
+                ('document_class_id.sii_code', '=', doc.find(
+                                        'TipoDTE').text),
+                ('sii_document_number', '=', doc.find('Folio').text),
+                ('company_id', '=', company_id.id),
+                ('partner_id', '=', partner_id.id)
+            ])
+            resp = {
+                'recep_dte': doc.find('EstadoRecepDTE').text,
+                'glosa': doc.find('RecepDTEGlosa').text,
+                'type': doc.tag,
+                'company_id': company_id.id,
+                }
+            resp_id = self.env['sii.respuesta.cliente'].sudo().create(resp)
+            inv.respuesta_ids += resp_id
+
     def _process_recepcion_mercaderias(self, el, company_id, att):
         for recibo in el.findall('Recibo'):
             doc = recibo.find("DocumentoRecibo")

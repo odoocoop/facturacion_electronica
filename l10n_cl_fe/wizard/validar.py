@@ -165,11 +165,12 @@ class ValidarDTEWizard(models.TransientModel):
                 'NroDetalles': NroDetalles,
                 "RutResponde": inv.format_vat(
                                 inv.company_id.vat),
+                "RutRecibe": inv.partner_id.commercial_partner_id.document_number,
                 'NmbContacto': self.env.user.partner_id.name,
                 'FonoContacto': self.env.user.partner_id.phone,
                 'MailContacto': self.env.user.partner_id.email,
                 "Receptor": {
-                	    "RUTRecep": inv.commercial_partner_id.document_number,
+                	    "RUTRecep": inv.partner_id.commercial_partner_id.document_number,
                 },
                 "DTEs": [dte],
             }
@@ -183,7 +184,7 @@ class ValidarDTEWizard(models.TransientModel):
             values = {
                         'res_id': inv.id,
                         'email_from': dte_email_id.name_get()[0][1],
-                        'email_to': inv.commercial_partner_id.dte_email,
+                        'email_to': inv.partner_id.commercial_partner_id.dte_email,
                         'auto_delete': False,
                         'model': "account.invoice",
                         'body': 'XML de Validación Comercial, Estado: %s, Glosa: %s' % (resp['EstadoDTE'], resp['EstadoDTEGlosa']),
@@ -210,12 +211,13 @@ class ValidarDTEWizard(models.TransientModel):
             datos["RecepcionMer"] = {
                 "RutResponde": inv.format_vat(
                                 inv.company_id.vat),
+                "RutRecibe": inv.partner_id.commercial_partner_id.document_number,
                 'Recinto': inv.company_id.street,
                 'NmbContacto': self.env.user.partner_id.name,
                 'FonoContacto': self.env.user.partner_id.phone,
                 'MailContacto': self.env.user.partner_id.email,
                 "Receptor": {
-                	    "RUTRecep": inv.commercial_partner_id.document_number,
+                	    "RUTRecep": inv.partner_id.commercial_partner_id.document_number,
                 },
                 "DTEs": [inv._dte()],
             }
@@ -229,7 +231,7 @@ class ValidarDTEWizard(models.TransientModel):
             values = {
                         'res_id': inv.id,
                         'email_from': dte_email_id.name_get()[0][1],
-                        'email_to': inv.commercial_partner_id.dte_email,
+                        'email_to': inv.partner_id.commercial_partner_id.dte_email,
                         'auto_delete': False,
                         'model': "account.invoice",
                         'body': 'XML de Recepción de Mercaderías\n %s' % (message),

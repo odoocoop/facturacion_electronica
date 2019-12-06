@@ -1302,7 +1302,7 @@ a VAT."""))
         ids = []
         envio_boleta = False
         for inv in self.with_context(lang='es_CL'):
-            if inv.sii_result in ['','NoEnviado','Rechazado'] or inv.company_id.dte_service_provider == 'SIICERT':
+            if inv.sii_result in ['', 'NoEnviado', 'Rechazado'] or inv.company_id.dte_service_provider == 'SIICERT':
                 if inv.sii_result in ['Rechazado']:
                     inv._timbrar()
                     if len(inv.sii_xml_request.invoice_ids) == 1:
@@ -1310,6 +1310,7 @@ a VAT."""))
                     else:
                         inv.sii_xml_request = False
                 inv.sii_result = 'EnCola'
+                inv.sii_message = ''
                 ids.append(inv.id)
                 if not envio_boleta and (inv._es_boleta() or inv._nc_boleta()):
                     envio_boleta = True
@@ -1371,7 +1372,7 @@ a VAT."""))
             #Servicios periódicos
         #    IdDoc['PeriodoDesde'] =
         #    IdDoc['PeriodoHasta'] =
-        if not self._es_boleta():
+        if not self._es_boleta() and self.date_due:
             IdDoc['FchVenc'] = self.date_due.strftime('%Y-%m-%d') or datetime.strftime(datetime.now(), '%Y-%m-%d')
         return IdDoc
 
@@ -1638,7 +1639,14 @@ a VAT."""))
         if self.currency_id != currency_base:
             currency_id = self.currency_id
         taxInclude = False
-        for line in self.invoice_line_ids:
+        if self.env['account.invoice.line'].with_context(lang="es_CL").search([
+                '|',
+                ('sequence', '=', -1),
+                ('sequence', '=', 0),
+                ('invoice_id', '=', self.id)
+            ]):
+            self._onchange_invoice_line_ids()
+        for line in self.with_context(lang="es_CL").invoice_line_ids:
             if not line.account_id:
                 continue
             if line.product_id.default_code == 'NO_PRODUCT':
