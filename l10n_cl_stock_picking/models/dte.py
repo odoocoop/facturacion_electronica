@@ -343,7 +343,7 @@ class stock_picking(models.Model):
             lines = {}
             lines['NroLinDet'] = line_number
             if line.product_id.default_code and not no_product:
-                lines['CdgItem'] = collections.OrderedDict()
+                lines['CdgItem'] = {}
                 lines['CdgItem']['TpoCodigo'] = 'INT1'
                 lines['CdgItem']['VlrCodigo'] = line.product_id.default_code
             taxInclude = False
