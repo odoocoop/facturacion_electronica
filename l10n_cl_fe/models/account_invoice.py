@@ -1867,6 +1867,7 @@ a VAT."""))
                 r.sii_message = ''
         datos = self[0]._get_datos_empresa(self[0].company_id)
         datos.update({
+            'RutReceptor': RUTRecep,
             'Documento': []
         })
         for k, v in grupos.items():

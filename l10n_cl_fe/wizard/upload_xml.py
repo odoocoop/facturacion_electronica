@@ -71,11 +71,14 @@ class UploadXMLWizard(models.TransientModel):
     @api.multi
     def confirm(self, ret=False):
         created = []
+        if self.document_id:
+            self.dte_id = self.document_id.dte_id.id
         if not self.dte_id:
             dte_id = self.env['mail.message.dte'].search(
                 [
                     ('name', '=', self.filename),
-                ]
+                ],
+                limit=1,
             )
             if not dte_id:
                 dte = {
