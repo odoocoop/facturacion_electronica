@@ -961,7 +961,7 @@ a VAT."))
     def _check_reference_in_invoice(self):
         if self.type in ['in_invoice', 'in_refund'] and self.sii_document_number:
             domain = [('type', '=', self.type),
-                      ('reference', '=', self.reference),
+                      ('sii_document_number', '=', self.sii_document_number),
                       ('partner_id', '=', self.partner_id.id),
                       ('journal_document_class_id.sii_document_class_id', '=',
                        self.document_class_id.id),
@@ -1295,7 +1295,7 @@ a VAT."))
             if inv.sii_result in ['', 'NoEnviado', 'Rechazado'] or inv.company_id.dte_service_provider == 'SIICERT':
                 if inv.sii_result in ['Rechazado']:
                     inv._timbrar()
-                    if len(inv.sii_xml_request) == 1:
+                    if len(inv.sii_xml_request.invoice_ids) == 1:
                         inv.sii_xml_request.unlink()
                     else:
                         inv.sii_xml_request = False
@@ -1433,7 +1433,7 @@ a VAT."))
         return Receptor
 
     def _totales_otra_moneda(self, currency_id, MntExe, MntNeto, IVA, TasaIVA,
-                             ImptoReten, MntTotal=0, MntBase=0):
+                            MntTotal=0, MntBase=0):
         Totales = {}
         Totales['TpoMoneda'] = self._acortar_str(currency_id.abreviatura, 15)
         Totales['TpoCambio'] = currency_id.rate
@@ -1451,15 +1451,6 @@ a VAT."))
             if currency_id != self.currency_id:
                 IVA = currency_id.compute(IVA, self.currency_id)
             Totales['IVAOtrMnda'] = IVA
-        if ImptoReten:
-            for item in ImptoReten:
-                ret = {'ImptRetOtrMnda': {}}
-                ret['ImptRetOtrMnda']['TipoImpOtrMnda'] = item['ImptRet']['TipoImp']
-                ret['ImptRetOtrMnda']['TasaImpOtrMnda'] = item['ImptRet']['TasaImp']
-                if currency_id != self.currency_id:
-                    ret['ImptRetOtrMnda']['MontoImp'] = currency_id.compute(item['ImptRet']['MontoImp'], self.currency_id)
-                ret['ImptRetOtrMnda']['ValorImpOtrMnda'] = item['ImptRet']['MontoImp']
-            Totales['item_ret_otr'] = ret
         if currency_id != self.currency_id:
             MntTotal = currency_id.compute(MntTotal, self.currency_id)
         Totales['MntTotOtrMnda'] = MntTotal
@@ -1470,7 +1461,7 @@ a VAT."))
         return Totales
 
     def _totales_normal(self, currency_id, MntExe, MntNeto, IVA, TasaIVA,
-                        ImptoReten, MntTotal=0, MntBase=0):
+                        MntTotal=0, MntBase=0):
         Totales = {}
         if MntNeto > 0:
             if currency_id != self.currency_id:
@@ -1487,9 +1478,6 @@ a VAT."))
             if currency_id != self.currency_id:
                 IVA = currency_id.compute(IVA, self.currency_id)
             Totales['IVA'] = currency_id.round(IVA)
-        if ImptoReten:
-            '''@TODO desglose ImptoReten'''
-            Totales['item_ret'] = ImptoReten
         if currency_id != self.currency_id:
             MntTotal = currency_id.compute(MntTotal, self.currency_id)
         Totales['MntTotal'] = currency_id.round(MntTotal)
@@ -1505,11 +1493,9 @@ a VAT."))
     def _totales(self, MntExe=0, no_product=False, taxInclude=False):
         MntNeto = 0
         IVA = False
-        ImptoReten = False
         TasaIVA = False
         MntIVA = 0
         MntBase = 0
-        OtrosImp = []
         if self._es_exento():
             MntExe = self.amount_total
             if no_product:
@@ -1522,8 +1508,6 @@ a VAT."))
                 for t in self.tax_line_ids:
                     if t.tax_id.sii_code in [14, 15]:
                         IVA = t
-                    elif t.tax_id.sii_code in [15, 17, 18, 19, 27, 271, 26]:
-                        OtrosImp.append(t)
                     if t.tax_id.sii_code in [14, 15]:
                         MntNeto += t.base
                     if t.tax_id.sii_code in [17]:
@@ -1542,18 +1526,10 @@ a VAT."))
                 if not self._es_boleta():
                     TasaIVA = 0
                 MntIVA = 0
-        if OtrosImp:
-            ImptoReten = []
-            for item in OtrosImp:
-                itemRet = {'ImptoReten': {}}
-                itemRet['ImptoReten']['TipoImp'] = item.tax_id.sii_code
-                itemRet['ImptoReten']['TasaImp'] = item.tax_id.amount
-                itemRet['ImptoReten']['MontoImp'] = item.amount_retencion if item.tax_id.sii_type == 'R' else item.amount
-                ImptoReten.append(itemRet)
         MntTotal = self.amount_total
         if no_product:
             MntTotal = 0
-        return MntExe, MntNeto, MntIVA, TasaIVA, ImptoReten, MntTotal, MntBase
+        return MntExe, MntNeto, MntIVA, TasaIVA, MntTotal, MntBase
 
     def _encabezado(self, MntExe=0, no_product=False, taxInclude=False):
         Encabezado = {}
@@ -1563,15 +1539,14 @@ a VAT."))
         another_currency_id = False
         if self.currency_id != currency_base:
             another_currency_id = self.currency_id
-        MntExe, MntNeto, IVA, TasaIVA, ImptoReten, MntTotal, MntBase = self._totales(MntExe, no_product, taxInclude)
+        MntExe, MntNeto, IVA, TasaIVA, MntTotal, MntBase = self._totales(MntExe, no_product, taxInclude)
         Encabezado['Totales'] = self._totales_normal(currency_base, MntExe,
                                                      MntNeto, IVA, TasaIVA,
-                                                     ImptoReten, MntTotal,
-                                                     MntBase)
+                                                     MntTotal, MntBase)
         if another_currency_id:
             Encabezado['OtraMoneda'] = self._totales_otra_moneda(
                             another_currency_id, MntExe, MntNeto, IVA, TasaIVA,
-                            ImptoReten, MntTotal, MntBase)
+                            MntTotal, MntBase)
         return Encabezado
 
     def _validaciones_caf(self, caf):
@@ -1605,7 +1580,7 @@ a VAT."))
         currency_id = False
         if self.currency_id != currency_base:
             currency_id = self.currency_id.with_context(date=self.date_invoice)
-        if self.env['account.invoice.line'].search([
+        if self.env['account.invoice.line'].with_context(lang="es_CL").search([
                 '|',
                 ('sequence', '=', -1),
                 ('sequence', '=', 0),
@@ -1613,7 +1588,7 @@ a VAT."))
             ]):
             self._onchange_invoice_line_ids()
         taxInclude = False
-        for line in self.invoice_line_ids:
+        for line in self.with_context(lang="es_CL").invoice_line_ids:
             if line.product_id.default_code == 'NO_PRODUCT':
                 no_product = True
             lines = {}
@@ -1791,15 +1766,15 @@ a VAT."))
         doc_id_number = "F{}T{}".format(folio, self.document_class_id.sii_code)
         doc_id = '<' + tpo_dte + ' ID="{}">'.format(doc_id_number)
         dte = {}
-        datos = self._get_datos_empresa(self.company_id)
-        datos['Documento'] = [{
+        dte = self._get_datos_empresa(self.company_id)
+        dte['Documento'] = [{
             'TipoDTE': self.document_class_id.sii_code,
             'caf_file': [self.journal_document_class_id.sequence_id.get_caf_file(
                             folio, decoded=False).decode()],
             'documentos': [self._dte(n_atencion)]
             },
         ]
-        result = fe.timbrar(datos)
+        result = fe.timbrar(dte)
         if result[0].get('error'):
             raise UserError(result[0].get('error'))
         self.write({
@@ -1834,18 +1809,19 @@ a VAT."))
                     else:
                         r.sii_xml_request = False
                 r.sii_message = ''
-        datos = self[0]._get_datos_empresa(self[0].company_id)
-        datos.update({
+        envio = self[0]._get_datos_empresa(self[0].company_id)
+        envio.update({
+            'RutReceptor': RUTRecep,
             'Documento': []
         })
         for k, v in grupos.items():
-            datos['Documento'].append(
+            envio['Documento'].append(
                 {
                     'TipoDTE': k,
                     'documentos': v,
                 }
             )
-        return datos
+        return envio
 
     @api.multi
     def do_dte_send(self, n_atencion=None):
@@ -1857,9 +1833,9 @@ a VAT."))
                 'name': result['sii_send_filename'],
                 'company_id': self[0].company_id.id,
                 'user_id': self.env.uid,
-                'sii_send_ident': result['sii_send_ident'],
-                'sii_xml_response': result['sii_xml_response'],
-                'state': result['sii_result'],
+                'sii_send_ident': result.get('sii_send_ident'),
+                'sii_xml_response': result.get('sii_xml_response'),
+                'state': result.get('sii_result'),
             }
         if not envio_id:
             envio_id = self.env['sii.xml.envio'].create(envio)

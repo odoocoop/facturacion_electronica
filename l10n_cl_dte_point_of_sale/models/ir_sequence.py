@@ -15,6 +15,7 @@ class IRSequence(models.Model):
             context = dict(self._context or {})
             id = context.get('default_sequence_id') #Al parecer se complica el contexto y se pierde la referencia id
             query = [
+                ('rescue', '=', False),
                 ('state', 'not in', ['closed']),
                 '|',
                 ('config_id.secuencia_boleta', '=', id),

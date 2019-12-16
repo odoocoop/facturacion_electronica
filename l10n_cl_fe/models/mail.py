@@ -170,12 +170,6 @@ class ProcessMails(models.Model):
     def create(self, vals):
         mail = super(ProcessMails, self).create(vals)
         if mail.message_type in ['email'] and mail.attachment_ids and \
-                not mail.mail_server_id:
+                not mail.mail_server_id and mail.author_id != self.env.ref('base.partner_root'):
             mail.process_mess()
         return mail
-
-
-
-
-
-

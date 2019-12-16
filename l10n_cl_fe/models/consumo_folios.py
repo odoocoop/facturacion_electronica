@@ -4,14 +4,12 @@ from odoo.tools.translate import _
 from odoo.exceptions import UserError
 from datetime import datetime, timedelta
 from odoo.tools import DEFAULT_SERVER_DATETIME_FORMAT as DTF
-import logging
-from lxml import etree
-from lxml.etree import Element, SubElement
 import pytz
 import logging
 _logger = logging.getLogger(__name__)
 try:
     from facturacion_electronica import facturacion_electronica as fe
+    from facturacion_electronica.consumo_folios import ConsumoFolios as CF
 except Exception as e:
     _logger.warning("Problema al cargar Facturación electrónica: %s" % str(e))
 
@@ -112,55 +110,56 @@ class ConsumoFolios(models.Model):
     	readonly=True,
         states={'draft': [('readonly', False)]},)
     date = fields.Date(
-            string="Date",
-            required=True,
-        	readonly=True,
-            states={'draft': [('readonly', False)]},
-            default=lambda *a: datetime.now(),
-        )
+        string="Date",
+        required=True,
+    	readonly=True,
+        states={'draft': [('readonly', False)]},
+        default=lambda *a: datetime.now(),
+    )
     detalles = fields.One2many(
         'account.move.consumo_folios.detalles',
-       'cf_id',
-       string="Detalle Rangos",
-       readonly=True,
-       states={'draft': [('readonly', False)]},)
+        'cf_id',
+        string="Detalle Rangos",
+        readonly=True,
+        states={'draft': [('readonly', False)]},)
     impuestos = fields.One2many(
         'account.move.consumo_folios.impuestos',
-       'cf_id',
-       string="Detalle Impuestos",
-       readonly=True,
-       states={'draft': [('readonly', False)]},)
-    anulaciones = fields.One2many('account.move.consumo_folios.anulaciones',
         'cf_id',
         string="Detalle Impuestos",
         readonly=True,
         states={'draft': [('readonly', False)]},)
+    anulaciones = fields.One2many(
+        'account.move.consumo_folios.anulaciones',
+        'cf_id',
+        string="Folios Anulados",
+        readonly=True,
+        states={'draft': [('readonly', False)]},)
     currency_id = fields.Many2one(
-            'res.currency',
-            string='Moneda',
-            default=lambda self: self.env.user.company_id.currency_id,
-            required=True,
-            track_visibility='always',
-        	readonly=True,
-            states={'draft': [('readonly', False)]},
-        )
+        'res.currency',
+        string='Moneda',
+        default=lambda self: self.env.user.company_id.currency_id,
+        required=True,
+        track_visibility='always',
+    	readonly=True,
+        states={'draft': [('readonly', False)]},
+    )
     responsable_envio = fields.Many2one(
-            'res.users',
-        )
+        'res.users',
+    )
     sii_result = fields.Selection(
-            [
-                ('draft', 'Borrador'),
-                ('NoEnviado', 'No Enviado'),
-                ('Enviado', 'Enviado'),
-                ('Aceptado', 'Aceptado'),
-                ('Rechazado', 'Rechazado'),
-                ('Reparo', 'Reparo'),
-                ('Proceso', 'Proceso'),
-                ('Reenviar', 'Reenviar'),
-                ('Anulado', 'Anulado')
-            ],
-            related="state",
-        )
+        [
+            ('draft', 'Borrador'),
+            ('NoEnviado', 'No Enviado'),
+            ('Enviado', 'Enviado'),
+            ('Aceptado', 'Aceptado'),
+            ('Rechazado', 'Rechazado'),
+            ('Reparo', 'Reparo'),
+            ('Proceso', 'Proceso'),
+            ('Reenviar', 'Reenviar'),
+            ('Anulado', 'Anulado')
+        ],
+        related="state",
+    )
 
     _order = 'fecha_inicio desc'
 
@@ -209,9 +208,38 @@ class ConsumoFolios(models.Model):
             r.total = total
             r.total_boletas = total_boletas
 
+    def _get_resumenes(self):
+        grupos = {}
+        recs = self._get_moves()
+        for r in recs:
+            grupos.setdefault(r.document_class_id.sii_code, [])
+            grupos[r.document_class_id.sii_code].append(r._dte())
+        for r in self.anulaciones:
+            grupos.setdefault(r.document_class_id.sii_code, [])
+            for i in range(r.rango_inicio, r.rango_final+1):
+                grupos[r.document_class_id.sii_code].append({
+                    "Encabezado": {
+                        "IdDoc": {
+                            "Folio": i,
+                            "FechaEmis": r.fecha_inicio,
+                            "Anulado": True,
+                        }
+                    }
+                })
+        datos = {
+            "resumen": False,
+            "FchInicio": self.fecha_inicio,
+            "FchFinal": self.fecha_final,
+            "SecEnvio": self.sec_envio,
+            "Correlativo": self.correlativo,
+            "Documento": [{'TipoDTE': k, 'documentos': v} for k, v in grupos.items()]
+        }
+        resumenes = CF(datos)._get_resumenes()
+        return resumenes
+
     @api.onchange('move_ids', 'anulaciones')
     def _resumenes(self):
-        resumenes, TpoDocs = self._get_resumenes()
+        resumenes = self._get_resumenes()
         if self.impuestos and isinstance(self.id, int):
             self._cr.execute("DELETE FROM account_move_consumo_folios_impuestos WHERE cf_id=%s", (self.id,))
             self.invalidate_cache()
@@ -257,6 +285,7 @@ class ConsumoFolios(models.Model):
 
     @api.onchange('fecha_inicio', 'company_id', 'fecha_final')
     def set_data(self):
+        self.move_ids = False
         current = datetime.now().strftime('%Y-%m-%d') + ' 00:00:00'
         tz = pytz.timezone('America/Santiago')
         tz_current = tz.localize(datetime.strptime(current, DTF)).astimezone(pytz.utc)
@@ -277,6 +306,7 @@ class ConsumoFolios(models.Model):
             ('state', 'not in', ['draft', 'Rechazado']),
             ('company_id', '=', self.company_id.id),
             ])
+        self.sec_envio = 0
         if consumos > 0:
             self.sec_envio = (consumos+1)
         self._resumenes()
@@ -358,8 +388,9 @@ class ConsumoFolios(models.Model):
                 ('partner_id', '=', rec.partner_id.id),
                 ('journal_id', '=', rec.journal_id.id),
                 ('state', 'not in', ['cancel', 'draft']),
+                ('company_id', '=',rec.company_id.id),
             ])
-            recs.append(ref._dte())
+            recs.append(ref)
         return recs
 
     def _validar(self):
@@ -368,22 +399,30 @@ class ConsumoFolios(models.Model):
         recs = self._get_moves()
         for r in recs:
             grupos.setdefault(r.document_class_id.sii_code, [])
-            grupos[r.document_class_id.sii_code].append(r)
-        for anulaciones in self.anulaciones:
-            raise UserError("terminar código anulaciones manuales")
+            grupos[r.document_class_id.sii_code].append(r._dte())
+        for r in self.anulaciones:
             grupos.setdefault(r.document_class_id.sii_code, [])
-            grupos[r.document_class_id.sii_code].append(r)
-        datos['ConsumoFolios'] = {
+            for i in range(r.rango_inicio, r.rango_final+1):
+                grupos[r.document_class_id.sii_code].append({
+                    "Encabezado": {
+                        "IdDoc": {
+                            "Folio": i,
+                            "FechaEmis": r.fecha_inicio,
+                            "Anulado": True,
+                        }
+                    }
+                })
+        datos['ConsumoFolios'] = [{
             "FchInicio": self.fecha_inicio,
             "FchFinal": self.fecha_final,
             "SecEnvio": self.sec_envio,
             "Correlativo": self.correlativo,
             "Documento": [{'TipoDTE': k, 'documentos': v} for k, v in grupos.items()]
-        }
+        }]
         datos['test'] = True
-        result = fe.libro(datos)[0]
+        result = fe.consumo_folios(datos)[0]
         envio_dte = result['sii_xml_request']
-        doc_id = '%s_%s' % (self.tipo_operacion, self.periodo_tributario)
+        doc_id = '%s_%s' % (self.fecha_inicio, self.sec_envio)
         self.sii_xml_request = self.env['sii.xml.envio'].create({
             'xml_envio': envio_dte,
             'name': doc_id,
@@ -436,44 +475,62 @@ class ConsumoFolios(models.Model):
             r.state = r.sii_xml_request.state
 
 
-class DetalleCOnsumoFolios(models.Model):
+class DetalleConsumoFolios(models.Model):
     _name = "account.move.consumo_folios.detalles"
+    _description = 'Linea Detalle CF'
 
-    cf_id = fields.Many2one('account.move.consumo_folios',
-                            string="Consumo de Folios")
-    tpo_doc = fields.Many2one('sii.document_class',
-                              string="Tipo de Documento")
+    cf_id = fields.Many2one(
+        'account.move.consumo_folios',
+        string="Consumo de Folios",)
+    tpo_doc = fields.Many2one(
+        'sii.document_class',
+        string="Tipo de Documento",)
     tipo_operacion = fields.Selection([
         ('utilizados','Utilizados'),
-        ('anulados','Anulados')
+        ('anulados','Anulados'),
     ])
-    folio_inicio = fields.Integer(string="Folio Inicio")
-    folio_final = fields.Integer(string="Folio Final")
-    cantidad = fields.Integer(string="Cantidad Emitidos")
+    folio_inicio = fields.Integer(
+        string="Folio Inicio",)
+    folio_final = fields.Integer(
+        string="Folio Final",)
+    cantidad = fields.Integer(
+        string="Cantidad Emitidos",)
 
 
 class DetalleImpuestos(models.Model):
     _name = "account.move.consumo_folios.impuestos"
+    _description = 'Detalle Impuesto CF'
 
-    cf_id = fields.Many2one('account.move.consumo_folios',
-                            string="Consumo de Folios")
-    tpo_doc = fields.Many2one('sii.document_class',
-                              string="Tipo de Documento")
-    impuesto = fields.Many2one('account.tax')
-    cantidad = fields.Integer(string="Cantidad")
-    monto_neto = fields.Monetary(string="Monto Neto")
-    monto_iva = fields.Monetary(string="Monto IVA",)
-    monto_exento = fields.Monetary(string="Monto Exento",)
-    monto_total = fields.Monetary(string="Monto Total",)
-    currency_id = fields.Many2one('res.currency',
+    cf_id = fields.Many2one(
+        'account.move.consumo_folios',
+        string="Consumo de Folios",)
+    tpo_doc = fields.Many2one(
+        'sii.document_class',
+        string="Tipo de Documento")
+    impuesto = fields.Many2one(
+        'account.tax',
+        string="Impuesto",)
+    cantidad = fields.Integer(
+        string="Cantidad")
+    monto_neto = fields.Monetary(
+        string="Monto Neto")
+    monto_iva = fields.Monetary(
+        string="Monto IVA",)
+    monto_exento = fields.Monetary(
+        string="Monto Exento",)
+    monto_total = fields.Monetary(
+        string="Monto Total",)
+    currency_id = fields.Many2one(
+        'res.currency',
         string='Moneda',
         default=lambda self: self.env.user.company_id.currency_id,
         required=True,
-        track_visibility='always')
+        track_visibility='always',)
 
 
 class Anulaciones(models.Model):
     _name = 'account.move.consumo_folios.anulaciones'
+    _description = 'Detalle Folio Anulado CF'
 
     cf_id = fields.Many2one(
             'account.move.consumo_folios',
@@ -490,4 +547,4 @@ class Anulaciones(models.Model):
         string="Rango Inicio")
     rango_final = fields.Integer(
         required=True,
-        string="Rango Final")
+        string="Rango Final",)

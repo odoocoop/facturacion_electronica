@@ -84,8 +84,8 @@ entregados por parte del deudor de la factura {4}, RUT {5}, de acuerdo a lo esta
                 self.format_vat(self.company_id.partner_id.vat),
                 self.cesionario_id.name,
                 self.format_vat(self.cesionario_id.vat),
-                self.commercial_partner_id.name,
-                self.format_vat(self.commercial_partner_id.vat),
+                self.partner_id.commercial_partner_id.name,
+                self.format_vat(self.partner_id.commercial_partner_id.vat),
             )
             self.declaracion_jurada = declaracion_jurada
 

@@ -19,12 +19,12 @@ class BinaryGuia(http.Controller):
     @serialize_exception
     def download_guia(self, document_id, **post):
         filename = ('Guia_%s.xml' % document_id.sii_document_number).replace(' ','_')
-        filecontent = document_id.sii_xml_request
+        filecontent = document_id.sii_xml_request.xml_envio
         return self.document(filename, filecontent)
 
     @http.route(["/download/xml/libro_guia/<model('stock.picking.book'):document_id>"], type='http', auth='user')
     @serialize_exception
     def download_libro_guia(self, document_id, **post):
         filename = ('Lbro_Guia_%s.xml' % document_id.name).replace(' ','_')
-        filecontent = document_id.sii_xml_request
+        filecontent = document_id.sii_xml_request.xml_envio
         return self.document(filename, filecontent)

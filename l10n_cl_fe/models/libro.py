@@ -27,6 +27,7 @@ allowed_docs = [29, 30, 32, 33, 34, 35, 38, 39, 40,
 
 class Libro(models.Model):
     _name = "account.move.book"
+    _description = 'Libro de Compra / Venta DTE'
 
     sii_xml_request = fields.Many2one(
             'sii.xml.envio',
@@ -208,7 +209,7 @@ class Libro(models.Model):
     def set_movimientos(self):
         current = datetime.strptime( self.periodo_tributario + '-01', '%Y-%m-%d' )
         next_month = current + relativedelta.relativedelta(months=1)
-        docs = [False, 70, 71]
+        docs = [False, 70, 71, 35, 38, 39, 41]
         operator = 'not in'
         query = [
             ('company_id', '=', self.company_id.id),
@@ -221,6 +222,8 @@ class Libro(models.Model):
             query.append(('date' , '>=', two_month.strftime('%Y-%m-%d')))
             domain = 'purchase'
         query.append(('journal_id.type', '=', domain))
+        boleta_lines = [[5, ], ]
+        impuesto_lines = [[5,],]
         if self.tipo_operacion in [ 'VENTA' ]:
             cfs = self.env['account.move.consumo_folios'].search([
                 ('state', '=', 'Proceso'),
@@ -247,7 +250,6 @@ class Libro(models.Model):
                                 'neto': lineas[tpo_doc]['neto'] + impuesto.monto_neto,
                                 'monto_exento': lineas[tpo_doc]['monto_exento'] + impuesto.monto_exento,
                             }
-                lines = [[5, ], ]
                 for tpo_doc, det in lineas.items():
                     tax_id = self.env['account.tax'].search([('sii_code', '=', 14), ('type_tax_use', '=', 'sale'), ('company_id', '=', self.company_id.id)], limit=1) if tpo_doc.sii_code == 39 else self.env['account.tax'].search([('sii_code', '=', 0), ('type_tax_use', '=', 'sale'), ('company_id', '=', self.company_id.id)], limit=1)
                     line = {
@@ -257,10 +259,9 @@ class Libro(models.Model):
                         'neto': det['neto'] or det['monto_exento'],
                         'impuesto': tax_id.id,
                     }
-                    lines.append([0, 0, line])
-                self.boletas = lines
+                boleta_lines.append([0, 0, line])
         elif self.tipo_operacion in ['BOLETA']:
-            docs = [35, 38, 39, 41]
+            docs = [39, 41]
             cfs = self.env['account.move.consumo_folios'].search([
                 ('state', 'not in', ['draft']),
                 ('fecha_inicio', '>=', current),
@@ -273,18 +274,17 @@ class Libro(models.Model):
                 for i in cf.impuestos:
                     monto_iva += i.monto_iva
                     monto_exento += i.monto_exento
-            lines.extend([
+            impuesto_lines.extend([
                  [0,0, {'tax_id': self.env['account.tax'].search([('sii_code', '=', 14), ('type_tax_use', '=', 'sale'),('company_id', '=', self.company_id.id)], limit=1).id, 'credit': monto_iva, 'currency_id' : self.env.user.company_id.currency_id.id}],
                  [0,0, {'tax_id': self.env['account.tax'].search([('sii_code', '=', 0), ('type_tax_use', '=', 'sale'),('company_id', '=', self.company_id.id)], limit=1).id, 'credit': monto_exento, 'currency_id' : self.env.user.company_id.currency_id.id}]
                  ])
-            self.impuestos = lines
             operator = 'in'
         if self.tipo_operacion in [ 'VENTA', 'BOLETA' ]:
             query.append(('date', '>=', current.strftime('%Y-%m-%d')))
-
         query.append(('document_class_id.sii_code', operator, docs))
+        self.boletas = boleta_lines
+        self.impuestos = impuesto_lines
         self.move_ids = self.env['account.move'].search(query)
-
 
     def _get_imps(self):
         imp = {}
@@ -365,7 +365,7 @@ class Libro(models.Model):
         for rec in self.with_context(lang='es_CL').move_ids:
             rec.sended = True
             document_class_id = rec.document_class_id
-            if not document_class_id or document_class_id.sii_code in [39, 41]\
+            if not document_class_id or document_class_id.es_boleta()\
                 or rec.sii_document_number in [False, 0]:
                 continue
             query = [
@@ -478,6 +478,7 @@ class Libro(models.Model):
 
 class Boletas(models.Model):
     _name = 'account.move.book.boletas'
+    _description = 'Detalle Boleta libro CV'
 
     currency_id = fields.Many2one('res.currency',
         string='Moneda',
@@ -533,6 +534,7 @@ class Boletas(models.Model):
 
 class ImpuestosLibro(models.Model):
     _name="account.move.book.tax"
+    _description = 'Detalle Impuesto Libro CV'
 
     def get_monto(self):
         for t in self:

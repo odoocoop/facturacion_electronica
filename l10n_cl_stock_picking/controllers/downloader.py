@@ -1,31 +1,12 @@
-from odoo import models, http, api
-from odoo.http import request
-from odoo.addons.web.controllers.main import serialize_exception, content_disposition
+from openerp import http
+from openerp.addons.web.controllers.main import serialize_exception
+from odoo.addons.l10n_cl_fe.controllers import downloader
 
-class Binary(http.Controller):
+class Binary(downloader.Binary):
 
-    @http.route('/web/binary/download_document', type='http', auth="public")
+    @http.route(["/download/xml/cesion/<model('account.invoice'):rec_id>"], type='http', auth='user')
     @serialize_exception
-    def download_document(self, model, field, id, filename=None, **kw):
-        """
-        :param str filename: field holding the file's name, if any
-        :returns: :class:`werkzeug.wrappers.Response`
-        """
-        Model = request.registry[model]
-        cr, uid, context = request.cr, request.uid, request.context
-        fields = [field]
-        res = Model.read(cr, uid, [int(id)], fields, context)[0]
-        # filecontent = base64.b64decode(res.get(field) or '')
-        filecontent = res.get(field)
-        if not filecontent:
-            return request.not_found()
-        else:
-            if not filename:
-                filename = '%s_%s' % (model.replace('.', '_'), id)
-            headers = [
-                ('Content-Type', 'application/xml'),
-                ('Content-Disposition', content_disposition(filename)),
-                ('charset', 'utf-8'),
-            ]
-            return request.make_response(
-                    filecontent, headers=headers, cookies=None)
+    def download_cesion(self, rec_id, **post):
+        filename = ('CES_%s_%s.xml' % (rec_id.sii_document_class_id.sii_code, rec_id.sii_document_number)).replace(' ','_')
+        filecontent = rec_id.sii_cesion_request
+        return self.document(filename, filecontent)

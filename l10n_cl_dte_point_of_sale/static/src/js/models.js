@@ -231,6 +231,7 @@ models.Order = models.Order.extend({
 			this.finalized = json.finalized;
 	},
 	export_for_printing: function() {
+		var self = this;
 		var json = _super_order.export_for_printing.apply(this,arguments);
 		json.company.document_number = this.pos.company.document_number;
 		json.company.activity_description = this.pos.company.activity_description[1];
@@ -243,7 +244,7 @@ models.Order = models.Order.extend({
 		if(this.sequence_id){
 			json.nombre_documento = this.sequence_id.sii_document_class_id.name;
 		}
-		var d = this.creation_date;
+		var d = self.creation_date;
 		var curr_date = this.completa_cero(d.getDate());
 		var curr_month = this.completa_cero(d.getMonth() + 1); // Months
 																	// are zero

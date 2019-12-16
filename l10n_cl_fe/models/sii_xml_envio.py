@@ -141,6 +141,14 @@ class SIIXMLEnvio(models.Model):
             result.append((r.id, name))
         return result
 
+    @api.multi
+    def unlink(self):
+        for r in self:
+            if r.state in ['Aceptado', 'Enviado']:
+                raise UserError(
+                            _('You can not delete a valid document on SII'))
+        return super(SIIXMLEnvio, self).unlink()
+
     def get_seed(self, company_id):
         try:
             import ssl
