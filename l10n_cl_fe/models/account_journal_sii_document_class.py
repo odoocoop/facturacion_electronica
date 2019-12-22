@@ -14,9 +14,10 @@ class AccountJournalSiiDocumentClass(models.Model):
     @api.depends('sii_document_class_id', 'sequence_id')
     def get_secuence_name(self):
         for r in self:
-            sequence_name = (': ' + r.sequence_id.name) if r.sequence_id else ''
-            name = (r.sii_document_class_id.name or '') + sequence_name
-            r.name = name
+            sequence_name = r.sii_document_class_id.name or ''
+            if r.sequence_id:
+                sequence_name = "(%s) %s: %s " % (r.qty_available, sequence_name, r.sequence_id.name)
+            r.name = sequence_name
 
     name = fields.Char(
             compute="get_secuence_name",
@@ -43,6 +44,10 @@ class AccountJournalSiiDocumentClass(models.Model):
     company_id = fields.Many2one(
         'res.company',
     )
+    qty_available = fields.Integer(
+            string="Quantity Available",
+            related="sequence_id.qty_available"
+        )
 
     @api.onchange('sii_document_class_id')
     def check_sii_document_class(self):

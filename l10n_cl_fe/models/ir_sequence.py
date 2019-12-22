@@ -11,6 +11,7 @@ _logger = logging.getLogger(__name__)
 class IRSequence(models.Model):
     _inherit = "ir.sequence"
 
+
     def get_qty_available(self, folio=None):
         folio = folio or self._get_folio()
         try:
@@ -27,7 +28,33 @@ class IRSequence(models.Model):
                     available += (c.final_nm - c.start_nm) + 1
                 if folio > c.start_nm:
                     available +=1
+        if available <= self.nivel_minimo:
+            if self.autoreponer_caf:
+                self.solicitar_caf()
+            else:
+                alert_msg = 'Nivel bajo de CAF para %s, quedan %s foliosself. Recuerde verificar su token apicaf.cl' % (self.sii_document_class_id.name, available)
+                self.env['bus.bus'].sendone((
+                    self._cr.dbname,
+                    'ir.sequence',
+                    self.env.user.partner_id.id),
+                    {
+                    'title': "Alerta sobre Folios",
+                    'message': alert_msg,
+                    'url': 'res_config',
+                    'type': 'dte_notif',
+                    })
         return available
+
+    def solicitar_caf(self):
+        firma = self.env.user.sudo(SUPERUSER_ID).get_digital_signature(self.company_id)
+        wiz_caf = self.env['dte.caf.apicaf'].create({
+                                    'company_id': self.company_id.id,
+                                    'sequence_id': self.id,
+                                    'firma': firma.id,
+                                })
+        wiz_caf.conectar_api()
+        wiz_caf.cant_doctos = self.autoreponer_cantidad
+        wiz_caf.obtener_caf()
 
     def _qty_available(self):
         for i in self:
@@ -54,6 +81,18 @@ class IRSequence(models.Model):
     forced_by_caf = fields.Boolean(
             string="Forced By CAF"
         )
+    nivel_minimo = fields.Integer(
+            string="Nivel Mínimo de Folios",
+            default=5,#@TODO hacerlo configurable
+        )
+    autoreponer_caf = fields.Boolean(
+            string="Reposición Automática de CAF",
+            default=False
+    )
+    autoreponer_cantidad = fields.Integer(
+            string="Cantidad de Folios a Reponer",
+            default=2
+    )
 
     def _get_folio(self):
         return self.number_next_actual
@@ -82,19 +121,7 @@ www.sii.cl'''.format(folio)
                             int(timestamp[8:10])) > expiration_caf:
                         msg = "CAF Vencido. %s" % msg
                         continue
-                alert_msg = caffile.check_nivel(folio)
-                #alert_msg += caffile.check_expiracion()
-                if alert_msg != '':
-                    self.env['bus.bus'].sendone((
-                                            self._cr.dbname,
-                                            'dte.caf',
-                                            self.env.user.partner_id.id),
-                                            {
-                                                'title': "Alerta sobre CAF",
-                                                'message': alert_msg,
-                                                'url': 'res_config',
-                                                'type': 'dte_notif',
-                                            })
+
                 if decoded:
                     return caffile.decode_caf()
                 return caffile.caf_file

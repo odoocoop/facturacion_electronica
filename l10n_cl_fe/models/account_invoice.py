@@ -1952,19 +1952,14 @@ a VAT."))
                                             r.user_id.partner_id.id),
                                             mess)
 
-    def set_dte_claim(self, rut_emisor=False, company_id=False,
-                      sii_document_number=False, document_class_id=False,
-                      claim=False):
-        rut_emisor = rut_emisor or self.format_vat(self.company_id.partner_id.vat)
-        company_id = company_id or self.company_id
-        sii_document_number = sii_document_number
-        document_class_id = document_class_id or self.document_class_id
-        claim = claim or self.claim
+    def set_dte_claim(self, claim=False):
+        rut_emisor = self.format_vat(
+                    self.company_id.partner_id.vat)
         token = self.sii_xml_request.get_token(self.env.user, self.company_id)
-        url = claim_url[company_id.dte_service_provider] + '?wsdl'
+        url = claim_url[self.company_id.dte_service_provider] + '?wsdl'
         _server = Client(
             url,
-            headers={
+            headers= {
                 'Cookie': 'TOKEN=' + token,
                 },
         )
@@ -1972,48 +1967,40 @@ a VAT."))
             respuesta = _server.service.ingresarAceptacionReclamoDoc(
                 rut_emisor[:-2],
                 rut_emisor[-1],
-                str(document_class_id.sii_code),
-                str(sii_document_number),
+                str(self.document_class_id.sii_code),
+                str(self.sii_document_number),
                 claim,
             )
         except Exception as e:
-            msg = "Error al ingresar Reclamo"
-            _logger.warning("%s: %s" % (msg, str(e)))
-            if e.args[0][0] == 503:
-                raise UserError('%s: Conexión al SII caída/rechazada o el SII está temporalmente fuera de línea, reintente la acción' % (msg))
-            raise UserError(("%s: %s" % (msg, str(e))))
-        if self.id:
-            self.claim_description = respuesta
+                msg = "Error al ingresar Reclamo DTE"
+                _logger.warning("%s: %s" % (msg, str(e)))
+                if e.args[0][0] == 503:
+                    raise UserError('%s: Conexión al SII caída/rechazada o el SII está temporalmente fuera de línea, reintente la acción' % (msg))
+                raise UserError(("%s: %s" % (msg, str(e))))
+        self.claim_description = respuesta
+        if "codResp = 0" in respuesta or self.sii_document_class.sii_code not in [33, 34, 43]:
+            self.claim = claim
 
     @api.multi
-    def get_dte_claim(self, ):
+    def get_dte_claim(self):
         token = self.sii_xml_request.get_token(self.env.user, self.company_id)
         url = claim_url[self.company_id.dte_service_provider] + '?wsdl'
         _server = Client(
             url,
-            headers={
+            headers= {
                 'Cookie': 'TOKEN=' + token,
                 },
         )
+        rut_emisor = self.format_vat(self.company_id.vat)
+        if self.type in ['in_invoice', 'in_refund']:
+            rut_emisor = self.format_vat(self.partner_id.vat)
         respuesta = _server.service.listarEventosHistDoc(
-            self.company_id.vat[2:-1],
-            self.company_id.vat[-1],
+            rut_emisor[:-2],
+            rut_emisor[-1],
             str(self.document_class_id.sii_code),
             str(self.sii_document_number),
         )
         self.claim_description = respuesta
-        #resp = xmltodict.parse(respuesta)
-        #if resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] == '2':
-        #    status = {'warning':{'title':_("Error code: 2"), 'message': _(resp['SII:RESPUESTA']['SII:RESP_HDR']['GLOSA'])}}
-        #    return status
-        #if resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] == "EPR":
-        #    self.sii_result = "Proceso"
-        #    if resp['SII:RESPUESTA']['SII:RESP_BODY']['RECHAZADOS'] == "1":
-        #        self.sii_result = "Rechazado"
-        #    if resp['SII:RESPUESTA']['SII:RESP_BODY']['REPARO'] == "1":
-        #        self.sii_result = "Reparo"
-        #elif resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] == "RCT":
-        #    self.sii_result = "Rechazado"
 
     @api.multi
     def wizard_upload(self):

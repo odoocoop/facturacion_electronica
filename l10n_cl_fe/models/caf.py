@@ -99,10 +99,6 @@ has been exhausted.''',
             string="Use Level",
             compute='_used_level',
         )
-    nivel_minimo = fields.Integer(
-        string="Nivel Mínimo de Folios",
-        default=5,#@TODO hacerlo configurable
-    )
     _sql_constraints = [
                 ('filename_unique', 'unique(filename)', 'Error! Filename Already Exist!'),
             ]
@@ -161,11 +157,3 @@ to work properly!''') % (self.sii_document_class, self.sequence_id.sii_document_
         post = xmltodict.parse(post.replace(
             '<?xml version="1.0"?>', '', 1))
         return post
-
-    def check_nivel(self, folio):
-        if not folio:
-            return ''
-        diff = self.final_nm - int(folio)
-        if diff <= self.nivel_minimo:
-            return 'Nivel bajo de CAF para %s, quedan %s folios' % (self.sequence_id.sii_document_class_id.name, diff)
-        return ''

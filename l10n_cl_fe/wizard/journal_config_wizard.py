@@ -103,6 +103,9 @@ Include unusual taxes documents, as transfer invoice, and reissue
             'implementation': 'no_gap',
             'sii_document_class_id': document_class.id,
             'company_id': journal.company_id.id,
+            'forced_by_caf': True,
+            'autoreponer_caf': True,
+            'autoreponer_cantidad': 1 if document_class.sii_code in [56, 61, 111, 112] else 10,
         }
         return vals
 

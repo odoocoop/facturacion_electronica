@@ -42,7 +42,10 @@
                                 string="Create Journal Documents" type="action"
                                 context="{'type': type}"/>
                         <button name="%(action_apicaf_form)d"
-                                attrs="{'invisible': [('type', '!=', 'sale'), ('use_documents', '=', False), ('journal_document_class_ids', '=', [])]}"
+                                attrs="{'invisible': [
+                                  ('type', '!=', 'sale'),
+                                  ('use_documents', '=', False), 
+                                  ('journal_document_class_ids', '=', [])]}"
                                 string="Obtener Folios desde el SII" type="action"
                                 context="{'default_company_id': company_id,
                                           'default_documentos': journal_document_class_ids}" class="btn-primary"/>
@@ -67,6 +70,7 @@
                               <field name="sequence" widget="handle"/>
                               <field name="sii_document_class_id" options="{'no_open': True, 'no_create': True}"/>
                               <field name='sequence_id' context="{'default_sii_document_class_id': sii_document_class_id}"/>
+                              <field name="qty_available" />
                           </tree>
                         </field>
                     </page>

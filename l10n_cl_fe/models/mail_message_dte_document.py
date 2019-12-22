@@ -81,6 +81,23 @@ class ProcessMailsDocument(models.Model):
         string="Ordenes de Compra a validar",
         domain=[('state', 'not in', ['accepted', 'rejected'])],
     )
+    claim = fields.Selection(
+        [
+            ('N/D', "No definido"),
+            ('ACD', 'Acepta Contenido del Documento'),
+            ('RCD', 'Reclamo al  Contenido del Documento '),
+            ('ERM', ' Otorga  Recibo  de  Mercaderías  o Servicios'),
+            ('RFP', 'Reclamo por Falta Parcial de Mercaderías'),
+            ('RFT', 'Reclamo por Falta Total de Mercaderías'),
+        ],
+        string="Reclamo",
+        copy=False,
+        default="N/D",
+    )
+    claim_description = fields.Char(
+        string="Detalle Reclamo",
+        readonly=True,
+    )
 
     _order = 'create_date DESC'
 
@@ -115,11 +132,13 @@ class ProcessMailsDocument(models.Model):
             }
             val = self.env['sii.dte.upload_xml.wizard'].create(vals)
             created.extend(val.confirm(ret=True))
-            r.state = 'accepted'
-        xml_id = 'account.action_invoice_tree2'
+            r.get_dte_claim()
+            if r.claim in ['ACD', 'ERM']:
+                r.state = 'accepted'
+        xml_id = 'account.action_vendor_bill_template'
         result = self.env.ref('%s' % (xml_id)).read()[0]
         if created:
-            domain = eval(result['domain'])
+            domain = safe_eval(result.get('domain', '[]'))
             domain.append(('id', 'in', created))
             result['domain'] = domain
         return result
@@ -127,15 +146,65 @@ class ProcessMailsDocument(models.Model):
     @api.multi
     def reject_document(self):
         for r in self:
-            r.state = 'rejected'
+            r.set_dte_claim(claim='RCD')
+            if r.claim in ['RCD']:
+                r.state = 'rejected'
 
-        wiz_accept = self.env['sii.dte.validar.wizard'].create(
-            {
-                'action': 'validate',
-                'option': 'reject',
-            }
+    def set_dte_claim(self, claim):
+        if not self.partner_id:
+            rut_emisor = self.new_partner.split(' ')[0]
+        else:
+            rut_emisor = self.env['account.invoice'].format_vat(
+                    self.partner_id.vat)
+        token = self.env['sii.xml.envio'].get_token(self.env.user, self.company_id)
+        url = claim_url[self.company_id.dte_service_provider] + '?wsdl'
+        _server = Client(
+            url,
+            headers= {
+                'Cookie': 'TOKEN=' + token,
+                },
         )
-        wiz_accept.do_reject(self)
+        try:
+            respuesta = _server.service.ingresarAceptacionReclamoDoc(
+                rut_emisor[:-2],
+                rut_emisor[-1],
+                str(self.document_class_id.sii_code),
+                str(self.number),
+                claim,
+            )
+        except Exception as e:
+                msg = "Error al ingresar Reclamo DTE"
+                _logger.warning("%s: %s" % (msg, str(e)))
+                if e.args[0][0] == 503:
+                    raise UserError('%s: Conexión al SII caída/rechazada o el SII está temporalmente fuera de línea, reintente la acción' % (msg))
+                raise UserError(("%s: %s" % (msg, str(e))))
+        _logger.warning(respuesta)
+        self.claim_description = respuesta
+        if "codResp = 0" in respuesta or self.sii_document_class.sii_code not in [33, 34, 43]:
+            self.claim = claim
+
+    @api.multi
+    def get_dte_claim(self):
+        if not self.partner_id:
+            rut_emisor = self.new_partner.split(' ')[0]
+        else:
+            rut_emisor = self.env['account.invoice'].format_vat(
+                    self.partner_id.vat)
+        token = self.env['sii.xml.envio'].get_token(self.env.user, self.company_id)
+        url = claim_url[self.company_id.dte_service_provider] + '?wsdl'
+        _server = Client(
+            url,
+            headers= {
+                'Cookie': 'TOKEN=' + token,
+                },
+        )
+        respuesta = _server.service.listarEventosHistDoc(
+            rut_emisor[:-2],
+            rut_emisor[-1],
+            str(self.document_class_id.sii_code),
+            str(self.number),
+        )
+        self.claim_description = respuesta
 
 
 class ProcessMailsDocumentLines(models.Model):
