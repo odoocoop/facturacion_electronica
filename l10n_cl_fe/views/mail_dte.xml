@@ -17,7 +17,7 @@
     <field name="name">dte.document.tree</field>
     <field name="model">mail.message.dte.document</field>
     <field name="arch" type="xml">
-      <tree string="Documentos">
+      <tree string="Documentos" decoration-info="state == 'draft'" decoration-muted="state == 'rejected'">
         <field name="date" />
         <field name="document_class_id" />
         <field name="number" />
@@ -121,6 +121,13 @@
             </page>
             <page string="XML DTE">
               <field name="xml" />
+            </page>
+            <page string="Registro de Reclamo">
+              <header>
+                <button name="get_dte_claim" type="object" string="Obtener Información Reclamo"/>
+                <field name='claim' widget="statusbar"/>
+              </header>
+              <field name="claim_description" />
             </page>
           </notebook>
         </sheet>

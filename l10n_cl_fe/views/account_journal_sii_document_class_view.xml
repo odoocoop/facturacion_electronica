@@ -15,6 +15,7 @@
                               <field name="sequence" invisible="True"/>
                               <field name="journal_id"/>
                               <field name="sii_document_class_id" options="{'no_open': True, 'no_create': True}"/>
+                              <field name="qty_available" />
                               <field name="sequence_id" required="True"/>
                               <button name="%(action_apicaf_form)d"
                                 string="Obtener Folios desde el SII" type="action"

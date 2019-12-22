@@ -124,23 +124,17 @@ class Referencias(models.Model):
 class AccountInvoice(models.Model):
     _inherit = "account.invoice"
 
-    def _default_journal_document_class_id(self, default=None):
-        if not self.env.get('sii.document_class') or self.document_class_id:
+    def _default_journal_document_class_id(self):
+        if not self.env['ir.model'].search([('model', '=', 'sii.document_class')]) or self.document_class_id:
             return False
-        ids = self._get_available_journal_document_class()
-        document_classes = self.env['account.journal.sii_document_class'].browse(ids)
-        if default:
-            for dc in document_classes:
-                if dc.sii_document_class_id.id == default:
-                    self.journal_document_class_id = dc.id
-                    self.document_class_id = dc.sii_document_class_id.id
-        elif document_classes:
-            default = self.get_document_class_default(document_classes)
-        return default
-
-    def _domain_journal_document_class_id(self):
-        domain = self._get_available_journal_document_class()
-        return [('id', 'in', domain)]
+        journal = self.env['account.invoice'].default_get(['journal_id'])['journal_id']
+        default_type = self._context.get('type', 'out_invoice')
+        dc_type = ['invoice'] if default_type in ['in_inovice', 'out_invoice'] else ['credit_note', 'debit_note']
+        jdc = self.env['account.journal.sii_document_class'].search([
+            ('journal_id', '=', journal),
+            ('sii_document_class_id.document_type', 'in', dc_type),
+        ],limit=1)
+        return jdc
 
     @api.multi
     def get_barcode_img(self, columns=13, ratio=3):
@@ -155,6 +149,20 @@ class AccountInvoice(models.Model):
             if r.sii_barcode:
                 r.sii_barcode_img = r.get_barcode_img()
 
+    @api.onchange('journal_id')
+    def get_dc_ids(self):
+        for r in self:
+            r.document_class_ids = []
+            dc_type = ['invoice'] if self.type in ['in_invoice', 'out_invoice'] else ['credit_note', 'debit_note']
+            jdc_ids = self.env['account.journal.sii_document_class'].search([
+                ('journal_id', '=', r.journal_id.id),
+                ('sii_document_class_id.document_type', 'in', dc_type),
+            ])
+            ids = []
+            for dc in jdc_ids:
+                ids.append(dc.sii_document_class_id.id)
+            r.document_class_ids = ids
+
     vat_discriminated = fields.Boolean(
             'Discriminate VAT?',
             compute="get_vat_discriminated",
@@ -164,7 +172,7 @@ class AccountInvoice(models.Model):
         )
     document_class_ids = fields.Many2many(
             'sii.document_class',
-            related='journal_id.document_class_ids',
+            compute='get_dc_ids',
             string='Available Document Classes',
          )
     journal_document_class_id = fields.Many2one(
@@ -828,24 +836,21 @@ class AccountInvoice(models.Model):
         })
         return tax_n
 
-    @api.onchange('partner_id')
-    def update_journal(self):
-        self.journal_id = self._default_journal()
-        self.set_default_journal()
-        return self.update_domain_journal()
-
     @api.onchange('company_id')
     def _refreshRecords(self):
-        self.journal_id = self._default_journal()
-        invoice_type = self._context.get('type') or 'out_invoice'
+        self.journal_id = self.default_journal()
         for line in self.invoice_line_ids:
             if not line.account_id:
                 continue
             tax_ids = []
-            account = line.get_invoice_line_account(invoice_type, line.product_id, self.fiscal_position_id, self.company_id)
+            account = line.get_invoice_line_account(
+                self.type,
+                line.product_id,
+                self.fiscal_position_id,
+                self.company_id)
             if account:
                 line.account_id = account.id
-            if invoice_type in ('out_invoice', 'out_refund'):
+            if self.type in ('out_invoice', 'out_refund'):
                 for tax in line.product_id.taxes_id:
                     if tax.company_id.id == self.company_id.id:
                         tax_ids.append(tax.id)
@@ -870,78 +875,11 @@ class AccountInvoice(models.Model):
             line.invoice_line_tax_ids = False
             line.invoice_line_tax_ids = tax_ids
 
-    def _get_available_journal_document_class(self):
-        context = dict(self._context or {})
-        journal_id = self.journal_id
-        if not journal_id and 'default_journal_id' in context:
-            journal_id = self.env['account.journal'].browse(context['default_journal_id'])
-        if not journal_id:
-            journal_id = self.env['account.journal'].search([('type','=','sale')],limit=1)
-        invoice_type = self.type or context.get('default_type', False)
-        if not invoice_type:
-            invoice_type = 'in_invoice' if journal_id.type == 'purchase' else 'out_invoice'
-        document_class_ids = []
-        nd = False
-        for ref in self.referencias:
-            if not nd:
-                nd = ref.sii_referencia_CodRef
-        if invoice_type in ['out_invoice', 'in_invoice', 'out_refund', 'in_refund']:
-            if journal_id:
-                domain = [
-                    ('journal_id', '=', journal_id.id),
-                 ]
-            else:
-                operation_type = self.get_operation_type(invoice_type)
-                domain = [
-                    ('journal_id.type', '=', operation_type),
-                 ]
-            if invoice_type in ['in_refund', 'out_refund']:
-                domain += [('sii_document_class_id.document_type', 'in',['credit_note'] )]
-            else:
-                options = ['invoice', 'invoice_in']
-                if nd:
-                    options.append('debit_note')
-                domain += [('sii_document_class_id.document_type','in', options )]
-            document_classes = self.env[
-                'account.journal.sii_document_class'].search(domain)
-            document_class_ids = document_classes.ids
-        return document_class_ids
-
     @api.onchange('journal_document_class_id')
     def set_document_class_id(self):
         if self.move_id:
             return
         self.document_class_id = self.journal_document_class_id.sii_document_class_id.id
-
-    @api.onchange('journal_id', 'partner_id')
-    def update_domain_journal(self):
-        document_classes = self._get_available_journal_document_class()
-        result = {'domain': {
-            'journal_document_class_id': [('id', 'in', document_classes)],
-        }}
-        return result
-
-    @api.depends('journal_id')
-    @api.onchange('journal_id', 'partner_id')
-    def set_default_journal(self, default=None):
-        if not self.journal_document_class_id or self.journal_document_class_id.journal_id != self.journal_id:
-            query = []
-            if not default and not self.journal_document_class_id:
-                query.append(
-                    ('sii_document_class_id','=', self.document_class_id.id),
-                )
-            if self.journal_document_class_id.journal_id != self.journal_id or not default:
-                query.append(
-                    ('journal_id', '=', self.journal_id.id)
-                )
-            if query:
-                default = self.env['account.journal.sii_document_class'].search(
-                    query,
-                    order='sequence asc',
-                    limit=1,
-                ).id
-            self.journal_document_class_id = self._default_journal_document_class_id(default)
-        return {'domain': {'journal_document_class_id': self._domain_journal_document_class_id()}}
 
     '''
     @TODO mejor forma de avisar problema conrut
@@ -1026,60 +964,6 @@ a VAT."""))
             obj_inv.move_id.write(guardar)
         return True
 
-    def get_operation_type(self, invoice_type):
-        if invoice_type in ['in_invoice', 'in_refund']:
-            operation_type = 'purchase'
-        elif invoice_type in ['out_invoice', 'out_refund']:
-            operation_type = 'sale'
-        else:
-            operation_type = False
-        return operation_type
-
-    def get_valid_document_letters(
-            self,
-            partner_id,
-            operation_type='sale',
-            company=False,
-            vat_affected='SI',
-            invoice_type='out_invoice',
-            nd=False,):
-
-        document_letter_obj = self.env['sii.document_letter']
-        partner = self.partner_id
-
-        if not partner_id or not company or not operation_type:
-            return []
-
-        partner = partner.commercial_partner_id
-        if operation_type == 'sale':
-            issuer_responsability_id = company.partner_id.responsability_id.id
-            receptor_responsability_id = partner.responsability_id.id
-            domain = [
-                ('issuer_ids', '=', issuer_responsability_id),
-                ('receptor_ids', '=', receptor_responsability_id),
-                ]
-            if invoice_type == 'out_invoice' and not nd:
-                if vat_affected == 'SI':
-                    domain.append(('name', '!=', 'C'))
-                else:
-                    domain.append(('name', '=', 'C'))
-        elif operation_type == 'purchase':
-            issuer_responsability_id = partner.responsability_id.id
-            domain = [('issuer_ids', '=', issuer_responsability_id)]
-        else:
-            raise UserError(_('Operation Type Error'),
-                            _('Operation Type Must be "Sale" or "Purchase"'))
-
-        # TODO: fijar esto en el wizard, o llamar un wizard desde aca
-        # if not company.partner_id.responsability_id.id:
-        #     raise except_orm(_('You have not settled a tax payer type for your\
-        #      company.'),
-        #      _('Please, set your company tax payer type (in company or \
-        #      partner before to continue.'))
-        document_letter_ids = document_letter_obj.search(
-             domain)
-        return document_letter_ids
-
     @api.multi
     def _check_duplicate_supplier_reference(self):
         for invoice in self:
@@ -1145,15 +1029,7 @@ a VAT."""))
                     ptd.write({'state': 'done'})
         return super(AccountInvoice, self).invoice_validate()
 
-    @api.model
-    def create(self, vals):
-        inv = super(AccountInvoice, self).create(vals)
-        inv.update_domain_journal()
-        inv.set_default_journal()
-        return inv
-
-    @api.model
-    def _default_journal(self):
+    def default_journal(self):
         if self._context.get('default_journal_id', False):
             return self.env['account.journal'].browse(self._context.get('default_journal_id'))
         company_id = self._context.get('company_id', self.company_id.id or self.env.user.company_id.id)
@@ -2008,17 +1884,11 @@ a VAT."""))
                                             r.user_id.partner_id.id),
                                             mess)
 
-    def set_dte_claim(self, rut_emisor=False, company_id=False,
-                      sii_document_number=False, document_class_id=False,
-                      claim=False):
-        rut_emisor = rut_emisor or self.format_vat(
+    def set_dte_claim(self, claim=False):
+        rut_emisor = self.format_vat(
                     self.company_id.partner_id.vat)
-        company_id = company_id or self.company_id
-        sii_document_number = self.sii_document_number
-        document_class_id = document_class_id or self.document_class_id
-        claim = claim or self.claim
         token = self.sii_xml_request.get_token(self.env.user, self.company_id)
-        url = claim_url[company_id.dte_service_provider] + '?wsdl'
+        url = claim_url[self.company_id.dte_service_provider] + '?wsdl'
         _server = Client(
             url,
             headers= {
@@ -2029,8 +1899,8 @@ a VAT."""))
             respuesta = _server.service.ingresarAceptacionReclamoDoc(
                 rut_emisor[:-2],
                 rut_emisor[-1],
-                str(document_class_id.sii_code),
-                str(sii_document_number),
+                str(self.document_class_id.sii_code),
+                str(self.sii_document_number),
                 claim,
             )
         except Exception as e:
@@ -2039,11 +1909,12 @@ a VAT."""))
                 if e.args[0][0] == 503:
                     raise UserError('%s: Conexión al SII caída/rechazada o el SII está temporalmente fuera de línea, reintente la acción' % (msg))
                 raise UserError(("%s: %s" % (msg, str(e))))
-        if self.id:
-            self.claim_description = respuesta
+        self.claim_description = respuesta
+        if "codResp = 0" in respuesta or self.sii_document_class.sii_code not in [33, 34, 43]:
+            self.claim = claim
 
     @api.multi
-    def get_dte_claim(self, ):
+    def get_dte_claim(self):
         token = self.sii_xml_request.get_token(self.env.user, self.company_id)
         url = claim_url[self.company_id.dte_service_provider] + '?wsdl'
         _server = Client(
@@ -2052,25 +1923,16 @@ a VAT."""))
                 'Cookie': 'TOKEN=' + token,
                 },
         )
+        rut_emisor = self.format_vat(self.company_id.vat)
+        if self.type in ['in_invoice', 'in_refund']:
+            rut_emisor = self.format_vat(self.partner_id.vat)
         respuesta = _server.service.listarEventosHistDoc(
-            self.company_id.vat[2:-1],
-            self.company_id.vat[-1],
+            rut_emisor[:-2],
+            rut_emisor[-1],
             str(self.document_class_id.sii_code),
             str(self.sii_document_number),
         )
         self.claim_description = respuesta
-        #resp = xmltodict.parse(respuesta)
-        #if resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] == '2':
-        #    status = {'warning':{'title':_("Error code: 2"), 'message': _(resp['SII:RESPUESTA']['SII:RESP_HDR']['GLOSA'])}}
-        #    return status
-        #if resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] == "EPR":
-        #    self.sii_result = "Proceso"
-        #    if resp['SII:RESPUESTA']['SII:RESP_BODY']['RECHAZADOS'] == "1":
-        #        self.sii_result = "Rechazado"
-        #    if resp['SII:RESPUESTA']['SII:RESP_BODY']['REPARO'] == "1":
-        #        self.sii_result = "Reparo"
-        #elif resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] == "RCT":
-        #    self.sii_result = "Rechazado"
 
     @api.multi
     def wizard_upload(self):

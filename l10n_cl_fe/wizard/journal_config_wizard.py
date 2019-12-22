@@ -103,6 +103,9 @@ Include unusual taxes documents, as transfer invoice, and reissue
             'implementation': 'no_gap',
             'sii_document_class_id': document_class.id,
             'company_id': journal.company_id.id,
+            'forced_by_caf': True,
+            'autoreponer_caf': True,
+            'autoreponer_cantidad': 1 if document_class.sii_code in [56, 61, 111, 112] else 10,
         }
         return vals
 
@@ -122,8 +125,8 @@ Include unusual taxes documents, as transfer invoice, and reissue
             domain.append(('dte', '=', True))
         document_class_obj = self.env['sii.document_class']
         document_class_ids = document_class_obj.search(domain)
+        journal.document_class_ids = document_class_ids.ids
         if journal.type == 'purchase':
-            journal.document_class_ids = document_class_ids.ids
             return
         journal_document_obj = self.env['account.journal.sii_document_class']
         sequence = 10

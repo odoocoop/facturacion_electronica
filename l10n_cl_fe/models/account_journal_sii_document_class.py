@@ -14,9 +14,10 @@ class AccountJournalSiiDocumentClass(models.Model):
     @api.depends('sii_document_class_id', 'sequence_id')
     def get_secuence_name(self):
         for r in self:
-            sequence_name = (': ' + r.sequence_id.name) if r.sequence_id else ''
-            name = (r.sii_document_class_id.name or '') + sequence_name
-            r.name = name
+            sequence_name = r.sii_document_class_id.name or ''
+            if r.sequence_id:
+                sequence_name = "(%s) %s: %s " % (r.qty_available, sequence_name, r.sequence_id.name)
+            r.name = sequence_name
 
     name = fields.Char(
             compute="get_secuence_name",
@@ -43,8 +44,22 @@ class AccountJournalSiiDocumentClass(models.Model):
     company_id = fields.Many2one(
         'res.company',
     )
+    qty_available = fields.Integer(
+            string="Quantity Available",
+            related="sequence_id.qty_available"
+        )
 
     @api.onchange('sii_document_class_id')
     def check_sii_document_class(self):
         if self.sii_document_class_id and self.sequence_id and self.sii_document_class_id != self.sequence_id.sii_document_class_id:
             raise UserError("El tipo de Documento de la secuencia es distinto")
+
+    @api.model
+    def name_search(self, name, args=None, operator='ilike', limit=100):
+        args = args or []
+        recs = self.browse()
+        if name:
+            recs = self.search(['|',('sequence_id.name', '=', name),('sii_document_class_id.name', '=', name)] + args, limit=limit)
+        if not recs:
+            recs = self.search(['|',('sequence_id.name', operator, name),('sii_document_class_id.name', operator, name)] + args, limit=limit)
+        return recs.name_get()

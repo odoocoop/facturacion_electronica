@@ -79,51 +79,67 @@ class ValidarDTEWizard(models.TransientModel):
         att = self.env['ir.attachment'].create(values)
         return att
 
+    def _emisor(self, company_id):
+        Emisor = {}
+        Emisor['RUTEmisor'] = company_id.document_number
+        Emisor['RznSoc'] = company_id.partner_id.name
+        Emisor['GiroEmis'] = company_id.activity_description.name
+        if company_id.phone:
+            Emisor['Telefono'] = company_id.phone
+        Emisor['CorreoEmisor'] = company_id.dte_email_id.name_get()[0][1]
+        #Emisor['Actecos'] = self._actecos_emisor()
+        Emisor['DirOrigen'] = company_id.street + ' ' + (company_id.street2 or '')
+        if not company_id.city_id:
+            raise UserError("Debe ingresar la Comuna de compañía emisora")
+        Emisor['CmnaOrigen'] = company_id.city_id.name
+        if not company_id.city:
+            raise UserError("Debe ingresar la Ciudad de compañía emisora")
+        Emisor['CiudadOrigen'] = company_id.city
+        Emisor["Modo"] = "produccion" if company_id.dte_service_provider == 'SII'\
+                  else 'certificacion'
+        Emisor["NroResol"] = company_id.dte_resolution_number
+        Emisor["FchResol"] = company_id.dte_resolution_date
+        return Emisor
+
+    def _get_datos_empresa(self, company_id):
+        signature_id = self.env.user.get_digital_signature(company_id)
+        if not signature_id:
+            raise UserError(_('''There are not a Signature Cert Available for this user, please upload your signature or tell to someelse.'''))
+        emisor = self._emisor(company_id)
+        return {
+            "Emisor": emisor,
+            "firma_electronica": signature_id.parametros_firma(),
+        }
+
     def do_reject(self, document_ids):
-        dicttoxml.set_debug(False)
         inv_obj = self.env['account.invoice']
-        id_seq = self.env.ref('l10n_cl_fe.response_sequence').id
-        IdRespuesta = self.env['ir.sequence'].browse(id_seq).next_by_id()
+        id_seq = self.env.ref('l10n_cl_fe.response_sequence')
+        IdRespuesta = id_seq.next_by_id()
         NroDetalles = 1
         for doc in document_ids:
-            xml = xmltodict.parse(doc.xml)['DTE']['Documento']
-            dte = self._resultado(
-                TipoDTE=xml['Encabezado']['IdDoc']['TipoDTE'],
-                Folio=xml['Encabezado']['IdDoc']['Folio'],
-                FchEmis=xml['Encabezado']['IdDoc']['FchEmis'],
-                RUTEmisor=xml['Encabezado']['Emisor']['RUTEmisor'],
-                RUTRecep=xml['Encabezado']['Receptor']['RUTRecep'],
-                MntTotal=xml['Encabezado']['Totales']['MntTotal'],
-                IdRespuesta=IdRespuesta,
-            )
-            ResultadoDTE = dicttoxml.dicttoxml(
-                dte,
-                root=False,
-                attr_type=False,
-            ).decode().replace('<item>','\n').replace('</item>','\n')
-            RutRecibe = xml['Encabezado']['Emisor']['RUTEmisor']
-            caratula_validacion_comercial = self._caratula_respuesta(
-                xml['Encabezado']['Receptor']['RUTRecep'],
-                RutRecibe,
-                IdRespuesta,
-                NroDetalles)
-            caratula = dicttoxml.dicttoxml(
-                caratula_validacion_comercial,
-                root=False,
-                attr_type=False).replace('<item>','\n').replace('</item>','\n')
-            resp = self._ResultadoDTE(
-                caratula,
-                ResultadoDTE,
-            )
-            respuesta = '<?xml version="1.0" encoding="ISO-8859-1"?>\n' + inv_obj.sign_full_xml(
-                resp.replace('<?xml version="1.0" encoding="ISO-8859-1"?>\n', ''),
-                'Odoo_resp',
-                'env_resp')
+            datos = self._get_datos_empresa(doc.company_id)
+            ''' @TODO separar estos dos'''
+            dte = {
+                'xml': doc.xml,
+                'CodEnvio': IdRespuesta,
+            }
+            datos['filename'] = 'rechazo_comercial_%s.xml' % str(IdRespuesta)
+            datos["ValidacionCom"] = {
+                'IdRespuesta': IdRespuesta,
+                'NroDetalles': NroDetalles,
+                "RutResponde": doc.company_id.document_number,
+                'NmbContacto': self.env.user.partner_id.name,
+                'FonoContacto': self.env.user.partner_id.phone,
+                'MailContacto': self.env.user.partner_id.email,
+                "xml_dte": dte,
+                'EstadoDTE': 2,
+                'EstadoDTEGlosa': 'Rechazo Absoluto',
+                'CodRchDsc': -1,
+            }
+            resp = fe.validacion_comercial(datos)
             att = self._create_attachment(
-                respuesta,
-                'rechazo_comercial_' + str(IdRespuesta),
-                id=doc.id,
-                model="mail.message.dte.document",
+                resp['respuesta_xml'],
+                resp['nombre_xml'],
             )
             partners = doc.partner_id.ids
             dte_email_id = doc.company_id.dte_email_id or self.env.user.company_id.dte_email_id
@@ -133,23 +149,17 @@ class ValidarDTEWizard(models.TransientModel):
                         'email_to': doc.dte_id.sudo().mail_id.email_from ,
                         'auto_delete': False,
                         'model': "mail.message.dte.document",
-                        'body': 'XML de Respuesta Envío, Estado: %s , Glosa: %s ' % (resp['EstadoRecepEnv'], resp['RecepEnvGlosa'] ),
-                        'subject': 'XML de Respuesta Envío',
+                        'body': 'XML de Respuesta DTE, Estado: %s , Glosa: %s ' % (resp['EstadoDTE'], resp['EstadoDTEGlosa']),
+                        'subject': 'XML de Respuesta DTE',
                         'attachment_ids': [[6, 0, att.ids]],
                     }
             send_mail = self.env['mail.mail'].create(values)
             send_mail.send()
-            inv_obj.set_dte_claim(
-                rut_emisor = xml['Encabezado']['Emisor']['RUTEmisor'],
-                company_id=doc.company_id,
-                sii_document_number=doc.number,
-                sii_document_class_id=doc.document_class_id,
-                claim='RCD',
-            )
+            doc.set_dte_claim(claim='RCD')
 
     def do_validar_comercial(self):
-        id_seq = self.env.ref('l10n_cl_fe.response_sequence').id
-        IdRespuesta = self.env['ir.sequence'].browse(id_seq).next_by_id()
+        id_seq = self.env.ref('l10n_cl_fe.response_sequence')
+        IdRespuesta = id_seq.next_by_id()
         NroDetalles = 1
         for inv in self.invoice_ids:
             if inv.claim in ['ACD', 'RCD'] or inv.type in ['out_invoice', 'out_refund']:
@@ -158,9 +168,8 @@ class ValidarDTEWizard(models.TransientModel):
             dte = inv._dte()
             ''' @TODO separar estos dos'''
             dte['CodEnvio'] = IdRespuesta
+            datos['filename'] = 'validacion_comercial_%s.xml' % str(IdRespuesta)
             datos["ValidacionCom"] = {
-                "RutResponde": inv.format_vat(
-                                inv.company_id.vat),
                 'IdRespuesta': IdRespuesta,
                 'NroDetalles': NroDetalles,
                 "RutResponde": inv.format_vat(
@@ -193,11 +202,12 @@ class ValidarDTEWizard(models.TransientModel):
                     }
             send_mail = self.env['mail.mail'].create(values)
             send_mail.send()
-            inv.claim = 'ACD'
             try:
-                inv.set_dte_claim(
-                    rut_emisor=inv.format_vat(inv.partner_id.vat),
-                )
+                inv.set_dte_claim(claim='ACD')
+            except Exception as e:
+                _logger.warning("Error al setear Reclamo %s" %str(e))
+            try:
+                inv.get_dte_claim()
             except:
                 _logger.warning("@TODO crear código que encole la respuesta")
 
@@ -240,10 +250,11 @@ class ValidarDTEWizard(models.TransientModel):
                     }
             send_mail = self.env['mail.mail'].create(values)
             send_mail.send()
-            inv.claim = 'ERM'
             try:
-                inv.set_dte_claim(
-                    rut_emisor=inv.format_vat(inv.partner_id.vat),
-                )
+                inv.set_dte_claim(claim='ERM')
+            except Exception as e:
+                _logger.warning("Error al setear Reclamo %s" %str(e))
+            try:
+                inv.get_dte_claim()
             except:
                 _logger.warning("@TODO crear código que encole la respuesta")
