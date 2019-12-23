@@ -29,7 +29,10 @@ class IRSequence(models.Model):
                     available += 1
         if available <= self.nivel_minimo:
             if self.autoreponer_caf:
-                self.solicitar_caf()
+                try:
+                    self.solicitar_caf()
+                except Exception as e:
+                    _logger.warning("Error al solictar folios %s" %str(e))
             else:
                 alert_msg = 'Nivel bajo de CAF para %s, quedan %s foliosself. Recuerde verificar su token apicaf.cl' % (self.sii_document_class_id.name, available)
                 self.env['bus.bus'].sendone((
