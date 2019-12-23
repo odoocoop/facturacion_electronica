@@ -180,7 +180,7 @@ class ProcessMailsDocument(models.Model):
                 raise UserError(("%s: %s" % (msg, str(e))))
         _logger.warning(respuesta)
         self.claim_description = respuesta
-        if "codResp = 0" in respuesta or self.sii_document_class.sii_code not in [33, 34, 43]:
+        if "codResp = 0" in respuesta or self.document_class_id.sii_code not in [33, 34, 43]:
             self.claim = claim
 
     @api.multi

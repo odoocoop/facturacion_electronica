@@ -106,6 +106,7 @@ Include unusual taxes documents, as transfer invoice, and reissue
             'forced_by_caf': True,
             'autoreponer_caf': True,
             'autoreponer_cantidad': 1 if document_class.sii_code in [56, 61, 111, 112] else 10,
+            'nivel_minimo': 1 if document_class.sii_code in [56, 61, 111, 112] else 5,
         }
         return vals
 
