@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: Odoo Server 11.0+e-20191124\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2019-12-20 20:37+0000\n"
-"PO-Revision-Date: 2019-12-20 17:41-0300\n"
+"PO-Revision-Date: 2019-12-23 05:01-0300\n"
 "Last-Translator: Daniel Santibáñez Polanco <dansanti@gmail.com>\n"
 "Language-Team: \n"
 "MIME-Version: 1.0\n"
@@ -11848,7 +11848,7 @@ msgstr "Seleccione los giros que desea facturar en este Diario"
 #: model:ir.ui.view,arch_db:l10n_cl_fe.view_invoice_form
 #: model:ir.ui.view,arch_db:l10n_cl_fe.xml_envio_view_form
 msgid "Send XML"
-msgstr "Enviar Guía de Despacho al SII"
+msgstr "Enviar XML al SII"
 
 #. module: l10n_cl_fe
 #: model:ir.model.fields,field_description:l10n_cl_fe.field_account_journal_sii_document_class_sequence

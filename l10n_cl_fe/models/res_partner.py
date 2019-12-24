@@ -436,7 +436,7 @@ class ResPartner(models.Model):
         token = ICPSudo.get_param('partner.token_remote_partners')
         if not url or not token:
             return
-        for r in self.search([('document_number', 'not in', [False, 0]), ('parent_id', '=', False)]):
+        for r in self.search([('document_number', 'not in', [False, 0, '0']), ('parent_id', '=', False)]):
             if ICPSudo.get_param('partner.sync_remote_partners'):
                 r.put_remote_user_data()
             try:
@@ -468,5 +468,3 @@ class ResPartner(models.Model):
                     r.fill_partner()
             except:
                 pass
-
-

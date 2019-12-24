@@ -385,7 +385,7 @@ class ConsumoFolios(models.Model):
             ref = self.env['account.invoice'].search([
                 ('sii_document_number', '=', rec.sii_document_number),
                 ('document_class_id', '=', document_class_id.id),
-                ('partner_id', '=', rec.partner_id.id),
+                ('partner_id.commercial_partner_id', '=', rec.partner_id.id),
                 ('journal_id', '=', rec.journal_id.id),
                 ('state', 'not in', ['cancel', 'draft']),
                 ('company_id', '=',rec.company_id.id),

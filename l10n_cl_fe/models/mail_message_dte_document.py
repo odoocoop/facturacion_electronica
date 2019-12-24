@@ -131,10 +131,12 @@ class ProcessMailsDocument(models.Model):
                 'option': 'accept'
             }
             val = self.env['sii.dte.upload_xml.wizard'].create(vals)
-            created.extend(val.confirm(ret=True))
+            resp = val.confirm(ret=True)
+            created.extend(resp)
             r.get_dte_claim()
-            if r.claim in ['ACD', 'ERM']:
-                r.state = 'accepted'
+            for i in self.env['account.invoice'].browse(resp):
+                if i.claim in ['ACD', 'ERM']:
+                    r.state = 'accepted'
         xml_id = 'account.action_vendor_bill_template'
         result = self.env.ref('%s' % (xml_id)).read()[0]
         if created:
@@ -178,9 +180,8 @@ class ProcessMailsDocument(models.Model):
                 if e.args[0][0] == 503:
                     raise UserError('%s: Conexión al SII caída/rechazada o el SII está temporalmente fuera de línea, reintente la acción' % (msg))
                 raise UserError(("%s: %s" % (msg, str(e))))
-        _logger.warning(respuesta)
         self.claim_description = respuesta
-        if "codResp = 0" in respuesta or self.document_class_id.sii_code not in [33, 34, 43]:
+        if respuesta.codResp in [0, 7] or self.document_class_id.sii_code not in [33, 34, 43]:
             self.claim = claim
 
     @api.multi
