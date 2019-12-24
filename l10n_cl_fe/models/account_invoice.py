@@ -153,14 +153,19 @@ class AccountInvoice(models.Model):
     def get_dc_ids(self):
         for r in self:
             r.document_class_ids = []
-            dc_type = ['invoice'] if self.type in ['in_invoice', 'out_invoice'] else ['credit_note', 'debit_note']
-            jdc_ids = self.env['account.journal.sii_document_class'].search([
-                ('journal_id', '=', r.journal_id.id),
-                ('sii_document_class_id.document_type', 'in', dc_type),
-            ])
+            dc_type = ['invoice'] if r.type in ['in_invoice', 'out_invoice'] else ['credit_note', 'debit_note']
             ids = []
-            for dc in jdc_ids:
-                ids.append(dc.sii_document_class_id.id)
+            if r.type in ['in_invoice', 'in_refund']:
+                for j in r.journal_id.document_class_ids:
+                    if j.document_type in dc_type:
+                        ids.append(j.id)
+            else:
+                jdc_ids = self.env['account.journal.sii_document_class'].search([
+                    ('journal_id', '=', r.journal_id.id),
+                    ('sii_document_class_id.document_type', 'in', dc_type),
+                ])
+                for dc in jdc_ids:
+                    ids.append(dc.sii_document_class_id.id)
             r.document_class_ids = ids
 
     vat_discriminated = fields.Boolean(
@@ -1886,7 +1891,7 @@ a VAT."""))
 
     def set_dte_claim(self, claim=False):
         rut_emisor = self.format_vat(
-                    self.company_id.partner_id.vat)
+                    self.partner_id.commercial_partner_id.vat)
         token = self.sii_xml_request.get_token(self.env.user, self.company_id)
         url = claim_url[self.company_id.dte_service_provider] + '?wsdl'
         _server = Client(
@@ -1910,7 +1915,7 @@ a VAT."""))
                     raise UserError('%s: Conexión al SII caída/rechazada o el SII está temporalmente fuera de línea, reintente la acción' % (msg))
                 raise UserError(("%s: %s" % (msg, str(e))))
         self.claim_description = respuesta
-        if "codResp = 0" in respuesta or self.sii_document_class.sii_code not in [33, 34, 43]:
+        if respuesta.codResp in [0, 7] or self.document_class_id.sii_code not in [33, 34, 43]:
             self.claim = claim
 
     @api.multi
@@ -1925,7 +1930,7 @@ a VAT."""))
         )
         rut_emisor = self.format_vat(self.company_id.vat)
         if self.type in ['in_invoice', 'in_refund']:
-            rut_emisor = self.format_vat(self.partner_id.vat)
+            rut_emisor = self.format_vat(self.partner_id.commercial_partner_id.vat)
         respuesta = _server.service.listarEventosHistDoc(
             rut_emisor[:-2],
             rut_emisor[-1],
