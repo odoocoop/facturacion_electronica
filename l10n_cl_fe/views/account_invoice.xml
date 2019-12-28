@@ -77,7 +77,7 @@
                                 'required':[('use_documents', '=', True), ('state', '=', 'draft')],
                                 'readonly':['|', ('state', '!=', 'draft'), ('sii_document_number', '>', 0)]}"
                         options="{'no_create': True}"
-                        domain="[('sii_document_class_id', 'in', document_class_ids)]"
+                        domain="[('sii_document_class_id', 'in', document_class_ids), ('journal_id', '=', journal_id)]"
                         style="width: 100%"/> Número:<br/>
                       <field name="sequence_number_next_prefix" class="oe_inline"/>
                       <field name="sequence_number_next" class="oe_inline" readonly="True"/>
@@ -116,6 +116,7 @@
                     <field name="valor"/>
                     <field name="gdr_detail"/>
                     <field name="aplicacion"/>
+                    <field name="impuesto"/>
                     <field name="amount_untaxed_global_dr" invisible="1"/>
                     <field name="invoice_id" invisible="1"/>
                   </tree>

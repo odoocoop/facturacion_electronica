@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from odoo import fields, models, api
+from odoo.tools.safe_eval import safe_eval
 from odoo.tools.translate import _
 import logging
 _logger = logging.getLogger(__name__)
@@ -137,7 +138,7 @@ class ProcessMailsDocument(models.Model):
             for i in self.env['account.invoice'].browse(resp):
                 if i.claim in ['ACD', 'ERM']:
                     r.state = 'accepted'
-        xml_id = 'account.action_vendor_bill_template'
+        xml_id = 'account.action_invoice_tree2'
         result = self.env.ref('%s' % (xml_id)).read()[0]
         if created:
             domain = safe_eval(result.get('domain', '[]'))
@@ -153,6 +154,9 @@ class ProcessMailsDocument(models.Model):
                 r.state = 'rejected'
 
     def set_dte_claim(self, claim):
+        if self.document_class_id.sii_code not in [33, 34, 43]:
+            self.claim = claim
+            return
         if not self.partner_id:
             rut_emisor = self.new_partner.split(' ')[0]
         else:
@@ -181,7 +185,7 @@ class ProcessMailsDocument(models.Model):
                     raise UserError('%s: Conexión al SII caída/rechazada o el SII está temporalmente fuera de línea, reintente la acción' % (msg))
                 raise UserError(("%s: %s" % (msg, str(e))))
         self.claim_description = respuesta
-        if respuesta.codResp in [0, 7] or self.document_class_id.sii_code not in [33, 34, 43]:
+        if respuesta.codResp in [0, 7]:
             self.claim = claim
 
     @api.multi
@@ -199,13 +203,18 @@ class ProcessMailsDocument(models.Model):
                 'Cookie': 'TOKEN=' + token,
                 },
         )
-        respuesta = _server.service.listarEventosHistDoc(
-            rut_emisor[:-2],
-            rut_emisor[-1],
-            str(self.document_class_id.sii_code),
-            str(self.number),
-        )
-        self.claim_description = respuesta
+        try:
+            respuesta = _server.service.listarEventosHistDoc(
+                rut_emisor[:-2],
+                rut_emisor[-1],
+                str(self.document_class_id.sii_code),
+                str(self.number),
+            )
+            self.claim_description = respuesta
+        except Exception as e:
+            _logger.warning("Error al obtener aceptación %s" %(str(e)))
+            if self.company_id.dte_service_provider == 'SII':
+                raise UserError("Error al obtener aceptación: %s" % str(e))
 
 
 class ProcessMailsDocumentLines(models.Model):
