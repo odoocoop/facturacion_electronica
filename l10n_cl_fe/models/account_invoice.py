@@ -596,7 +596,7 @@ class AccountInvoice(models.Model):
 
     def porcentaje_dr(self):
         if not self.global_descuentos_recargos:
-            return 1
+            return 1, 1
         taxes = super(AccountInvoice, self).get_taxes_values()
         afecto = 0.00
         exento = 0.00
