@@ -4,6 +4,15 @@ from odoo.tools.safe_eval import safe_eval
 from odoo.tools.translate import _
 import logging
 _logger = logging.getLogger(__name__)
+try:
+    from suds.client import Client
+except Exception as e:
+    _logger.warning("Problemas al cargar suds %s" %str(e))
+
+claim_url = {
+    'SIICERT': 'https://ws2.sii.cl/WSREGISTRORECLAMODTECERT/registroreclamodteservice',
+    'SII': 'https://ws1.sii.cl/WSREGISTRORECLAMODTE/registroreclamodteservice',
+}
 
 
 class ProcessMailsDocument(models.Model):
