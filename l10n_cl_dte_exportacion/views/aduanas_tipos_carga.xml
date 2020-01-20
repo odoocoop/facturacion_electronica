@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <record id="tipos_carga_view_form" model="ir.ui.view">
+    <field name="name">tipos_carga.form</field>
+    <field name="model">aduanas.tipos_carga</field>
+    <field name="arch" type="xml">
+      <form string="Tipos de Carga">
+        <sheet>
+          <group>
+            <field name="code"/>
+            <field name="name"/>
+            <field name="descripcion"/>
+          </group>
+        </sheet>
+      </form>
+    </field>
+  </record>
+</odoo>

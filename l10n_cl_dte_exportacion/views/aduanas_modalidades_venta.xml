@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <record id="modalidades_venta_view_form" model="ir.ui.view">
+    <field name="name">modalidades_venta.form</field>
+    <field name="model">aduanas.modalidades_venta</field>
+    <field name="arch" type="xml">
+      <form string="Modalidades Venta">
+        <sheet>
+          <group>
+            <field name="code"/>
+            <field name="name"/>
+            <field name="sigla"/>
+          </group>
+        </sheet>
+      </form>
+    </field>
+  </record>
+</odoo>

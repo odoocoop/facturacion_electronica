@@ -213,7 +213,7 @@ class ConsumoFolios(models.Model):
         recs = self._get_moves()
         for r in recs:
             grupos.setdefault(r.document_class_id.sii_code, [])
-            grupos[r.document_class_id.sii_code].append(r._dte())
+            grupos[r.document_class_id.sii_code].append(r.with_context(tax_detail=True)._dte())
         for r in self.anulaciones:
             grupos.setdefault(r.document_class_id.sii_code, [])
             for i in range(r.rango_inicio, r.rango_final+1):
@@ -399,7 +399,7 @@ class ConsumoFolios(models.Model):
         recs = self._get_moves()
         for r in recs:
             grupos.setdefault(r.document_class_id.sii_code, [])
-            grupos[r.document_class_id.sii_code].append(r._dte())
+            grupos[r.document_class_id.sii_code].append(r.with_context(tax_detail=True)._dte())
         for r in self.anulaciones:
             grupos.setdefault(r.document_class_id.sii_code, [])
             for i in range(r.rango_inicio, r.rango_final+1):

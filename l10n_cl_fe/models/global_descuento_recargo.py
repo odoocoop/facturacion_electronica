@@ -8,6 +8,21 @@ _logger = logging.getLogger(__name__)
 class GlobalDescuentoRecargo(models.Model):
     _name = "account.invoice.gdr"
 
+
+    def _get_name(self):
+        for g in self:
+            type = "Descuento"
+            if g.type == 'R':
+                type = 'Recargo'
+            calculo = 'Porcentaje'
+            if g.gdr_type == 'amount':
+                calculo = 'Monto'
+            g.name = type + '-' + calculo + ': ' + (g.gdr_detail or '')
+
+    name = fields.Char(
+        compute="_get_name",
+        string="Name"
+    )
     type = fields.Selection(
             [
                 ('D', 'Descuento'),

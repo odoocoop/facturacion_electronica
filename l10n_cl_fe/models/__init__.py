@@ -4,6 +4,7 @@ from . import account_invoice
 from . import account_journal
 from . import account_journal_sii_document_class
 from . import account_tax
+from . import account_tax_mepco
 from . import bigint
 from . import caf
 from . import company

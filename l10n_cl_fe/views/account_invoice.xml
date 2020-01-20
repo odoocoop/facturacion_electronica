@@ -134,7 +134,7 @@
                         <field name="fecha_documento"/>
                       </group>
                     </form>
-                    <tree>
+                    <tree editable="bottom">
                       <field name="origen" required="True"/>
                       <field name="sii_referencia_TpoDocRef" required="True" />
                       <field name="sii_referencia_CodRef"/>
@@ -146,6 +146,7 @@
 
               <field name="journal_id" position="after">
                   <field name="ticket" attrs="{'invisible': [('sii_code', 'in', [39, 41])]}" />
+                  <field name="ind_servicio" />
               </field>
 
               <field name="account_id" position="attributes">

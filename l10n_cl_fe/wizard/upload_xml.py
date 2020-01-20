@@ -138,7 +138,8 @@ class UploadXMLWizard(models.TransientModel):
     def _read_xml(self, mode="text", check=False):
         xml = self._get_xml()\
             .replace('<?xml version="1.0" encoding="ISO-8859-1"?>', '')\
-            .replace('<?xml version="1.0" encoding="ISO-8859-1" ?>', '')
+            .replace('<?xml version="1.0" encoding="ISO-8859-1" ?>', '')\
+            .replace('<?xml version="1.0" encoding="ISO-8859-1" standalone="yes"?>', '')
         if check:
             return xml
         xml = xml.replace(' xmlns="http://www.sii.cl/SiiDte"', '')

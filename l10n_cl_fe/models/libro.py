@@ -376,7 +376,7 @@ class Libro(models.Model):
                 ('state', 'not in', ['cancel', 'draft']),
             ]
             ref = self.env['account.invoice'].search(query)
-            recs.append(ref._dte())
+            recs.append(ref.with_context(tax_detaiL=True)._dte())
         return recs
 
     def _emisor(self):
@@ -405,8 +405,8 @@ class Libro(models.Model):
         grupos = {}
         recs = self._get_moves()
         for r in recs:
-            grupos.setdefault(r['Encabezado']['IdDoc']['TipoDTE'], [])
-            grupos[r['Encabezado']['IdDoc']['TipoDTE']].append(r)
+            grupos.setdefault(r.document_class_id.sii_code, [])
+            grupos[r.document_class_id.sii_code].append(r.with_context(tax_detail=True)._dte())
         for boletas in self.boletas:
             resumenesPeriodo[boletas.tipo_boleta.id] = {}
             resumen = self._setResumenBoletas(boletas)

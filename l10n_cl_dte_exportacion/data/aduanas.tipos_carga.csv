@@ -1,0 +1,6 @@
+name,descripcion,code
+GENERAL,Corresponde a mercancías individuales de la carga general, susceptibles de estandarizar en su manipu-lación, almacenamiento y transporte. (Contenedores, sacos, cajones, pallets, tambores, bidones, rollos, atados, eslinga, etc).,  R
+GRANEL SÓLIDO,Corresponde a un conjunto de partículas o granos NO enumeradas NI envasadas, cuya identificación se determina por su naturaleza, peso y/o volumen.,  G
+GRANEL LÍQUIDO o GASEOSO,Corresponde a fluidos líquidos o gaseosos, o a gases  licuados, transportados masivamente por ductos especiales o que no se encuentran almacenados en otro elemento que no sea el depósito del vehículo que los transporta.,  L
+FRIGORIZADOS,Corresponde a carga general, que para su conservación es enfriada (bajo la temperatura ambiente) o congelada (bajo 0 grado Celcius).,  F
+ELECTRICIDAD:,Corresponde a un flujo continuo de energía eléctrica transportada por cables de alta o baja tensión.,  O

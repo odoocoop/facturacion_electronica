@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <record id="formas_pago_view_form" model="ir.ui.view">
+    <field name="name">formas_pago.form</field>
+    <field name="model">aduanas.formas_pago</field>
+    <field name="arch" type="xml">
+      <form string="Formas de Pago">
+        <sheet>
+          <group>
+            <field name="code"/>
+            <field name="name"/>
+            <field name="sigla"/>
+          </group>
+        </sheet>
+      </form>
+    </field>
+  </record>
+</odoo>

@@ -1,8 +1,18 @@
 # -*- coding: utf-8 -*-
 from odoo import api, models, fields
 from odoo.tools.translate import _
+from datetime import datetime
+import pytz
 import logging
+import locale
+import decimal
 _logger = logging.getLogger(__name__)
+try:
+    import urllib3
+    urllib3.disable_warnings()
+    pool = urllib3.PoolManager()
+except:
+    _logger.warning("no se ha cargado urllib3")
 
 
 class SiiTax(models.Model):
@@ -46,7 +56,9 @@ class SiiTax(models.Model):
         prec = currency.decimal_places
         base = round(price_unit * quantity, prec+2)
         base = round(base, prec)
-        tot_discount = currency.round(base * ((discount or 0.0) /100))
+        disc = (base * ((discount or 0.0) /100.0))
+        decimal.getcontext().rounding = decimal.ROUND_HALF_UP
+        tot_discount = int(decimal.Decimal(disc).to_integral_value())
         base -= tot_discount
         total_excluded = base
         total_included = base
@@ -122,3 +134,64 @@ class SiiTax(models.Model):
             return tax
         if (self.amount_type == 'percent' and not self.price_include) or (self.amount_type == 'division' and self.price_include):
             return base_amount * self.retencion / 100
+
+
+    def prepare_mepco(self, date):
+        locale.setlocale(locale.LC_TIME, 'es_CL')
+        year = date.strftime("%Y")
+        month = date.strftime("%B").lower()
+        url = "http://www.sii.cl/valores_y_fechas/mepco/mepco%s.htm" % year
+        resp = pool.request('GET', url)
+        sii = html.fromstring(resp.data)
+        line = 1
+        if self.mepco == 'gasolina_97':
+            line = 3
+        elif self.mepco == 'diesel':
+            line = 5
+        rangos = {}
+        i = 0
+        for r in sii.xpath('//div[@id="pp_%s"]/table/tr/th[0]' % (month, line)):
+            rangos[datetime.strptime(r.text, "Vigencia desde: %A %d-%m-%Y")] = i
+            i += 1
+        tz = pytz.timezone('America/Santiago')
+        ant = datetime.now(tz)
+        target = (ant, 0)
+        for k, v in rangos.items():
+            if k >= date < ant:
+                target = (k, v)
+                break
+            ant = k
+        val = sii.xpath('//div[@id="pp_%s"]/table[%s]/tr[%s]/tr[4]' % (month, target[1], line)).text
+        return {
+            'amount': int(val),
+            'date': target[0].strftime("%Y-%m-%d"),
+            'name': target[0].strftime("%Y-%m-%d"),
+            'type': self.mepco,
+            'sequence': len(rangos),
+            'company_id': self.company_id.id,
+        }
+
+    def verify_mepco(self, date_target=False):
+        tz = pytz.timezone('America/Santiago')
+        if date_target:
+            fields_model = self.env['ir.fields.converter']
+            ''' @TODO crearlo como utilidad python'''
+            tz = pytz.timezone('America/Santiago')
+            user_zone = fields_model._input_tz()
+            date  = datetime.strptime(date_target, "%Y-%m-%d")
+            if tz != user_zone:
+                if not date.tzinfo:
+                    date = user_zone.localize(date)
+                date = date.astimezone(tz)
+        else:
+            date = datetime.now(tz)
+        mepco = self.env['account.tax.mepco'].sudo().search([
+            ('date', '>=', date.strftime("%Y-%m-%d")),
+            ('company_id', '=', self.company_id.id),
+            ('type', '=', self.mepco),
+        ],
+        limit=1)
+        if not mepco:
+            mepco_data = self.prepare_mepco(date)
+            mepco = self.env['account.tax.mepco'].sudo().create(mepco)
+        self.amount = mepco.amount

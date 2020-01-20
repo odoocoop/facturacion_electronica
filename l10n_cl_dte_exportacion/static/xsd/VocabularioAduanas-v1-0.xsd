@@ -1,0 +1,1605 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns="http://www.aduana.cl/xml/esquemas" xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="http://www.aduana.cl/xml/esquemas" elementFormDefault="qualified" attributeFormDefault="unqualified" version="1.0" xml:lang="es">
+	<xs:annotation>
+		<xs:documentation>
+            Listas Controladas de Tablas Basicas de Aduanas, la tablas de codificación que se utilizan en Aduana la mayoría de ellas se  encuentran normadas en el anexo 51 del Compendio de Normas Aduaneras, los cuales deben cumplir su codificación enlas declaraciones de Salidas de Mercancías
+		</xs:documentation>
+	</xs:annotation>
+	<xs:complexType name="AduanaType">
+		<xs:annotation>
+			<xs:documentation>
+                Aduanas, esta lista se refiere a la tabla de códigos de las ditintas aduanas que exosten en Chile, y aduanas las tiene codificadas legalmente, su tabla se encuentra en el compendio de Normas Aduaneras (www.aduana.cl)
+            </xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="Codigo">
+				<xs:simpleType>
+					<xs:restriction base="xs:string">
+						<xs:annotation>
+							<xs:documentation>Valor 3 corresponde  a la aduana de arica valor asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>Valor 7 corresponde  a la aduana de Iquique valor asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>Valor 10 corresponde a la Aduana de Tocopilla valor asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>Valor 14 corresponde a la aduana de Antofagasta valor asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>Valor 17 corresponde a la aduana de Chañaral valor asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>Valor 25 corresponde a la aduana de Coquimbo valor asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>Valor 33 corresponde a la aduana de Los Andes valor asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>Valor 34 corresponde a la aduana de Valparaiso valor asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>Valor 39 corresponde a la aduana de San Antonio valor asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>Valor 48 corresponde a la aduana Metropolitana valor asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>Valor 55 corresponde a la aduana de Talcahuano valor asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>Valor 67 corresponde a la aduana de Osorno valor asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>Valor 69 corresponde a la aduana de Puerto Montt valor asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>Valor 83 corresponde a la aduana de Coyhaique valor asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>Valor 90 corresponde a la aduana de Puerto Aysen valor asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>Valor 92 corresponde a la aduana de Punta Arenas valor asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>Valor 98 corresponde a la aduana de la Dirección Nacional valor asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+						</xs:annotation>
+						<xs:enumeration value="3"/>
+						<xs:enumeration value="7"/>
+						<xs:enumeration value="10"/>
+						<xs:enumeration value="14"/>
+						<xs:enumeration value="17"/>
+						<xs:enumeration value="25"/>
+						<xs:enumeration value="33"/>
+						<xs:enumeration value="34"/>
+						<xs:enumeration value="39"/>
+						<xs:enumeration value="48"/>
+						<xs:enumeration value="55"/>
+						<xs:enumeration value="67"/>
+						<xs:enumeration value="69"/>
+						<xs:enumeration value="83"/>
+						<xs:enumeration value="90"/>
+						<xs:enumeration value="92"/>
+						<xs:enumeration value="98"/>
+					</xs:restriction>
+				</xs:simpleType>
+			</xs:element>
+			<xs:element name="Descripcion" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Decripcion de Aduana</xs:documentation>
+				</xs:annotation>
+				<xs:simpleType>
+					<xs:restriction base="xs:string">
+						<xs:enumeration value="ARICA"/>
+						<xs:enumeration value="IQUIQUE"/>
+						<xs:enumeration value="TOCOPILLA"/>
+						<xs:enumeration value="ANTOFAGASTA"/>
+						<xs:enumeration value="CHANARAL"/>
+						<xs:enumeration value="COQUIMBO"/>
+						<xs:enumeration value="LOS ANDES"/>
+						<xs:enumeration value="VALPARAISO"/>
+						<xs:enumeration value="SAN ANTONIO"/>
+						<xs:enumeration value="METROPOLITANA"/>
+						<xs:enumeration value="TALCAHUANO"/>
+						<xs:enumeration value="OSORNO"/>
+						<xs:enumeration value="PUERTO MONTT"/>
+						<xs:enumeration value="COYHAIQUE"/>
+						<xs:enumeration value="PUERTO AYSEN"/>
+						<xs:enumeration value="PUNTA ARENAS"/>
+						<xs:enumeration value="DIRECCION NACIONAL"/>
+					</xs:restriction>
+				</xs:simpleType>
+			</xs:element>
+			<xs:any namespace="##other" minOccurs="0" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Punto de extensión para permitir otro tipo de informacion</xs:documentation>
+				</xs:annotation>
+			</xs:any>
+		</xs:sequence>
+		<xs:attribute name="SchemaVersion" type="xs:NMTOKEN" use="required" fixed="1.0">
+			<xs:annotation>
+				<xs:documentation>Versión del esquema. Permite la persistencia de la versión del esquema en instancias xml (ver Guia de Desarrollo y Uso De Esquemas De Gobierno v1.1 - 5.4.3)</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+	<xs:simpleType name="TipoIdentificacionType">
+		<xs:annotation>
+			<xs:documentation>
+                Tipo Documento de Identificacion, esta lsuta es una codificación interna que tiene aduana respecto a si el docuemnto utilizado por el exportador es el RUT o PASAPORTE
+            </xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<xs:annotation>
+				<xs:documentation>
+                El valor 4 significa que el tipo de documento es el RUT, el utilizado para declarar las mercancías que salen del país
+      </xs:documentation>
+				<xs:documentation>
+                El valor 4 significa que el tipo de documento es PASAPORTE el utilizado para declarar las mercancías que salen del país.
+      </xs:documentation>
+			</xs:annotation>
+			<xs:enumeration value="3"/>
+			<xs:enumeration value="4"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:complexType name="TipoOperacionType">
+		<xs:annotation>
+			<xs:documentation>
+                Tipo Operacion, para cada tramite de salidas de mercancías del pais, aduana codificó y legalizó los distintos tipo de operaciones, estos se encuentran en la normativa aduanera en dcto. llamado compendio de normas aduaneras (anexo 51)
+      </xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="Codigo">
+				<xs:simpleType>
+					<xs:restriction base="xs:string">
+						<xs:annotation>
+							<xs:documentation>El Valor 200 significa que es una Exportación Normal, es decir una salida de mercancía desde Chile hacia el exterior, este valor es asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 201 significa que es SALIDA DE MERCANCÍAS SIN CARÁCTER COMERCIAL desde Chile hacia el exterior, este valor es asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 202 significa que es una EXPORTACIÓN DE SERVICIOS, este valor es asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 203 significa que es una EXPORTACIÓN DE SERVICIOS SIMPLIFICADA, este valor es asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 204 significa que es una Exportación que se realiza a través de los correos denominados Couriers y con pago simplificado, este valor es asignado por la aduana para estos trámites y codificados con este valor</xs:documentation>
+							<xs:documentation>El Valor 205 significa que es una EXPORTACIÓN QUE ABONA DATPA DTO. 224, es decir un Admisión temporal que luego sale del país, este valor es asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 206 significa que es una EXPORTACIÓN ABONA DATPA DTO. 135, es decir es una admisión temporal con devolución de derechos pagados, este valor es asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 207 significa que es una EXPORTACIÓN ABONA DATPA DTO. 473, es admisión temporal de mercancías que son devueltas al exterior despues de procesos de producción, este valor es asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 210 significa que es una EXPORTACIÓN ABONA SALIDA TEMPORAL, es decir es una salida temporal que se convirtó en definitiva, este valor es asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 211 significa que es RANCHO DE EXPORTACIÓN, es decir mercancías destinadas a las naves o aeronaves destinadas al transporte internacional, este valor es asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 212 significa que es una EXPORTACION NORMAL VIA COURIER, es decir una salida de mercancía desde Chile hacia el exterior, este valor es asignado por la Aduana para este tipo de trámites</xs:documentation>
+							<xs:documentation>El Valor 215 significa que es una Salida Temporal de una mercancia fuera de Chile y que volverá a entrar, este valor es asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 220 significa que es una SALIDA TEMPORAL PARA PERFECCIONAMIENTO PASIVO de una mercancía, es decir una salida de mercancía desde Chile hacia el exterior, que volverá a entrar pero con algún cambio u arreglo, este valor es asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 225 significa que es una SALIDA TEMPORAL EFECTOS DE TURISTA, este valor es asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 227 significa que es una ReExportación, es decir una salida de mercancía desde Chile hacia el exterior que no fue nacionalizada, este valor es asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 230 significa que es una REEXPORTACIÓN fundada sobre el ART. 133 de la Ordenanza de Aduanas, este valor es asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 231 significa que es una REEXPORTACIÓN fundada sobre el ART. 134 de la Ordenanza de Aduanas, este valor es asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 235 significa que es una ReExportación que abona una Declaración de Admisión Temporal, es decir una salida de parte de mercancía desde Chile hacia el exterior que fue declarada en conjunto con otras, este valor es asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 236 significa que es una ReExportación que abona una Declaración de Admisión Temporal, pero con esta salida completa la salida total de las mercancía que entraron temporalmente a Chile, este valor es asignado por Aduanas para este tipo de trámites</xs:documentation>
+							<xs:documentation>El Valor 240 significa que es una REEXPORTACIÓN ABONA DATPA, es de mercancías que entraron al pais y que tuvieron algun perfeccionamiento activo y ahora salen,. este valor es asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 241 significa que es una REEXPORTACIÓN QUE CANCELA DATE, es decir una salida de una parte de mercancía que entró temporalmente a chile, pero que este trámite indica que no qeudan más que salir, este valor es asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 245 significa que es una REEXPORTACIÓN ABONA DAPI, es decir mercancía que entraron al pais y se devuelve al exterior sin haber sido nacionalizadas, este valor es asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 246 significa que es una REEXPORTACIÓN ABONA DAPITS, es decir mercancía que entraron al pais por trámite simplificado y se devuelve al exterior sin haber sido nacionalizadas, este valor es asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 248 significa que es una SALIDA ABONA RANCHO DE IMPORTACIÓN, es decir una salida de mercancía que era destinadas a naves y/o aeronaves, este valor es asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+						</xs:annotation>
+						<xs:enumeration value="200"/>
+						<xs:enumeration value="201"/>
+						<xs:enumeration value="202"/>
+						<xs:enumeration value="203"/>
+						<xs:enumeration value="204"/>
+						<xs:enumeration value="205"/>
+						<xs:enumeration value="206"/>
+						<xs:enumeration value="207"/>
+						<xs:enumeration value="210"/>
+						<xs:enumeration value="211"/>
+						<xs:enumeration value="212"/>
+						<xs:enumeration value="215"/>
+						<xs:enumeration value="220"/>
+						<xs:enumeration value="225"/>
+						<xs:enumeration value="227"/>
+						<xs:enumeration value="230"/>
+						<xs:enumeration value="231"/>
+						<xs:enumeration value="235"/>
+						<xs:enumeration value="236"/>
+						<xs:enumeration value="240"/>
+						<xs:enumeration value="241"/>
+						<xs:enumeration value="245"/>
+						<xs:enumeration value="246"/>
+						<xs:enumeration value="248"/>
+					</xs:restriction>
+				</xs:simpleType>
+			</xs:element>
+			<xs:element name="Descripcion" minOccurs="0">
+				<xs:simpleType>
+					<xs:restriction base="xs:string">
+						<xs:enumeration value="EXPORTACION.NORMAL"/>
+						<xs:enumeration value="EXPORTACION S/CARACTER COMERC."/>
+						<xs:enumeration value="EXPORTACION DE SERVICIOS"/>
+						<xs:enumeration value="EXPORTACION DE SERVICIOS SIMPLIFICADO"/>
+						<xs:enumeration value="DUSSI COURIER"/>
+						<xs:enumeration value="EXPORTACION ABONA DAPEX DTO. 224"/>
+						<xs:enumeration value="EXPORTACION CANCELA DAPEX DTO. 135"/>
+						<xs:enumeration value="EXP ABONA DAPEX DTO 473"/>
+						<xs:enumeration value="EXPORT. ABONA SALIDA TEMPORAL"/>
+						<xs:enumeration value="RANCHO DE EXPORTACION"/>
+						<xs:enumeration value="EXPORTACION VIA COURIER"/>
+						<xs:enumeration value="SALIDA TEMPORAL"/>
+						<xs:enumeration value="SALIDA TEMPORAL PARA PERFECCIONAMIENTO PASIVO"/>
+						<xs:enumeration value="SALIDA TEMP.EFECTOS DE TURISTA"/>
+						<xs:enumeration value="REEXPORTACION"/>
+						<xs:enumeration value="REEXPORTACION ART. 133"/>
+						<xs:enumeration value="REEXPORTACION ART. 134"/>
+						<xs:enumeration value="REEXPORTACION ABONA DAT"/>
+						<xs:enumeration value="REEXP.CANCELA DAT"/>
+						<xs:enumeration value="REEEXPORTACION ABONA DAPEX"/>
+						<xs:enumeration value="REEXP. CANCELA DAPE"/>
+						<xs:enumeration value="REEXPORTACION ABONA DAPI"/>
+						<xs:enumeration value="REEXPORTACION ABONA DAPITS"/>
+						<xs:enumeration value="SALIDA ABONA RANCHO DE IMPORTACION"/>
+					</xs:restriction>
+				</xs:simpleType>
+			</xs:element>
+			<xs:any namespace="##other" minOccurs="0" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Punto de extensión para permitir otro tipo de informacion</xs:documentation>
+				</xs:annotation>
+			</xs:any>
+		</xs:sequence>
+		<xs:attribute name="SchemaVersion" type="xs:NMTOKEN" use="required" fixed="1.0">
+			<xs:annotation>
+				<xs:documentation>Versión del esquema. Permite la persistencia de la versión del esquema en instancias xml (ver Guia de Desarrollo y Uso De Esquemas De Gobierno v1.1 - 5.4.3)</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+	<xs:complexType name="RegionOrigenType">
+		<xs:annotation>
+			<xs:documentation>
+                Region de Origen, se refiere a uan codificación dentro de la normativa de aduana para referirse a las distintas regiones del país, esto se encuentra legalizado en el Compendio de Normas Aduaneras
+            </xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="Codigo">
+				<xs:simpleType>
+					<xs:restriction base="xs:string">
+						<xs:annotation>
+							<xs:documentation>El Valor 1 significa que es la region de TARAPACA, este valor es asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 2 significa que es la region de ANTOFAGASTA, este valor es asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 3 significa que es la region de ATACAMA, este valor es asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 4 significa que es la region de COQUIMBO, este valor es asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 5 significa que es la region de VALPARAISO, este valor es asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 6 significa que es la region de LIBERTADOR B. O'HIGGINS, este valor es asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 7 significa que es la region de DEL MAULE, este valor es asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 8 significa que es la region de DEL BIOBIO, este valor es asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 9 significa que es la region de DE LA ARAUCANIA, este valor es asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 10 significa que es la region de DE LOS LAGOS, este valor es asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 11 significa que es la region de DE AYSEN, este valor es asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 12 significa que es la region de DE MAGALLANES Y ANTARTICA CHILENA, este valor es asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 13 significa que es la region de METROPOLITANA DE SANTIAGO, este valor es asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 14 significa que es la region de DE LOS RIOS, este valor es asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 15 significa que es la region de ARICA PARINACOTA, este valor es asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 20 significa que no es de ninguna region, sino más bien se utiliza para MERCANCIAS EXTRANJERAS NACIONALIZADAS , este valor es asignado por el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+						</xs:annotation>
+						<xs:enumeration value="1"/>
+						<xs:enumeration value="2"/>
+						<xs:enumeration value="3"/>
+						<xs:enumeration value="4"/>
+						<xs:enumeration value="5"/>
+						<xs:enumeration value="6"/>
+						<xs:enumeration value="7"/>
+						<xs:enumeration value="8"/>
+						<xs:enumeration value="9"/>
+						<xs:enumeration value="10"/>
+						<xs:enumeration value="11"/>
+						<xs:enumeration value="12"/>
+						<xs:enumeration value="13"/>
+						<xs:enumeration value="14"/>
+						<xs:enumeration value="15"/>
+						<xs:enumeration value="20"/>
+					</xs:restriction>
+				</xs:simpleType>
+			</xs:element>
+			<xs:element name="Descripcion" minOccurs="0">
+				<xs:simpleType>
+					<xs:restriction base="xs:string">
+						<xs:enumeration value="Primera Region"/>
+						<xs:enumeration value="Segunda Region"/>
+						<xs:enumeration value="Tercera Region"/>
+						<xs:enumeration value="Cuarta Region"/>
+						<xs:enumeration value="Quinta Region"/>
+						<xs:enumeration value="Sexta Region"/>
+						<xs:enumeration value="Septima Region"/>
+						<xs:enumeration value="Octava Region"/>
+						<xs:enumeration value="Novena Region"/>
+						<xs:enumeration value="Decima Region"/>
+						<xs:enumeration value="Undecima Region"/>
+						<xs:enumeration value="Duodecima Region"/>
+						<xs:enumeration value="Region Metropolitana"/>
+						<xs:enumeration value="Región de Los Ríos"/>
+						<xs:enumeration value="Región de Arica y Parinacota"/>
+						<xs:enumeration value="MERC. EXTRANJERA NACIONALIZADA"/>
+					</xs:restriction>
+				</xs:simpleType>
+			</xs:element>
+			<xs:any namespace="##other" minOccurs="0" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Punto de extensión para permitir otro tipo de informacion</xs:documentation>
+				</xs:annotation>
+			</xs:any>
+		</xs:sequence>
+		<xs:attribute name="SchemaVersion" type="xs:NMTOKEN" use="required" fixed="1.0">
+			<xs:annotation>
+				<xs:documentation>Versión del esquema. Permite la persistencia de la versión del esquema en instancias xml (ver Guia de Desarrollo y Uso De Esquemas De Gobierno v1.1 - 5.4.3)</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+	<xs:complexType name="TipoCargaType">
+		<xs:annotation>
+			<xs:documentation>
+                Tipo de Carga, se refiere en que forma la mercancía sale del país
+            </xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="Codigo">
+				<xs:simpleType>
+					<xs:restriction base="xs:string">
+						<xs:annotation>
+							<xs:documentation>El Valor F significa FRIGORIZADOS, es decir, Corresponde a carga general, que para su conservación es enfriada o congelada, este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor G significa GRANEL, Corresponde a un conjunto de partículas o granos NO enumeradas NI envasadas, este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor L significa LIQUIDO, Corresponde a fluidos líquidos o gaseosos, o a gases  licuados, transportados masivamente por ductos especiales, este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor O Corresponde a ELECTRICIDAD:, Corresponde a un flujo continuo de energía eléctrica transportada por cables de alta o baja tensión, este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor R significa GENERAL, Corresponde a mercancías individuales de la carga general, este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor S significa SERVICIOS, este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+						</xs:annotation>
+						<xs:enumeration value="F"/>
+						<xs:enumeration value="G"/>
+						<xs:enumeration value="L"/>
+						<xs:enumeration value="O"/>
+						<xs:enumeration value="R"/>
+						<xs:enumeration value="S"/>
+					</xs:restriction>
+				</xs:simpleType>
+			</xs:element>
+			<xs:element name="Descripcion" minOccurs="0">
+				<xs:simpleType>
+					<xs:restriction base="xs:string">
+						<xs:enumeration value="FRIGORIZADOS"/>
+						<xs:enumeration value="GRANEL"/>
+						<xs:enumeration value="LIQUIDA"/>
+						<xs:enumeration value="ELECTRICIDAD"/>
+						<xs:enumeration value="GENERAL"/>
+						<xs:enumeration value="SERVICIOS"/>
+					</xs:restriction>
+				</xs:simpleType>
+			</xs:element>
+			<xs:any namespace="##other" minOccurs="0" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Punto de extensión para permitir otro tipo de informacion</xs:documentation>
+				</xs:annotation>
+			</xs:any>
+		</xs:sequence>
+		<xs:attribute name="SchemaVersion" type="xs:NMTOKEN" use="required" fixed="1.0">
+			<xs:annotation>
+				<xs:documentation>Versión del esquema. Permite la persistencia de la versión del esquema en instancias xml (ver Guia de Desarrollo y Uso De Esquemas De Gobierno v1.1 - 5.4.3)</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+	<xs:complexType name="ViaTransporteType">
+		<xs:annotation>
+			<xs:documentation>
+                Via de Transporte por la cual es tranportada la mercancía, se encuentra normado en el Compendio de Normas Aduaneras (www.aduana.cl)
+            </xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="Codigo">
+				<xs:simpleType>
+					<xs:restriction base="xs:string">
+						<xs:annotation>
+							<xs:documentation>El Valor 1 significa que la mercancía puede ser tranportada vía MARÍTIMA, FLUVIAL Y LACUSTRE, este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 2 significa que la mercancía es tranportada vía FLUVIAL, este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 3 significa que la mercancía es tranportada vía  LACUSTRE, este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 4 significa que la mercancía es tranportada vía MARÍTIMA, FLUVIAL o LACUSTRE, este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 5 significa que la mercancía es tranportada vía POSTAL, este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 6 significa que la mercancía es tranportada vía POSTAL, este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 7 significa que la mercancía es tranportada vía CARRETERO o TERRESTRE, este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 8 significa que la mercancía es tranportada vía OLEODUCTOS y/o GASODUCTOSCARRETERO, este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 9 significa que la mercancía es tranportada vía TENDIDO ELÉCTRICO (Aéreo, Subterráneo), este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 10 significa que la mercancía es tranportada por otra vía distinta de las que están especificadas en la normativa aduanera, este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+						</xs:annotation>
+						<xs:enumeration value="1"/>
+						<xs:enumeration value="2"/>
+						<xs:enumeration value="3"/>
+						<xs:enumeration value="4"/>
+						<xs:enumeration value="5"/>
+						<xs:enumeration value="6"/>
+						<xs:enumeration value="7"/>
+						<xs:enumeration value="8"/>
+						<xs:enumeration value="9"/>
+						<xs:enumeration value="10"/>
+					</xs:restriction>
+				</xs:simpleType>
+			</xs:element>
+			<xs:element name="Descripcion" minOccurs="0">
+				<xs:simpleType>
+					<xs:restriction base="xs:string">
+						<xs:enumeration value="MARITIMA, FLUVIAL Y LACUSTRE"/>
+						<xs:enumeration value="FLUVIAL"/>
+						<xs:enumeration value="LACUSTRE"/>
+						<xs:enumeration value="AEREO"/>
+						<xs:enumeration value="POSTAL"/>
+						<xs:enumeration value="FERROVIARIO"/>
+						<xs:enumeration value="CARRETERO/TERRESTRE"/>
+						<xs:enumeration value="OLEODUCTOS, GASODUCTOS"/>
+						<xs:enumeration value="TENDIDO ELECTRICO (AEREO,SUBT)"/>
+						<xs:enumeration value="OTRA"/>
+					</xs:restriction>
+				</xs:simpleType>
+			</xs:element>
+			<xs:any namespace="##other" minOccurs="0" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Punto de extensión para permitir otro tipo de informacion</xs:documentation>
+				</xs:annotation>
+			</xs:any>
+		</xs:sequence>
+		<xs:attribute name="SchemaVersion" type="xs:NMTOKEN" use="required" fixed="1.0">
+			<xs:annotation>
+				<xs:documentation>Versión del esquema. Permite la persistencia de la versión del esquema en instancias xml (ver Guia de Desarrollo y Uso De Esquemas De Gobierno v1.1 - 5.4.3)</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+	<xs:complexType name="CodigoEmisorVBType">
+		<xs:annotation>
+			<xs:documentation>
+           Entidad Emisora de Vistos Buenos para que las mercancías puedan ser exportadas, codificada y legalizada en el compendio de normas aduaneras (www.aduana.cl)
+      </xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="Codigo">
+				<xs:simpleType>
+					<xs:restriction base="xs:string">
+						<xs:annotation>
+							<xs:documentation>El Valor 1 significa que el visto bueno lo emite el Servicio Agrícola Ganadero, este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 2 significa que el visto bueno lo emite el Servicio de Salud, este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 3 significa que el visto bueno lo emite el Servicio de Salud y el Servicio Agrícola Ganadero, este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 4 significa que el visto bueno lo emite la Dirección General de Movilización Nacional, este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 5 significa que el visto bueno lo emite el Servicio Nacional de Pesca, este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 6 significa que el visto bueno lo emite otra entidad distinta de las especificadas en la normativa aduanera, este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 7 significa que el visto bueno lo emite la entidad que realizó el Procedimiento de Aforo llamado "Inciso 2º", este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 8 significa que el visto bueno lo emite la entidad que realizó el Procedimiento de Aforo llamado "Inciso 3º", este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 9 significa que el visto bueno lo emite la Comisión de Monumentos Nacionales, este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 10 significa que el visto bueno lo emite la Corporación Nacional Forestal, este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 11 significa que el visto bueno lo emite la Comisión Nacional de Energía Nuclear, este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 12 significa que el visto bueno lo emite la Dirección de Fronteras y Límites, este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 13 significa que el visto bueno lo emite el Instituto de Salud Pública, este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 14 significa que el visto bueno lo emite la Dirección de Bibliotecas, Archivos y Museos, este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 16 significa que el visto bueno lo emite la aduana como Calificación de Servicio de Expo-Aduana, este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 17 significa que el visto bueno lo emite el Ministerio de Defensa Nacional, este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 18 significa que el visto bueno lo emite el Depto. de Armas Químicas y Biológicas, este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 19 significa que el visto bueno lo emite el Depto. de Control de Armas y Explosivos, Archivos y Museos, este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 20 significa que el visto bueno lo emite CITES (Convention on International Trade in Endangered Species of Wild Fauna and Flora (Convención sobre el Comercio Internacional de Especies Amenazadas de Fauna y Flora Silvestres)), este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 30 significa que el visto bueno es a través de un Certificado de Origen, este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+						</xs:annotation>
+						<xs:enumeration value="1"/>
+						<xs:enumeration value="2"/>
+						<xs:enumeration value="3"/>
+						<xs:enumeration value="4"/>
+						<xs:enumeration value="5"/>
+						<xs:enumeration value="6"/>
+						<xs:enumeration value="7"/>
+						<xs:enumeration value="8"/>
+						<xs:enumeration value="9"/>
+						<xs:enumeration value="10"/>
+						<xs:enumeration value="11"/>
+						<xs:enumeration value="12"/>
+						<xs:enumeration value="13"/>
+						<xs:enumeration value="14"/>
+						<xs:enumeration value="16"/>
+						<xs:enumeration value="17"/>
+						<xs:enumeration value="18"/>
+						<xs:enumeration value="19"/>
+						<xs:enumeration value="20"/>
+						<xs:enumeration value="30"/>
+					</xs:restriction>
+				</xs:simpleType>
+			</xs:element>
+			<xs:element name="Descripcion" minOccurs="0">
+				<xs:simpleType>
+					<xs:restriction base="xs:string">
+						<xs:annotation>
+							<xs:documentation>El Valor SAG significa que el visto bueno lo emite el Servicio Agrícola Ganadero, este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor SNS significa que el visto bueno lo emite el Servicio nacional de Salud, este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor SAG Y SNS significa que el visto bueno lo emite  el Servicio Agrícola Ganadero y el Servicio nacional de Salud, este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor D.GRAL.MOV.NAC. significa que el visto bueno lo emite la Dirección General de Movilización Nacional, este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor SERNAPESCA significa que el visto bueno lo emite el Servicio Nacional de Pesca, este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor PROC. AFORO 2° significa que el visto bueno lo emite la entidad que realizó el Procedimiento de Aforo llamado "Inciso 2º", este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor PROC. AFORO 3° significa que el visto bueno lo emite la entidad que realizó el Procedimiento de Aforo llamado "Inciso 3º", este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor C.MONUMENTOS significa que el visto bueno lo emite la Comisión de Monumentos Nacionales, este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor CONAF significa que el visto bueno lo emite la Corporación Nacional Forestal, este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor COM.ENER.NUCLEAR significa que el visto bueno lo emite la Comisión Nacional de Energía Nuclear, este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor DIFROL significa que el visto bueno lo emite la Dirección de Fronteras y Límites, este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor ISP significa que el visto bueno lo emite el Instituto de Salud Pública, este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor D. BIB, ARCH. Y MUS. significa que el visto bueno lo emite la Dirección de Bibliotecas, Archivos y Museos, este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor MINDEFNAC significa que el visto bueno lo emite el Ministerio de Defensa Nacional, este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor ARM.QUIM.BIO. significa que el visto bueno lo emite el Depto. de Armas Químicas y Biológicas, este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor ARM.EXPLOS. significa que el visto bueno lo emite el Depto. de Control de Armas y Explosivos, Archivos y Museos, este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor CITES significa que el visto bueno lo emite CITES (Convention on International Trade in Endangered Species of Wild Fauna and Flora (Convención sobre el Comercio Internacional de Especies Amenazadas de Fauna y Flora Silvestres)), este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor C ORIGEN significa que el visto bueno es a través de un Certificado de Origen, este valor es asignado por la aduana respecto a lo publicado en el compendio de normas aduaneras en el Anexo 51 (www.aduana.cl)</xs:documentation>
+						</xs:annotation>
+						<xs:enumeration value="SAG"/>
+						<xs:enumeration value="SNS"/>
+						<xs:enumeration value="SAG Y SNS"/>
+						<xs:enumeration value="D.GRAL.MOV.NAC."/>
+						<xs:enumeration value="SERNAPESCA"/>
+						<xs:enumeration value="OTROS"/>
+						<xs:enumeration value="PROC. AFORO 2°"/>
+						<xs:enumeration value="PROC. AFORO 3°"/>
+						<xs:enumeration value="C.MONUMENTOS"/>
+						<xs:enumeration value="CONAF"/>
+						<xs:enumeration value="COM.ENER.NUCLEAR"/>
+						<xs:enumeration value="DIFROL"/>
+						<xs:enumeration value="ISP"/>
+						<xs:enumeration value="D. BIB, ARCH. Y MUS."/>
+						<xs:enumeration value="ADUANA"/>
+						<xs:enumeration value="MINDEFNAC"/>
+						<xs:enumeration value="ARM.QUIM.BIO."/>
+						<xs:enumeration value="ARM.EXPLOS."/>
+						<xs:enumeration value="CITES"/>
+						<xs:enumeration value="C ORIGEN"/>
+					</xs:restriction>
+				</xs:simpleType>
+			</xs:element>
+			<xs:any namespace="##other" minOccurs="0" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Punto de extensión para permitir otro tipo de informacion</xs:documentation>
+				</xs:annotation>
+			</xs:any>
+		</xs:sequence>
+		<xs:attribute name="SchemaVersion" type="xs:NMTOKEN" use="required" fixed="1.0">
+			<xs:annotation>
+				<xs:documentation>Versión del esquema. Permite la persistencia de la versión del esquema en instancias xml (ver Guia de Desarrollo y Uso De Esquemas De Gobierno v1.1 - 5.4.3)</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+	<xs:complexType name="TipoAutorizacionType">
+		<xs:annotation>
+			<xs:documentation>
+                Tipo Autorizacion, de los antecedentes financieros
+            </xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="Codigo">
+				<xs:simpleType>
+					<xs:restriction base="xs:string">
+						<xs:annotation>
+							<xs:documentation>El Valor 1 significaque es tipo de autorización es mediante el registro de exportación del banco Central de Chile, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 2 significa que es tipo de autorización es mediante la cuenta corriente, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 3 significa que es tipo de autorización es mediante el registro de exportación de COCHILCO (Comisión Chilena del Cobre), este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 5 significa que es tipo de autorización es mediante el informe de Exportación, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 6 significa que es tipo de autorización es mediante el informe de Cochilco (Comisión Chilena del Cobre), este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 7 significa que es tipo de autorización es a través del compendio de normas aduaneras Capitulo IX sección II, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 8 significa que es tipo de autorización es a través del compendio de normas aduaneras Capitulo X sección 1.2, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 10 significa que es tipo de autorización es a través de otro medio, distinto a los indicados en la norma aduanera, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+						</xs:annotation>
+						<xs:enumeration value="1"/>
+						<xs:enumeration value="2"/>
+						<xs:enumeration value="3"/>
+						<xs:enumeration value="5"/>
+						<xs:enumeration value="6"/>
+						<xs:enumeration value="7"/>
+						<xs:enumeration value="8"/>
+						<xs:enumeration value="10"/>
+					</xs:restriction>
+				</xs:simpleType>
+			</xs:element>
+			<xs:element name="Descripcion" minOccurs="0">
+				<xs:simpleType>
+					<xs:restriction base="xs:string">
+						<xs:annotation>
+							<xs:documentation>El Valor R-X/B.C.CH. significa que es tipo de autorización es mediante el registro de exportación del banco Central de Chile, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor AC. CTE. EJ. significa que es tipo de autorización es mediante la cuenta corriente, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor R-X/COCHILCO significa que es tipo de autorización es mediante el registro de exportación de COCHILCO (Comisión Chilena del Cobre), este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor INF.EXPORTACION significa que es tipo de autorización es mediante el informe de Exportación, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor C.N.A/CAP.IX-II significa que es tipo de autorización es mediante el informe de Cochilco (Comisión Chilena del Cobre), este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor C.N.A.CAP.X-1.2 significa que es tipo de autorización es a través del compendio de normas aduaneras Capitulo IX sección II, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor OTRAS significa que es tipo de autorización es a través de otro medio, distinto a los indicados en la norma aduanera, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+						</xs:annotation>
+						<xs:enumeration value="R-X/B.C.CH."/>
+						<xs:enumeration value="AC. CTE. EJ."/>
+						<xs:enumeration value="R-X/COCHILCO"/>
+						<xs:enumeration value="INF.EXPORTACION"/>
+						<xs:enumeration value="C.N.A/CAP.IX-II"/>
+						<xs:enumeration value="C.N.A.CAP.X-1.2"/>
+						<xs:enumeration value="OTRAS"/>
+					</xs:restriction>
+				</xs:simpleType>
+			</xs:element>
+			<xs:any namespace="##other" minOccurs="0" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Punto de extensión para permitir otro tipo de informacion</xs:documentation>
+				</xs:annotation>
+			</xs:any>
+		</xs:sequence>
+		<xs:attribute name="SchemaVersion" type="xs:NMTOKEN" use="required" fixed="1.0">
+			<xs:annotation>
+				<xs:documentation>Versión del esquema. Permite la persistencia de la versión del esquema en instancias xml (ver Guia de Desarrollo y Uso De Esquemas De Gobierno v1.1 - 5.4.3)</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+	<xs:complexType name="MonedaType">
+		<xs:annotation>
+			<xs:documentation>
+                Moneda, es la descripción de la  moneda en la cual se realiza la declaracion de los valores en un documento de salida de mercancía
+            </xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="Codigo">
+				<xs:simpleType>
+					<xs:restriction base="xs:string">
+						<xs:annotation>
+							<xs:documentation>El Valor 1 significa que el valor está declarado en peso argentino, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 4 significa que el valor está declarado en moneda BOLIVIANO de Bolivia, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 4 significa que el valor está declarado en moneda CRUZEIRO REAL de Brasil, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 6 significa que el valor está declarado en moneda DÓLAR de Canada, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 13 significa que el valor está declarado en moneda DÓLAR de los Estados Unidos de América, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 23 significa que el valor está declarado en moneda GUARANI de Paraguay, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 24 significa que el valor está declarado en moneda NUEVO SOL de Perú, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 26 significa que el valor está declarado en moneda PESO de Uruguay, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 30 significa que el valor está declarado en moneda MARCO ALEMAN de Alemania, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 36 significa que el valor está declarado en moneda DOLAR de Australia, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 37 significa que el valor está declarado en moneda CHELIN de AUSTRIA, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 40 significa que el valor está declarado en moneda FRANCO de BÉLGICA, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 48 significa que el valor está declarado en moneda RENMINBI de REP. POPULAR CHINA, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 51 significa que el valor está declarado en moneda CORONA de DINAMARCA, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 53 significa que el valor está declarado en moneda PESETA de ESPAÑA, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 57 significa que el valor está declarado en moneda MARCO de FINLANDIA, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 58 significa que el valor está declarado en moneda FRANCO de FRANCIA, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 64 significa que el valor está declarado en moneda FLORIN de HOLANDA, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 71 significa que el valor está declarado en moneda LIRA de ITALIA, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 72 significa que el valor está declarado en moneda YEN de JAPON, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 82 significa que el valor está declarado en moneda FRANCO de SUIZA, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 96 significa que el valor está declarado en moneda CORONA de NORUEGA, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 97 significa que el valor está declarado en moneda DÓLAR de NUEVA ZELANDIA, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 102 significa que el valor está declarado en moneda LIBRA ESTERLINA de REINO UNIDO, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 113 significa que el valor está declarado en moneda CORONA de SUECIA, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 127 significa que el valor está declarado en moneda DÓLAR de HONG-KONG, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 128 significa que el valor está declarado en moneda RAND de SUDÁFRICA, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 129 significa que el valor está declarado en moneda PESO de COLOMBIA, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 130 significa que el valor está declarado en moneda SUCRE de ECUADOR, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 131 significa que el valor está declarado en moneda DRACMA de GRECIA, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 132 significa que el valor está declarado en moneda NUEVO PESO de MÉXICO, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 133 significa que el valor está declarado en moneda ESCUDO de PORTUGAL, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 134 significa que el valor está declarado en moneda BOLIVAR de VENEZUELA, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 135 significa que el valor está declarado en moneda DINAR de ARGELIA, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 136 significa que el valor está declarado en moneda DÓLAR de SINGAPUR, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 137 significa que el valor está declarado en moneda RUPIA de INDIA, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 138 significa que el valor está declarado en moneda DÓLAR de TAIWAN, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 139 significa que el valor está declarado en moneda DIRHAM de EMIRATOS ARABES, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 142 significa que el valor está declarado en moneda EURO de COMUNIDAD ECONÓMICA EUROPEA, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 200 significa que el valor está declarado en moneda PESO de CHILE, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 900 significa que el valor está declarado en otra moneda Distinta a las epecificadas en las tablas de codigos del compendio de normas aduaneras</xs:documentation>
+							<xs:documentation>El Valor 901 significa que el valor está declarado en moneda europea, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+						</xs:annotation>
+						<xs:enumeration value="1"/>
+						<xs:enumeration value="4"/>
+						<xs:enumeration value="5"/>
+						<xs:enumeration value="6"/>
+						<xs:enumeration value="13"/>
+						<xs:enumeration value="23"/>
+						<xs:enumeration value="24"/>
+						<xs:enumeration value="26"/>
+						<xs:enumeration value="30"/>
+						<xs:enumeration value="36"/>
+						<xs:enumeration value="37"/>
+						<xs:enumeration value="40"/>
+						<xs:enumeration value="48"/>
+						<xs:enumeration value="51"/>
+						<xs:enumeration value="53"/>
+						<xs:enumeration value="57"/>
+						<xs:enumeration value="58"/>
+						<xs:enumeration value="64"/>
+						<xs:enumeration value="71"/>
+						<xs:enumeration value="72"/>
+						<xs:enumeration value="82"/>
+						<xs:enumeration value="96"/>
+						<xs:enumeration value="97"/>
+						<xs:enumeration value="102"/>
+						<xs:enumeration value="113"/>
+						<xs:enumeration value="127"/>
+						<xs:enumeration value="128"/>
+						<xs:enumeration value="129"/>
+						<xs:enumeration value="130"/>
+						<xs:enumeration value="131"/>
+						<xs:enumeration value="132"/>
+						<xs:enumeration value="133"/>
+						<xs:enumeration value="134"/>
+						<xs:enumeration value="135"/>
+						<xs:enumeration value="136"/>
+						<xs:enumeration value="137"/>
+						<xs:enumeration value="138"/>
+						<xs:enumeration value="139"/>
+						<xs:enumeration value="142"/>
+						<xs:enumeration value="200"/>
+						<xs:enumeration value="900"/>
+						<xs:enumeration value="901"/>
+					</xs:restriction>
+				</xs:simpleType>
+			</xs:element>
+			<xs:element name="Descripcion" minOccurs="0">
+				<xs:simpleType>
+					<xs:restriction base="xs:string">
+						<xs:annotation>
+							<xs:documentation>El Valor PESO URUG significa que el valor está declarado en moneda PESO de Uruguay, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor MARCO FIN significa que el valor está declarado en moneda MARCO de FINLANDIA, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 58 significa que el valor está declarado en moneda FRANCO de FRANCIA, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor FRANCO SZ significa que el valor está declarado en moneda FRANCO de SUIZA, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor CORONA NOR significa que el valor está declarado en moneda CORONA de NORUEGA, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 97 significa que el valor está declarado en moneda DÓLAR de NUEVA ZELANDIA, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor LIBRA EST significa que el valor está declarado en moneda LIBRA ESTERLINA de REINO UNIDO, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor CORONA SC significa que el valor está declarado en moneda CORONA de SUECIA, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor DOLAR HK significa que el valor está declarado en moneda DÓLAR de HONG-KONG, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor RAND significa que el valor está declarado en moneda RAND de SUDÁFRICA, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor PESO COL significa que el valor está declarado en moneda PESO de COLOMBIA, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor PESO MEX significa que el valor está declarado en moneda NUEVO PESO de MÉXICO, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor DOLAR SIN significa que el valor está declarado en moneda DÓLAR de SINGAPUR, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor DOLAR SIN significa que el valor está declarado en moneda DÓLAR de TAIWAN, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor DIRHAM significa que el valor está declarado en moneda DIRHAM de EMIRATOS ARABES, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor PESO CL significa que el valor está declarado en moneda PESO de CHILE, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor ECU significa que el valor está declarado en moneda europea, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+						</xs:annotation>
+						<xs:enumeration value="PESO"/>
+						<xs:enumeration value="BOLIVIANO"/>
+						<xs:enumeration value="CRUZEIRO REAL"/>
+						<xs:enumeration value="DOLAR CAN"/>
+						<xs:enumeration value="DOLAR USA"/>
+						<xs:enumeration value="GUARANI"/>
+						<xs:enumeration value="NUEVO SOL"/>
+						<xs:enumeration value="PESO URUG"/>
+						<xs:enumeration value="MARCO AL"/>
+						<xs:enumeration value="DOLAR AUST"/>
+						<xs:enumeration value="CHELIN"/>
+						<xs:enumeration value="FRANCO BEL"/>
+						<xs:enumeration value="RENMINBI"/>
+						<xs:enumeration value="CORONA DIN"/>
+						<xs:enumeration value="PESETA"/>
+						<xs:enumeration value="MARCO FIN"/>
+						<xs:enumeration value="FRANCO FR"/>
+						<xs:enumeration value="FLORIN"/>
+						<xs:enumeration value="LIRA"/>
+						<xs:enumeration value="YEN"/>
+						<xs:enumeration value="FRANCO SZ"/>
+						<xs:enumeration value="CORONA NOR"/>
+						<xs:enumeration value="DOLAR NZ"/>
+						<xs:enumeration value="LIBRA EST"/>
+						<xs:enumeration value="CORONA SC"/>
+						<xs:enumeration value="DOLAR HK"/>
+						<xs:enumeration value="RAND"/>
+						<xs:enumeration value="PESO COL"/>
+						<xs:enumeration value="SUCRE"/>
+						<xs:enumeration value="DRACMA"/>
+						<xs:enumeration value="PESO MEX"/>
+						<xs:enumeration value="ESCUDO"/>
+						<xs:enumeration value="BOLIVAR"/>
+						<xs:enumeration value="DINAR"/>
+						<xs:enumeration value="DOLAR SIN"/>
+						<xs:enumeration value="RUPIA"/>
+						<xs:enumeration value="DOLAR TAI"/>
+						<xs:enumeration value="DIRHAM"/>
+						<xs:enumeration value="EURO"/>
+						<xs:enumeration value="PESO CL"/>
+						<xs:enumeration value="OTRAS MONEDAS"/>
+						<xs:enumeration value="ECU"/>
+					</xs:restriction>
+				</xs:simpleType>
+			</xs:element>
+			<xs:any namespace="##other" minOccurs="0" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Punto de extensión para permitir otro tipo de informacion</xs:documentation>
+				</xs:annotation>
+			</xs:any>
+		</xs:sequence>
+		<xs:attribute name="SchemaVersion" type="xs:NMTOKEN" use="required" fixed="1.0">
+			<xs:annotation>
+				<xs:documentation>Versión del esquema. Permite la persistencia de la versión del esquema en instancias xml (ver Guia de Desarrollo y Uso De Esquemas De Gobierno v1.1 - 5.4.3)</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+	<xs:complexType name="ModalidadVentaType">
+		<xs:annotation>
+			<xs:documentation>
+                Modalidad de Venta, en la cual se realiza la exportación
+            </xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="Codigo">
+				<xs:simpleType>
+					<xs:restriction base="xs:string">
+						<xs:annotation>
+							<xs:documentation>El Valor 1 significa que la modalidad de venta se realizó a FIRME, es decir, las condiciones de venta no cambiarán, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 2 significa que la modalidad de venta se realizó BAJO CONDICION, es decir, las condiciones de venta pueden cambiar después de salida la mercancía del país, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 3 significa que la modalidad de venta se realizó CONSIGNACION LIBRE, es decir, la mercancía va a un mercado internacional y sus valores aún no se tienen, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 4 significa que la modalidad de venta se realizó EN CONSIGNACION CON UN MINIMO A FIRME , este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 5 significa que la modalidad de venta se realizó CONSIGNACION LIBRE A DEPOSITO FRANCO,este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor 9 significa que la modalidad de venta se realizó SIN PAGO, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+						</xs:annotation>
+						<xs:enumeration value="1"/>
+						<xs:enumeration value="2"/>
+						<xs:enumeration value="3"/>
+						<xs:enumeration value="4"/>
+						<xs:enumeration value="5"/>
+						<xs:enumeration value="9"/>
+					</xs:restriction>
+				</xs:simpleType>
+			</xs:element>
+			<xs:element name="Descripcion" minOccurs="0">
+				<xs:simpleType>
+					<xs:restriction base="xs:string">
+						<xs:annotation>
+							<xs:documentation>El Valor CONS-LIBRE significa que la modalidad de venta se realizó CONSIGNACION LIBRE, es decir, la mercancía va a un mercado internacional y sus valores aún no se tienen, este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor CONS-M.F. significa que la modalidad de venta se realizó EN CONSIGNACION CON UN MINIMO A FIRME , este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+							<xs:documentation>El Valor C-LIBRE-DF significa que la modalidad de venta se realizó CONSIGNACION LIBRE A DEPOSITO FRANCO,este valor es asignado por la aduana respecto a lo publicado en la normativa aduanera</xs:documentation>
+						</xs:annotation>
+						<xs:enumeration value="FIRME"/>
+						<xs:enumeration value="BAJO CONDICION"/>
+						<xs:enumeration value="CONS-LIBRE"/>
+						<xs:enumeration value="CONS-M.F."/>
+						<xs:enumeration value="C-LIBRE-DF"/>
+						<xs:enumeration value="OTRA"/>
+					</xs:restriction>
+				</xs:simpleType>
+			</xs:element>
+			<xs:any namespace="##other" minOccurs="0" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Punto de extensión para permitir otro tipo de informacion</xs:documentation>
+				</xs:annotation>
+			</xs:any>
+		</xs:sequence>
+		<xs:attribute name="SchemaVersion" type="xs:NMTOKEN" use="required" fixed="1.0">
+			<xs:annotation>
+				<xs:documentation>Versión del esquema. Permite la persistencia de la versión del esquema en instancias xml (ver Guia de Desarrollo y Uso De Esquemas De Gobierno v1.1 - 5.4.3)</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+	<xs:complexType name="ClausulaVentaType">
+		<xs:annotation>
+			<xs:documentation>
+                Clausula de CompraVenta, que se utilizan en comercio internacional,las condiciones de venta  y conceptos tales como las responsabilidades de entrega de mercancías en relación al precio pactado, las obligaciones del vendedor en las contrataciones de fletes y seguros y la distribución de riesgos de la operación, utilizan los denominados Incoterm que son siglas conocidas par el comercio
+            </xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="Codigo">
+				<xs:simpleType>
+					<xs:restriction base="xs:string">
+						<xs:annotation>
+							<xs:documentation>El Valor 1 significa que la Clausula utilizada es CIF (COST, INSURANCE AND FREIGHT) (COSTO, SEGURO Y FLETE) Significa que el vendedor queda libre de obligaciones cuando las mercancías sobrepasan la borda del buque en el puerto de embarque convenido, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 2 significa que la Clausula utilizada es CFR (COST AND FREIGHT (COSTO Y FLETE)) Significa que el vendedor queda libre de obligaciones cuando las mercancías sobrepasan la borda del buque en el puerto de embarque convenido, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 3 significa que la Clausula utilizada es EXW (EX WORKS (FRANCO FABRICA)) Significa que el exportador entrega sus responsabilidades cuando pone las mercancías a disposición del comprador en el establecimiento de venta, bodega o cualquier otro lugar convenido (es decir, fábrica, factoría, etc), este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 4 significa que la Clausula utilizada es FAS (FREE ALONGSIDE SHIP (FRANCO AL COSTADO DEL BUQUE)) Significa que el vendedor entrega cuando las mercancías son colocadas al costado del buque en el puerto de embarque convenido, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 5 significa que la Clausula utilizada es FOB (FREE ON BOARD (FRANCO A BORDO)) Significa que el vendedor queda libre de obligaciones cuando las mercancías sobrepasan la borda del buque en el puerto de embarque convenido. Este término puede ser utilizado sólo para el transporte por mar o por vías navegables interiores, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 6 significa que la Clausula utilizada es S/CL (SIN CLÁUSULA DE COMPRAVENTA), este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 7 significa que la Clausula utilizada es CYS (COSTO Y SEGURO), este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 8 significa que la Clausula utilizada es OTROS, es decir es otra cláusula distinta a las especificadas en lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 9 significa que la Clausula utilizada es DDP(Delivered Duty Paid), significa ENTREGADO CON LOS DERECHOS ADUANEROS PAGADOS, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 10 significa que la Clausula utilizada es FCA ((Free carrier)(FRANCO TRANSPORTISTA)),Significa que el vendedor entrega las mercancías, despachadas para la exportación, al transportista propuesto por el comprador en el lugar acordado, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 11 significa que la Clausula utilizada es CPT ((Carriage paid to) TRANSPORTE PAGADO HASTA), El vendedor paga el flete del transporte de la mercadería hasta el destino mencionado. El riesgo de pérdida o daño se transfiere del vendedor al comprador cuando la mercadería ha sido entregada al transportista. El vendedor debe despachar la mercadería para su exportación, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 12 significa que la Clausula utilizada es CIP ((Carriage and Insurance Paid to) TRANSPORTE Y SEGURO PAGADO HASTA), El vendedor tiene las mismas obligaciones que bajo CPT, pero además debe conseguir un seguro a su cargo, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 13 significa que la Clausula utilizada es DAF ((Delivered at Frontier) Entregado en frontera),El vendedor cumple con su obligación cuando entrega la mercadería, despachada en aduana, en el lugar convenido de la frontera pero antes de la aduana fronteriza del país colindante, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 14 significa que la Clausula utilizada es DES ((Delivered ex Ship) Entregada sobre buque), El vendedor cumple con su obligación cuando pone la mercadería a disposición del comprador a bordo del buque en el puerto de destino, sin despacharla en aduana para la importación, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 15 significa que la Clausula utilizada es DEQ ((Delivered ex Quay) Entregada en muelle), Término utilizado también normalmente para envíos por vía marítima. El comprador actúa en el muelle del punto de destino indicado, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 16 significa que la Clausula utilizada es DDU ((Delivered Duty Unpaid) Entregada derechos no pagados), Cuando el vendedor se encarga de todo lo necesario para entregar la mercancía en el lugar convenido, a excepción del desaduanamiento en el país de destino, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+						</xs:annotation>
+						<xs:enumeration value="1"/>
+						<xs:enumeration value="2"/>
+						<xs:enumeration value="3"/>
+						<xs:enumeration value="4"/>
+						<xs:enumeration value="5"/>
+						<xs:enumeration value="6"/>
+						<xs:enumeration value="7"/>
+						<xs:enumeration value="8"/>
+						<xs:enumeration value="9"/>
+						<xs:enumeration value="10"/>
+						<xs:enumeration value="11"/>
+						<xs:enumeration value="12"/>
+						<xs:enumeration value="13"/>
+						<xs:enumeration value="14"/>
+						<xs:enumeration value="15"/>
+						<xs:enumeration value="16"/>
+					</xs:restriction>
+				</xs:simpleType>
+			</xs:element>
+			<xs:element name="Descripcion" minOccurs="0">
+				<xs:simpleType>
+					<xs:restriction base="xs:string">
+						<xs:annotation>
+							<xs:documentation>El Valor CIF significa COST, INSURANCE AND FREIGHT (COSTO, SEGURO Y FLETE) Significa que el vendedor queda libre de obligaciones cuando las mercancías sobrepasan la borda del buque en el puerto de embarque convenido, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor CFR significa (COST AND FREIGHT (COSTO Y FLETE)) Significa que el vendedor queda libre de obligaciones cuando las mercancías sobrepasan la borda del buque en el puerto de embarque convenido, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor EXW significa (EX WORKS (FRANCO FABRICA)) Significa que el exportador entrega sus responsabilidades cuando pone las mercancías a disposición del comprador en el establecimiento de venta, bodega o cualquier otro lugar convenido (es decir, fábrica, factoría, etc), este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor FAS significa (FREE ALONGSIDE SHIP (FRANCO AL COSTADO DEL BUQUE)) Significa que el vendedor entrega cuando las mercancías son colocadas al costado del buque en el puerto de embarque convenido, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor FOB significa (FREE ON BOARD (FRANCO A BORDO)) Significa que el vendedor queda libre de obligaciones cuando las mercancías sobrepasan la borda del buque en el puerto de embarque convenido. Este término puede ser utilizado sólo para el transporte por mar o por vías navegables interiores, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor S/CL significa (SIN CLÁUSULA DE COMPRAVENTA), este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor C Y S significa  (COSTO Y SEGURO), este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El valor OTROS significa que es otra cláusula distinta a las especificadas en lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor DDP significa (Delivered Duty Paid), significa ENTREGADO CON LOS DERECHOS ADUANEROS PAGADOS, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor FCA significa ((Free carrier)(FRANCO TRANSPORTISTA)),Significa que el vendedor entrega las mercancías, despachadas para la exportación, al transportista propuesto por el comprador en el lugar acordado, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor CPT significa ((Carriage paid to) TRANSPORTE PAGADO HASTA), El vendedor paga el flete del transporte de la mercadería hasta el destino mencionado. El riesgo de pérdida o daño se transfiere del vendedor al comprador cuando la mercadería ha sido entregada al transportista. El vendedor debe despachar la mercadería para su exportación, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor CIP significa ((Carriage and Insurance Paid to) TRANSPORTE Y SEGURO PAGADO HASTA), El vendedor tiene las mismas obligaciones que bajo CPT, pero además debe conseguir un seguro a su cargo, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor DAF significa ((Delivered at Frontier) Entregado en frontera),El vendedor cumple con su obligación cuando entrega la mercadería, despachada en aduana, en el lugar convenido de la frontera pero antes de la aduana fronteriza del país colindante, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor DES significa ((Delivered ex Ship) Entregada sobre buque), El vendedor cumple con su obligación cuando pone la mercadería a disposición del comprador a bordo del buque en el puerto de destino, sin despacharla en aduana para la importación, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor DEQ significa ((Delivered ex Quay) Entregada en muelle), Término utilizado también normalmente para envíos por vía marítima. El comprador actúa en el muelle del punto de destino indicado, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor DDU significa ((Delivered Duty Unpaid) Entregada derechos no pagados), Cuando el vendedor se encarga de todo lo necesario para entregar la mercancía en el lugar convenido, a excepción del desaduanamiento en el país de destino, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+						</xs:annotation>
+						<xs:enumeration value="CIF"/>
+						<xs:enumeration value="CFR"/>
+						<xs:enumeration value="EXW"/>
+						<xs:enumeration value="FAS"/>
+						<xs:enumeration value="FOB"/>
+						<xs:enumeration value="S/CL"/>
+						<xs:enumeration value="C Y S"/>
+						<xs:enumeration value="OTROS"/>
+						<xs:enumeration value="D.D.P."/>
+						<xs:enumeration value="FCA"/>
+						<xs:enumeration value="CPT"/>
+						<xs:enumeration value="CIP"/>
+						<xs:enumeration value="DAF"/>
+						<xs:enumeration value="DES"/>
+						<xs:enumeration value="DEQ"/>
+						<xs:enumeration value="DDU"/>
+					</xs:restriction>
+				</xs:simpleType>
+			</xs:element>
+			<xs:any namespace="##other" minOccurs="0" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Punto de extensión para permitir otro tipo de informacion</xs:documentation>
+				</xs:annotation>
+			</xs:any>
+		</xs:sequence>
+		<xs:attribute name="SchemaVersion" type="xs:NMTOKEN" use="required" fixed="1.0">
+			<xs:annotation>
+				<xs:documentation>Versión del esquema. Permite la persistencia de la versión del esquema en instancias xml (ver Guia de Desarrollo y Uso De Esquemas De Gobierno v1.1 - 5.4.3)</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+	<xs:complexType name="FormaPagoType">
+		<xs:annotation>
+			<xs:documentation>
+                Forma de Pago, se refiere  a una codificación (tabla) de las distintas fornmas de pago en una exportación, especificadas dentro del compendio de nornmas aduaneras, www. aduana.cl
+            </xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="Codigo">
+				<xs:simpleType>
+					<xs:restriction base="xs:string">
+						<xs:annotation>
+							<xs:documentation>El Valor 1 significa que es un CRÉDITO DEL PROVEEDOR y que es la Cobranza hasta 1 año, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 2 significa que es un CRÉDITO DEL PROVEEDOR y que es la Cobranza más de 1 año, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 3 significa que es un COBRANZA III antes del 2000, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 4 significa que es un COBRANZA IV antes del 2000, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 5 significa que es un COBRANZA V antes del 2000, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 6 significa que es cobrabza sobre GRANEL SOLIDO, PARTICULAS FINAS (POLVO), este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 11 significa que es un CRÉDITO DE BANCOS Y ORGANISMOS FINANCIEROS y que Acreditivo hasta 1 año, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 12 significa que es un CRÉDITO DE BANCOS Y ORGANISMOS FINANCIEROS y que Acreditivo más de 1 año, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 15 significa que es un CREDITOS DE BANCOS DEL EXTERIOR A IMPORTADORES (ACUERDO 1121), este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 16 significa que es un CREDITOS CONTRATADOS POR BANCOS EN EL EXTERIOR (ACUERDO 1224), este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 21 significa que es Sin pago, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 22 significa que es SIN COBERTURA (SIN PAGO), este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 31 significa que es CREDITOS DE BANCOS TRASPASADOS DIRECTAMENTE AL IMPORTADOR, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 32 significa que existe Pago anticipado a la fecha de embarque, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 33 significa que el Pago es mas, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 34 significa que el Pago es mas, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 35 significa que existe el Pago Contado, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 50 significa que existe el Pago 5 %con Pago anticipado a la fecha de embarque y 95 % con cobranza a más de 1 año, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 51 significa que existe 	10 %con Pago anticipado a la fecha de embarque y 90 % con cobranza a más de 1 año, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 52 significa que existe 15 %con Pago anticipado a la fecha de embarque  y 85 % con cobranza a más de 1 año , este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 53 significa que existe 20 %con Pago anticipado a la fecha de embarque y 80 % con cobranza a más de 1 año, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 54 significa que existe 25 %con Pago anticipado a la fecha de embarque y 75 % con cobranza a más de 1 año , este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 55 significa que existe 30 %con Pago anticipado a la fecha de embarque y 70 % con cobranza a más de 1 año, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 56 significa que existe 35 %con Pago anticipado a la fecha de embarque y 65 % con cobranza a más de 1 año, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 57 significa que existe 40 %con Pago anticipado a la fecha de embarque y 60 % con cobranza a más de 1 año, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 58 significa que existe 45 %con Pago anticipado a la fecha de embarque y 55 % con cobranza a más de 1 año, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 59 significa que existe 50 % o más con Pago anticipado a la fecha de embarque y 50 % o menos con cobranza a más de 1 año , este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 60 significa que existe PAGO ANTICIPADO Y CRÉDITOS DE BANCOS Y ORGANISMOS FINANCIEROS, con 	5 %con Pago anticipado a la fecha de embarque y 95 % con créditos de Bancos y Org. Financieros a más de 1 año, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 61 significa que existe PAGO ANTICIPADO Y CRÉDITOS DE BANCOS Y ORGANISMOS FINANCIEROS, 10 %con Pago anticipado a la fecha de embarque  y 90 % con créditos de Bancos y Org. Financieros a más de 1 año, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 62 significa que existe PAGO ANTICIPADO Y CRÉDITOS DE BANCOS Y ORGANISMOS FINANCIEROS,15 %con Pago anticipado a la fecha de embarque y 85 % con créditos de Bancos y Org. Financieros a más de 1 año , este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 63 significa que existe PAGO ANTICIPADO Y CRÉDITOS DE BANCOS Y ORGANISMOS FINANCIEROS, 20 %con Pago anticipado a la fecha de embarque y 80 % con créditos de Bancos y Org. Financieros a más de 1 año, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 64 significa que existe PAGO ANTICIPADO Y CRÉDITOS DE BANCOS Y ORGANISMOS FINANCIEROS,25 %con Pago anticipado a la fecha de embarque y 75 % con créditos de Bancos y Org. Financieros a más de 1 año , este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 65 significa que existe PAGO ANTICIPADO Y CRÉDITOS DE BANCOS Y ORGANISMOS FINANCIEROS, 30 %con Pago anticipado a la fecha de embarque y 70 % con créditos de Bancos y Org. Financieros a más de 1 año, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 66 significa que existe PAGO ANTICIPADO Y CRÉDITOS DE BANCOS Y ORGANISMOS FINANCIEROS,35 %con Pago anticipado a la fecha de embarque y 65 % con créditos de Bancos y Org. Financieros a más de 1 año , este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 67 significa que existe PAGO ANTICIPADO Y CRÉDITOS DE BANCOS Y ORGANISMOS FINANCIEROS, 40 %con Pago anticipado a la fecha de embarque y  60 % con créditos de Bancos y Org. Financieros a más de 1 año, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 68 significa que existe PAGO ANTICIPADO Y CRÉDITOS DE BANCOS Y ORGANISMOS FINANCIEROS,  45 %con Pago anticipado a la fecha de embarque y 55 % con créditos de Bancos y Org. Financieros a más de 1 año, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 69 significa que existe PAGO ANTICIPADO Y CRÉDITOS DE BANCOS Y ORGANISMOS FINANCIEROS, 50 % o más con Pago anticipado a la fecha de embarque y 50 % o menos con créditos de Bancos y Org. Financieros a más de 1 año, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 70 significa que existe PAGO ANTICIPADO Y COBRANZA HASTA UN AÑO,10 %con Pago anticipado a la fecha de embarque y 90 % con cobranza hasta 1 año , este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 71 significa que existe PAGO ANTICIPADO Y COBRANZA HASTA UN AÑO, 20 %con Pago anticipado a la fecha de embarque y 80 % con cobranza hasta 1 año , este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 72 significa que existe PAGO ANTICIPADO Y COBRANZA HASTA UN AÑO, 30 %con Pago anticipado a la fecha de embarque y 70 % con cobranza hasta 1 año, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 73 significa que existe PAGO ANTICIPADO Y COBRANZA HASTA UN AÑO, 40 %con Pago anticipado a la fecha de embarque y 60 % con cobranza hasta 1 año, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 74 significa que existe PAGO ANTICIPADO Y COBRANZA HASTA UN AÑO,50 %con Pago anticipado a la fecha de embarque y 50 % con cobranza hasta 1 año , este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 75 significa que existe PAGO ANTICIPADO Y COBRANZA HASTA UN AÑO, Más del 50 %con Pago anticipado a la fecha de embarque y menos del 50 % con cobranza hasta 1 año, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 80 significa que existe SIN PAGO Y COBRANZA HASTA UN AÑO, 10 % Sin pago y 90 % con cobranza hasta 1 año, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 81 significa que existe SIN PAGO Y COBRANZA HASTA UN AÑO, 	20 % Sin pago y 80 % con cobranza hasta 1 año, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 82 significa que existe SIN PAGO Y COBRANZA HASTA UN AÑO,	30 % Sin pago y 70 % con cobranza hasta 1 año, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 83 significa que existe SIN PAGO Y COBRANZA HASTA UN AÑO, 	40 % Sin pago y 60 % con cobranza hasta 1 año , este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 84 significa que existe SIN PAGO Y COBRANZA HASTA UN AÑO, 	50 % Sin pago y 50 % con cobranza hasta 1 año, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 85 significa que existe SIN PAGO Y COBRANZA HASTA UN AÑO, Más del 50 % Sin pago y  menos del 50 % con cobranza hasta 1 año , este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+						</xs:annotation>
+						<xs:enumeration value="1"/>
+						<xs:enumeration value="2"/>
+						<xs:enumeration value="3"/>
+						<xs:enumeration value="4"/>
+						<xs:enumeration value="5"/>
+						<xs:enumeration value="6"/>
+						<xs:enumeration value="11"/>
+						<xs:enumeration value="12"/>
+						<xs:enumeration value="15"/>
+						<xs:enumeration value="16"/>
+						<xs:enumeration value="21"/>
+						<xs:enumeration value="22"/>
+						<xs:enumeration value="31"/>
+						<xs:enumeration value="32"/>
+						<xs:enumeration value="33"/>
+						<xs:enumeration value="34"/>
+						<xs:enumeration value="35"/>
+						<xs:enumeration value="50"/>
+						<xs:enumeration value="51"/>
+						<xs:enumeration value="52"/>
+						<xs:enumeration value="53"/>
+						<xs:enumeration value="54"/>
+						<xs:enumeration value="55"/>
+						<xs:enumeration value="56"/>
+						<xs:enumeration value="57"/>
+						<xs:enumeration value="58"/>
+						<xs:enumeration value="59"/>
+						<xs:enumeration value="60"/>
+						<xs:enumeration value="61"/>
+						<xs:enumeration value="62"/>
+						<xs:enumeration value="63"/>
+						<xs:enumeration value="64"/>
+						<xs:enumeration value="65"/>
+						<xs:enumeration value="66"/>
+						<xs:enumeration value="67"/>
+						<xs:enumeration value="68"/>
+						<xs:enumeration value="69"/>
+						<xs:enumeration value="70"/>
+						<xs:enumeration value="71"/>
+						<xs:enumeration value="72"/>
+						<xs:enumeration value="73"/>
+						<xs:enumeration value="74"/>
+						<xs:enumeration value="75"/>
+						<xs:enumeration value="80"/>
+						<xs:enumeration value="81"/>
+						<xs:enumeration value="82"/>
+						<xs:enumeration value="83"/>
+						<xs:enumeration value="84"/>
+						<xs:enumeration value="85"/>
+					</xs:restriction>
+				</xs:simpleType>
+			</xs:element>
+			<xs:element name="Descripcion" minOccurs="0">
+				<xs:simpleType>
+					<xs:restriction base="xs:string">
+						<xs:annotation>
+							<xs:documentation>El Valor COB1 significa Cobranza hasta 1 año, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor COBRANZA significa la forma de pago es por Cobranza, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor COBIII significa cobranza III norma antes del 2000, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor COBIV significa cobranza norma IV antes del 2000, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor COBV significa cobranza norma V antes del 2000, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor ACRED significa Acreditivo, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor CBOF significa Crédito de bancos y Org. financieros más de 1 año, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor CBOFA significa Crédito de bancos y Org. financieros, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor CBOFU significa CREDITOS CONTRATADOS POR BANCOS EN EL EXTERIOR (ACUERDO 1224), este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor S/PAGO significa Sin pago, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor S/COB significa Sin Cobranza, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor CBIM significa CREDITOS DE BANCOS TRASPASADOS DIRECTAMENTE AL IMPORTADOR, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor ANTICIPO significa con pago anticipado, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor MAS DOS significa Cobranza de productos, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor MAS significa pago  MAS Cobranza, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor CONTADO significa pago CONTADO, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor ANT/COB significa pago anticipado y cobranza, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor ANT/CRED significa pago anticipado y con créditos, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor S/PAGO/COB  significa Sin pago con cobranza, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+						</xs:annotation>
+						<xs:enumeration value="COB1"/>
+						<xs:enumeration value="COBRANZA"/>
+						<xs:enumeration value="COBIII"/>
+						<xs:enumeration value="COBIV"/>
+						<xs:enumeration value="COBV"/>
+						<xs:enumeration value="ACRED"/>
+						<xs:enumeration value="CBOF"/>
+						<xs:enumeration value="CBOFA"/>
+						<xs:enumeration value="CBOFU"/>
+						<xs:enumeration value="S/PAGO"/>
+						<xs:enumeration value="S/COB"/>
+						<xs:enumeration value="CBIM"/>
+						<xs:enumeration value="ANTICIPO"/>
+						<xs:enumeration value="MAS DOS"/>
+						<xs:enumeration value="MAS"/>
+						<xs:enumeration value="CONTADO"/>
+						<xs:enumeration value="ANT/COB"/>
+						<xs:enumeration value="ANT/CRED"/>
+						<xs:enumeration value="S/PAGO/COB"/>
+					</xs:restriction>
+				</xs:simpleType>
+			</xs:element>
+			<xs:any namespace="##other" minOccurs="0" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Punto de extensión para permitir otro tipo de informacion</xs:documentation>
+				</xs:annotation>
+			</xs:any>
+		</xs:sequence>
+		<xs:attribute name="SchemaVersion" type="xs:NMTOKEN" use="required" fixed="1.0">
+			<xs:annotation>
+				<xs:documentation>Versión del esquema. Permite la persistencia de la versión del esquema en instancias xml (ver Guia de Desarrollo y Uso De Esquemas De Gobierno v1.1 - 5.4.3)</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+	<xs:complexType name="UnidadMedidaType">
+		<xs:annotation>
+			<xs:documentation>
+                Unidad de Medida, en las cuales se declaran las mercancía que se exportan, la tabla de codificación de las unidades de medidas se encuentran en el anexo 51 del Compendio de Normas Aduaneras
+            </xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="Codigo">
+				<xs:simpleType>
+					<xs:restriction base="xs:string">
+						<xs:annotation>
+							<xs:documentation>El Valor 0 significa Sin Unidad de Medida, este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor 1 está asociado a descripción TMB que significa Tonelada metrica bruta, este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor 2 está asociado a descripcion QMB que significa QUINTAL METRICO BRUTO , este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor 3 está asociado a descripcion MKWH que significa metrica kilo watt hora, este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor 4 está asociado a descripción TMN que significa TONELADA METRICAS NETAS, este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor 5 está asociado a descripción QMN que significa QUINTAL METRICO NETO, este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor 6 está asociado a descripcion KN que significa KILOS NETO, este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor 7 está asociado a descripcion GN que significa GRAMOS NETOS , este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor 8 está asociado a descripcion HL significa HECTOLITRO , este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor 9 está asociado a descripcion LT que significa LITROS, este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor 10 está asociado a descripcion U que significa UNIDADES, este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor 11 esta asociado a decripcion DOC que significa DOCENAS, este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor 12 está asociado a descripcion U(JGO) que significa CENTENA, este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor 13 está asociado a descripcion P2  que significa PIES CUADRADOS, este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor 14 está asociado MT a descripcion que significa METROS , este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor 15 está asociado a descripcion MT2 que significa METROS CUADRADOS, este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor 16 está asociado a descripcion MCUB que significa METROS CUBICOS, este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor 17 está asociado a descripcion PAR que significa PAR, este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor 18 está asociado a descripcion KNFC que significa KILOS NETOS DE FINOS CONTENIDOS, este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor 19 está asociado a descripcion CARTON que significa CARTON (10 CAJETILLAS DE 20 CIGARRILLOS CADA UNA), este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor 20 está asociado a descripcion KWH que significa KILOWATTS-HORA, este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor 21 está asociado a descripcion KL que significa KILOGRAMO LEGAL, este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor 22 está asociado a descripcion GL que significa GRAMO LEGAL, este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor 23 está asociado a descripcion BAR que significa BARRILES, este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor 24 está asociado a descripcion M2/1MM que significa METROS CUADRADOS DE 1 MM DE ESPESOR, este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+						</xs:annotation>
+						<xs:enumeration value="0"/>
+						<xs:enumeration value="1"/>
+						<xs:enumeration value="2"/>
+						<xs:enumeration value="3"/>
+						<xs:enumeration value="4"/>
+						<xs:enumeration value="5"/>
+						<xs:enumeration value="6"/>
+						<xs:enumeration value="7"/>
+						<xs:enumeration value="8"/>
+						<xs:enumeration value="9"/>
+						<xs:enumeration value="10"/>
+						<xs:enumeration value="11"/>
+						<xs:enumeration value="12"/>
+						<xs:enumeration value="13"/>
+						<xs:enumeration value="14"/>
+						<xs:enumeration value="15"/>
+						<xs:enumeration value="16"/>
+						<xs:enumeration value="17"/>
+						<xs:enumeration value="18"/>
+						<xs:enumeration value="19"/>
+						<xs:enumeration value="20"/>
+						<xs:enumeration value="21"/>
+						<xs:enumeration value="22"/>
+						<xs:enumeration value="23"/>
+						<xs:enumeration value="24"/>
+					</xs:restriction>
+				</xs:simpleType>
+			</xs:element>
+			<xs:element name="Descripcion" minOccurs="0">
+				<xs:simpleType>
+					<xs:restriction base="xs:string">
+						<xs:annotation>
+							<xs:documentation>El Valor S.U.M. significa Sin Unidad de Medida, este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor TMB significa Tonelada metrica bruta, este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor QMB significa QUINTAL METRICO BRUTO , este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor MKWH significa metrica kilo watt hora, este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor TMN significa TONELADA METRICAS NETAS, este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor QMN significa QUINTAL METRICO NETO, este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor KN significa KILOS NETO, este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor GN significa GRAMOS NETOS , este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor HL significa HECTOLITRO , este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor LT significa LITROS, este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor U significa UNIDADES, este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor DOC significa DOCENAS, este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor U(JGO) que significa CENTENA, este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor P2 significa PIES CUADRADOS, este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor MT significa METROS , este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor MT2 significa METROS CUADRADOS, este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor MCUB significa METROS CUBICOS, este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor PAR significa PAR, este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor KNFC significa KILOS NETOS DE FINOS CONTENIDOS, este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor CARTON significa CARTON (10 CAJETILLAS DE 20 CIGARRILLOS CADA UNA), este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor KWH significa KILOWATTS-HORA, este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor KL significa KILOGRAMO LEGAL, este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor GL significa GRAMO LEGAL, este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor BAR significa BARRILES, este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor M2/1MM significa METROS CUADRADOS DE 1 MM DE ESPESOR, este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+						</xs:annotation>
+						<xs:enumeration value="S.U.M"/>
+						<xs:enumeration value="TMB"/>
+						<xs:enumeration value="QMB"/>
+						<xs:enumeration value="MKWH"/>
+						<xs:enumeration value="TMN"/>
+						<xs:enumeration value="QMN"/>
+						<xs:enumeration value="KN"/>
+						<xs:enumeration value="GN"/>
+						<xs:enumeration value="HL"/>
+						<xs:enumeration value="LT"/>
+						<xs:enumeration value="U"/>
+						<xs:enumeration value="DOC"/>
+						<xs:enumeration value="U(JGO)"/>
+						<xs:enumeration value="P2"/>
+						<xs:enumeration value="MT"/>
+						<xs:enumeration value="MT2"/>
+						<xs:enumeration value="MCUB"/>
+						<xs:enumeration value="PAR"/>
+						<xs:enumeration value="KNFC"/>
+						<xs:enumeration value="CARTON"/>
+						<xs:enumeration value="KWH"/>
+						<xs:enumeration value="KL"/>
+						<xs:enumeration value="GL"/>
+						<xs:enumeration value="BAR"/>
+						<xs:enumeration value="M2/1MM"/>
+					</xs:restriction>
+				</xs:simpleType>
+			</xs:element>
+			<xs:any namespace="##other" minOccurs="0" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Punto de extensión para permitir otro tipo de informacion</xs:documentation>
+				</xs:annotation>
+			</xs:any>
+		</xs:sequence>
+		<xs:attribute name="SchemaVersion" type="xs:NMTOKEN" use="required" fixed="1.0">
+			<xs:annotation>
+				<xs:documentation>Versión del esquema. Permite la persistencia de la versión del esquema en instancias xml (ver Guia de Desarrollo y Uso De Esquemas De Gobierno v1.1 - 5.4.3)</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+	<xs:complexType name="SeleccionAforoType">
+		<xs:annotation>
+			<xs:documentation>Aforo, indica el aforo que debe ser procesada la declaracion de salidas de Mercancías</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="Codigo">
+				<xs:simpleType>
+					<xs:restriction base="xs:string">
+						<xs:annotation>
+							<xs:documentation>El Valor L está asociado a descripcion SIN INSPECCION significa que se hace ninguna revisión, este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor D está asociado a descripcion DOCUMENTAL significa que se hace revision de documentos, este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor F está asociado a descripcion FISICO significa que se hace una revision de documentos y fisica de mercancía, este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+						</xs:annotation>
+						<xs:enumeration value="L"/>
+						<xs:enumeration value="D"/>
+						<xs:enumeration value="F"/>
+					</xs:restriction>
+				</xs:simpleType>
+			</xs:element>
+			<xs:element name="Descripcion" minOccurs="0">
+				<xs:simpleType>
+					<xs:restriction base="xs:string">
+						<xs:annotation>
+							<xs:documentation>El Valor SIN INSPECCION significa que se hace ninguna revisión, este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor DOCUMENTAL significa que se hace revision de documentos, este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+							<xs:documentation>El Valor FISICO significa que se hace una revision de documentos y fisica de mercancía, este valor es asignado por la aduana respecto a las normativas internas</xs:documentation>
+						</xs:annotation>
+						<xs:enumeration value="SIN INSPECCION"/>
+						<xs:enumeration value="DOCUMENTAL"/>
+						<xs:enumeration value="FISICO"/>
+					</xs:restriction>
+				</xs:simpleType>
+			</xs:element>
+			<xs:any namespace="##other" minOccurs="0" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Punto de extensión para permitir otro tipo de informacion</xs:documentation>
+				</xs:annotation>
+			</xs:any>
+		</xs:sequence>
+		<xs:attribute name="SchemaVersion" type="xs:NMTOKEN" use="required" fixed="1.0">
+			<xs:annotation>
+				<xs:documentation>Versión del esquema. Permite la persistencia de la versión del esquema en instancias xml (ver Guia de Desarrollo y Uso De Esquemas De Gobierno v1.1 - 5.4.3)</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+	<xs:complexType name="TipoBultoType">
+		<xs:annotation>
+			<xs:documentation>
+                Tipo de Bulto, es la manera en como se presentan las mercancías a ser exportadas
+            </xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="Codigo">
+				<xs:simpleType>
+					<xs:restriction base="xs:string">
+						<xs:annotation>
+							<xs:documentation>El Valor 1 está asociado a descripcion POLVO que significa GRANEL SÓLIDO, PARTICULAS FINAS (POLVO) , este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 2 está asociado a descripcion GRANOS que significa GRANEL SÓLIDO, PARTICULAS GRANULARES (GRANOS), este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 3 está asociado a descripcion NÓDULOS que significa GRANEL SÓLIDO, PARTICULAS GRANDES (NÓDULOS) , este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 4 está asociado a descripcion LÍQUIDO que significa GRANEL LÍQUIDO, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 5 está asociado a descripcion GAS que significa GRANEL GASEOSO, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 10 está asociado a descripcion PIEZA que significa PIEZAS , este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 11 está asociado a descripcion TUBO que significa TUBO, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 12 está asociado a descripcion CILINDRO que significa CILINDROS, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 13 está asociado a descripcion ROLLO que significa ROLLOS, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 16 está asociado a descripcion BARRA que significa BARRAS, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 17 está asociado a descripcion LINGOTE que significa LINGOTES , este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 18 está asociado a descripcion TRONCO que significa TRONCOS, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 21 está asociado a descripcion CAJON que significa CAJON, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 22 está asociado a descripcion CAJA DE CARTÓN que significa CAJAS DE CARTÓN , este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 23 está asociado a descripcion FARDO que significa FARDOS, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 24 está asociado a descripcion BAÚL que significa BAÚL , este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 25 está asociado a descripcion MALETA que significa MALETA, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 26 está asociado a descripcion ARMAZÓN que significa ARMAZÓN, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 27 está asociado a descripcion BANDEJA que significa BANDEJA, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 28 está asociado a descripcion CAJAMADERA que significa CAJAS DE MADERA, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 29 está asociado a descripcion CAJALATA que significa CAJAS DE LATA, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 30 está asociado a descripcion CAJANOESPEC que significa CAJAS NO ESPECIFICADAS, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 31 está asociado a descripcion que significa , este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 32 está asociado a descripcion BOTELLA que significa BOTELLA, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 33 está asociado a descripcion JAULA que significa JAULA , este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 34 está asociado a descripcion BIDON que significa BIDON, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 35 está asociado a descripcion JABA que significa JABA , este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 36 está asociado a descripcion CESTA que significa CESTA, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 37 está asociado a descripcion BARRILETE que significa BARRILETE, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 38 está asociado a descripcion TONEL que significa TONEL , este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 39 está asociado a descripcion PIPAS que significa PIPAS, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 41 está asociado a descripcion JARRO que significa JARRO , este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 42 está asociado a descripcion FRASCO que significa FRASCO, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 43 está asociado a descripcion DAMAJUANA que significa DAMAJUANA, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 44 está asociado a descripcion BARRIL que significa BARRIL, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 45 está asociado a descripcion TAMBOR que significa TAMBOR, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 46 está asociado a descripcion CUÑETE que significa CUÑETE, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 47 está asociado a descripcion TARRO que significa TARRO, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 51 está asociado a descripcion CUBO que significa CUBO, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 61 está asociado a descripcion PAQUETE que significa PAQUETE, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 62 está asociado a descripcion SACO que significa SACO, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 63 está asociado a descripcion MALETA que significa MALETA, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 64 está asociado a descripcion BOLSA que significa BOLSA, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 65 está asociado a descripcion BALA que significa BALA, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 66 está asociado a descripcion RED que significa RED, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 67 está asociado a descripcion SOBRE que significa SOBRE, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 74 está asociado a descripcion CONT40 que significa CONTENEDOR DE 40 PIES, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 75 está asociado a descripcion CONTENEDOR REFRIGERADO que significa CONTENEDOR REFRIGERADO, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 77 está asociado a descripcion ESTANQUE que significa ESTANQUE, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 78 está asociado a CONT20 que significa CONTENEDOR DE 20 PIES, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 79 está asociado a CONTNOESP que significa 	CONTENEDOR NO ESPECIFICADO, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 80 está asociado a descripcion PALLET que significa PALLET, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 81 está asociado a descripcion TABLERO que significa TABLERO, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 82 está asociado a descripcion LAMINA que significa LAMINA, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 83 está asociado a descripcion CARRETE que significa CARRETE, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 85 está asociado a descripcion AUTOMOTOR que significa AUTOMOTOR, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 88 está asociado a descripcion MAQUINARIA que significa MAQUINARIA, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 89 está asociado a descripcion PLANCHA que significa PLANCHA, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 90 está asociado a descripcion ATADO que significa ATADO, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 91 está asociado a descripcion BOBINA que significa BOBINA, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 92 está asociado a descripcion ATAÚD que significa ATAÚD, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 95 está asociado a descripcion IND. TIPO DE BULTO que significa Individualiza bulto, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 98 está asociado a descripcion SIN BULTO que significa NO EXISTE BULTO, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+							<xs:documentation>El Valor 99 está asociado a descripcion S/EMBALAR que significa SIN EMBALAR, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+						</xs:annotation>
+						<xs:enumeration value="1"/>
+						<xs:enumeration value="2"/>
+						<xs:enumeration value="3"/>
+						<xs:enumeration value="4"/>
+						<xs:enumeration value="5"/>
+						<xs:enumeration value="10"/>
+						<xs:enumeration value="11"/>
+						<xs:enumeration value="12"/>
+						<xs:enumeration value="13"/>
+						<xs:enumeration value="16"/>
+						<xs:enumeration value="17"/>
+						<xs:enumeration value="18"/>
+						<xs:enumeration value="21"/>
+						<xs:enumeration value="22"/>
+						<xs:enumeration value="23"/>
+						<xs:enumeration value="24"/>
+						<xs:enumeration value="25"/>
+						<xs:enumeration value="26"/>
+						<xs:enumeration value="27"/>
+						<xs:enumeration value="28"/>
+						<xs:enumeration value="29"/>
+						<xs:enumeration value="30"/>
+						<xs:enumeration value="31"/>
+						<xs:enumeration value="32"/>
+						<xs:enumeration value="33"/>
+						<xs:enumeration value="34"/>
+						<xs:enumeration value="35"/>
+						<xs:enumeration value="36"/>
+						<xs:enumeration value="37"/>
+						<xs:enumeration value="38"/>
+						<xs:enumeration value="39"/>
+						<xs:enumeration value="41"/>
+						<xs:enumeration value="42"/>
+						<xs:enumeration value="43"/>
+						<xs:enumeration value="44"/>
+						<xs:enumeration value="45"/>
+						<xs:enumeration value="46"/>
+						<xs:enumeration value="47"/>
+						<xs:enumeration value="51"/>
+						<xs:enumeration value="61"/>
+						<xs:enumeration value="62"/>
+						<xs:enumeration value="63"/>
+						<xs:enumeration value="64"/>
+						<xs:enumeration value="65"/>
+						<xs:enumeration value="66"/>
+						<xs:enumeration value="67"/>
+						<xs:enumeration value="74"/>
+						<xs:enumeration value="75"/>
+						<xs:enumeration value="77"/>
+						<xs:enumeration value="78"/>
+						<xs:enumeration value="79"/>
+						<xs:enumeration value="80"/>
+						<xs:enumeration value="81"/>
+						<xs:enumeration value="82"/>
+						<xs:enumeration value="83"/>
+						<xs:enumeration value="85"/>
+						<xs:enumeration value="88"/>
+						<xs:enumeration value="89"/>
+						<xs:enumeration value="90"/>
+						<xs:enumeration value="91"/>
+						<xs:enumeration value="92"/>
+						<xs:enumeration value="95"/>
+						<xs:enumeration value="98"/>
+						<xs:enumeration value="99"/>
+					</xs:restriction>
+				</xs:simpleType>
+			</xs:element>
+			<xs:element name="Descripcion" minOccurs="0">
+				<xs:simpleType>
+					<xs:restriction base="xs:string">
+						<xs:annotation>
+							<xs:documentation>El Valor IND. TIPO DE BULTO que significa Individualiza bulto, este valor es asignado por la aduana respecto a lo publicado en el Compendio de Normas Aduaneras (www.aduana.cl)</xs:documentation>
+						</xs:annotation>
+						<xs:enumeration value="POLVO"/>
+						<xs:enumeration value="GRANEL SOLIDO,GRANOS"/>
+						<xs:enumeration value="GRANEL SOLIDO,NODULO"/>
+						<xs:enumeration value="GRANEL LIQUIDO"/>
+						<xs:enumeration value="GRANEL GASEOSO (GAS)"/>
+						<xs:enumeration value="PIEZA"/>
+						<xs:enumeration value="TUBOS"/>
+						<xs:enumeration value="CILINDROS"/>
+						<xs:enumeration value="ROLLOS"/>
+						<xs:enumeration value="BARRAS"/>
+						<xs:enumeration value="LINGOTE"/>
+						<xs:enumeration value="TRONCOS"/>
+						<xs:enumeration value="CAJON"/>
+						<xs:enumeration value="CAJA DE CARTON"/>
+						<xs:enumeration value="FARDO"/>
+						<xs:enumeration value="BAUL"/>
+						<xs:enumeration value="COFRES"/>
+						<xs:enumeration value="ARMAZON"/>
+						<xs:enumeration value="BANDEJA"/>
+						<xs:enumeration value="CAJAS DE MADERA"/>
+						<xs:enumeration value="CAJAS DE LATA"/>
+						<xs:enumeration value="CAJAS NO DE MADERA"/>
+						<xs:enumeration value="BOTELLA DE GAS"/>
+						<xs:enumeration value="BOTELLA"/>
+						<xs:enumeration value="JAULAS"/>
+						<xs:enumeration value="BIDON"/>
+						<xs:enumeration value="JABAS"/>
+						<xs:enumeration value="CESTAS"/>
+						<xs:enumeration value="BARRILETES"/>
+						<xs:enumeration value="TONEL"/>
+						<xs:enumeration value="PIPAS"/>
+						<xs:enumeration value="JARRO"/>
+						<xs:enumeration value="FRASCO"/>
+						<xs:enumeration value="DAMAJUANA"/>
+						<xs:enumeration value="BARRIL"/>
+						<xs:enumeration value="TAMBOR"/>
+						<xs:enumeration value="CUÑETES"/>
+						<xs:enumeration value="TARROS"/>
+						<xs:enumeration value="CUBO"/>
+						<xs:enumeration value="PAQUETE"/>
+						<xs:enumeration value="SACOS"/>
+						<xs:enumeration value="MALETA"/>
+						<xs:enumeration value="BOLSA"/>
+						<xs:enumeration value="BALA"/>
+						<xs:enumeration value="RED"/>
+						<xs:enumeration value="SOBRE"/>
+						<xs:enumeration value="CONTENEDOR REFRIGERADO"/>
+						<xs:enumeration value="ESTANQUE"/>
+						<xs:enumeration value="CONTENEDOR NO REFRIGERADO"/>
+						<xs:enumeration value="CONTNOESP"/>
+						<xs:enumeration value="PALLETS"/>
+						<xs:enumeration value="TABLEROS"/>
+						<xs:enumeration value="LAMINAS"/>
+						<xs:enumeration value="CARRETE"/>
+						<xs:enumeration value="AUTOMOTOR"/>
+						<xs:enumeration value="MAQUINARIAS"/>
+						<xs:enumeration value="PLANCHAS"/>
+						<xs:enumeration value="ATADOS"/>
+						<xs:enumeration value="BOBINA"/>
+						<xs:enumeration value="OTROS"/>
+						<xs:enumeration value="IND. TIPO DE BULTO"/>
+						<xs:enumeration value="SINBULTO"/>
+						<xs:enumeration value="SIN EMBALAR"/>
+					</xs:restriction>
+				</xs:simpleType>
+			</xs:element>
+			<xs:any namespace="##other" minOccurs="0" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Punto de extensión para permitir otro tipo de informacion</xs:documentation>
+				</xs:annotation>
+			</xs:any>
+		</xs:sequence>
+		<xs:attribute name="SchemaVersion" type="xs:NMTOKEN" use="required" fixed="1.0">
+			<xs:annotation>
+				<xs:documentation>Versión del esquema. Permite la persistencia de la versión del esquema en instancias xml (ver Guia de Desarrollo y Uso De Esquemas De Gobierno v1.1 - 5.4.3)</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+	<xs:complexType name="TipoEnvioType">
+		<xs:sequence>
+			<xs:element name="Codigo">
+				<xs:annotation>
+					<xs:documentation>Codigo</xs:documentation>
+				</xs:annotation>
+				<xs:simpleType>
+					<xs:restriction base="xs:positiveInteger">
+						<xs:totalDigits value="2"/>
+					</xs:restriction>
+				</xs:simpleType>
+			</xs:element>
+			<xs:element name="Descripcion" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Descripcion</xs:documentation>
+				</xs:annotation>
+				<xs:simpleType>
+					<xs:restriction base="xs:string">
+						<xs:maxLength value="30"/>
+					</xs:restriction>
+				</xs:simpleType>
+			</xs:element>
+			<xs:any namespace="##other" minOccurs="0" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Punto de extensión para permitir otro tipo de informacion</xs:documentation>
+				</xs:annotation>
+			</xs:any>
+		</xs:sequence>
+		<xs:attribute name="SchemaVersion" type="xs:NMTOKEN" use="required" fixed="1.0">
+			<xs:annotation>
+				<xs:documentation>Versión del esquema. Permite la persistencia de la versión del esquema en instancias xml (ver Guia de Desarrollo y Uso De Esquemas De Gobierno v1.1 - 5.4.3)</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+	<xs:complexType name="CodigoDescripcion3Type">
+		<xs:sequence>
+			<xs:element name="Codigo">
+				<xs:annotation>
+					<xs:documentation>codigo</xs:documentation>
+				</xs:annotation>
+				<xs:simpleType>
+					<xs:restriction base="xs:positiveInteger">
+						<xs:totalDigits value="3"/>
+					</xs:restriction>
+				</xs:simpleType>
+			</xs:element>
+			<xs:element name="Descripcion" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Descripcion</xs:documentation>
+				</xs:annotation>
+				<xs:simpleType>
+					<xs:restriction base="xs:string">
+						<xs:maxLength value="30"/>
+					</xs:restriction>
+				</xs:simpleType>
+			</xs:element>
+			<xs:any namespace="##other" minOccurs="0" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Punto de extensión para permitir otro tipo de informacion</xs:documentation>
+				</xs:annotation>
+			</xs:any>
+		</xs:sequence>
+		<xs:attribute name="SchemaVersion" type="xs:NMTOKEN" use="required" fixed="1.0">
+			<xs:annotation>
+				<xs:documentation>Versión del esquema. Permite la persistencia de la versión del esquema en instancias xml (ver Guia de Desarrollo y Uso De Esquemas De Gobierno v1.1 - 5.4.3)</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+	<xs:complexType name="CodigoDescripcion5Type">
+		<xs:sequence>
+			<xs:element name="Codigo">
+				<xs:annotation>
+					<xs:documentation>Codigo</xs:documentation>
+				</xs:annotation>
+				<xs:simpleType>
+					<xs:restriction base="xs:positiveInteger">
+						<xs:totalDigits value="5"/>
+					</xs:restriction>
+				</xs:simpleType>
+			</xs:element>
+			<xs:element name="Descripcion" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Descripcion</xs:documentation>
+				</xs:annotation>
+				<xs:simpleType>
+					<xs:restriction base="xs:string">
+						<xs:maxLength value="30"/>
+					</xs:restriction>
+				</xs:simpleType>
+			</xs:element>
+			<xs:any namespace="##other" minOccurs="0" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Punto de extensión para permitir otro tipo de informacion</xs:documentation>
+				</xs:annotation>
+			</xs:any>
+		</xs:sequence>
+		<xs:attribute name="SchemaVersion" type="xs:NMTOKEN" use="required" fixed="1.0">
+			<xs:annotation>
+				<xs:documentation>Versión del esquema. Permite la persistencia de la versión del esquema en instancias xml (ver Guia de Desarrollo y Uso De Esquemas De Gobierno v1.1 - 5.4.3)</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+</xs:schema>

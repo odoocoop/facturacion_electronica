@@ -96,13 +96,30 @@ class AccountInvoiceRefund(models.TransientModel):
                                         }
                                     ]
                                 ]
-                    referencias = [[0,0, {
+
+                    referencias = []
+                    i = 1
+                    '''
+                    for r in inv.referencias:
+                        referencias.append([0,0, {
+                                'sequence': i,
+                                'origen': r.origen,
+                                'sii_referencia_TpoDocRef': r.sii_referencia_TpoDocRef.id,
+                                'sii_referencia_CodRef': r.sii_referencia_CodRef,
+                                'motivo': r.motivo,
+                                'fecha_documento': r.fecha_documento,
+                            }]
+                        )
+                        i += 1
+                    '''
+                    referenicas.append([0,0, {
+                            'sequence': i,
                             'origen': inv.sii_document_number,
                             'sii_referencia_TpoDocRef': inv.document_class_id.id,
                             'sii_referencia_CodRef': mode,
                             'motivo': description,
                             'fecha_documento': inv.date_invoice
-                        }]]
+                        }])
                     invoice.update({
                                 'date_invoice': date,
                                 'state': 'draft',

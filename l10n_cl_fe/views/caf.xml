@@ -57,6 +57,7 @@
                 <form string="SII CAF Files for DTE">
                     <header>
                         <field name="status" widget="statusbar"/>
+                        <button name="load_caf" string="Load CAF" type="object" />
                     </header>
                     <sheet>
                         <div class="oe_title">

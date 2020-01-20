@@ -104,6 +104,7 @@ has been exhausted.''',
             ]
 
     @api.onchange("caf_file",)
+    @api.multi
     def load_caf(self, flags=False):
         if not self.caf_file or not self.sequence_id:
             return

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <!-- Inherit Form view -->
+  <record id="stock_incoterms_form" model="ir.ui.view">
+    <field name="name">stock_incoterms_form.form</field>
+    <field name="model">stock.incoterms</field>
+    <field name="inherit_id" ref="stock.stock_incoterms_form"/>
+    <field name="arch" type="xml">
+      <field name="code" position="after">
+        <field name="aduanas_code" />
+      </field>
+    </field>
+  </record>
+</odoo>
