@@ -10,4 +10,5 @@ from . import aduanas_tipos_carga
 from . import aduanas_tipos_transporte
 from . import product_uom
 from . import payment_terms
+from . import res_country
 from . import stock_incoterms

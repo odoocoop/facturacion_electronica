@@ -13,3 +13,8 @@ class AduanasPaises(models.Model):
     abreviatura = fields.Char(
             string="Abreviatura",
         )
+    country_ids = fields.One2many(
+        'res.country',
+        'aduanas_id',
+        string="Países"
+    )

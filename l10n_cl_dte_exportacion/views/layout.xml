@@ -91,6 +91,9 @@
               <th>Cantidad Bultos</th>
               <th>Tipo de Bultos</th>
               <th>Marca</th>
+              <th>Id Container</th>
+              <th>Sello</th>
+              <th>Emisor Sello</th>
             </tr>
           </thead>
           <tbody>
@@ -98,6 +101,9 @@
               <td><span t-field="bulto.cantidad_bultos"/></td>
               <td><span t-field="bulto.tipo_bulto"/></td>
               <td><span t-field="bulto.marcas"/></td>
+              <td><span t-field="bulto.id_container"/></td>
+              <td><span t-field="bulto.sello"/></td>
+              <td><span t-field="bulto.emisor_sello"/></td>
             </tr>
            </tbody>
         </table>

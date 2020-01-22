@@ -13,3 +13,11 @@ class AduanasFormasPago(models.Model):
     sigla = fields.Char(
             string="Sigla",
         )
+
+
+    @api.multi
+    def name_get(self):
+        res = []
+        for i in self:
+            res.append((i.id, '%s.-[%s]: %s' %(i.code, i.sigla, i.name)))
+        return res

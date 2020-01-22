@@ -41,7 +41,7 @@
                         <h4 style="text-align:lef;text-transform:uppercase;font-weight:900;font-size:18px;color:black;">
                             <span t-field="company.name"/>
                         </h4>
-                        <p style="text-align:center;font-size:14px;color:black; text-transform:uppercase;">
+                        <p style="text-align:center;font-size:13px;color:black; text-transform:uppercase;">
                             <span t-field="company.activity_description.name" style="color:black; text-align:center;"/><br/>
                             <!-- domicilios -->
                             <span t-field="company.street"/>, <span t-field="company.city_id.name"/>, <span t-field="company.city"/><br/>
@@ -223,7 +223,7 @@
                           <table class="table table-condensed">
                               <t t-if="o.global_descuentos_recargos">
                                 <tr>
-                                  <td><strong>Descuento o Recargo Global</strong></td>
+                                  <td style="max-height:11px; font-size:12px !important;"><strong>Descuento o Recargo Global</strong></td>
                                 </tr>
                                 <tr t-foreach="o.global_descuentos_recargos" t-as="gdr" style="max-height:10px; font-size:10px !important;">
                                   <td><span t-esc="gdr.name" /> </td>

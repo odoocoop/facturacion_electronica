@@ -39,9 +39,13 @@
       <form string="Bultos">
         <sheet>
           <group>
-            <field name="tipo_bulto"/>
             <field name="cantidad_bultos"/>
-            <field name="marcas" />
+            <field name="tipo_bulto"/>
+            <field name="tipo_bulto_code" invisible="1"/>
+            <field name="marcas" attrs="{'invisible': [('tipo_bulto_code', 'in', ['75', '78'])], 'required': ('tipo_bulto_code', 'not in', ['75', '78'])}"/>
+            <field name="id_container" attrs="{'invisible': [('tipo_bulto_code', 'not in', ['75', '78'])], 'required': ('tipo_bulto_code', 'in', ['75', '78'])}" />
+            <field name="sello" attrs="{'invisible': [('tipo_bulto_code', 'not in', ['75', '78'])], 'required': ('tipo_bulto_code', 'in', ['75', '78'])}" />
+            <field name="emisor_sello" attrs="{'invisible': [('tipo_bulto_code', 'not in', ['75', '78'])]}" />
             <field name="exportacion_id" invisible="1"/>
           </group>
         </sheet>

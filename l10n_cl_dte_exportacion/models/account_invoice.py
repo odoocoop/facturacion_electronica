@@ -221,9 +221,7 @@ class Exportacion(models.Model):
         ciudad_recep = self.partner_id.city or self.commercial_partner_id.city
         if ciudad_recep:
             Receptor['CiudadRecep'] = ciudad_recep
-        country = self.env['aduanas.paises'].sudo().search([
-            ('name', '=', self.partner_id.commercial_partner_id.country_id.name.upper())])
-        Receptor['Nacionalidad'] = country.code
+        Receptor['Nacionalidad'] = self.partner_id.commercial_partner_id.country_id.aduanas_id.code
         return Receptor
 
     def _validaciones_uso_dte(self):
@@ -248,7 +246,12 @@ class Exportacion(models.Model):
             Bulto = dict()
             Bulto['CodTpoBultos'] = b.tipo_bulto.code
             Bulto['CantBultos'] = b.cantidad_bultos
-            Bulto['Marcas'] = b.marcas
+            if b.marcas:
+                Bulto['Marcas'] = b.marcas
+            if b.id_container:
+                Bulto['IdContainer'] = b.id_container
+                Bulto['Sello'] = b.sello
+                Bulto['EmisorSello'] = b.emisor_sello
             Bultos.append(Bulto)
         return Bultos
 
@@ -392,3 +395,8 @@ class Exportacion(models.Model):
     @api.onchange('bultos')
     def tot_bultos(self):
         self.exportacion.tot_bultos()
+
+    @api.onchange('currency_id')
+    def update_exportacion(self):
+        if self.exportacion:
+            self.exportacion.currency_id = self.currency_id

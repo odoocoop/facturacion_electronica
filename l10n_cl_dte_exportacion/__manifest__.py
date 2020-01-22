@@ -2,7 +2,7 @@
 {
     "name": """Factura de Exportación Electrónica para Chile\
     """,
-    'version': '0.18.2',
+    'version': '0.18.3',
     'category': 'Localization/Chile',
     'sequence': 12,
     'author':  'Daniel Santibáñez Polanco, Cooperativa OdooCoop',

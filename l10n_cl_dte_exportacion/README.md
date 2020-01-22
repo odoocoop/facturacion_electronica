@@ -7,4 +7,4 @@ Modulo para la emisión de Factura, nota de Crédito, Nota de Débito de Exporta
 -- Necesita mayor BI de Exportación ( Sobre todo con los incoterms, fletes y seguros)
 -- Funcional en Certificación (ya ha pasado una)
 -- Se necesita mejorar Layout
--- Necesita librería facturacion_electronica>=0.9.5
+-- Necesita librería facturacion_electronica>=0.9.7

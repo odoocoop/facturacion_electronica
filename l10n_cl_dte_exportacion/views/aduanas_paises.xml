@@ -10,6 +10,7 @@
             <field name="code"/>
             <field name="name"/>
             <field name="abreviatura"/>
+            <field name="country_ids" widget="many2many_tags"/>
           </group>
         </sheet>
       </form>
