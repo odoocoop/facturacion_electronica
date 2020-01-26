@@ -11,6 +11,7 @@
               <field name="valor"/>
               <field name="gdr_type"/>
               <field name="gdr_detail"/>
+              <field name="impuesto"/>
               <field name="amount_untaxed_global_dr"/>
               <field name="invoice_id" invisible="1"/>
           </group>

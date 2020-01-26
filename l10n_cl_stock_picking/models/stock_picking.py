@@ -11,26 +11,97 @@ _logger = logging.getLogger(__name__)
 class StockPicking(models.Model):
     _inherit = "stock.picking"
 
-    @api.onchange('currency_id', 'move_lines', 'move_reason')
+    @api.onchange('currency_id', 'move_lines.subtotal', 'move_reason')
     def _compute_amount(self):
         for rec in self:
             amount_untaxed = 0
-            amount_tax = 0
+            amount_total = 0
             if rec.move_reason not in ['5']:
                 taxes = {}
-                if rec.move_lines:
-                    for move in rec.move_lines:
-                        if move.move_line_tax_ids:
-                            for t in move.move_line_tax_ids:
-                                taxes.setdefault(t, 0)
-                                taxes[t] += move.subtotal
-                if taxes:
-                    for t, value in taxes.items():
-                        amount_tax += t.compute_all(value, rec.currency_id, 1)['taxes'][0]['amount']
-                        amount_untaxed += t.compute_all(value, rec.currency_id, 1)['total_excluded']
-                rec.amount_tax = amount_tax
+                for move in rec.move_lines:
+                    amount_untaxed += move.price_untaxed
+                    amount_total += move.subtotal
+                rec.amount_tax = (amount_total -amount_untaxed)
                 rec.amount_untaxed = amount_untaxed
-            rec.amount_total = amount_untaxed + amount_tax
+            rec.amount_total = amount_untaxed + rec.amount_tax
+
+    def _prepare_tax_line_vals(self, line, tax):
+        """ Prepare values to create an account.invoice.tax line
+
+        The line parameter is an account.invoice.line, and the
+        tax parameter is the output of account.tax.compute_all().
+        """
+        vals = {
+            'invoice_id': self.id,
+            'name': tax['name'],
+            'tax_id': tax['id'],
+            'amount': tax['amount'],
+            'base': tax['base'],
+            'manual': False,
+            'sequence': tax['sequence'],
+            'amount_retencion': tax['retencion']
+        }
+        return vals
+
+    def _get_grouped_taxes(self, line, taxes, tax_grouped={}):
+        for tax in taxes:
+            val = self._prepare_tax_line_vals(line, tax)
+            key = self.env['account.tax'].browse(tax['id']).get_grouping_key(val)
+            if key not in tax_grouped:
+                tax_grouped[key] = val
+            else:
+                tax_grouped[key]['amount'] += val['amount']
+                tax_grouped[key]['amount_retencion'] += val['amount_retencion']
+                tax_grouped[key]['base'] += val['base']
+        return tax_grouped
+
+    @api.multi
+    def get_taxes_values(self):
+        tax_grouped = {}
+        totales = {}
+        included = False
+        for line in self.move_lines:
+            qty = line.quantity_done
+            if qty <= 0:
+                qty = line.product_uom_qty
+            if (line.move_line_tax_ids and line.move_line_tax_ids[0].price_include) :# se asume todos losproductos vienen con precio incluido o no ( no hay mixes)
+                if included or not tax_grouped:#genero error en caso de contenido mixto, en caso primer impusto no incluido segundo impuesto incluido
+                    for t in line.move_line_tax_ids:
+                        if t not in totales:
+                            totales[t] = 0
+                        amount_line = (self.currency_id.round(line.precio_unitario *qty))
+                        totales[t] += (amount_line * (1 - (line.discount / 100)))
+                included = True
+            else:
+                included = False
+            if (totales and not included) or (included and not totales):
+                raise UserError('No se puede hacer timbrado mixto, todos los impuestos en este pedido deben ser uno de estos dos:  1.- precio incluído, 2.-  precio sin incluir')
+            taxes = line.move_line_tax_ids.compute_all(line.price_unit, self.currency_id, qty, line.product_id, self.partner_id, discount=line.discount, uom_id=line.product_uom)['taxes']
+            tax_grouped = self._get_grouped_taxes(line, taxes, tax_grouped)
+        #if totales:
+        #    tax_grouped = {}
+        #    for line in self.invoice_line_ids:
+        #        for t in line.invoice_line_tax_ids:
+        #            taxes = t.compute_all(totales[t], self.currency_id, 1)['taxes']
+        #            tax_grouped = self._get_grouped_taxes(line, taxes, tax_grouped)
+        #_logger.warning(tax_grouped)
+        '''
+        @TODO GDR para guías
+        if not self.global_descuentos_recargos:
+            return tax_grouped
+        gdr, gdr_exe = self.porcentaje_dr()
+        taxes = {}
+        for t, group in tax_grouped.items():
+            if t not in taxes:
+                taxes[t] = group
+            tax = self.env['account.tax'].browse(group['tax_id'])
+            if tax.amount > 0:
+                taxes[t]['amount'] *= gdr
+                taxes[t]['base'] *= gdr
+            else:
+                taxes[t]['amount'] *= gdr_exe
+        '''
+        return taxes
 
     def set_use_document(self):
         return (self.picking_type_id and self.picking_type_id.code != 'incoming')
@@ -42,12 +113,10 @@ class StockPicking(models.Model):
         )
     amount_tax = fields.Monetary(
             compute='_compute_amount',
-            digits=dp.get_precision('Account'),
             string='Taxes',
         )
     amount_total = fields.Monetary(
             compute='_compute_amount',
-            digits=dp.get_precision('Account'),
             string='Total',
         )
     currency_id = fields.Many2one(
@@ -149,7 +218,12 @@ class StockPicking(models.Model):
     invoiced = fields.Boolean(
             string='Invoiced?',
             readonly=True,
-    )
+        )
+    respuesta_ids = fields.Many2many(
+            'sii.respuesta.cliente',
+            string="Recepción del Cliente",
+            readonly=True,
+        )
 
     @api.onchange('picking_type_id')
     def onchange_picking_type(self,):
@@ -236,8 +310,9 @@ class StockMove(models.Model):
             qty = rec.quantity_done
             if qty <= 0:
                 qty = rec.product_uom_qty
-            subtotal = qty * rec.precio_unitario
-            rec.subtotal = (subtotal * (1 - (rec.discount or 0.0) / 100.0))
+            taxes = rec.move_line_tax_ids.compute_all(rec.precio_unitario, rec.currency_id, qty, product=rec.product_id, partner=rec.picking_id.partner_id, discount=rec.discount, uom_id=rec.product_uom)
+            rec.price_untaxed = taxes['total_excluded']
+            rec.subtotal = taxes['total_included']
 
     name = fields.Char(
             string="Nombre",
@@ -247,8 +322,9 @@ class StockMove(models.Model):
             string='Subtotal',
             store=True,
         )
-    precio_unitario = fields.Monetary(
+    precio_unitario = fields.Float(
             string='Precio Unitario',
+            digits=dp.get_precision('Product Price'),
         )
     price_untaxed = fields.Monetary(
             string='Price Untaxed',

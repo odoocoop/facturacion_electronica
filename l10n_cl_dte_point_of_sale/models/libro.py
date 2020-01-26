@@ -7,7 +7,6 @@ import dateutil.relativedelta as relativedelta
 from odoo.tools import DEFAULT_SERVER_DATETIME_FORMAT as DTF
 import pytz
 import logging
-
 _logger = logging.getLogger(__name__)
 
 
@@ -21,12 +20,12 @@ class Libro(models.Model):
         fields_model = self.env['ir.fields.converter']
         from_zone = pytz.UTC
         to_zone = pytz.timezone('America/Santiago')
-        date_order = util_model._change_time_zone(datetime.strptime(rec.date_order.strftime(DTF), DTF), from_zone, to_zone).strftime(DTF)
+        date_order = util_model._change_time_zone(datetime.strptime(rec.date_order, DTF), from_zone, to_zone).strftime(DTF)
         til_model = self.env['cl.utils']
         fields_model = self.env['ir.fields.converter']
         from_zone = pytz.UTC
         to_zone = pytz.timezone('America/Santiago')
-        date_order = util_model._change_time_zone(datetime.strptime(rec.date_order.strftime(DTF), DTF), from_zone, to_zone).strftime(DTF)
+        date_order = util_model._change_time_zone(datetime.strptime(rec.date_order, DTF), from_zone, to_zone).strftime(DTF)
         return {
             'FchEmiDoc': date_order[:10],
             'FchVencDoc': date_order[:10]
@@ -47,7 +46,7 @@ class Libro(models.Model):
         if self.tipo_operacion != 'BOLETA':
             return recs
         for rec in self.with_context(lang='es_CL').move_ids:
-            if rec.document_class_id and not rec.sii_document_number:
+            if rec.documet_class_id and not rec.sii_document_number:
                 orders = sorted(self.env['pos.order'].search(
                         [('account_move', '=', rec.id),
                          ('invoice_id' , '=', False),

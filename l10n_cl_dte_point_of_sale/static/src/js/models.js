@@ -27,6 +27,9 @@ for(var i=0; i<modules.length; i++){
 	if (model.model == 'res.country') {
 		model.fields.push('code');
 	}
+	if (model.model == 'account.tax') {
+		model.fields.push('uom_id');
+	}
 }
 
 models.load_models({
@@ -164,7 +167,7 @@ models.PosModel = models.PosModel.extend({
 			return sii_document_number;
 		}
 		if(sii_document_number < parseInt(caf_file.AUTORIZACION.CAF.DA.RNG.D)){
-			var dif = orden_numero - ((parseInt(start_caf_file.AUTORIZACION.CAF.DA.RNG.H) - start_number) + 1 + gived);
+			var dif = sii_document_number - ((parseInt(start_caf_file.AUTORIZACION.CAF.DA.RNG.H) - start_number) + 1 + gived);
 			sii_document_number = parseInt(caf_file.AUTORIZACION.CAF.DA.RNG.D) + dif;
 			if (sii_document_number >  parseInt(caf_file.AUTORIZACION.CAF.DA.RNG.H)){
 				sii_document_number = get_next_number(sii_document_number);
@@ -190,9 +193,123 @@ models.PosModel = models.PosModel.extend({
 	}
 });
 
+var _super_order_line = models.Orderline.prototype;
+models.Orderline = models.Orderline.extend({
+	_compute_all: function(tax, base_amount, quantity, uom_id) {
+			if (tax.amount_type === 'fixed') {
+					var tax_uom = this.pos.units_by_id[tax.uom_id[0]];
+					var amount_tax = tax.amount;
+					if (tax.uom_id !== uom_id){
+						var factor = (1 / tax_uom.factor);
+						amount_tax = (amount_tax / factor);
+					}
+					var sign_base_amount = Math.sign(base_amount) || 1;
+					// Since base amount has been computed with quantity
+					// we take the abs of quantity
+					// Same logic as bb72dea98de4dae8f59e397f232a0636411d37ce
+					return amount_tax * sign_base_amount * Math.abs(quantity);
+			}
+			if ((tax.amount_type === 'percent' && !tax.price_include) || (tax.amount_type === 'division' && tax.price_include)){
+					return base_amount * tax.amount / 100;
+			}
+			if (tax.amount_type === 'percent' && tax.price_include){
+					return base_amount - (base_amount / (1 + tax.amount / 100));
+			}
+			if (tax.amount_type === 'division' && !tax.price_include) {
+					return base_amount / (1 - tax.amount / 100) - base_amount;
+			}
+			return false;
+	},
+	compute_all: function(taxes, price_unit, quantity, currency_rounding, no_map_tax, uom_id) {
+			var self = this;
+			var list_taxes = [];
+			var currency_rounding_bak = currency_rounding;
+			if (this.pos.company.tax_calculation_rounding_method == "round_globally"){
+				 currency_rounding = currency_rounding * 0.00001;
+			}
+			var total_excluded = round_pr(price_unit * quantity, currency_rounding);
+			var total_included = total_excluded;
+			var base = total_excluded;
+			_(taxes).each(function(tax) {
+					if (!no_map_tax){
+							tax = self._map_tax_fiscal_position(tax);
+					}
+					if (!tax){
+							return;
+					}
+					if (tax.amount_type === 'group'){
+							var ret = self.compute_all(tax.children_tax_ids, price_unit, quantity, currency_rounding, uom_id);
+							total_excluded = ret.total_excluded;
+							base = ret.total_excluded;
+							total_included = ret.total_included;
+							list_taxes = list_taxes.concat(ret.taxes);
+					}
+					else {
+							var tax_amount = self._compute_all(tax, base, quantity, uom_id);
+							tax_amount = round_pr(tax_amount, currency_rounding);
+
+							if (tax_amount){
+									if (tax.price_include) {
+											total_excluded -= tax_amount;
+											base -= tax_amount;
+									}
+									else {
+											total_included += tax_amount;
+									}
+									if (tax.include_base_amount) {
+											base += tax_amount;
+									}
+									var data = {
+											id: tax.id,
+											amount: tax_amount,
+											name: tax.name,
+									};
+									list_taxes.push(data);
+							}
+					}
+			});
+			return {
+					taxes: list_taxes,
+					total_excluded: round_pr(total_excluded, currency_rounding_bak),
+					total_included: round_pr(total_included, currency_rounding_bak)
+			};
+	},
+	get_all_prices: function(){
+			var price_unit = this.get_unit_price() * (1.0 - (this.get_discount() / 100.0));
+			var taxtotal = 0;
+
+			var product =  this.get_product();
+			var taxes_ids = product.taxes_id;
+			var taxes =  this.pos.taxes;
+			var taxdetail = {};
+			var product_taxes = [];
+
+			_(taxes_ids).each(function(el){
+					product_taxes.push(_.detect(taxes, function(t){
+							return t.id === el;
+					}));
+			});
+
+			var all_taxes = this.compute_all(product_taxes, price_unit, this.get_quantity(), this.pos.currency.rounding, this.get_unit());
+			_(all_taxes.taxes).each(function(tax) {
+					taxtotal += tax.amount;
+					taxdetail[tax.id] = tax.amount;
+			});
+
+			return {
+					"priceWithTax": all_taxes.total_included,
+					"priceWithoutTax": all_taxes.total_excluded,
+					"tax": taxtotal,
+					"taxDetails": taxdetail,
+			};
+	},
+
+});
+
 var _super_order = models.Order.prototype;
 models.Order = models.Order.extend({
 	initialize: function(attr, options) {
+		this.exenta = false;
 		_super_order.initialize.call(this,attr,options);
 		this.unset_boleta();
 		if (this.pos.config.marcar === 'boleta' && this.pos.config.secuencia_boleta){
@@ -220,6 +337,7 @@ models.Order = models.Order.extend({
 		json.signature = this.signature;
 		json.orden_numero = this.orden_numero;
 		json.finalized = this.finalized;
+		json.exenta = this.exenta;
 		return json;
 	},
     init_from_JSON: function(json) {// carga pedido individual
@@ -229,8 +347,10 @@ models.Order = models.Order.extend({
     	this.signature = json.signature;
     	this.orden_numero = json.orden_numero;
 			this.finalized = json.finalized;
+			this.exenta = json.exenta;
 	},
 	export_for_printing: function() {
+		var self = this;
 		var json = _super_order.export_for_printing.apply(this,arguments);
 		json.company.document_number = this.pos.company.document_number;
 		json.company.activity_description = this.pos.company.activity_description[1];
@@ -243,7 +363,7 @@ models.Order = models.Order.extend({
 		if(this.sequence_id){
 			json.nombre_documento = this.sequence_id.sii_document_class_id.name;
 		}
-		var d = this.creation_date;
+		var d = self.creation_date;
 		var curr_date = this.completa_cero(d.getDate());
 		var curr_month = this.completa_cero(d.getMonth() + 1); // Months
 																	// are zero
@@ -279,6 +399,27 @@ models.Order = models.Order.extend({
   	return round_pr(this.orderlines.reduce((function(sum, orderLine) {
   		return sum + orderLine.get_price_with_tax();
   	}), 0), this.pos.currency.rounding);
+	},
+	fix_tax_included_price: function(line){
+			if(this.fiscal_position){
+					var unit_price = line.price;
+					var taxes = line.get_taxes();
+					var mapped_included_taxes = [];
+					var uom_id = false;
+					_(taxes).each(function(tax) {
+							var line_tax = line._map_tax_fiscal_position(tax);
+							if(tax.price_include && tax.id != line_tax.id){
+								  uom_id = line.get_unit();
+									mapped_included_taxes.push(tax);
+							}
+					})
+
+					if (mapped_included_taxes.length > 0) {
+							unit_price = line.compute_all(mapped_included_taxes, unit_price, 1, this.pos.currency.rounding, true, uom_id).total_excluded;
+					}
+
+					line.set_unit_price(unit_price);
+			}
 	},
 	set_tipo_boleta: function(tipo_boleta){
 		this.sequence_id = tipo_boleta;
@@ -317,41 +458,34 @@ models.Order = models.Order.extend({
 		}
 		return false;
 	},
-    get_total_exento:function(){
-    	var taxes =  this.pos.taxes;
-    	var exento = 0;
-    	this.orderlines.each(function(line){
-    		var product =  line.get_product();
-    		var taxes_ids = product.taxes_id;
-    		_(taxes_ids).each(function(el){
-    			_.detect(taxes,function(t){
-    				if(t.id === el && t.amount === 0){
-    					exento += (line.get_unit_price() * line.get_quantity());
-    				}
-    			});
-    		});
-    	});
-    	return exento;
-    },
-	completa_cero(val){
-    	if (parseInt(val) < 10){
-    		return '0' + val;
-    	}
-    	return val;
-    },
-    encode: function(caracter){
-    	var string = "";
-    	for (var i=0; i< caracter.length; i++){
-    		var l = caracter[i];
-    		if(l.charCodeAt() >= 160){
-    			l = "&#"+ l.charCodeAt()+';';
-    		}
-    		if(i < 40){
-    			string += l;
-    		}
-    	}
-    	return string;
+	es_factura_afecta: function(){
+		return !this.exenta && this.is_to_invoice();
 	},
+	es_factura_exenta: function(){
+		return this.exenta && this.is_to_invoice();
+	},
+  get_total_exento:function(){
+  	var taxes =  this.pos.taxes;
+  	var exento = 0;
+  	this.orderlines.each(function(line){
+  		var product =  line.get_product();
+  		var taxes_ids = product.taxes_id;
+  		_(taxes_ids).each(function(el){
+  			_.detect(taxes,function(t){
+  				if(t.id === el && t.amount === 0){
+  					exento += (line.get_unit_price() * line.get_quantity());
+  				}
+  			});
+  		});
+  	});
+  	return exento;
+  },
+	completa_cero(val){
+  	if (parseInt(val) < 10){
+  		return '0' + val;
+  	}
+  	return val;
+  },
 	timbrar: function(order){
 		if (order.signature){ // no firmar otra vez
 			return order.signature;
@@ -389,7 +523,7 @@ models.Order = models.Order.extend({
 					es_menor = false;
 				}
 				if(es_menor === true){
-					product_name = this.encode(ols[p].product.name);
+					product_name = ols[p].product.name;
 				}
 			}
 		}
@@ -414,7 +548,7 @@ models.Order = models.Order.extend({
 			'<F>' + order.sii_document_number + '</F>' +
 			'<FE>' + curr_year + '-' + curr_month + '-' + curr_date + '</FE>' +
 			'<RR>' + partner_id.document_number.replace('.','').replace('.','') +'</RR>' +
-			'<RSR>' + this.encode(partner_id.name) + '</RSR>' +
+			'<RSR>' + partner_id.name + '</RSR>' +
 			'<MNT>' + Math.round(this.get_total_with_tax()) + '</MNT>' +
 			'<IT1>' + product_name + '</IT1>' +
 			'<CAF version="1.0"><DA><RE>' + caf_file.AUTORIZACION.CAF.DA.RE + '</RE>' +

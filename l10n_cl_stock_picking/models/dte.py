@@ -80,6 +80,7 @@ class stock_picking(models.Model):
             ted,
             security_level=5,
             columns=columns,
+            encoding='ISO-8859-1',
         )
         image = pdf417gen.render_image(
             bc,
@@ -165,14 +166,6 @@ class stock_picking(models.Model):
         string="Document Type",
         related="location_id.sii_document_class_id",
     )
-
-    def _acortar_str(self, texto, size=1):
-        c = 0
-        cadena = ""
-        while c < size and c < len(texto):
-            cadena += texto[c]
-            c += 1
-        return cadena
 
     @api.multi
     def action_done(self):
@@ -347,24 +340,30 @@ class stock_picking(models.Model):
                 lines['CdgItem']['TpoCodigo'] = 'INT1'
                 lines['CdgItem']['VlrCodigo'] = line.product_id.default_code
             taxInclude = False
+            lines["Impuesto"] = []
             if line.move_line_tax_ids:
                 for t in line.move_line_tax_ids:
+                    if t.sii_code in [26, 27, 28, 35, 271]:#@Agregar todos los adicionales
+                        lines['CodImpAdic'] = t.sii_code
                     taxInclude = t.price_include
                     if t.amount == 0 or t.sii_code in [0]:#@TODO mejor manera de identificar exento de afecto
                         lines['IndExe'] = 1
                         MntExe += int(round(line.subtotal, 0))
                     else:
-                        lines["Impuesto"] = [
+                        amount = t.amount
+                        if t.sii_code in [28, 35]:
+                            amount = t.compute_factor(line.product_uom)
+                        lines["Impuesto"].append(
                                 {
                                     "CodImp": t.sii_code,
                                     'price_include': taxInclude,
-                                    'TasaImp':t.amount,
+                                    'TasaImp': amount,
                                 }
-                        ]
-            lines['NmbItem'] = self._acortar_str(line.product_id.name,80) #
-            lines['DscItem'] = self._acortar_str(line.name, 1000) #descripción más extenza
+                        )
+            lines['NmbItem'] = line.product_id.name
+            lines['DscItem'] = line.name
             if line.product_id.default_code:
-                lines['NmbItem'] = self._acortar_str(line.product_id.name.replace('['+line.product_id.default_code+'] ',''),80)
+                lines['NmbItem'] = line.product_id.name.replace('['+line.product_id.default_code+'] ','')
             qty = round(line.quantity_done, 4)
             if qty <=0:
                 qty = round(line.product_uom_qty, 4)
@@ -392,7 +391,7 @@ class stock_picking(models.Model):
         if len(picking_lines) == 0:
             raise UserError(_('No se puede emitir una guía sin líneas'))
         return {
-                'picking_lines': picking_lines,
+                'Detalle': picking_lines,
                 'MntExe': MntExe,
                 'no_product':no_product,
                 'tax_include': taxInclude,
@@ -409,13 +408,11 @@ class stock_picking(models.Model):
             picking_lines['MntExe'],
             picking_lines['no_product'],
             picking_lines['tax_include'])
-        count = 0
         lin_ref = 1
         ref_lines = []
         if self.company_id.dte_service_provider == 'SIICERT' and isinstance(n_atencion, string_types):
             ref_line = {}
             ref_line['NroLinRef'] = lin_ref
-            count = count +1
             ref_line['TpoDocRef'] = "SET"
             ref_line['FolioRef'] = self.get_folio()
             ref_line['FchRef'] = datetime.strftime(datetime.now(), '%Y-%m-%d')
@@ -434,13 +431,10 @@ class stock_picking(models.Model):
                 if ref.date:
                     ref_line['FchRef'] = ref.date
             ref_lines.append(ref_line)
-        dte['Detalle'] = picking_lines['picking_lines']
+            lin_ref += 1
+        dte['Detalle'] = picking_lines['Detalle']
         dte['Referencia'] = ref_lines
         return dte
-
-    def _tpo_dte(self):
-        tpo_dte = "Documento"
-        return tpo_dte
 
     def _get_datos_empresa(self, company_id):
         signature_id = self.env.user.get_digital_signature(company_id)
@@ -454,8 +448,6 @@ class stock_picking(models.Model):
 
     def _timbrar(self, n_atencion=None):
         folio = self.get_folio()
-        tpo_dte = self._tpo_dte()
-        dte = {}
         datos = self._get_datos_empresa(self.company_id)
         datos['Documento'] = [{
             'TipoDTE': self.document_class_id.sii_code,
@@ -492,7 +484,7 @@ class stock_picking(models.Model):
                 })
             if r.sii_result in ['Rechazado'] or (r.company_id.dte_service_provider == 'SIICERT' and r.sii_xml_request.state in ['', 'draft', 'NoEnviado']):
                 if r.sii_xml_request:
-                    if len(r.sii_xml_request.invoice_ids) == 1:
+                    if len(r.sii_xml_request.picking_ids) == 1:
                         r.sii_xml_request.unlink()
                     else:
                         r.sii_xml_request = False

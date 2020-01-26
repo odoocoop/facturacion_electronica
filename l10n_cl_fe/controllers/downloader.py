@@ -1,6 +1,7 @@
 from odoo import models, http
 from odoo.http import request
 from odoo.addons.web.controllers.main import serialize_exception, content_disposition
+from base64 import b64decode
 
 
 class Binary(http.Controller):
@@ -27,8 +28,8 @@ class Binary(http.Controller):
     @serialize_exception
     def download_document_exchange(self, rec_id, **post):
         filename = ('%s.xml' % rec_id.number).replace(' ', '_')
-        filecontent = rec_id.sii_xml_request.xml_envio
-        return self.document(filename, filecontent)
+        att = rec_id._create_attachment()
+        return self.document(filename, b64decode(att.datas))
 
     @http.route(["/download/xml/cf/<model('account.move.consumo_folios'):rec_id>"], type='http', auth='user')
     @serialize_exception

@@ -242,7 +242,7 @@ screens.ClientListScreenWidget.include({
 				args: [fields]
 			}).then(function(partner_id){
 				self.saved_client_details(partner_id);
-			}, function(err_type, err){
+			}, function(err, err_type){
 				if (err.data.message) {
 					self.gui.show_popup('error',{
 						'title': _t('Error: Could not Save Changes'),

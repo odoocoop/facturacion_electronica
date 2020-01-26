@@ -15,8 +15,9 @@ class ConsumoFolios(models.Model):
 
     def _get_moves(self):
         recs = super(ConsumoFolios, self)._get_moves()
+        current = self.fecha_inicio.strftime(DTF) + ' 00:00:00'
         tz = pytz.timezone('America/Santiago')
-        tz_current = tz.localize(datetime.strptime(self.fecha_inicio.strftime(DTF), DTF)).astimezone(pytz.utc)
+        tz_current = tz.localize(datetime.strptime(current, DTF)).astimezone(pytz.utc)
         current = tz_current.strftime(DTF)
         next_day = (self.fecha_inicio + relativedelta.relativedelta(days=1)).strftime(DTF)
         orders_array = self.env['pos.order'].search(
@@ -31,21 +32,3 @@ class ConsumoFolios(models.Model):
         for order in orders_array:
             recs.append(order)
         return recs
-
-    def _get_totales(self, rec):
-        if 'lines' not in rec:
-            return super(ConsumoFolios, self)._get_totales(rec)
-        Neto = 0
-        MntExe = 0
-        TaxMnt = 0
-        MntTotal = 0
-        # NC pasar a positivo
-        TaxMnt =  rec.amount_tax if rec.amount_tax > 0 else rec.amount_tax * -1
-        MntTotal = rec.amount_total if rec.amount_total > 0 else rec.amount_total * -1
-        Neto = rec.pricelist_id.currency_id.round(sum(line.price_subtotal for line in rec.lines))
-        if Neto < 0:
-            Neto *= -1
-        MntExe = rec.exento()
-        TasaIVA = self.env['pos.order.line'].search([('order_id', '=', rec.id), ('tax_ids.amount', '>', 0)], limit=1).tax_ids.amount
-        Neto -= MntExe
-        return Neto, MntExe, TaxMnt, MntTotal, TasaIVA

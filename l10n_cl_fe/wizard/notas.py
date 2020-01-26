@@ -4,6 +4,8 @@ from odoo import models, fields, api
 from odoo.tools.safe_eval import safe_eval
 from odoo.exceptions import UserError
 from odoo.tools.translate import _
+import logging
+_logger = logging.getLogger(__name__)
 
 
 class AccountInvoiceRefund(models.TransientModel):

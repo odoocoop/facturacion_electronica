@@ -125,6 +125,7 @@
                     <field name="valor"/>
                     <field name="gdr_detail"/>
                     <field name="aplicacion"/>
+                    <field name="impuesto"/>
                     <field name="amount_untaxed_global_dr" invisible="1"/>
                     <field name="invoice_id" invisible="1"/>
                   </tree>
@@ -142,7 +143,7 @@
                         <field name="fecha_documento"/>
                       </group>
                     </form>
-                    <tree>
+                    <tree editable="bottom">
                       <field name="origen" required="True"/>
                       <field name="sii_referencia_TpoDocRef" required="True" />
                       <field name="sii_referencia_CodRef"/>
@@ -154,6 +155,11 @@
 
               <field name="journal_id" position="after">
                   <field name="ticket" attrs="{'invisible': [('sii_code', 'in', [39, 41])]}" />
+              </field>
+
+              <field name="journal_id" position="after">
+                  <field name="ticket" attrs="{'invisible': [('sii_code', 'in', [39, 41])]}" />
+                  <field name="ind_servicio" />
               </field>
 
               <field name="account_id" position="attributes">

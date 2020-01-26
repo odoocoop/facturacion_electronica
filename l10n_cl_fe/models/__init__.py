@@ -4,6 +4,7 @@ from . import account_invoice
 from . import account_journal
 from . import account_journal_sii_document_class
 from . import account_tax
+from . import account_tax_mepco
 from . import bigint
 from . import caf
 from . import company
@@ -37,4 +38,3 @@ from . import sii_firma
 from . import sii_regional_offices
 from . import sii_respuesta_cliente
 from . import sii_xml_envio
-

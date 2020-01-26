@@ -7,16 +7,30 @@ _logger = logging.getLogger(__name__)
 
 class GlobalDescuentoRecargo(models.Model):
     _name = "account.invoice.gdr"
-    _description = 'Línea de descuento / Recargo Global DTE'
 
+
+    def _get_name(self):
+        for g in self:
+            type = "Descuento"
+            if g.type == 'R':
+                type = 'Recargo'
+            calculo = 'Porcentaje'
+            if g.gdr_type == 'amount':
+                calculo = 'Monto'
+            g.name = type + '-' + calculo + ': ' + (g.gdr_detail or '')
+
+    name = fields.Char(
+        compute="_get_name",
+        string="Name"
+    )
     type = fields.Selection(
             [
                 ('D', 'Descuento'),
                 ('R', 'Recargo'),
             ],
-           string="Seleccione Descuento/Recargo Global",
-           default='D',
-           required=True,
+            string="Seleccione Descuento/Recargo Global",
+            default='D',
+            required=True,
        )
     valor = fields.Float(
             string="Descuento/Recargo Global",
@@ -25,8 +39,8 @@ class GlobalDescuentoRecargo(models.Model):
         )
     gdr_type = fields.Selection(
             [
-                    ('amount','Monto'),
-                    ('percent','Porcentaje'),
+                ('amount', 'Monto'),
+                ('percent', 'Porcentaje'),
             ],
             string="Tipo de descuento",
             default="percent",
@@ -34,6 +48,7 @@ class GlobalDescuentoRecargo(models.Model):
         )
     gdr_detail = fields.Char(
             string="Razón del descuento",
+            oldname='gdr_dtail',
         )
     amount_untaxed_global_dr = fields.Float(
             string="Descuento/Recargo Global",
@@ -47,36 +62,56 @@ class GlobalDescuentoRecargo(models.Model):
             ],
             string="Aplicación del Desc/Rec",
         )
+    impuesto = fields.Selection(
+            [
+                ('afectos', 'Solo Afectos'),
+                ('exentos', 'Solo Exentos'),
+                ('no_facturables', 'Solo No Facturables')
+            ],
+            default='afectos',
+        )
     invoice_id = fields.Many2one(
             'account.invoice',
             string="Factura",
+            copy=False,
         )
 
-    def _get_afecto(self):
+    def _get_valores(self, tipo='afectos'):
         afecto = 0.00
         for line in self[0].invoice_id.invoice_line_ids:
             for tl in line.invoice_line_tax_ids:
-                if tl.amount > 0:
+                if tl.amount > 0 and tipo=='afectos':
+                    afecto += line.price_subtotal
+                elif tipo == 'exentos':
                     afecto += line.price_subtotal
         return afecto
 
-    @api.depends('gdr_type', 'valor', 'type')
+    @api.depends('gdr_type', 'valor', 'type', 'impuesto')
     def _untaxed_gdr(self):
         groups = {}
         for gdr in self:
+            if not gdr.valor:
+                continue
             if gdr.invoice_id.id not in groups:
-                groups[gdr.invoice_id.id] = dict(
-                    afecto=gdr._get_afecto(),
-                    des=0,
-                    rec=0,
-                )
+                if gdr.impuesto == 'afectos':
+                    groups[gdr.invoice_id.id] = dict(
+                        afecto=gdr._get_valores(),
+                        des=0,
+                        rec=0,
+                    )
+                else:
+                    groups[gdr.invoice_id.id] = dict(
+                        afecto=gdr._get_valores('exentos'),
+                        des=0,
+                        rec=0,
+                    )
             groups[gdr.invoice_id.id]['dr'] = gdr.valor
             if gdr.gdr_type in ['percent']:
                 if groups[gdr.invoice_id.id]['afecto'] == 0.00:
                     continue
-                #exento = 0 #@TODO Descuento Global para exentos
                 if groups[gdr.invoice_id.id]['afecto'] > 0:
-                    groups[gdr.invoice_id.id]['dr'] = gdr.invoice_id.currency_id.round((groups[gdr.invoice_id.id]['afecto'] *  (groups[gdr.invoice_id.id]['dr'] / 100.0) ))
+                    groups[gdr.invoice_id.id]['dr'] = gdr.invoice_id.currency_id.round((
+                        groups[gdr.invoice_id.id]['afecto'] *  (groups[gdr.invoice_id.id]['dr'] / 100.0) ))
             if gdr.type == 'D':
                 groups[gdr.invoice_id.id]['des'] += groups[gdr.invoice_id.id]['dr']
             else:
@@ -87,9 +122,12 @@ class GlobalDescuentoRecargo(models.Model):
                 raise UserError('El descuento no puede ser mayor o igual a la suma de los recargos + neto (f: %s)' %(key))
 
     def get_agrupados(self):
-        result = {'D': 0.00, 'R': 0.00}
+        result = {'D': 0.00, 'R': 0.00, 'D_exe': 0.00, 'R_exe': 0.00}
         for gdr in self:
-            result[gdr.type] += gdr.amount_untaxed_global_dr
+            if gdr.impuesto == 'exentos':
+                result[gdr.type+'_exe'] += gdr.amount_untaxed_global_dr
+            else:
+                result[gdr.type] += gdr.amount_untaxed_global_dr
         return result
 
     def get_monto_aplicar(self):
@@ -97,7 +135,7 @@ class GlobalDescuentoRecargo(models.Model):
         monto = 0
         for key, value in grouped.items():
             valor = value
-            if key == 'D':
+            if key in ['D', 'D_exe']:
                 valor = float(value) * (-1)
             monto += valor
         return monto
@@ -114,3 +152,8 @@ class GlobalDescuentoRecargo(models.Model):
             ctx.pop('default_type')
         values = super(GlobalDescuentoRecargo, self.with_context(ctx)).default_get(fields_list)
         return values
+
+    @api.onchange('global_descuentos_recargos')
+    def _onchange_descuentos(self):
+        self._onchange_invoice_line_ids()
+        self.exportacion._get_tot_from_recargos()

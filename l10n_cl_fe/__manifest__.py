@@ -2,15 +2,15 @@
 {
     "name": """Facturación Electrónica para Chile\
     """,
-    'version': '0.18.4',
+    'version': '0.19.0',
     'category': 'Localization/Chile',
     'sequence': 12,
     'author':  'Daniel Santibáñez Polanco, Cooperativa OdooCoop',
     'website': 'https://globalresponse.cl',
     'license': 'AGPL-3',
-    'summary': 'Facturación Electrónica para Chile. Mayor información en https://odoocoop.cl',
+    'summary': 'Facturación Electrónica para Chile. Mayor información en https://globalresponse.cl',
     'description': """
-Facturación Electrónica para Chile. Mayor información en https://odoocoop.cl
+Facturación Electrónica para Chile. Mayor información en https://globalresponse.cl
 """,
     'depends': [
             'base',
@@ -40,11 +40,12 @@ Facturación Electrónica para Chile. Mayor información en https://odoocoop.cl
             'wizard/apicaf.xml',
             'views/assets.xml',
             'wizard/journal_config_wizard_view.xml',
+            'views/account_tax.xml',
             'views/sii_menuitem.xml',
+            'views/account_invoice.xml',
             'views/consumo_folios.xml',
             'views/caf.xml',
             'views/export.xml',
-            'views/account_invoice.xml',
             'views/layout.xml',
             'views/libro_compra_venta.xml',
             'views/libro_honorarios.xml',
@@ -99,6 +100,7 @@ Facturación Electrónica para Chile. Mayor información en https://odoocoop.cl
             'data/sii.document_letter.csv',
             'data/sii.document_class.csv',
             'data/sii.regional.offices.csv',
+            'data/decimal_precision.xml',
             'data/res.currency.csv',
             'security/state_manager.xml',
             'security/ir.model.access.csv',
