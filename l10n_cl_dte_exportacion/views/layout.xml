@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <template id="dte_external_layout" inherit_id="l10n_cl_fe.dte_external_layout">
+    <xpath expr="//table[hasclass('cl_invoice')]/tbody/tr[3]" position="after">
+      <tr t-if="o.exportacion" style="max-height:15px; font-size:12px !important;">
+        <td style="border-top:0px !important;padding:0px !important;"><strong>País:</strong></td>
+        <td style="border-top:0px !important;padding:0px !important;"><t t-if="o.partner_id"><span t-field="commercial_partner_id.country_id"/></t></td>
+      </tr>
+    </xpath>
+    <xpath expr="//table[hasclass('cl_invoice')]/tbody/tr[5]" position="after">
+      <t  t-if="o.exportacion">
+        <tr style="max-height:15px; font-size:12px !important;">
+          <td style="border-top:0px !important;padding:0px !important;"><strong>Moneda:</strong></td>
+          <td style="border-top:0px !important;padding:0px !important;"><span t-field="o.currency_id"/></td>
+          <td style="border-top:0px !important;padding:0px !important;"><strong>Modalidad Venta:</strong></td>
+          <td style="border-top:0px !important;padding:0px !important;"><span t-if="'payment_term_id' in o and o.payment_term_id.modalidad_venta" t-field="o.payment_term_id.modalidad_venta.name"/></td>
+        </tr>
+        <tr style="max-height:15px; font-size:12px !important;">
+          <td style="border-top:0px !important;padding:0px !important;"><strong>Cláusula de Venta:</strong></td>
+          <td style="border-top:0px !important;padding:0px !important;"><span t-field="o.incoterms_id"/></td>
+          <td style="border-top:0px !important;padding:0px !important;"><strong>Total Cláusula:</strong></td>
+          <td style="border-top:0px !important;padding:0px !important;"><span t-esc="o.get_monto_clausula()" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/></td>
+        </tr>
+        <tr style="max-height:15px; font-size:12px !important;">
+          <td style="border-top:0px !important;padding:0px !important;"><strong>Vía:</strong></td>
+          <td style="border-top:0px !important;padding:0px !important;"><span t-field="o.via"/></td>
+          <td style="border-top:0px !important;padding:0px !important;"><strong>Puerto Embarque:</strong></td>
+          <td style="border-top:0px !important;padding:0px !important;"><span t-field="o.puerto_embarque"/></td>
+        </tr>
+        <tr style="max-height:15px; font-size:12px !important;">
+          <td style="border-top:0px !important;padding:0px !important;"><strong>País destino:</strong></td>
+          <td style="border-top:0px !important;padding:0px !important;"><span t-field="o.pais_destino"/></td>
+          <td style="border-top:0px !important;padding:0px !important;"><strong>Puerto Desembarque:</strong></td>
+          <td style="border-top:0px !important;padding:0px !important;"><span t-field="o.puerto_desembarque"/></td>
+        </tr>
+        <tr style="max-height:15px; font-size:12px !important;">
+          <td style="border-top:0px !important;padding:0px !important;"><strong>País recepción:</strong></td>
+          <td style="border-top:0px !important;padding:0px !important;"><span t-field="o.pais_recepcion"/></td>
+        </tr>
+      </t>
+    </xpath>
+
+    <xpath expr="//div[@name='detalle']" position="attributes">
+      <attribute name="style" t-if="o.exportacion">min-height:300px; max-height:300px; padding-top:5px;</attribute>
+    </xpath>
+    <xpath expr="//div[@name='detalle']" position="after">
+      <div t-if="o.exportacion" class="row" style="border:1px solid black; height:30px;" >
+        <table t-if="o.uom_tara" class="table table-condensed" style="height:30px;">
+            <thead>
+              <tr style="max-height:10px; font-size:9px !important;">
+                <th >Tara</th>
+                <th >U. Medida Tara</th>
+                <th name="td_sched_date_h">Peso Bruto</th>
+                <th >U. Medida Peso Bruto</th>
+                <th name="td_sched_date_h">Peso Neto</th>
+                <th >U. Medida Peso Neto</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="max-height:9px; font-size:8px !important;">
+                <td><span t-field="o.tara" /></td>
+                <td><span t-field="o.uom_tara"/></td>
+                <td><span t-field="o.peso_bruto" /></td>
+                <td><span t-field="o.uom_peso_bruto"/></td>
+                <td><span t-field="o.peso_neto" /></td>
+                <td><span t-field="o.uom_peso_neto"/></td>
+              </tr>
+             </tbody>
+        </table>
+        <table t-if="o.carrier_id" class="table table-condensed" style="height:30px;">
+            <thead>
+              <tr style="max-height:10px; font-size:9px !important;">
+                <th >Nombre </th>
+                <th > RUT </th>
+                <th name="td_sched_date_h">Patente</th>
+                <th >Tipo Operación</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="max-height:9px; font-size:8px !important;">
+                <td><span t-field="o.chofer.name" /></td>
+                <td><span t-field="o.chofer.document_number"/></td>
+                <td   name="td_sched_date"><span t-field="o.patente"/></td>
+                <td><span t-field="o.move_reason"/></td>
+              </tr>
+             </tbody>
+        </table>
+        <table  t-if="o.bultos" class="table table-condensed" style="height:30px;">
+          <thead>
+            <tr style="max-height:10px; font-size:9px !important;">
+              <th>Cantidad Bultos</th>
+              <th>Tipo de Bultos</th>
+              <th>Marca</th>
+              <th>Id Container</th>
+              <th>Sello</th>
+              <th>Emisor Sello</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="max-height:9px; font-size:8px !important;" t-foreach="o.bultos" t-as="bulto">
+              <td><span t-field="bulto.cantidad_bultos"/></td>
+              <td><span t-field="bulto.tipo_bulto"/></td>
+              <td><span t-field="bulto.marcas"/></td>
+              <td><span t-field="bulto.id_container"/></td>
+              <td><span t-field="bulto.sello"/></td>
+              <td><span t-field="bulto.emisor_sello"/></td>
+            </tr>
+           </tbody>
+        </table>
+      </div>
+    </xpath>
+  </template>
+</odoo>

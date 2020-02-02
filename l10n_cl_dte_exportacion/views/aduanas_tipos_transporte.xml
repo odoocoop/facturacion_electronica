@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <record id="tipos_transporte_view_form" model="ir.ui.view">
+    <field name="name">tipos_transporte.form</field>
+    <field name="model">aduanas.tipos_transporte</field>
+    <field name="arch" type="xml">
+      <form string="Tipos de Transporte">
+        <sheet>
+          <group>
+            <field name="name"/>
+            <field name="code"/>
+          </group>
+        </sheet>
+      </form>
+    </field>
+  </record>
+</odoo>

@@ -451,7 +451,7 @@ class AccountInvoice(models.Model):
         total_currency = 0
         amount_diff = self.amount_total
         amount_diff_currency = 0
-        gdr = self.porcentaje_dr()
+        gdr, gdr_exe = self.porcentaje_dr()
         if self.currency_id != company_currency:
             currency = self.currency_id
             date = self._get_currency_rate_date() or fields.Date.context_today(self)
@@ -699,7 +699,7 @@ class AccountInvoice(models.Model):
         #_logger.warning(tax_grouped)
         if not self.global_descuentos_recargos:
             return tax_grouped
-        gdr = self.porcentaje_dr()
+        gdr, gdr_exe = self.porcentaje_dr()
         taxes = {}
         for t, group in tax_grouped.items():
             if t not in taxes:

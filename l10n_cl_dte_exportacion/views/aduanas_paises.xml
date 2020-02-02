@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <record id="paises_view_form" model="ir.ui.view">
+    <field name="name">paises.form</field>
+    <field name="model">aduanas.paises</field>
+    <field name="arch" type="xml">
+      <form string="Países">
+        <sheet>
+          <group>
+            <field name="code"/>
+            <field name="name"/>
+            <field name="abreviatura"/>
+            <field name="country_ids" widget="many2many_tags"/>
+          </group>
+        </sheet>
+      </form>
+    </field>
+  </record>
+</odoo>

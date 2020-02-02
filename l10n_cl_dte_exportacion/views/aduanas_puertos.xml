@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <record id="puertos_view_form" model="ir.ui.view">
+    <field name="name">puertos.form</field>
+    <field name="model">aduanas.puertos</field>
+    <field name="arch" type="xml">
+      <form string="Puertos">
+        <sheet>
+          <group>
+            <field name="code"/>
+            <field name="name"/>
+            <field name="country_id"/>
+          </group>
+        </sheet>
+      </form>
+    </field>
+  </record>
+</odoo>

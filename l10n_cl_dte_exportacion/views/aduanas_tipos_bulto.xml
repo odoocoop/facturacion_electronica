@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <record id="tipos_bulto_view_form" model="ir.ui.view">
+    <field name="name">tipos_bulto.form</field>
+    <field name="model">aduanas.tipos_bulto</field>
+    <field name="arch" type="xml">
+      <form string="Tipos de Bulto">
+        <sheet>
+          <group>
+            <field name="code"/>
+            <field name="name"/>
+            <field name="sigla"/>
+          </group>
+        </sheet>
+      </form>
+    </field>
+  </record>
+</odoo>

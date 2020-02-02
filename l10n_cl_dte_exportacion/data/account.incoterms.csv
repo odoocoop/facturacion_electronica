@@ -1,0 +1,16 @@
+id,name,code,aduanas_code
+account.incoterm_CIF,SEGURO Y FLETE,CIF,1
+account.incoterm_CFR,COSTOS Y FLETE,CFR,2
+account.incoterm_EXW,EN FÁBRICA,EXW,3
+account.incoterm_FAS,FRANCO AL COSTADO DEL BUQUE,FAS,4
+account.incoterm_FOB,FRANCO A BORDO,FOB,5
+account.incoterm_SCL,SIN CLÁUSULA DE COMPRAVENTA (4),S/CL,6
+account.incoterm_CYS,COSTO Y SEGURO,C Y S,7
+account.incoterm_DDP,ENTREGADAS DERECHOS PAGADOS,DDP,9
+account.incoterm_FCA,FRANCO TRANSPORTISTA,FCA,10
+account.incoterm_CPT,TRANSPORTE PAGADO HASTA,CPT,11
+account.incoterm_CIP,TRANSPORTE Y SEGURO PAGADO HASTA,CIP,12
+account.incoterm_DAF,ENTREGADAS EN FRONTERAS,DAF,13
+account.incoterm_DES,ENTREGADAS SOBRE BUQUE,DES,14
+account.incoterm_DEQ,ENTREGADAS EN MUELLE,DEQ,15
+account.incoterm_DDU,ENTREGADAS DERECHOS NO PAGADOS,DDU,16

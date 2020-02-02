@@ -1,0 +1,40 @@
+code,name,sigla
+1,Cobranza hasta 1 año,COB1
+2,Cobranza más de 1 año,COBRANZA
+11,Acreditivo hasta 1 año,ACRED
+12,Crédito de bancos y Org. financieros más de 1 año,CBOF
+21,Sin pago,S/PAGO
+32,Pago anticipado a la fecha de embarque,ANTICIPO
+1. PAGO ANTICIPADO Y COBRANZA A MAS DE UN AÑO
+50,5 %con Pago anticipado a la fecha de embarque y 95 % con cobranza a más de 1 año,ANT/COB
+51,10 %con Pago anticipado a la fecha de embarque y 90 % con cobranza a más de 1 año,ANT/COB
+52,15 %con Pago anticipado a la fecha de embarque  y 85 % con cobranza a más de 1 año,ANT/COB
+53,20 %con Pago anticipado a la fecha de embarque y 80 % con cobranza a más de 1 año,ANT/COB
+54,25 %con Pago anticipado a la fecha de embarque y 75 % con cobranza a más de 1 año,ANT/COB
+55,30 %con Pago anticipado a la fecha de embarque y 70 % con cobranza a más de 1 año,ANT/COB
+56,35 %con Pago anticipado a la fecha de embarque y 65 % con cobranza a más de 1 año,ANT/COB
+57,40 %con Pago anticipado a la fecha de embarque y 60 % con cobranza a más de 1 año,ANT/COB
+58,45 %con Pago anticipado a la fecha de embarque y 55 % con cobranza a más de 1 año,ANT/COB
+59,50 % o más con Pago anticipado a la fecha de embarque y 50 % o menos con cobranza a más de 1 año,ANT/COB
+60,5 %con Pago anticipado a la fecha de embarque y 95 % con créditos de Bancos y Org. Financieros a más de 1 año,ANT/CRED
+61,10 %con Pago anticipado a la fecha de embarque  y 90 % con créditos de Bancos y Org. Financieros a más de 1 año,ANT/CRED
+62,15 %con Pago anticipado a la fecha de embarque y 85 % con créditos de Bancos y Org. Financieros a más de 1 año,ANT/CRED
+63,20 %con Pago anticipado a la fecha de embarque y 80 % con créditos de Bancos y Org. Financieros a más de 1 año,ANT/CRED
+64,25 %con Pago anticipado a la fecha de embarque y 75 % con créditos de Bancos y Org. Financieros a más de 1 año,ANT/CRED
+65,30 %con Pago anticipado a la fecha de embarque y 70 % con créditos de Bancos y Org. Financieros a más de 1 año,ANT/CRED
+66,35 %con Pago anticipado a la fecha de embarque y 65 % con créditos de Bancos y Org. Financieros a más de 1 año,ANT/CRED
+67,40 %con Pago anticipado a la fecha de embarque y  60 % con créditos de Bancos y Org. Financieros a más de 1 año,ANT/CRED
+68,45 %con Pago anticipado a la fecha de embarque y 55 % con créditos de Bancos y Org. Financieros a más de 1 año,ANT/CRED
+69,50 % o más con Pago anticipado a la fecha de embarque y 50 % o menos con créditos de Bancos y Org. Financieros a más de 1 año,ANT/CRED
+70,10 %con Pago anticipado a la fecha de embarque y 90 % con cobranza hasta 1 año,ANT/COB
+71,20 %con Pago anticipado a la fecha de embarque y 80 % con cobranza hasta 1 año,ANT/COB
+72,30 %con Pago anticipado a la fecha de embarque y 70 % con cobranza hasta 1 año,ANT/COB
+73,40 %con Pago anticipado a la fecha de embarque y 60 % con cobranza hasta 1 año,ANT/COB
+74,50 %con Pago anticipado a la fecha de embarque y 50 % con cobranza hasta 1 año,ANT/COB
+75,M s del 50 %con Pago anticipado a la fecha de embarque y menos del 50 % con cobranza hasta 1 año,ANT/COB
+80,10 % Sin pago y 90 % con cobranza hasta 1 año,S/PAGO/COB
+81,20 % Sin pago y 80 % con cobranza hasta 1 año,S/PAGO/COB
+82,30 % Sin pago y 70 % con cobranza hasta 1 año,S/PAGO/COB
+83,40 % Sin pago y 60 % con cobranza hasta 1 año,S/PAGO/COB
+84,50 % Sin pago y 50 % con cobranza hasta 1 año,S/PAGO/COB
+85,Más del 50 % Sin pago y  menos del 50 % con cobranza hasta 1 año,S/PAGO/COB

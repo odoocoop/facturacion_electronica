@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <record id="exportacion_view_form" model="ir.ui.view">
+    <field name="name">exportacion.form</field>
+    <field name="model">account.invoice.exportacion</field>
+    <field name="arch" type="xml">
+      <form string="Exportación">
+        <sheet>
+          <group>
+            <field name="pais_destino" />
+            <field name="puerto_embarque" />
+            <field name="puerto_desembarque" />
+            <field name="via"/>
+            <field name="carrier_id"/>
+            <field name="tara"/>
+            <field name="uom_tara" />
+            <field name="peso_bruto" />
+            <field name="uom_peso_bruto"/>
+            <field name="peso_neto"/>
+            <field name="uom_peso_neto"/>
+            <field name="total_items"/>
+            <field name="monto_flete"/>
+            <field name="monto_seguro"/>
+            <field name="pais_recepcion"/>
+            <field name="total_bultos"/>
+            <field name="currency_id" />
+          </group>
+        </sheet>
+      </form>
+    </field>
+  </record>
+
+  <record id="bultos_view_form" model="ir.ui.view">
+    <field name="name">bultos.form</field>
+    <field name="model">account.invoice.bultos</field>
+    <field name="arch" type="xml">
+      <form string="Bultos">
+        <sheet>
+          <group>
+            <field name="cantidad_bultos"/>
+            <field name="tipo_bulto"/>
+            <field name="tipo_bulto_code" invisible="1"/>
+            <field name="marcas" attrs="{'invisible': [('tipo_bulto_code', 'in', ['75', '78'])], 'required': ('tipo_bulto_code', 'not in', ['75', '78'])}"/>
+            <field name="id_container" attrs="{'invisible': [('tipo_bulto_code', 'not in', ['75', '78'])], 'required': ('tipo_bulto_code', 'in', ['75', '78'])}" />
+            <field name="sello" attrs="{'invisible': [('tipo_bulto_code', 'not in', ['75', '78'])], 'required': ('tipo_bulto_code', 'in', ['75', '78'])}" />
+            <field name="emisor_sello" attrs="{'invisible': [('tipo_bulto_code', 'not in', ['75', '78'])]}" />
+            <field name="invoice_id" invisible="1"/>
+          </group>
+        </sheet>
+      </form>
+    </field>
+  </record>
+</odoo>
