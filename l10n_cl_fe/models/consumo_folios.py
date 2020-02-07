@@ -257,8 +257,8 @@ class ConsumoFolios(models.Model):
             }
             detalles.append([0,0,rango])
         for r, value in resumenes.items():
-            if '%s_folios' %str(r) in value:
-                Rangos = value[ str(r)+'_folios' ]
+            if value.get('T%s' %str(r) ):
+                Rangos = value[ 'T'+str(r)]
                 if 'itemUtilizados' in Rangos:
                     for rango in Rangos['itemUtilizados']:
                         pushItem('RangoUtilizados', rango, r)

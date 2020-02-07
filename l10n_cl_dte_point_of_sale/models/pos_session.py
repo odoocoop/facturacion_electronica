@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 from odoo import fields, models, api, _
 from odoo.exceptions import UserError
 from datetime import datetime, timedelta
@@ -78,7 +77,7 @@ class PosSession(models.Model):
             if not sequence:
                 return
         if not self.env.user.get_digital_signature(sequence.company_id):
-            raise UserError(_("No Tiene permisos para usar esta secuencia de folios"))
+            raise UserError(_("No Tiene permisos para usar esta secuencia de folios. Solicitar a un usuario administrador que autorice el uso de la firma electrónica a este usuario"))
         folio = sequence.number_next_actual
         caffiles = sequence.get_caf_files()
         if not caffiles:

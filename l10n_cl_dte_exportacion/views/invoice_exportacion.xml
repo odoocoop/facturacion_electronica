@@ -23,9 +23,7 @@
             <field name="monto_seguro"/>
             <field name="pais_recepcion"/>
             <field name="total_bultos"/>
-            <field name="bultos" />
             <field name="currency_id" />
-
           </group>
         </sheet>
       </form>
@@ -34,7 +32,7 @@
 
   <record id="bultos_view_form" model="ir.ui.view">
     <field name="name">bultos.form</field>
-    <field name="model">account.invoice.exportacion.bultos</field>
+    <field name="model">account.invoice.bultos</field>
     <field name="arch" type="xml">
       <form string="Bultos">
         <sheet>
@@ -46,7 +44,7 @@
             <field name="id_container" attrs="{'invisible': [('tipo_bulto_code', 'not in', ['75', '78'])], 'required': ('tipo_bulto_code', 'in', ['75', '78'])}" />
             <field name="sello" attrs="{'invisible': [('tipo_bulto_code', 'not in', ['75', '78'])], 'required': ('tipo_bulto_code', 'in', ['75', '78'])}" />
             <field name="emisor_sello" attrs="{'invisible': [('tipo_bulto_code', 'not in', ['75', '78'])]}" />
-            <field name="exportacion_id" invisible="1"/>
+            <field name="invoice_id" invisible="1"/>
           </group>
         </sheet>
       </form>

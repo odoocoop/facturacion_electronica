@@ -76,8 +76,8 @@ class AccountInvoiceLine(models.Model):
                     if t.uom_id and t.uom_id.category_id != line.uom_id.category_id:
                         raise UserError("Con este tipo de impuesto, solamente deben ir unidades de medida de la categoría %s" %t.uom_id.category_id.name)
                     if t.mepco:
-                        t.verify_mepco(line.invoice_id.date_invoice)
-                taxes = line.invoice_line_tax_ids.compute_all(line.price_unit, currency, line.quantity, product=line.product_id, partner=line.invoice_id.partner_id, discount=line.discount)
+                        t.verify_mepco(line.invoice_id.date_invoice, line.invoice_id.currency_id)
+                taxes = line.invoice_line_tax_ids.compute_all(line.price_unit, currency, line.quantity, product=line.product_id, partner=line.invoice_id.partner_id, discount=line.discount, uom_id=line.uom_id)
             if taxes:
                 line.price_subtotal = price_subtotal_signed = taxes['total_excluded']
             else:
@@ -95,7 +95,8 @@ class AccountInvoiceLine(models.Model):
 
 class Referencias(models.Model):
     _name = 'account.invoice.referencias'
-
+    _description = 'Línea de referencia de Documentos DTE'
+    
     origen = fields.Char(
             string="Origin",
             )
@@ -675,7 +676,7 @@ class AccountInvoice(models.Model):
                 included = False
             if (totales and not included) or (included and not totales):
                 raise UserError('No se puede hacer timbrado mixto, todos los impuestos en este pedido deben ser uno de estos dos:  1.- precio incluído, 2.-  precio sin incluir')
-            taxes = line.invoice_line_tax_ids.compute_all(line.price_unit, self.currency_id, line.quantity, line.product_id, self.partner_id, discount=line.discount)['taxes']
+            taxes = line.invoice_line_tax_ids.compute_all(line.price_unit, self.currency_id, line.quantity, line.product_id, self.partner_id, discount=line.discount, uom_id=line.uom_id)['taxes']
             tax_grouped = self._get_grouped_taxes(line, taxes, tax_grouped)
         #if totales:
         #    tax_grouped = {}
@@ -1463,9 +1464,7 @@ a VAT."))
         Encabezado['IdDoc'] = self._id_doc(taxInclude, MntExe)
         Encabezado['Receptor'] = self._receptor()
         currency_base = self.currency_base()
-        another_currency_id = False
-        if self.currency_id != currency_base:
-            another_currency_id = self.currency_id
+        another_currency_id = self.currency_target()
         MntExe, MntNeto, IVA, TasaIVA, MntTotal, MntBase = self._totales(MntExe, no_product, taxInclude)
         Encabezado['Totales'] = self._totales_normal(currency_base, MntExe,
                                                      MntNeto, IVA, TasaIVA,
@@ -1522,19 +1521,24 @@ a VAT."))
                 lines['CdgItem']['TpoCodigo'] = 'INT1'
                 lines['CdgItem']['VlrCodigo'] = line.product_id.default_code
             taxInclude = False
+            lines["Impuesto"] = []
             for t in line.invoice_line_tax_ids:
+                if t.sii_code in [26, 27, 28, 35, 271]:#@Agregar todos los adicionales
+                    lines['CodImpAdic'] = t.sii_code
                 taxInclude = t.price_include or ( (self._es_boleta() or self._nc_boleta()) and not t.sii_detailed )
                 if t.amount == 0 or t.sii_code in [0]:#@TODO mejor manera de identificar exento de afecto
                     lines['IndExe'] = 1
                     MntExe += currency_base.round(line.price_subtotal)
                 else:
-                    lines["Impuesto"] = [
-                            {
+                    amount = t.amount
+                    if t.sii_code in [28, 35]:
+                        amount = t.compute_factor(line.uom_id)
+                    lines['Impuesto'].append({
                                 "CodImp": t.sii_code,
                                 'price_include': taxInclude,
-                                'TasaImp':t.amount,
+                                'TasaImp': amount,
                             }
-                    ]
+                    )
             #if line.product_id.type == 'events':
             #   lines['ItemEspectaculo'] =
 #            if self._es_boleta():
@@ -1557,9 +1561,6 @@ a VAT."))
             if not no_product:
                 lines['UnmdItem'] = line.uom_id.name[:4]
                 lines['PrcItem'] = round(line.price_unit, 6)
-                for t in line.invoice_line_tax_ids:
-                    if t.sii_code in [26, 27, 271]:#@Agregar todos los adicionales
-                        lines['CodImpAdic'] = t.sii_code
                 if currency_id:
                     lines['OtrMnda'] = {}
                     lines['OtrMnda']['PrcOtrMon'] = round(line.price_unit, 6)
@@ -1677,12 +1678,6 @@ a VAT."))
         dte['moneda_decimales'] = self.currency_id.decimal_places
         return dte
 
-    def _tpo_dte(self):
-        tpo_dte = "Documento"
-        if self.document_class_id.sii_code == 43:
-            tpo_dte = 'Liquidacion'
-        return tpo_dte
-
     def _get_datos_empresa(self, company_id):
         signature_id = self.env.user.get_digital_signature(company_id)
         if not signature_id:
@@ -1695,9 +1690,6 @@ a VAT."))
 
     def _timbrar(self, n_atencion=None):
         folio = self.get_folio()
-        tpo_dte = self._tpo_dte()
-        doc_id_number = "F{}T{}".format(folio, self.document_class_id.sii_code)
-        doc_id = '<' + tpo_dte + ' ID="{}">'.format(doc_id_number)
         dte = {}
         dte = self._get_datos_empresa(self.company_id)
         dte['Documento'] = [{
@@ -1707,7 +1699,6 @@ a VAT."))
             'documentos': [self._dte(n_atencion)]
             },
         ]
-        _logger.warning(dte)
         result = fe.timbrar(dte)
         if result[0].get('error'):
             raise UserError(result[0].get('error'))

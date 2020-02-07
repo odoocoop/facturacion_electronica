@@ -17,6 +17,9 @@ screens.PaymentScreenWidget.include({
 		this.$('.js_boleta_exenta').click(function(){
 			self.click_boleta_exenta();
 		});
+		this.$('.js_factura_exenta').click(function(){
+			self.click_factura_exenta();
+		});
 	},
 	order_is_valid: function(force_validation) {
 		var self = this;
@@ -24,13 +27,13 @@ screens.PaymentScreenWidget.include({
 		var order = self.pos.get_order();
 		if (order.is_to_invoice() || order.es_boleta()){
 		      var total_tax = order.get_total_tax();
-		      if (order.es_boleta_exenta() && total_tax > 0){// @TODO agrregar facturas exentas
+		      if ((order.es_boleta_exenta() || order.es_factura_exenta()) && total_tax > 0){// @TODO agrregar facturas exentas
 		        this.gui.show_popup('error',{
 		        	'title': "Error de integridad",
 		        	'body': "No pueden haber productos afectos en boleta/factura exenta",
 		        });
 				return false;
-		      }else if(!order.es_boleta_exenta() && total_tax <= 0 && order.get_total_exento() > 0){
+			}else if(!order.es_boleta_exenta() && !order.es_factura_exenta() && total_tax <= 0 && order.get_total_exento() > 0){
 		        this.gui.show_popup('error',{
 		        	'title': "Error de integridad",
 		        	'body': "Debe haber almenos un producto afecto",
@@ -111,6 +114,7 @@ screens.PaymentScreenWidget.include({
 		var order = this.pos.get_order();
 		order.set_to_invoice(false);
 		this.$('.js_invoice').removeClass('highlight');
+		this.$('.js_factura_exenta').removeClass('highlight');
 		if (this.pos.pos_session.caf_files && (order.es_boleta_exenta() || !order.es_boleta())) {
 			this.unset_boleta(order);
 			order.set_boleta(true);
@@ -124,6 +128,7 @@ screens.PaymentScreenWidget.include({
 		var order = this.pos.get_order();
 		order.set_to_invoice(false);
 		this.$('.js_invoice').removeClass('highlight');
+		this.$('.js_factura_exenta').removeClass('highlight');
 		if (this.pos.pos_session.caf_files_exentas && !order.es_boleta_exenta()){
 			this.unset_boleta(order);
 			order.set_boleta(true);
@@ -135,8 +140,31 @@ screens.PaymentScreenWidget.include({
 	},
 	click_invoice: function(){
 		var order = this.pos.get_order();
+		if(order.exenta){
+			this.$('.js_factura_exenta').removeClass('highlight');
+			this.$('.js_invoice').addClass('highlight');
+			order.exenta = false;
+		}else{
+			this.unset_boleta(order);
+			var res = this._super();
+		}
+	},
+	click_factura_exenta: function(){
+		var order = this.pos.get_order();
 		this.unset_boleta(order);
-		var res = this._super();
+		if(order.is_to_invoice() && !order.exenta){
+				order.exenta = true;
+				this.$('.js_invoice').removeClass('highlight');
+		}
+		else{
+			order.set_to_invoice(!order.is_to_invoice());
+			order.exenta = !order.exenta;
+		}
+		if (order.is_to_invoice()) {
+				this.$('.js_factura_exenta').addClass('highlight');
+		} else {
+				this.$('.js_factura_exenta').removeClass('highlight');
+		}
 	},
 });
 

@@ -98,15 +98,6 @@ entregados por parte del deudor de la factura {4}, RUT {5}, de acuerdo a lo esta
             'target': 'self',
         }
 
-    def procesar_recepcion(self, retorno, respuesta_dict ):
-        if not 'RECEPCIONAEC' in respuesta_dict:
-            return super(CesionDTE, self).procesar_recepcion(retorno, respuesta_dict)
-        if respuesta_dict['RECEPCIONAEC']['STATUS'] != '0':
-            _logger.warning(connection_status[respuesta_dict['RECEPCIONDTE']['STATUS']])
-        else:
-            retorno.update({'sii_result': 'Enviado','sii_send_ident':respuesta_dict['RECEPCIONAEC']['TRACKID']})
-        return retorno
-
     def _id_dte(self):
         IdDoc = {}
         IdDoc['TipoDTE'] = self.document_class_id.sii_code

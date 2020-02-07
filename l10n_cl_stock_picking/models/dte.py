@@ -26,11 +26,14 @@ try:
     import pdf417gen
 except ImportError:
     _logger.info('Cannot import pdf417gen library')
-
 try:
     import base64
 except ImportError:
     _logger.info('Cannot import base64 library')
+try:
+    from PIL import Image, ImageDraw, ImageFont
+except:
+    _logger.warning("no se ha cargado PIL")
 
 
 server_url = {'SIICERT':'https://maullin.sii.cl/DTEWS/','SII':'https://palena.sii.cl/DTEWS/'}
@@ -167,6 +170,8 @@ class stock_picking(models.Model):
         string="Document Type",
         related="location_id.sii_document_class_id",
     )
+    dte_ticket = fields.Boolean(
+        string="¿Formato Ticket?")
 
     @api.multi
     def action_done(self):
@@ -229,8 +234,8 @@ class stock_picking(models.Model):
         if self.transport_type and self.transport_type not in ['0']:
             IdDoc['TipoDespacho'] = self.transport_type
         IdDoc['IndTraslado'] = self.move_reason
-        #if self.print_ticket:
-        #    IdDoc['TpoImpresion'] = "N" #@TODO crear opcion de ticket
+        if self.dte_ticket:
+            IdDoc['TpoImpresion'] = "T"
         if taxInclude and MntExe == 0 :
             IdDoc['MntBruto'] = 1
         #IdDoc['FmaPago'] = self.forma_pago or 1
@@ -298,7 +303,7 @@ class stock_picking(models.Model):
                 Transporte['Chofer']['NombreChofer'] = self.chofer.name[:30]
         partner_id = self.partner_id or self.company_id.partner_id
         Transporte['DirDest'] = (partner_id.street or '')+ ' '+ (partner_id.street2 or '')
-        Transporte['CmnaDest'] = partner_id.state_id.name or ''
+        Transporte['CmnaDest'] = partner_id.city_id.name or ''
         Transporte['CiudadDest'] = partner_id.city or ''
         #@TODO SUb Area Aduana
         return Transporte
@@ -309,7 +314,8 @@ class stock_picking(models.Model):
         for line in self.move_lines:
             if line.move_line_tax_ids:
                 for t in line.move_line_tax_ids:
-                    IVA = t.amount
+                    if t.sii_code in [14, 15]:
+                        IVA = t.amount
         if IVA > 0 and not no_product:
             Totales['MntNeto'] = int(round(self.amount_untaxed, 0))
             Totales['TasaIVA'] = round(IVA,2)
@@ -343,20 +349,26 @@ class stock_picking(models.Model):
                 lines['CdgItem']['TpoCodigo'] = 'INT1'
                 lines['CdgItem']['VlrCodigo'] = line.product_id.default_code
             taxInclude = False
+            lines["Impuesto"] = []
             if line.move_line_tax_ids:
                 for t in line.move_line_tax_ids:
+                    if t.sii_code in [26, 27, 28, 35, 271]:#@Agregar todos los adicionales
+                        lines['CodImpAdic'] = t.sii_code
                     taxInclude = t.price_include
                     if t.amount == 0 or t.sii_code in [0]:#@TODO mejor manera de identificar exento de afecto
                         lines['IndExe'] = 1
                         MntExe += int(round(line.subtotal, 0))
                     else:
-                        lines["Impuesto"] = [
+                        amount = t.amount
+                        if t.sii_code in [28, 35]:
+                            amount = t.compute_factor(line.product_uom)
+                        lines["Impuesto"].append(
                                 {
                                     "CodImp": t.sii_code,
                                     'price_include': taxInclude,
-                                    'TasaImp':t.amount,
+                                    'TasaImp': amount,
                                 }
-                        ]
+                        )
             lines['NmbItem'] = line.product_id.name
             lines['DscItem'] = line.name
             if line.product_id.default_code:
@@ -388,7 +400,7 @@ class stock_picking(models.Model):
         if len(picking_lines) == 0:
             raise UserError(_('No se puede emitir una guía sin líneas'))
         return {
-                'picking_lines': picking_lines,
+                'Detalle': picking_lines,
                 'MntExe': MntExe,
                 'no_product':no_product,
                 'tax_include': taxInclude,
@@ -405,13 +417,11 @@ class stock_picking(models.Model):
             picking_lines['MntExe'],
             picking_lines['no_product'],
             picking_lines['tax_include'])
-        count = 0
         lin_ref = 1
         ref_lines = []
         if self.company_id.dte_service_provider == 'SIICERT' and isinstance(n_atencion, string_types):
             ref_line = {}
             ref_line['NroLinRef'] = lin_ref
-            count = count +1
             ref_line['TpoDocRef'] = "SET"
             ref_line['FolioRef'] = self.get_folio()
             ref_line['FchRef'] = datetime.strftime(datetime.now(), '%Y-%m-%d')
@@ -430,13 +440,10 @@ class stock_picking(models.Model):
                 if ref.date:
                     ref_line['FchRef'] = ref.date
             ref_lines.append(ref_line)
-        dte['Detalle'] = picking_lines['picking_lines']
+            lin_ref += 1
+        dte['Detalle'] = picking_lines['Detalle']
         dte['Referencia'] = ref_lines
         return dte
-
-    def _tpo_dte(self):
-        tpo_dte = "Documento"
-        return tpo_dte
 
     def _get_datos_empresa(self, company_id):
         signature_id = self.env.user.get_digital_signature(company_id)
@@ -450,8 +457,6 @@ class stock_picking(models.Model):
 
     def _timbrar(self, n_atencion=None):
         folio = self.get_folio()
-        tpo_dte = self._tpo_dte()
-        dte = {}
         datos = self._get_datos_empresa(self.company_id)
         datos['Documento'] = [{
             'TipoDTE': self.document_class_id.sii_code,
@@ -488,7 +493,7 @@ class stock_picking(models.Model):
                 })
             if r.sii_result in ['Rechazado'] or (r.company_id.dte_service_provider == 'SIICERT' and r.sii_xml_request.state in ['', 'draft', 'NoEnviado']):
                 if r.sii_xml_request:
-                    if len(r.sii_xml_request.invoice_ids) == 1:
+                    if len(r.sii_xml_request.picking_ids) == 1:
                         r.sii_xml_request.unlink()
                     else:
                         r.sii_xml_request = False
@@ -578,3 +583,51 @@ class stock_picking(models.Model):
                 r.sii_xml_request.get_send_status(r.env.user)
         self._get_dte_status()
         self.get_sii_result()
+
+    @api.multi
+    def _get_printed_report_name(self):
+        self.ensure_one()
+        if self.document_class_id:
+            string_state = ""
+            if self.state == 'draft':
+                string_state = "en borrador "
+            report_string = "%s %s %s" % (self.document_class_id.name,
+                                          string_state,
+                                          self.sii_document_number or '')
+        else:
+            report_string = super(AccountInvoice, self)._get_printed_report_name()
+        return report_string
+
+    @api.multi
+    def getTotalDiscount(self):
+        total_discount = 0
+        for l in self.move_lines:
+            qty = l.quantity_done
+            if qty <= 0:
+                qty = l.product_uom_qty
+            total_discount +=  (((l.discount or 0.00) /100) * l.precio_unitario * qty)
+        return self.currency_id.round(total_discount)
+
+    @api.multi
+    def sii_header(self):
+        W, H = (560, 255)
+        img = Image.new('RGB', (W, H), color=(255,255,255))
+
+        d = ImageDraw.Draw(img)
+        w, h = (0, 0)
+        for i in range(10):
+            d.rectangle(((w, h), (550+w, 220+h)), outline="black")
+            w += 1
+            h += 1
+        font = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', 40)
+        d.text((50,30), "R.U.T.: %s" % self.company_id.document_number, fill=(0,0,0), font=font)
+        d.text((50,90), "Guía de Despacho", fill=(0,0,0), font=font)
+        d.text((100,150), "Electrónica", fill=(0,0,0), font=font)
+        d.text((220,210), "N° %s" % self.sii_document_number, fill=(0,0,0), font=font)
+        font = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', 20)
+        d.text((200,235), "SII %s" %self.company_id.sii_regional_office_id.name, fill=(0,0,0), font=font)
+
+        buffered = BytesIO()
+        img.save(buffered, format="PNG")
+        imm = base64.b64encode(buffered.getvalue()).decode()
+        return imm

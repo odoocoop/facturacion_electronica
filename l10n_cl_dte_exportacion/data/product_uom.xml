@@ -61,11 +61,8 @@
     <field name="uom_type">bigger</field>
   </record>
 
-  <record id="product.product_uom_mcub" model="product.uom">
+  <record id="l10n_cl_chart_of_account.product_uom_mcub" model="product.uom">
     <field name="code">16</field>
-    <field name="name">MCUB</field>
-    <field name="category_id" ref="product.product_uom_categ_vol"/>
-    <field name="uom_type">bigger</field>
   </record>
 
   <record id="product.product_uom_par" model="product.uom">

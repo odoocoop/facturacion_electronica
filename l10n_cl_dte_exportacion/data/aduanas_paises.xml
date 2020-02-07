@@ -1,0 +1,1340 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <record model="aduanas.paises" id="af">
+    <field name="name">AFGHANISTAN</field>
+    <field name="code">308</field>
+  </record>
+  <record model="aduanas.paises" id="al">
+      <field name="name">ALBANIA</field>
+      <field name="code">518</field>
+  </record>
+  <record model="aduanas.paises" id="am">
+      <field name="name">ALEMANIA</field>
+      <field name="code">563</field>
+  </record>
+  <record model="aduanas.paises" id="ad">
+      <field name="name">ANDORRA</field>
+      <field name="code">525</field>
+  </record>
+  <record model="aduanas.paises" id="ao">
+      <field name="name">ANGOLA</field>
+      <field name="code">140</field>
+  </record>
+  <record model="aduanas.paises" id="ai">
+      <field name="name">ANGUILA</field>
+      <field name="code">242</field>
+  </record>
+  <record model="aduanas.paises" id="an">
+      <field name="name">ANTILLAS NEERLANDESAS</field>
+      <field name="code">247</field>
+  </record>
+  <record model="aduanas.paises" id="ag">
+      <field name="name">ANTIGUA Y BARBUDA</field>
+      <field name="code">240</field>
+      <field name="abreviatura">ANTIGUA Y BBUDA</field>
+  </record>
+  <record model="aduanas.paises">
+      <field name="name">ARABIA SAUDITA</field>
+      <field name="code">302</field>
+  </record>
+  <record model="aduanas.paises">
+      <field name="name">ARGELIA</field>
+      <field name="code">127</field>
+  </record>
+  <record model="aduanas.paises" id="ar">
+      <field name="name">ARGENTINA</field>
+      <field name="code">224</field>
+  </record>
+  <record model="aduanas.paises">
+      <field name="name">ARMENIA</field>
+      <field name="code">540</field>
+  </record>
+  <record model="aduanas.paises">
+      <field name="name">ARUBA</field>
+      <field name="code">243</field>
+  </record>
+  <record model="aduanas.paises" id="au">
+      <field name="name">AUSTRALIA</field>
+      <field name="code">406</field>
+
+  </record>
+  <record model="aduanas.paises" id="at">
+      <field name="name">AUSTRIA</field>
+      <field name="code">509</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">AZERBAIJAN</field>
+      <field name="code">541</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">BAHAMAS</field>
+      <field name="code">207</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">BAHREIN</field>
+      <field name="code">313</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">BANGLADESH</field>
+      <field name="code">321</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">BARBADOS</field>
+      <field name="code">204</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">BELAU</field>
+      <field name="code">420</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">BELARUS</field>
+      <field name="code">542</field>
+
+  </record>
+  <record model="aduanas.paises" id="be">
+      <field name="name">BELGICA</field>
+      <field name="code">514</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">BELICE</field>
+      <field name="code">236</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">BENIN</field>
+      <field name="code">150</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">BERMUDAS</field>
+      <field name="code">244</field>
+
+  </record>
+  <record model="aduanas.paises" id="bo">
+      <field name="name">BOLIVIA</field>
+      <field name="code">221</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">BOSNIA Y HERZEGOVINA</field>
+      <field name="code">543</field>
+      <field name="abreviatura">BOSNIA HEZGVINA</field>
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">BOTSWANA</field>
+      <field name="code">113</field>
+
+  </record>
+  <record model="aduanas.paises" id="br">
+      <field name="name">BRASIL</field>
+      <field name="code">220</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">BRUNEI</field>
+      <field name="code">344</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">BULGARIA</field>
+      <field name="code">527</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">BURKINA FASO</field>
+      <field name="code">161</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">BURUNDI</field>
+      <field name="code">141</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">BUTAN</field>
+      <field name="code">318</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">CABO VERDE</field>
+      <field name="code">129</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">CAMBODIA</field>
+      <field name="code">315</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">CAMERUN</field>
+      <field name="code">149</field>
+
+  </record>
+  <record model="aduanas.paises" id="ca">
+      <field name="name">CANADA</field>
+      <field name="code">226</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">CHAD</field>
+      <field name="code">130</field>
+
+  </record>
+  <record model="aduanas.paises" id="cl">
+      <field name="name">CHILE</field>
+      <field name="code">997</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">CHIPRE</field>
+      <field name="code">305</field>
+
+  </record>
+  <record model="aduanas.paises" id="cn">
+      <field name="name">CHINA</field>
+      <field name="code">336</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">CISKEY</field>
+      <field name="code">162</field>
+
+  </record>
+  <record model="aduanas.paises" id="co">
+      <field name="name">COLOMBIA</field>
+      <field name="code">202</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">COMORAS</field>
+      <field name="code">118</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">CONGO</field>
+      <field name="code">144</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">COREA DEL NORTE</field>
+      <field name="code">334</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">COREA DEL SUR</field>
+      <field name="code">333</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">COSTA RICA</field>
+      <field name="code">211</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">COSTA DE MARFIL</field>
+      <field name="code">107</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">CROACIA</field>
+      <field name="code">547</field>
+
+  </record>
+  <record model="aduanas.paises" id="cu">
+      <field name="name">CUBA</field>
+      <field name="code">209</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">DJIBOUTI</field>
+      <field name="code">155</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">DINAMARCA</field>
+      <field name="code">507</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">DOMINICA</field>
+      <field name="code">231</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">ECUADOR</field>
+      <field name="code">218</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">EGIPTO</field>
+      <field name="code">124</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">EL SALVADOR</field>
+      <field name="code">213</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">EMIRATOS ARABES UNIDOS </field>
+      <field name="code">341</field>
+      <field name="abreviatura">EMIR. ARAB. UNID.</field>
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">ERITREA</field>
+      <field name="code">163</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">ESLOVENIA</field>
+      <field name="code">548</field>
+
+  </record>
+  <record model="aduanas.paises" id="es">
+      <field name="name">ESPAÑA</field>
+      <field name="code">517</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">ESTONIA</field>
+      <field name="code">549</field>
+
+  </record>
+  <record model="aduanas.paises" id="us">
+      <field name="name">ESTADOS UNIDOS DE AMÉRICA</field>
+      <field name="code">225</field>
+      <field name="abreviatura">U.S.A.</field>
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">ETIOPIA</field>
+      <field name="code">139</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">FIJI</field>
+      <field name="code">401</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">FILIPINAS</field>
+      <field name="code">335</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">FINLANDIA</field>
+      <field name="code">512</field>
+
+  </record>
+  <record model="aduanas.paises" id="fr">
+      <field name="name">FRANCIA</field>
+      <field name="code">505</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">GABON</field>
+      <field name="code">145</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">GAMBIA</field>
+      <field name="code">102</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">GEORGIA</field>
+      <field name="code">550</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">GHANA</field>
+      <field name="code">108</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">GIBRALTAR</field>
+      <field name="code">565</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">GRANADA</field>
+      <field name="code">232</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">GRECIA</field>
+      <field name="code">520</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">GROENLANDIA</field>
+      <field name="code">253</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">GUAM</field>
+      <field name="code">425</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">GUATEMALA</field>
+      <field name="code">215</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">GUERNSEY</field>
+      <field name="code">566</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">GUINEA</field>
+      <field name="code">104</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">GUINEA BISSAU</field>
+      <field name="code">103</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">GUINEA ECUATORIAL</field>
+      <field name="code">147</field>
+      <field name="abreviatura">GUINEA ECUATRL</field>
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">GUYANA</field>
+      <field name="code">217</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">HAITI</field>
+      <field name="code">208</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">HOLANDA</field>
+      <field name="code">515</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">HONG KONG - REGIÓN ADMINISTRATIVA ESPECIAL DE CHINA</field>
+      <field name="code">342</field>
+      <field name="abreviatura">HONG KONG</field>
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">HONDURAS</field>
+      <field name="code">214</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">HUNGRIA</field>
+      <field name="code">530</field>
+
+  </record>
+  <record model="aduanas.paises" id="in">
+      <field name="name">INDIA</field>
+      <field name="code">317</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">INDONESIA</field>
+      <field name="code">328</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">IRAN</field>
+      <field name="code">309</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">IRAK</field>
+      <field name="code">307</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">IRLANDA</field>
+      <field name="code">506</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">ISLANDIA</field>
+      <field name="code">516</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">ISLAS CAYMAN</field>
+      <field name="code">246</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">ISLAS COOK</field>
+      <field name="code">427</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">ISLAS DE MAN</field>
+      <field name="code">567</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">ISLAS MALDIVAS</field>
+      <field name="code">327</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">ISLAS MARIANAS DEL NORTE</field>
+      <field name="code">424</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">ISLAS MARSHALL</field>
+      <field name="code">164</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">ISLAS SALOMON</field>
+      <field name="code">418</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">ISLAS TONGA</field>
+      <field name="code">403</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">ISLAS VIRGENES BRITANICAS</field>
+      <field name="code">245</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">ISLAS VIRGENES (ESTADOS UNIDOS DE AMERICA)</field>
+      <field name="code">249</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">ISRAEL</field>
+      <field name="code">306</field>
+
+  </record>
+  <record model="aduanas.paises" id="it">
+      <field name="name">ITALIA</field>
+      <field name="code">504</field>
+
+  </record>
+  <record model="aduanas.paises" id="jm">
+      <field name="name">JAMAICA</field>
+      <field name="code">205</field>
+
+  </record>
+  <record model="aduanas.paises" id="jp">
+      <field name="name">JAPON</field>
+      <field name="code">331</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">JERSEY</field>
+      <field name="code">568</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">JORDANIA</field>
+      <field name="code">301</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">KASAJSTAN</field>
+      <field name="code">551</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">KENIA</field>
+      <field name="code">137</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">KIRGISTAN</field>
+      <field name="code">552</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">KIRIBATI</field>
+      <field name="code">416</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">KUWAIT</field>
+      <field name="code">303</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">LAOS</field>
+      <field name="code">316</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">LESOTHO</field>
+      <field name="code">114</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">LETONIA</field>
+      <field name="code">553</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">LIBANO</field>
+      <field name="code">311</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">LIBERIA</field>
+      <field name="code">106</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">LIBIA</field>
+      <field name="code">125</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">LIECHTENSTEIN</field>
+      <field name="code">534</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">LITUANIA</field>
+      <field name="code">554</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">LUXEMBURGO</field>
+      <field name="code">532</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">MACAO</field>
+      <field name="code">345</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">MACEDONIA</field>
+      <field name="code">555</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">MADAGASCAR</field>
+      <field name="code">120</field>
+
+  </record>
+  <record model="aduanas.paises"  id="my">
+      <field name="name">MALASIA</field>
+      <field name="code">329</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">MALAWI</field>
+      <field name="code">115</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">MALI</field>
+      <field name="code">133</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">MALTA</field>
+      <field name="code">523</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">MARRUECOS</field>
+      <field name="code">128</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">MARTINICA</field>
+      <field name="code">250</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">MAURICIO</field>
+      <field name="code">119</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">MAURITANIA</field>
+      <field name="code">134</field>
+
+  </record>
+  <record model="aduanas.paises" id="mx">
+      <field name="name">MEXICO</field>
+      <field name="code">216</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">MICRONESIA</field>
+      <field name="code">417</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">MOLDOVA</field>
+      <field name="code">556</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">MONACO</field>
+      <field name="code">535</field>
+
+  </record>
+  <record model="aduanas.paises" id="mn">
+      <field name="name">MONGOLIA</field>
+      <field name="code">337</field>
+
+  </record>
+  <record model="aduanas.paises" id="ms">
+      <field name="name">MONSERRAT</field>
+      <field name="code">252</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">MOZAMBIQUE</field>
+      <field name="code">121</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">MYANMAR (EX BIRMANIA)</field>
+      <field name="code">326</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">NAMIBIA</field>
+      <field name="code">159</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">NAURU</field>
+      <field name="code">402</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">NEPAL</field>
+      <field name="code">320</field>
+
+  </record>
+  <record model="aduanas.paises" id="ni">
+      <field name="name">NICARAGUA</field>
+      <field name="code">212</field>
+
+  </record>
+  <record model="aduanas.paises" id="ne">
+      <field name="name">NIGER</field>
+      <field name="code">131</field>
+
+  </record>
+  <record model="aduanas.paises" id="ng">
+      <field name="name">NIGERIA</field>
+      <field name="code">111</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">NIUE</field>
+      <field name="code">421</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">NORUEGA</field>
+      <field name="code">513</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">NUEVA CALEDONIA</field>
+      <field name="code">423</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">NUEVA ZELANDIA</field>
+      <field name="code">405</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">OMAN</field>
+      <field name="code">304</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">PAKISTAN</field>
+      <field name="code">324</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">PANAMA</field>
+      <field name="code">210</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">PAPUA NUEVA GUINEA</field>
+      <field name="code">412</field>
+      <field name="abreviatura">PPUA.NVA.GUINEA</field>
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">PARAGUAY</field>
+      <field name="code">222</field>
+
+  </record>
+  <record model="aduanas.paises" id="pe">
+      <field name="name">PERU</field>
+      <field name="code">219</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">POLINESIA FRANCESA</field>
+      <field name="code">422</field>
+
+  </record>
+  <record model="aduanas.paises" id="pl">
+      <field name="name">POLONIA</field>
+      <field name="code">528</field>
+
+  </record>
+  <record model="aduanas.paises" id="pt">
+      <field name="name">PORTUGAL</field>
+      <field name="code">501</field>
+
+  </record>
+  <record model="aduanas.paises" id="pr">
+      <field name="name">PUERTO RICO</field>
+      <field name="code">251</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">QATAR</field>
+      <field name="code">312</field>
+
+  </record>
+  <record model="aduanas.paises" id="uk">
+      <field name="name">REINO UNIDO</field>
+      <field name="code">510</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">REPUBLICA CENTRO AFRICANA</field>
+      <field name="code">148</field>
+      <field name="abreviatura">REP.CENT.AFRIC.</field>
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">REPUBLICA CHECA (D)</field>
+      <field name="code">544</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">REPUBLICA DE YEMEN</field>
+      <field name="code">346</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">REPUBLICA DEMOCRATICA DEL CONGO</field>
+      <field name="code">143</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">REPUBLICA DOMINICANA</field>
+      <field name="code">206</field>
+      <field name="abreviatura">REP.DOMINICANA</field>
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">REPUBLICA ESLOVACA (D)</field>
+      <field name="code">545</field>
+      <field name="abreviatura">REP.ESLOVACA</field>
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">REPUBLICA FEDERAL DE YUGOSLAVIA (Serbia Y Montenegro)(A)</field>
+      <field name="code">564</field>
+      <field name="abreviatura">RF YUGOSLAVIA</field>
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">RUMANIA</field>
+      <field name="code">519</field>
+
+  </record>
+  <record model="aduanas.paises" id="ru">
+      <field name="name">RUSIA (B)</field>
+      <field name="code">562</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">RWANDA</field>
+      <field name="code">142</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">SAHARAVI</field>
+      <field name="code">165</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">SAINT KITTS &amp; NEVIS</field>
+      <field name="code">241</field>
+      <field name="abreviatura">SNT. KIT &amp; NEVIS</field>
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">SAMOA OCCIDENTAL</field>
+      <field name="code">404</field>
+      <field name="abreviatura">SAMOA OCC.</field>
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">SAN MARINO</field>
+      <field name="code">536</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">SANTA SEDE</field>
+      <field name="code">524</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">SAN VICENTE Y LAS</field>
+      <field name="code">GRANADINAS</field>
+      <field name="code">234</field>
+      <field name="abreviatura">S. VTE. Y GRANAD.</field>
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">SAO TOME Y PRINCIPE</field>
+      <field name="code">146</field>
+      <field name="abreviatura">S. TOM. PRINCIPE</field>
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">SANTA LUCIA (ISLAS OCCIDENTALES)</field>
+      <field name="code">233</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">SENEGAL</field>
+      <field name="code">101</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">SEYCHELLES</field>
+      <field name="code">156</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">SIERRA LEONA</field>
+      <field name="code">105</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">SINGAPUR</field>
+      <field name="code">332</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">SIRIA</field>
+      <field name="code">310</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">SOMALIA</field>
+      <field name="code">138</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">SRI LANKA</field>
+      <field name="code">314</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">SWAZILANDIA</field>
+      <field name="code">122</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">SUDAFRICA</field>
+      <field name="code">112</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">SUDAN</field>
+      <field name="code">123</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">SUECIA</field>
+      <field name="code">511</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">SUIZA</field>
+      <field name="code">508</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">SURINAM</field>
+      <field name="code">235</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">TAIWAN (FORMOSA)</field>
+      <field name="code">330</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">TANZANIA</field>
+      <field name="code">135</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">TADJIKISTAN</field>
+      <field name="code">557</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">TERRITORIO BRITÁNICO EN AFRICA</field>
+      <field name="code">151</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">TERRITORIO BRITÁNICO EN AMERICA</field>
+      <field name="code">227</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">TERRITORIO BRITÁNICO EN AUSTRALIA</field>
+      <field name="code">407</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">TERRITORIO DE DINAMARCA</field>
+      <field name="code">230</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">TERRITORIO ESPAÑOL EN AFRICA</field>
+      <field name="code">152</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">TERRITORIO FRANCES EN AFRICA</field>
+      <field name="code">153</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">TERRITORIO FRANCES EN AMERICA</field>
+      <field name="code">228</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">TERRITORIO FRANCES EN AUSTRALIA</field>
+      <field name="code">408</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">TERRITORIO HOLANDES EN AMERICA</field>
+      <field name="code">229</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">TERRITORIO NORTEAMERICANO EN AUSTRALIA</field>
+      <field name="code">409</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">TERRITORIO PORTUGUES EN ASIA</field>
+      <field name="code">343</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">THAILANDIA</field>
+      <field name="code">319</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">TIMOR ORIENTAL</field>
+      <field name="code">426</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">TOGO</field>
+      <field name="code">109</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">TRANSKEI</field>
+      <field name="code">166</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">TRINIDAD Y TOBAGO</field>
+      <field name="code">203</field>
+      <field name="abreviatura">TRINID. Y TOBAGO</field>
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">TUNEZ</field>
+      <field name="code">126</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">TURCAS Y CAICOS</field>
+      <field name="code">248</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">TURKMENISTAN</field>
+      <field name="code">558</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">TURQUIA</field>
+      <field name="code">522</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">TUVALU</field>
+      <field name="code">419</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">UCRANIA</field>
+      <field name="code">559</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">UGANDA</field>
+      <field name="code">136</field>
+
+  </record>
+  <record model="aduanas.paises" id="uy">
+      <field name="name">URUGUAY</field>
+      <field name="code">223</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">UZBEKISTAN</field>
+      <field name="code">560</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">VANUATU</field>
+      <field name="code">415</field>
+
+  </record>
+  <record model="aduanas.paises" id="ve">
+      <field name="name">VENEZUELA</field>
+      <field name="code">201</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">VIENDA</field>
+      <field name="code">158</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">VIETNAM</field>
+      <field name="code">325</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">ZAMBIA</field>
+      <field name="code">117</field>
+
+  </record>
+  <record model="aduanas.paises">
+
+      <field name="name">ZIMBABWE</field>
+      <field name="code">116</field>
+
+  </record>
+</odoo>

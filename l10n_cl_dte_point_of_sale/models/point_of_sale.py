@@ -61,7 +61,7 @@ class POSL(models.Model):
         for line in self:
             fpos = line.order_id.fiscal_position_id
             tax_ids_after_fiscal_position = fpos.map_tax(line.tax_ids, line.product_id, line.order_id.partner_id) if fpos else line.tax_ids
-            taxes = tax_ids_after_fiscal_position.compute_all(line.price_unit, line.order_id.pricelist_id.currency_id, line.qty, product=line.product_id, partner=line.order_id.partner_id, discount=line.discount)
+            taxes = tax_ids_after_fiscal_position.compute_all(line.price_unit, line.order_id.pricelist_id.currency_id, line.qty, product=line.product_id, partner=line.order_id.partner_id, discount=line.discount, uom_id=line.product_id.uom_id)
             line.update({
                 'price_subtotal_incl': taxes['total_included'],
                 'price_subtotal': taxes['total_excluded'],
@@ -182,63 +182,14 @@ class POS(models.Model):
         if fiscal_position_id:
             taxes = fiscal_position_id.map_tax(taxes, line.product_id, line.order_id.partner_id)
         cur = line.order_id.pricelist_id.currency_id
-        taxes = taxes.compute_all(line.price_unit, cur, line.qty, product=line.product_id, partner=line.order_id.partner_id or False, discount=line.discount)['taxes']
+        taxes = taxes.compute_all(line.price_unit, cur, line.qty, product=line.product_id, partner=line.order_id.partner_id or False, discount=line.discount, uom_id=line.product_id.uom_id)['taxes']
         return sum(tax.get('amount', 0.0) for tax in taxes)
-
-    def create_template_envio(self, RutEmisor, RutReceptor, FchResol, NroResol,
-                              TmstFirmaEnv, EnvioDTE,subject_serial_number,SubTotDTE):
-        xml = '''<SetDTE ID="SetDoc">
-<Caratula version="1.0">
-<RutEmisor>{0}</RutEmisor>
-<RutEnvia>{1}</RutEnvia>
-<RutReceptor>{2}</RutReceptor>
-<FchResol>{3}</FchResol>
-<NroResol>{4}</NroResol>
-<TmstFirmaEnv>{5}</TmstFirmaEnv>
-{6}</Caratula>{7}
-</SetDTE>
-'''.format(RutEmisor, subject_serial_number, RutReceptor,
-           FchResol, NroResol, TmstFirmaEnv, SubTotDTE, EnvioDTE)
-        return xml
-
-    def time_stamp(self, formato='%Y-%m-%dT%H:%M:%S'):
-        tz = pytz.timezone('America/Santiago')
-        return datetime.now(tz).strftime(formato)
-
-    def create_template_doc(self, doc):
-        xml = '''<DTE xmlns="http://www.sii.cl/SiiDte" version="1.0">
-{}
-</DTE>'''.format(doc)
-        return xml
-
-    def create_template_env(self, doc):
-        xml = '''<EnvioDTE xmlns="http://www.sii.cl/SiiDte" \
-xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
-xsi:schemaLocation="http://www.sii.cl/SiiDte EnvioDTE_v10.xsd" \
-version="1.0">
-{}
-</EnvioDTE>'''.format(doc)
-        return xml
-
-    def create_template_env_boleta(self, doc):
-        xml = '''<EnvioBOLETA xmlns="http://www.sii.cl/SiiDte" \
-xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
-xsi:schemaLocation="http://www.sii.cl/SiiDte EnvioBOLETA_v11.xsd" \
-version="1.0">
-{}
-</EnvioBOLETA>'''.format(doc)
-        return xml
-
-    def get_resolution_data(self, comp_id):
-        resolution_data = {
-            'dte_resolution_date': comp_id.dte_resolution_date,
-            'dte_resolution_number': comp_id.dte_resolution_number}
-        return resolution_data
 
     def crear_intercambio(self):
         rut = self.format_vat(self.partner_id.commercial_partner_id.vat )
-        envios, filename = self._crear_envio(RUTRecep=rut)
-        return envios[list(envios.keys())[0]].encode('ISO-8859-1')
+        envio = self._crear_envio(RUTRecep=rut)
+        result = fe.xml_envio(envio)
+        return result['sii_xml_request'].encode('ISO-8859-1')
 
     def _create_attachment(self,):
         url_path = '/download/xml/boleta/%s' % (self.id)
@@ -290,6 +241,7 @@ version="1.0">
             ted,
             security_level=5,
             columns=13,
+            encoding='ISO-8859-1',
         )
         image = pdf417gen.render_image(
             bc,
@@ -328,6 +280,14 @@ version="1.0">
                 order_id.signature = order['signature']
                 order_id._timbrar()
                 order_id.sequence_id.next_by_id()#consumo Folio
+        elif order.get('to_invoice'):
+            query = []
+            if order['exenta']:
+                query.append(('sii_code', '=', 34))
+            else:
+                query.append(('sii_code', '=', 33))
+            dc = self.env['sii.document_class'].sudo().search(query)
+            order_id.document_class_id = dc.id
         return order_id
 
     def _prepare_invoice(self):
@@ -336,7 +296,7 @@ version="1.0">
         journal_document_class_id = self.env['account.journal.sii_document_class'].search(
                 [
                     ('journal_id', '=', sale_journal.id),
-                    ('sii_document_class_id.sii_code', 'in', [33]),
+                    ('sii_document_class_id', '=', self.document_class_id.id),
                 ],
             )
         if not journal_document_class_id:
@@ -344,24 +304,115 @@ version="1.0">
         result.update({
             'activity_description': self.partner_id.activity_description.id,
             'ticket':  self.session_id.config_id.ticket,
-            'sii_document_class_id': journal_document_class_id.sii_document_class_id.id,
+            'document_class_id': journal_document_class_id.sii_document_class_id.id,
             'journal_document_class_id': journal_document_class_id.id,
             'responsable_envio': self.env.uid,
         })
         return result
 
+    def create_picking(self):
+        """Create a picking for each order and validate it."""
+        Picking = self.env['stock.picking']
+        Move = self.env['stock.move']
+        StockWarehouse = self.env['stock.warehouse']
+        for order in self:
+            if not order.lines.filtered(lambda l: l.product_id.type in ['product', 'consu']):
+                continue
+            address = order.partner_id.address_get(['delivery']) or {}
+            picking_type = order.picking_type_id
+            return_pick_type = order.picking_type_id.return_picking_type_id or order.picking_type_id
+            order_picking = Picking
+            return_picking = Picking
+            moves = Move
+            location_id = order.location_id.id
+            if order.partner_id:
+                destination_id = order.partner_id.property_stock_customer.id
+            else:
+                if (not picking_type) or (not picking_type.default_location_dest_id):
+                    customerloc, supplierloc = StockWarehouse._get_partner_locations()
+                    destination_id = customerloc.id
+                else:
+                    destination_id = picking_type.default_location_dest_id.id
+
+            if picking_type:
+                message = _("This transfer has been created from the point of sale session: <a href=# data-oe-model=pos.order data-oe-id=%d>%s</a>") % (order.id, order.name)
+                picking_vals = {
+                    'origin': order.name,
+                    'partner_id': address.get('delivery', False),
+                    'date_done': order.date_order,
+                    'picking_type_id': picking_type.id,
+                    'company_id': order.company_id.id,
+                    'move_type': 'direct',
+                    'note': order.note or "",
+                    'location_id': location_id,
+                    'location_dest_id': destination_id,
+                }
+                if order.config_id.dte_picking:
+                    if order.config_id.dte_picking_option == 'all' or (not order.document_class_id and order.config_id.dte_picking_option == 'no_tributarios'):
+                        picking_vals.update({
+                            'use_documents': True,
+                            'move_reason': order.config_id.dte_picking_move_type,
+                            'transport_type': order.config_id.dte_picking_transport_type,
+                            'dte_ticket': order.config_id.dte_picking_ticket,
+                        })
+                pos_qty = any([x.qty > 0 for x in order.lines if x.product_id.type in ['product', 'consu']])
+                if pos_qty:
+                    order_picking = Picking.create(picking_vals.copy())
+                    order_picking.message_post(body=message)
+                neg_qty = any([x.qty < 0 for x in order.lines if x.product_id.type in ['product', 'consu']])
+                if neg_qty:
+                    return_vals = picking_vals.copy()
+                    return_vals.update({
+                        'location_id': destination_id,
+                        'location_dest_id': return_pick_type != picking_type and return_pick_type.default_location_dest_id.id or location_id,
+                        'picking_type_id': return_pick_type.id
+                    })
+                    return_picking = Picking.create(return_vals)
+                    return_picking.message_post(body=message)
+
+            for line in order.lines.filtered(lambda l: l.product_id.type in ['product', 'consu'] and not float_is_zero(l.qty, precision_rounding=l.product_id.uom_id.rounding)):
+                m = Move.create({
+                    'name': line.name,
+                    'product_uom': line.product_id.uom_id.id,
+                    'picking_id': order_picking.id if line.qty >= 0 else return_picking.id,
+                    'picking_type_id': picking_type.id if line.qty >= 0 else return_pick_type.id,
+                    'product_id': line.product_id.id,
+                    'product_uom_qty': abs(line.qty),
+                    'state': 'draft',
+                    'location_id': location_id if line.qty >= 0 else destination_id,
+                    'location_dest_id': destination_id if line.qty >= 0 else return_pick_type != picking_type and return_pick_type.default_location_dest_id.id or location_id,
+                    'precio_unitario': line.price_unit,
+                })
+                m.move_line_tax_ids = line.tax_ids_after_fiscal_position
+                moves |= m
+
+            # prefer associating the regular order picking, not the return
+            order.write({'picking_id': order_picking.id or return_picking.id})
+
+            if return_picking:
+                order._force_picking_done(return_picking)
+            if order_picking:
+                order._force_picking_done(order_picking)
+
+            # when the pos.config has no picking_type_id set only the moves will be created
+            if moves and not return_picking and not order_picking:
+                moves._action_assign()
+                moves.filtered(lambda m: m.state in ['confirmed', 'waiting'])._force_assign()
+                moves.filtered(lambda m: m.product_id.tracking == 'none')._action_done()
+
+        return True
+
     @api.multi
     def do_validate(self):
         ids = []
         for order in self:
-            if order.session_id.config_id.restore_mode:
+            if order.session_id.config_id.restore_mode and order.invoice_id:
                 continue
-            order.sii_result = 'EnCola'
-            #if not order.invoice_id:
             order._timbrar()
             if order.document_class_id.sii_code in [61]:
                 ids.append(order.id)
         if ids:
+            order.sii_result = 'EnCola'
             tiempo_pasivo = (datetime.now() + timedelta(hours=int(self.env['ir.config_parameter'].sudo().get_param('account.auto_send_dte', default=12))))
             self.env['sii.cola_envio'].create({
                 'company_id': self[0].company_id.id,
@@ -372,6 +423,8 @@ version="1.0">
                 'date_time': tiempo_pasivo,
                 'send_email': False if self[0].company_id.dte_service_provider=='SIICERT' or not self.env['ir.config_parameter'].sudo().get_param('account.auto_send_email', default=True) else True,
             })
+        else:
+            self.do_dte_send()
 
     @api.multi
     def do_dte_send_order(self):
@@ -396,7 +449,7 @@ version="1.0">
     def _giros_emisor(self):
         giros_emisor = []
         for turn in self.company_id.company_activities_ids:
-            giros_emisor.extend([{'Acteco': turn.code}])
+            giros_emisor.append({'Acteco': turn.code})
         return giros_emisor
 
     def _id_doc(self, taxInclude=False, MntExe=0):
@@ -437,7 +490,7 @@ version="1.0">
             Emisor['GiroEmis'] = self._acortar_str(self.company_id.activity_description.name, 80)
             Emisor['Telefono'] = self.company_id.phone or ''
             Emisor['CorreoEmisor'] = self.company_id.dte_email_id.name_get()[0][1]
-            Emisor['item'] = self._giros_emisor()
+            Emisor['GiroEmisor'] = self._giros_emisor()
         if self.sale_journal.sucursal_id:
             Emisor['Sucursal'] = self.sale_journal.sucursal_id.name
             Emisor['CdgSIISucur'] = self.sale_journal.sucursal_id.sii_code
@@ -488,7 +541,7 @@ version="1.0">
                 raise UserError("Debe ir almenos un Producto Afecto")
             Neto = amount_untaxed - MntExe
             IVA = False
-            if Neto > 0 and not self.document_class_id.es_boleta():
+            if Neto > 0 and (not self.document_class_id.es_boleta() or self._context.get('tax_detail')):
                 for l in self.lines:
                     for t in l.tax_ids:
                         if t.sii_code in [14, 15]:
@@ -498,7 +551,7 @@ version="1.0">
                     Totales['MntNeto'] = currency.round(Neto)
             if MntExe > 0:
                 Totales['MntExe'] = currency.round(MntExe)
-            if IVA and not self.document_class_id.es_boleta():
+            if IVA and not self.document_class_id.es_boleta() or self._context.get('tax_detail'):
                 Totales['TasaIVA'] = IVAAmount
                 iva = currency.round(self.amount_tax)
                 if iva < 0:
@@ -663,13 +716,12 @@ version="1.0">
             batch += 1
             if r.sii_result in ['Rechazado']:
                 r._timbrar()
-            #@TODO Mejarorar esto en lo posible
             grupos.setdefault(r.document_class_id.sii_code, [])
-            grupos[r.document_class_id.sii_code].extend([{
-                'id': r.id,
-                'envio': r.sii_xml_dte,
-                'sii_document_number': r.sii_document_number
-            }])
+            grupos[r.document_class_id.sii_code].append({
+                'NroDTE': r.sii_batch_number,
+                'sii_xml_request': r.sii_xml_dte,
+                'Folio': r.get_folio(),
+            })
         envio = self[0]._get_datos_empresa(self[0].company_id)
         envio.update({
             'RutReceptor': RUTRecep,
@@ -686,7 +738,7 @@ version="1.0">
 
     @api.multi
     def do_dte_send(self, n_atencion=None):
-        envs, file_name = self._crear_envio()
+        datos = self._crear_envio()
         result = fe.timbrar_y_enviar(datos)
         envio_id = self[0].sii_xml_request
         envio = {
@@ -711,7 +763,7 @@ version="1.0">
     def get_sii_result(self):
         for r in self:
             if r.sii_message:
-                r.sii_result = self.env['account.invoice'].process_response_xml(xmltodict.parse(r.sii_message))
+                r.sii_result = self.env['account.invoice'].process_response_xml(r.sii_message)
                 continue
             if r.sii_xml_request.state == 'NoEnviado':
                 r.sii_result = 'EnCola'
@@ -910,7 +962,7 @@ version="1.0">
                 pending_line = line
             #el Cálculo se hace sumando todos los valores redondeados, luego se cimprueba si hay descuadre de $1 y se agrega como línea de ajuste
             for t, value in taxes.items():
-                tax = t.compute_all(value , cur, 1)['taxes'][0]
+                tax = t.compute_all(value , cur, 1, uom_id=line.product_id.uom_id)['taxes'][0]
                 insert_data('tax', {
                     'name': _('Tax') + ' ' + tax['name'],
                     'product_id': line.product_id.id,
@@ -1019,6 +1071,7 @@ version="1.0">
 
 class Referencias(models.Model):
     _name = 'pos.order.referencias'
+    _description = 'Referencias de Orden'
 
     origen = fields.Char(
             string="Origin",

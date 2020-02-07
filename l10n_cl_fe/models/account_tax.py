@@ -1,11 +1,14 @@
 # -*- coding: utf-8 -*-
 from odoo import api, models, fields
 from odoo.tools.translate import _
+from odoo.tools import DEFAULT_SERVER_DATETIME_FORMAT as DTF
 from datetime import datetime
+import dateutil.relativedelta as relativedelta
 import pytz
 import logging
-import locale
 import decimal
+from lxml import html
+import re
 _logger = logging.getLogger(__name__)
 try:
     import urllib3
@@ -14,12 +17,14 @@ try:
 except:
     _logger.warning("no se ha cargado urllib3")
 
+meses = {1: 'Enero',2: 'Febrero', 3: 'Marzo', 4: 'Abril', 5: 'Mayo', 6: 'Junio', 7: 'Julio', 8: 'Agosto', 9: 'Septiembre', 10: 'Octubre', 11: 'Noviembre', 12: 'Diciembre'}
+
 
 class SiiTax(models.Model):
     _inherit = 'account.tax'
 
     @api.multi
-    def compute_all(self, price_unit, currency=None, quantity=1.0, product=None, partner=None, discount=None):
+    def compute_all(self, price_unit, currency=None, quantity=1.0, product=None, partner=None, discount=None, uom_id=None):
         """ Returns all information required to apply taxes (in self + their children in case of a tax goup).
             We consider the sequence of the parent for group of taxes.
                 Eg. considering letters as taxes and alphabetic order as sequence :
@@ -72,7 +77,7 @@ class SiiTax(models.Model):
         # case of group taxes.
         for tax in self.sorted(key=lambda r: r.sequence):
             if tax.amount_type == 'group':
-                ret = tax.children_tax_ids.compute_all(price_unit, currency, quantity, product, partner)
+                ret = tax.children_tax_ids.compute_all(price_unit, currency, quantity, product, partner, discount, uom_id)
                 total_excluded = ret['total_excluded']
                 base = ret['base']
                 total_included = ret['total_included']
@@ -81,14 +86,14 @@ class SiiTax(models.Model):
                 taxes += ret['taxes']
                 continue
 
-            tax_amount = tax._compute_amount(base, price_unit, quantity, product, partner)
+            tax_amount = tax._compute_amount(base, price_unit, quantity, product, partner, uom_id)
             if company_id.tax_calculation_rounding_method == 'round_globally' or not bool(self.env.context.get("round", True)):
                 tax_amount = round(tax_amount, prec)
             else:
                 tax_amount = currency.round(tax_amount)
             tax_amount_retencion = 0
             if tax.sii_type in ['R']:
-                tax_amount_retencion = tax._compute_amount_ret(base, price_unit, quantity, product, partner)
+                tax_amount_retencion = tax._compute_amount_ret(base, price_unit, quantity, product, partner, uom_id)
                 if company_id.tax_calculation_rounding_method == 'round_globally' or not bool(self.env.context.get("round", True)):
                     tax_amount_retencion = round(tax_amount_retencion, prec)
                 if tax.price_include:
@@ -127,7 +132,7 @@ class SiiTax(models.Model):
             'base': base,
             }
 
-    def _compute_amount_ret(self, base_amount, price_unit, quantity=1.0, product=None, partner=None):
+    def _compute_amount_ret(self, base_amount, price_unit, quantity=1.0, product=None, partner=None, uom_id=None):
         if self.amount_type == 'percent' and self.price_include:
             neto = base_amount / (1 + self.retencion / 100)
             tax = base_amount - neto
@@ -136,10 +141,10 @@ class SiiTax(models.Model):
             return base_amount * self.retencion / 100
 
 
-    def prepare_mepco(self, date):
-        locale.setlocale(locale.LC_TIME, 'es_CL')
+    def prepare_mepco(self, date, currency_id=False):
+        tz = pytz.timezone('America/Santiago')
         year = date.strftime("%Y")
-        month = date.strftime("%B").lower()
+        month = meses[int(date.strftime("%m"))].lower()
         url = "http://www.sii.cl/valores_y_fechas/mepco/mepco%s.htm" % year
         resp = pool.request('GET', url)
         sii = html.fromstring(resp.data)
@@ -150,10 +155,15 @@ class SiiTax(models.Model):
             line = 5
         rangos = {}
         i = 0
-        for r in sii.xpath('//div[@id="pp_%s"]/table/tr/th[0]' % (month, line)):
-            rangos[datetime.strptime(r.text, "Vigencia desde: %A %d-%m-%Y")] = i
+        tables = sii.findall('.//div[@id="pp_%s"]/div/table' % (month))
+        if not tables:
+            month = meses[int((date - relativedelta.relativedelta(months=1)).strftime("%m"))].lower()
+            tables = sii.findall('.//div[@id="pp_%s"]/div/table' % (month))
+        for r in tables:
+            sub = r.find('tr/th')
+            res = re.search('\d{1,2}\-\d{1,2}\-\d{4}', sub.text.lower())
+            rangos[datetime.strptime(res[0], "%d-%m-%Y").astimezone(tz)] = i
             i += 1
-        tz = pytz.timezone('America/Santiago')
         ant = datetime.now(tz)
         target = (ant, 0)
         for k, v in rangos.items():
@@ -161,27 +171,35 @@ class SiiTax(models.Model):
                 target = (k, v)
                 break
             ant = k
-        val = sii.xpath('//div[@id="pp_%s"]/table[%s]/tr[%s]/tr[4]' % (month, target[1], line)).text
+        val = tables[target[1]].findall('tr')[line].findall('td')[4].text.replace('.', '').replace(',', '.')
+        utm = self.env['res.currency'].sudo().search([('name', '=', 'UTM')])
+        amount = utm.with_context(date=date.strftime(DTF)).compute(float(val), currency_id)
         return {
-            'amount': int(val),
+            'amount': amount,
             'date': target[0].strftime("%Y-%m-%d"),
             'name': target[0].strftime("%Y-%m-%d"),
             'type': self.mepco,
             'sequence': len(rangos),
             'company_id': self.company_id.id,
+            'currency_id': currency_id.id,
+            'factor': float(val),
         }
 
-    def verify_mepco(self, date_target=False):
+    @api.multi
+    def actualizar_mepco(self):
+        currency_id = self.env['res.currency'].sudo().search([('name', '=', 'CLP')])
+        self.verify_mepco(date_target=False, currency_id=currency_id, force=True)
+
+    def verify_mepco(self, date_target=False, currency_id=False, force=False):
         tz = pytz.timezone('America/Santiago')
         if date_target:
             fields_model = self.env['ir.fields.converter']
             ''' @TODO crearlo como utilidad python'''
-            tz = pytz.timezone('America/Santiago')
             user_zone = fields_model._input_tz()
-            date  = datetime.strptime(date_target, "%Y-%m-%d")
             if tz != user_zone:
+                date = date_target
                 if not date.tzinfo:
-                    date = user_zone.localize(date)
+                    date = user_zone.localize(date_target)
                 date = date.astimezone(tz)
         else:
             date = datetime.now(tz)
@@ -191,7 +209,9 @@ class SiiTax(models.Model):
             ('type', '=', self.mepco),
         ],
         limit=1)
+        mepco_data = self.prepare_mepco(date, currency_id)
         if not mepco:
-            mepco_data = self.prepare_mepco(date)
-            mepco = self.env['account.tax.mepco'].sudo().create(mepco)
+            mepco = self.env['account.tax.mepco'].sudo().create(mepco_data)
+        elif force:
+            mepco.sudo().write(mepco_data)
         self.amount = mepco.amount

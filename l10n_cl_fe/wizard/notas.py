@@ -112,7 +112,7 @@ class AccountInvoiceRefund(models.TransientModel):
                         )
                         i += 1
                     '''
-                    referenicas.append([0,0, {
+                    referencias.append([0,0, {
                             'sequence': i,
                             'origen': inv.sii_document_number,
                             'sii_referencia_TpoDocRef': inv.document_class_id.id,

@@ -90,9 +90,11 @@ class Exportacion(models.Model):
         )
     bultos = fields.One2many(
         string="Bultos",
-        comodel_name="account.invoice.exportacion.bultos",
-        inverse_name="exportacion_id",
-        related='exportacion.bultos',
+        comodel_name="account.invoice.bultos",
+        inverse_name="invoice_id",
+        readonly=True,
+        states={'draft': [('readonly', False)]},
+        copy=False,
     )
     picking_id = fields.Many2one(
         'stock.picking',
@@ -294,7 +296,7 @@ class Exportacion(models.Model):
             Aduana['TotItems'] = expo.total_items
         if expo.total_bultos:
             Aduana['TotBultos'] = expo.total_bultos
-            Aduana['Bultos'] = self._bultos(expo.bultos)
+            Aduana['Bultos'] = self._bultos(self.bultos)
         #Aduana['Marcas'] =
         #Solo si es contenedor
         #Aduana['IdContainer'] =
@@ -394,7 +396,10 @@ class Exportacion(models.Model):
 
     @api.onchange('bultos')
     def tot_bultos(self):
-        self.exportacion.tot_bultos()
+        tot_bultos = 0
+        for b in self.bultos:
+            tot_bultos += b.cantidad_bultos
+        self.total_bultos = tot_bultos
 
     @api.onchange('currency_id')
     def update_exportacion(self):

@@ -37,6 +37,12 @@ class Mepco(models.Model):
     company_id = fields.Many2one(
         'res.company'
     )
+    currency_id = fields.Many2one(
+        'res.currency'
+    )
+    factor = fields.Float(
+        string="Factor cálculo"
+    )
 
     _order = 'date, sequence desc'
     _sql_constraint = [

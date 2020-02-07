@@ -46,7 +46,7 @@ class Libro(models.Model):
         if self.tipo_operacion != 'BOLETA':
             return recs
         for rec in self.with_context(lang='es_CL').move_ids:
-            if rec.documet_class_id and not rec.sii_document_number:
+            if rec.document_class_id and not rec.sii_document_number:
                 orders = sorted(self.env['pos.order'].search(
                         [('account_move', '=', rec.id),
                          ('invoice_id' , '=', False),

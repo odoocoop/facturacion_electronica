@@ -6,16 +6,7 @@ _logger = logging.getLogger(__name__)
 
 class Exportacion(models.Model):
     _name = "account.invoice.exportacion"
-
-    @api.onchange('bultos')
-    @api.depends('bultos')
-    def tot_bultos(self):
-        for r in self:
-            _logger.warning(r)
-            tot_bultos = 0
-            for b in r.bultos:
-                tot_bultos += b.cantidad_bultos
-            r.total_bultos = tot_bultos
+    _description = "Detalle Exportacion"
 
     pais_destino = fields.Many2one(
             'aduanas.paises',
@@ -34,13 +25,7 @@ class Exportacion(models.Model):
         )
     total_bultos = fields.Integer(
             string="Total Bultos",
-            compute='tot_bultos',
         )
-    bultos = fields.One2many(
-        string="Bultos",
-        comodel_name="account.invoice.exportacion.bultos",
-        inverse_name="exportacion_id",
-    )
     via = fields.Many2one(
             'aduanas.tipos_transporte',
             string='Vía',
@@ -98,33 +83,3 @@ class Exportacion(models.Model):
     def set_recepcion(self):
         if not self.pais_recepcion:
             self.pais_recepcion = self.pais_destino
-
-class Bultos(models.Model):
-    _name = 'account.invoice.exportacion.bultos'
-    _description = "Bultos de la exportación"
-
-    exportacion_id = fields.Many2one(
-            'account.invoice.exportacion',
-        )
-    tipo_bulto = fields.Many2one(
-            'aduanas.tipos_bulto',
-            string='Tipo de Bulto',
-        )
-    tipo_bulto_code = fields.Char(
-        related="tipo_bulto.code"
-    )
-    cantidad_bultos = fields.Integer(
-            string="Cantidad de Bultos",
-        )
-    marcas = fields.Char(
-            string="Identificación de marcas",
-        )
-    id_container = fields.Char(
-            string="Id Container"
-        )
-    sello = fields.Char(
-            string="Sello"
-        )
-    emisor_sello = fields.Char(
-            string="Emisor Sello"
-        )

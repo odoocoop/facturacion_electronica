@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from . import account_invoice
+from . import account_invoice_bultos
 from . import account_invoice_exportacion
 from . import aduanas_formas_pago
 from . import aduanas_modalidades_venta

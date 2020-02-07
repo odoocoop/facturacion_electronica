@@ -24,8 +24,14 @@ Se crea este repositorio, para dar un enfoque de firma electrónica directa con 
  - - Factoring (Cesión de Créditos): Ok Envío, Ok Certificación, vía https://gitlab.com/dansanti/l10n_cl_dte_factoring
  - - Factura de Exportación Electrónica ( 110 con sus NC 111 y ND 112): Ok Envío, Ok Certificación, vía https://gitlab.com/dansanti/l10n_cl_dte_exportacion
  - - Liquidación de Facturas: En Proceso
- - - Factura de Compra Electrónica ( 46 ): No desarrollada (NO confundir con el concepto de ingresar facturas de proveedor, que la mayoría le dice de compras, este es un documento de retención de impuestos, la recepción de documentos proveedor, está soportada, con los4 tipos de respuesta que se deben generar según normativa del sii)
+ - - Factura de Compra Electrónica ( 46 ): No desarrollada (NO confundir con el concepto de ingresar facturas de proveedor, que la mayoría le dice de compras, este es un documento de retención de impuestos, la recepción de documentos proveedor, está soportada, con los4 tipos de respuesta que se deben generar según normativa del SII)
 
+ - Impuestos Soportados Para Ventas(Probados en emisión):
+ - - IVA
+ - - Exentos
+ - - Específico Retención Carnes
+ - - Específico ILA cervezas
+ - - Específico Combustibles (diesel, gasolina 93, gasolina 97)
 
  Agradecimientos y colaboradores:
 

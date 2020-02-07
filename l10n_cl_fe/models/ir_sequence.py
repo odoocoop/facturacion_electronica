@@ -141,6 +141,11 @@ www.sii.cl'''.format(folio)
         cafs = sorted(cafs, key=lambda e: e.start_nm)
         result = self.env['dte.caf']
         for caffile in cafs:
+            if caffile.start_nm == 0:
+                try:
+                    caffile.load_caf()
+                except Exception as e:
+                    _logger.warning("error en cargar caff %s" % str(e))
             if int(folio) <= caffile.final_nm:
                 result += caffile
         if result:
