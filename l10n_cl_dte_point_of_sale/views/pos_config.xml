@@ -37,6 +37,42 @@
                   </div>
               </div>
             </div>
+            <div id="inventory_location" position="inside">
+              <div class="col-xs-12 col-md-6 o_setting_box" id="iface_guia">
+                  <div class="o_setting_right_pane">
+                      <h3>Emitir Guías de Despacho</h3>
+                      <div class="text-muted" id="guia_label">
+                         Opciones para la emisión de guía de desapacho electrónica
+                      </div>
+                      <div class="content-group mt16">
+                        <div class="row mt16">
+                            <label string="Emitir Guías de despacho Electrónica" for="dte_picking" class="col-md-3 o_light_label"/>
+                            <field name="dte_picking"/>
+                        </div>
+                        <div class="row mt16" attrs="{'invisible': [('dte_picking', '=', False)]}">
+                            <label string="¿Formato Ticket?" for="dte_picking_ticket" class="col-md-3 o_light_label"/>
+                            <field name="dte_picking_ticket"/>
+                        </div>
+                        <div class="row mt16" attrs="{'invisible': [('dte_picking', '=', False)]}">
+                            <label string="Secuencia de folios" for="dte_picking_sequence" class="col-md-3 o_light_label"/>
+                            <field name="dte_picking_sequence" readonly="1"/>
+                        </div>
+                        <div class="row mt16" attrs="{'invisible': [('dte_picking', '=', False)]}">
+                            <label string="Discriminar por tipo de orden" for="dte_picking_option" class="col-md-3 o_light_label"/>
+                            <field name="dte_picking_option"/>
+                        </div>
+                        <div class="row mt16" attrs="{'invisible': [('dte_picking', '=', False)]}">
+                            <label string="Indicador Tipo de Movimiento" for="dte_picking_move_type" class="col-md-3 o_light_label"/>
+                            <field name="dte_picking_move_type" />
+                        </div>
+                        <div class="row mt16" attrs="{'invisible': [('dte_picking', '=', False)]}">
+                            <label string="Indicador Tipo de Traslado" for="dte_picking_transport_type" class="col-md-3 o_light_label"/>
+                            <field name="dte_picking_transport_type" />
+                        </div>
+                      </div>
+                  </div>
+              </div>
+            </div>
           </field>
       </record>
 
@@ -51,6 +87,8 @@
             <field name="left_number" />
             <field name="next_number_exenta" />
             <field name="left_number_exenta" />
+            <field name="next_number_guia" />
+            <field name="left_number_guia" />
           </field>
           <xpath expr="//div[hasclass('o_kanban_primary_right')]/div[1]" position="before">
             <div t-if="record.next_number.value > 0" class="row">
@@ -81,6 +119,21 @@
                 </div>
                 <div class="col-xs-6">
                     <span><field name="left_number_exenta"/></span>
+                </div>
+              </div>
+              <div t-if="record.next_number_guia.value > 0" class="row">
+                <h3>Guía de Despacho</h3>
+                <div class="col-xs-6">
+                    <span>Próximo Folio</span>
+                </div>
+                <div class="col-xs-6">
+                    <span><field name="next_number_guia"/></span>
+                </div>
+                <div class="col-xs-6">
+                    <span>Folios Restantes</span>
+                </div>
+                <div class="col-xs-6">
+                    <span><field name="left_number_guia"/></span>
                 </div>
               </div>
           </xpath>

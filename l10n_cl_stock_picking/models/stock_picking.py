@@ -328,6 +328,7 @@ class StockMove(models.Model):
         )
     price_untaxed = fields.Monetary(
             string='Price Untaxed',
+            compute='_compute_amount',
         )
     move_line_tax_ids = fields.Many2many(
             'account.tax',

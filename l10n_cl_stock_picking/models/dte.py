@@ -26,11 +26,14 @@ try:
     import pdf417gen
 except ImportError:
     _logger.info('Cannot import pdf417gen library')
-
 try:
     import base64
 except ImportError:
     _logger.info('Cannot import base64 library')
+try:
+    from PIL import Image, ImageDraw, ImageFont
+except:
+    _logger.warning("no se ha cargado PIL")
 
 server_url = {'SIICERT':'https://maullin.sii.cl/DTEWS/','SII':'https://palena.sii.cl/DTEWS/'}
 
@@ -166,6 +169,8 @@ class stock_picking(models.Model):
         string="Document Type",
         related="location_id.sii_document_class_id",
     )
+    dte_ticket = fields.Boolean(
+        string="¿Formato Ticket?")
 
     @api.multi
     def action_done(self):
@@ -226,8 +231,8 @@ class stock_picking(models.Model):
         if self.transport_type and self.transport_type not in ['0']:
             IdDoc['TipoDespacho'] = self.transport_type
         IdDoc['IndTraslado'] = self.move_reason
-        #if self.print_ticket:
-        #    IdDoc['TpoImpresion'] = "N" #@TODO crear opcion de ticket
+        if self.dte_ticket:
+            IdDoc['TpoImpresion'] = "T"
         if taxInclude and MntExe == 0 :
             IdDoc['MntBruto'] = 1
         #IdDoc['FmaPago'] = self.forma_pago or 1
@@ -295,7 +300,7 @@ class stock_picking(models.Model):
                 Transporte['Chofer']['NombreChofer'] = self.chofer.name[:30]
         partner_id = self.partner_id or self.company_id.partner_id
         Transporte['DirDest'] = (partner_id.street or '')+ ' '+ (partner_id.street2 or '')
-        Transporte['CmnaDest'] = partner_id.state_id.name or ''
+        Transporte['CmnaDest'] = partner_id.city_id.name or ''
         Transporte['CiudadDest'] = partner_id.city or ''
         #@TODO SUb Area Aduana
         return Transporte
@@ -574,3 +579,50 @@ class stock_picking(models.Model):
                 r.sii_xml_request.get_send_status(r.env.user)
         self._get_dte_status()
         self.get_sii_result()
+
+    @api.multi
+    def _get_printed_report_name(self):
+        self.ensure_one()
+        if self.document_class_id:
+            string_state = ""
+            if self.state == 'draft':
+                string_state = "en borrador "
+            report_string = "%s %s %s" % (self.document_class_id.name,
+                                          string_state,
+                                          self.sii_document_number or '')
+        else:
+            report_string = super(AccountInvoice, self)._get_printed_report_name()
+        return report_string
+
+    @api.multi
+    def getTotalDiscount(self):
+        total_discount = 0
+        for l in self.move_lines:
+            qty = l.quantity_done
+            if qty <= 0:
+                qty = l.product_uom_qty
+            total_discount +=  (((l.discount or 0.00) /100) * l.precio_unitario * qty)
+        return self.currency_id.round(total_discount)
+
+    @api.multi
+    def sii_header(self):
+        W, H = (560, 255)
+        img = Image.new('RGB', (W, H), color=(255,255,255))
+
+        d = ImageDraw.Draw(img)
+        w, h = (0, 0)
+        for i in range(10):
+            d.rectangle(((w, h), (550+w, 220+h)), outline="black")
+            w += 1
+            h += 1
+        font = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', 40)
+        d.text((50,30), "R.U.T.: %s" % self.company_id.document_number, fill=(0,0,0), font=font)
+        d.text((50,90), "Guía de Despacho", fill=(0,0,0), font=font)
+        d.text((100,150), "Electrónica", fill=(0,0,0), font=font)
+        d.text((220,210), "N° %s" % self.sii_document_number, fill=(0,0,0), font=font)
+        font = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', 20)
+
+        buffered = BytesIO()
+        img.save(buffered, format="PNG")
+        imm = base64.b64encode(buffered.getvalue()).decode()
+        return imm

@@ -263,7 +263,7 @@ screens.ClientListScreenWidget.include({
 		  rpc.query({
 				model: 'res.partner',
 				method: 'get_remote_user_data',
-				args: [vat, false]
+				args: [false, vat, false]
 			}).
 		          then(function(resp){
 		              if (resp){

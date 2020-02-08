@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 	<data>
-	
+
 		<template id="report_pos_boleta_ticket_body">
 			<t t-call="web.basic_layout">
 				<!-- llamar a las mismas plantilla QWeb que se usan en el portal -->
@@ -32,15 +32,15 @@
 			</t>
 		</template>
 
-		<report id="action_report_pos_boleta_ticket" 
+		<report id="action_report_pos_boleta_ticket"
 			model="pos.order"
-			report_type="qweb-pdf" 
-			string="Imprimir Reporte" 
+			report_type="qweb-pdf"
+			string="Imprimir Reporte"
 			menu="True"
-			name="l10n_cl_dte_point_of_sale.report_pos_boleta_ticket" 
+			name="l10n_cl_dte_point_of_sale.report_pos_boleta_ticket"
 			file="l10n_cl_dte_point_of_sale.report_pos_boleta_ticket"
-			paperformat="l10n_cl_dte_point_of_sale.paperformat_pos_boleta_ticket" 
-			print_report_name="(object._get_printed_report_name())" 
+			paperformat="l10n_cl_dte_point_of_sale.paperformat_pos_boleta_ticket"
+			print_report_name="(object._get_printed_report_name())"
 			attachment_use="True"
             attachment="'%s.pdf' % (object._get_printed_report_name())" />
 

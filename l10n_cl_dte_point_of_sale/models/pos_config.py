@@ -15,6 +15,13 @@ class PosConfig(models.Model):
                 rec.left_number = rec.secuencia_boleta.get_qty_available()
             if rec.secuencia_boleta_exenta:
                 rec.left_number_exenta = rec.secuencia_boleta_exenta.get_qty_available()
+            if rec.dte_picking_sequence:
+                rec.left_number_guia = rec.dte_picking_sequence.get_qty_available()
+
+    def get_sequence_picking(self):
+        for rec in self:
+            if 'sequence_id' in rec.picking_type_id.default_location_src_id:
+                rec.dte_picking_sequence = rec.picking_type_id.default_location_src_id.sequence_id.id
 
     secuencia_boleta = fields.Many2one(
             'ir.sequence',
@@ -65,6 +72,58 @@ class PosConfig(models.Model):
         string="Opciones de Impresión",
         default="cliente",
     )
+    dte_picking = fields.Boolean(
+        string="Emitir Guía de despacho Electrónica",
+    )
+    dte_picking_ticket = fields.Boolean(
+        string="Emitir Guía de despacho Electrónica",
+    )
+    dte_picking_move_type = fields.Selection(
+            [
+                    ('1', 'Operación constituye venta'),
+                    ('2', 'Ventas por efectuar'),
+                    ('3', 'Consignaciones'),
+                    ('4', 'Entrega Gratuita'),
+                    ('5', 'Traslados Internos'),
+                    ('6', 'Otros traslados no venta'),
+                    ('7', 'Guía de Devolución'),
+                    ('8', 'Traslado para exportación'),
+                    ('9', 'Ventas para exportación')
+            ],
+            string='Razón del traslado',
+            default="1",
+        )
+    dte_picking_transport_type = fields.Selection(
+            [
+                #('2', 'Despacho por cuenta de empresa'),
+                ('1', 'Despacho por cuenta del cliente'),
+                #('3', 'Despacho Externo'),
+                #('0', 'Sin Definir')
+            ],
+            string="Tipo de Despacho",
+            default="1",
+        )
+    dte_picking_sequence = fields.Many2one(
+            'ir.sequence',
+            string='Secuencia Boleta',
+            compute='get_sequence_picking'
+        )
+    dte_picking_option = fields.Selection(
+            [
+                ('all', 'Todos los pedidos'),
+                ('no_tributarios', 'Solo a No Tributarios'),
+            ],
+            string="Opción de emisión de despacho",
+            default="all",
+        )
+    next_number_guia = fields.Integer(
+            related="dte_picking_sequence.number_next_actual",
+            string="Next Number Exenta",
+        )
+    left_number_guia = fields.Integer(
+            compute="get_left_numbers",
+            string="Folios restantes Boletas",
+        )
 
     @api.one
     @api.constrains('marcar', 'secuencia_boleta', 'secuencia_boleta_exenta', 'iface_invoicing')

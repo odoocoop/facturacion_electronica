@@ -295,6 +295,145 @@
   </t>
 </template>
 
+<template id="thermal_layouts.picking_thermal">
+    <t t-foreach="docs" t-as="doc">
+      <t t-if="doc and 'company_id' in doc">
+          <t t-set="company" t-value="doc.company_id.sudo()"/>
+      </t>
+      <t t-if="not doc or not 'company_id' in doc">
+          <t t-set="company" t-value="res_company"/>
+      </t>
+      <t t-if="'document_class_id' in doc and doc.document_class_id">
+        <t t-set="document_class_id" t-value="doc.document_class_id"/>
+      </t>
+      <t t-set="partner_id" t-value="doc.partner_id" />
+      <t t-set="commercial_partner_id" t-value="doc.partner_id.commercial_partner_id" />
+      <t t-set="logo" t-value="company.logo" />
+      <t t-set="sii_document_number" t-value="doc.sii_document_number" />
+
+    <receipt align='center' width='45' value-thousands-separator='.' >
+        <div class="pos-center-align">
+          <img t-att-src="'data:image/png;base64,%s' % doc.sii_header()"/>
+        </div>
+        <t t-if='doc.company_id'>
+            <img t-att-src='logo' />
+            <h4 t-esc="'SII %s' % doc.company_id.sii_regional_office_id.name"/>
+        </t>
+        <div>
+          <h3><t t-esc="company.name"/></h3>
+        </div>
+        <line><left font='b'>Fecha: </left><right><t t-esc="doc.scheduled_date"/></right></line>
+        <line><left font='b'>Teléfono: </left><right><t t-esc="doc.company_id.phone"/></right></line>
+        <line><left font='b'>Dirección: </left><right><t t-esc="doc.company_id.street"/></right></line>
+        <t t-if="doc.partner_id">
+          <line><right>--------</right></line>
+          <line><left font='b'>Cliente: </left><right><span t-esc="doc.partner_id.name"/></right></line>
+          <line><left font='b'>RUT: </left><right><span t-esc="doc.partner_id.document_number"/></right></line>
+          <line><left font='b'>Giro: </left><right><span t-esc="doc.partner_id.activity_description.name"/></right></line>
+          <line><left font='b'>Dirección: </left><right><span t-esc="doc.partner_id.street"/></right></line>
+          <line><left font='b'>Teléfono: </left><right><span t-esc="doc.partner_id.phone"/></right></line>
+        </t>
+        <t t-if="doc.reference">
+          <line><right>--------</right></line>
+          <line><right>Documento de Referencia</right></line>
+          <t t-foreach="doc.reference" t-as="l">
+            <line><left>Folio:</left><right><t t-if="l.origen" t-esc="l.origen" /></right></line>
+            <line><left>Referencia:</left><right><t t-if="l.sii_referencia_TpoDocRef" t-esc="l.sii_referencia_TpoDocRef.name" /></right></line>
+            <line><left>Motivo/observación:</left><right><t t-esc="l.sii_referencia_CodRef[0]" /> <t t-esc="l.sii_referencia_CodRef" />: <span t-if="l.motivo" t-field="l.motivo"/></right></line>
+            <line><left>Fecha del documento</left><right><span t-if="l.fecha_documento" t-field="l.fecha_documento"/></right></line>
+          </t>
+        </t>
+        <line><right>--------</right></line>
+        <div class='orderlines' line-ratio='0.6'>
+          <t t-foreach='doc.move_lines' t-as='line'>
+            <t t-set='simple' t-value="line.discount == 0 and line.product_uom.name == 'Unit(s)' and line.quantity_done == 1" />
+            <t t-if='simple'>
+                <line>
+                    <left><t t-esc='line.name' /></left>
+                    <right>$ <value ><t t-esc='line.precio_unitario' /></value></right>
+                </line>
+            </t>
+            <t t-else=''>
+              <line><left><t t-esc='line.name' /></left></line>
+              <t t-if='line.discount != 0'>
+                <line indent='1'><left>Descuento: <t t-esc='line.discount' />%</left></line>
+              </t>
+              <line indent='1'>
+                <left>
+                  <value value-decimals='3' value-autoint='on'>
+                    <t t-esc='line.quantity_done' />
+                  </value>
+                  <t t-if='line.product_uom.name != "Unit(s)"'>
+                    <t t-esc='line.product_uom.name' />
+                  </t>
+                  x
+                  $ <value >
+                    <t t-esc='line.precio_unitario' />
+                  </value>
+                </left>
+                <right>
+                  $ <value value-decimals='0'><t t-esc='line.subtotal' /></value>
+                </right>
+              </line>
+            </t>
+          </t>
+        </div>
+        <line><right>--------</right></line>
+        <line t-if="'global_descuentos_recargos' in doc">
+          <t t-foreach="doc.global_descuentos_recargos" t-as="gdr">
+            <left><pre>        Descuento o Recargo Global</pre></left>
+            <right>$ <value value-decimals='0'><t t-esc="gdr.valor if gdr.gdr_type=='amount' else gdr.amount_untaxed_global_dr" t-options="{'widget': 'monetary', 'display_currency': doc.currency_id}"/></value></right>
+          </t>
+        </line>
+        <line t-if="doc.amount_untaxed" class='total'>
+            <left><pre>        SubTotal</pre></left>
+            <right>$ <value value-decimals='0'><t t-esc='doc.amount_untaxed' /></value></right>
+        </line>
+        <line t-if="doc.amount_tax" class='total'>
+          <left><pre>        Impuestos</pre></left>
+          <t t-foreach="doc.get_taxes_values()" t-as="tl">
+            <right><t t-esc="tl[0].description" />: $ <value value-decimals='0'><t t-esc='tl[1]' /></value></right>
+          </t>
+        </line>
+        <line t-if='doc.amount_total' class='total'>
+          <left><pre>        TOTAL</pre></left>
+          <right>$ <value value-decimals='0'><t t-esc='doc.amount_total' /></value></right>
+        </line>
+
+        <div>
+            <img t-att-src="'data:image/png;base64,%s' % doc.get_barcode_img(25,6).decode()"/>
+            <em>
+              <p style="text-align:center;color:red; font-size:8px;">
+                Timbre Electrónico SII
+                <br/>
+                Resolución <t t-esc='doc.company_id.dte_resolution_number'/> de <t t-esc='doc.company_id.dte_resolution_date.strftime("%Y")'/> Verifique documento en: www.sii.cl
+              </p>
+            </em>
+        </div>
+        <t t-if="cedible">
+          <line />
+          <line>
+            <left>Nombre:__________________________</left><right>_______________________</right>
+          </line>
+          <line />
+          <line>
+            <left>R.U.T.:_______________ </left><right>FIRMA:_________________________</right>
+          </line>
+          <line />
+          <line>
+            <left>FECHA:_______________</left><right>RECINTO:_________________________</right>
+          </line>
+          <div>
+            <em>"El acuse de recibo que se declara en este acto, de acuerdo a lo dispuesto en la letra b) del Artículo 4°, y la letra c) del Artículo 5° de la Ley 19.983, acredita que la entrega de mercaderías o servicio(s) prestado(s) ha(n) sido recibido(s)"</em>
+          </div>
+          <line>
+            <left /><right>CEDIBLE</right>
+          </line>
+        </t>
+      </receipt>
+    </t>
+  </template>
+
 
 <template id="stock_picking_cedible">
 <t t-call="web.html_container">
