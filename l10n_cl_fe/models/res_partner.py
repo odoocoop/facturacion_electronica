@@ -375,7 +375,7 @@ class ResPartner(models.Model):
         token = ICPSudo.get_param('partner.token_remote_partners')
         if not url or not token:
             return
-        if self.document_number in [False, 0, '0']:
+        if to_check in [False, 0, '0']:
             return
         try:
             resp = pool.request('POST',
@@ -460,5 +460,3 @@ class ResPartner(models.Model):
                     r.fill_partner()
             except:
                 pass
-
-

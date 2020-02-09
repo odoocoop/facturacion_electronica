@@ -38,7 +38,7 @@ Chile: Factura de Exportación Electrónica.
             'data/aduanas.formas_pago.csv',
             'data/aduanas.modalidades_venta.csv',
             'data/aduanas_paises.xml',
-            'date/res.country.csv',
+            'data/res.country.csv',
             'data/aduanas.puertos.csv',
             'data/aduanas.tipos_bulto.csv',
             'data/aduanas.tipos_carga.csv',
