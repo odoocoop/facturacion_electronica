@@ -108,6 +108,11 @@ class ProcessMailsDocument(models.Model):
         string="Detalle Reclamo",
         readonly=True,
     )
+    claim_ids = fields.One2many(
+        'sii.dte.claim',
+        'document_id',
+        strign="Historial de Reclamos"
+    )
 
     _order = 'create_date DESC'
 

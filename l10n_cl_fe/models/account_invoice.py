@@ -962,7 +962,7 @@ a VAT."""))
         for obj_inv in self:
             invtype = obj_inv.type
             if obj_inv.journal_document_class_id and not obj_inv.sii_document_number:
-                if invtype in ('out_invoice', 'out_refund'):
+                if invtype in ('out_invoice', 'out_refund') and obj_inv.use_documents:
                     to_write = {}
                     if not obj_inv.journal_document_class_id.sequence_id:
                         raise UserError(_(
@@ -1420,7 +1420,7 @@ a VAT."""))
         return Totales
 
     def _es_exento(self):
-        return self.document_class_id.sii_code in [34, 41] or (self.referencias and self.referencias[0].sii_referencia_TpoDocRef.sii_code in [ 34, 41])
+        return self.document_class_id.sii_code in [34, 41, 110, 111, 112] or (self.referencias and self.referencias[0].sii_referencia_TpoDocRef.sii_code in [ 34, 41])
 
     def _totales(self, MntExe=0, no_product=False, taxInclude=False):
         MntNeto = 0
@@ -1538,6 +1538,7 @@ a VAT."""))
                 lines['CdgItem']['TpoCodigo'] = 'INT1'
                 lines['CdgItem']['VlrCodigo'] = line.product_id.default_code
             taxInclude = False
+            lines["Impuesto"] = []
             for t in line.invoice_line_tax_ids:
                 if t.sii_code in [26, 27, 28, 35, 271]:#@Agregar todos los adicionales
                     lines['CodImpAdic'] = t.sii_code
@@ -1595,15 +1596,13 @@ a VAT."""))
             if not no_product and not taxInclude:
                 price_subtotal = line.price_subtotal
                 if currency_id:
-                    lines['OtrMnda']['MontoItemOtrMnda'] = price_subtotal
-                    price_subtotal = currency_base._convert(price_subtotal, currency_id, self.company_id, self.date_invoice)
-                lines['MontoItem'] = currency_base.round(price_subtotal)
+                    lines['OtrMnda']['MontoItemOtrMnda'] = currency_base._convert(price_subtotal, currency_id, self.company_id, self.date_invoice)
+                lines['MontoItem'] = price_subtotal
             elif not no_product:
                 price_total = line.price_total
                 if currency_id:
-                    lines['OtrMnda']['MontoItemOtrMnda'] = price_total
-                    price_total = currency_base._convert(price_total, currency_id, self.company_id, self.date_invoice)
-                lines['MontoItem'] = currency_base.round(price_total)
+                    lines['OtrMnda']['MontoItemOtrMnda'] = currency_base._convert(price_total, currency_id, self.company_id, self.date_invoice)
+                lines['MontoItem'] = price_total
             if no_product:
                 lines['MontoItem'] = 0
             if lines['MontoItem'] < 0:

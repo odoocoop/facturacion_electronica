@@ -34,6 +34,7 @@ from . import sii
 from . import sii_activity_description
 from . import sii_cola_envio
 from . import sii_document_class
+from . import sii_dte_claim
 from . import sii_firma
 from . import sii_regional_offices
 from . import sii_respuesta_cliente

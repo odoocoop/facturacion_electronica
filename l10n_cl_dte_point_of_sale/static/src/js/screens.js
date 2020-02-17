@@ -161,6 +161,7 @@ screens.ClientListScreenWidget.include({
 			return;
 		}
 		if (fields.document_number ) {
+			fields.document_number = fields.document_number.toUpperCase();
 			if (!this.validar_rut(fields.document_number)){
 				return;
 			}
@@ -298,7 +299,7 @@ screens.ClientListScreenWidget.include({
         	});
 			self.$(".client-document_number").on('change', function(){
 				var document_number = self.$(this).val() || '';
-				document_number = document_number.replace(/[^1234567890Kk]/g, "");
+				document_number = document_number.replace(/[^1234567890Kk]/g, "").toUpperCase();
 				document_number = _.str.lpad(document_number, 9, '0');
 				document_number = _.str.sprintf('%s.%s.%s-%s',
 					document_number.slice(0, 2),

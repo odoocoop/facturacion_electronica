@@ -295,7 +295,7 @@ class SIIXMLEnvio(models.Model):
             result.update({"state": "Aceptado"})
             if resp['SII:RESPUESTA'].get('SII:RESP_BODY') and resp['SII:RESPUESTA']['SII:RESP_BODY']['RECHAZADOS'] == "1":
                 result.update({ "state": "Rechazado" })
-        elif resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] in ["RCT", "RFR", "LRH", "RCH", "RSC", "LRF", "LNC", "LRS"]:
+        elif resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] in ["RCT", "RFR", "LRH", "RCH", "RSC", "LRF", "LNC", "LRS", "106"]:
             result.update({"state": "Rechazado"})
             _logger.warning(resp)
         self.write(result)

@@ -13,8 +13,6 @@ class Mepco(models.Model):
     name = fields.Char(
             string='Nombre de envío',
             required=True,
-            readonly=True,
-            states={'draft': [('readonly', False)]},
         )
     date = fields.Date(
         string="Día Inicio Validez"

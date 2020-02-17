@@ -59,14 +59,27 @@ class POSL(models.Model):
 
     @api.depends('price_unit', 'tax_ids', 'qty', 'discount', 'product_id')
     def _compute_amount_line_all(self):
+        cur_company = self.company_id.currency_id
         for line in self:
             fpos = line.order_id.fiscal_position_id
             tax_ids_after_fiscal_position = fpos.map_tax(line.tax_ids, line.product_id, line.order_id.partner_id) if fpos else line.tax_ids
-            taxes = tax_ids_after_fiscal_position.compute_all(line.price_unit, line.order_id.pricelist_id.currency_id, line.qty, product=line.product_id, partner=line.order_id.partner_id, discount=line.discount, uom_id=line.product_id.uom_id)
+            taxes = tax_ids_after_fiscal_position.with_context(date=self.date_order, currency=cur_company.code).compute_all(line.price_unit, line.order_id.pricelist_id.currency_id, line.qty, product=line.product_id, partner=line.order_id.partner_id, discount=line.discount, uom_id=line.product_id.uom_id)
             line.update({
                 'price_subtotal_incl': taxes['total_included'],
                 'price_subtotal': taxes['total_excluded'],
             })
+
+    @api.onchange('qty', 'discount', 'price_unit', 'tax_ids')
+    def _onchange_qty(self):
+        if self.product_id:
+            if not self.order_id.pricelist_id:
+                raise UserError(_('You have to select a pricelist in the sale form !'))
+            price = self.price_unit * (1 - (self.discount or 0.0) / 100.0)
+            self.price_subtotal = self.price_subtotal_incl = price * self.qty
+            if (self.product_id.taxes_id):
+                taxes = self.product_id.taxes_id.compute_all(self.price_unit, self.order_id.pricelist_id.currency_id, self.qty, product=self.product_id, partner=False, discount=self.discount, uom_id=self.product_id.uom_id)
+                self.price_subtotal = taxes['total_excluded']
+                self.price_subtotal_incl = taxes['total_included']
 
 
 class POS(models.Model):
@@ -183,7 +196,8 @@ class POS(models.Model):
         if fiscal_position_id:
             taxes = fiscal_position_id.map_tax(taxes, line.product_id, line.order_id.partner_id)
         cur = line.order_id.pricelist_id.currency_id
-        taxes = taxes.compute_all(line.price_unit, cur, line.qty, product=line.product_id, partner=line.order_id.partner_id or False, discount=line.discount, uom_id=line.product_id.uom_id)['taxes']
+        cur_company = self.company_id.currency_id
+        taxes = taxes.with_context(date=self.date_order, currency=cur_company.code).compute_all(line.price_unit, cur, line.qty, product=line.product_id, partner=line.order_id.partner_id or False, discount=line.discount, uom_id=line.product_id.uom_id)['taxes']
         return sum(tax.get('amount', 0.0) for tax in taxes)
 
     def crear_intercambio(self):
@@ -811,7 +825,6 @@ class POS(models.Model):
                         })
 
         for order in self.filtered(lambda o: not o.account_move or o.state == 'paid'):
-            document_class_id = order.document_class_id
             current_company = order.sale_journal.company_id
             account_def = IrProperty.get(
                 'property_account_receivable_id', 'res.partner')
@@ -823,7 +836,8 @@ class POS(models.Model):
                     'pos.closing.journal_id_%s' % current_company.id, default=order.sale_journal.id)
                 move = self._create_account_move(
                     order.session_id.start_at, order.name, int(journal_id), order.company_id.id)
-
+            if order.document_class_id and not move.document_class_id:
+                move.document_class_id = order.document_class_id
             def insert_data(data_type, values):
                 # if have_to_group_by:
                 values.update({
@@ -855,7 +869,11 @@ class POS(models.Model):
             assert order.lines, _('The POS order must have lines when calling this method')
             # Create an move for each order line
             cur = order.pricelist_id.currency_id
+            cur_company = order.company_id.currency_id
+            amount_cur_company = 0.0
             date_order = order.date_order.date() if order.date_order else fields.Date.today()
+            montos_linea = {}
+            montos_not_round = {}
             for line in order.lines:
                 if cur != cur_company:
                     amount_subtotal = cur._convert(line.price_subtotal, cur_company, order.company_id, date_order)
@@ -880,6 +898,16 @@ class POS(models.Model):
                 # Just like for invoices, a group of taxes must be present on this base line
                 # As well as its children
                 base_line_tax_ids = _flatten_tax_and_children(line.tax_ids_after_fiscal_position).filtered(lambda tax: tax.type_tax_use in ['sale', 'none'])
+                montos_linea.setdefault(line.product_id.id, {'credit': 0, 'debit': 0})
+                montos_linea[line.product_id.id]['credit'] += ((amount_subtotal > 0) and amount_subtotal) or 0.0
+                montos_linea[line.product_id.id]['debit'] += ((amount_subtotal < 0) and -amount_subtotal) or 0.0
+                fpos = line.order_id.fiscal_position_id
+                tax_ids_after_fiscal_position = fpos.map_tax(line.tax_ids, line.product_id, order.partner_id) if fpos else line.tax_ids
+                taxes = tax_ids_after_fiscal_position.with_context(round=False, date=order.date_order, currency=cur_company.code).compute_all(line.price_unit, order.pricelist_id.currency_id, line.qty, product=line.product_id, partner=order.partner_id, discount=line.discount, uom_id=line.product_id.uom_id)
+                amount_not_round = taxes['total_excluded']
+                montos_not_round.setdefault(line.product_id.id, {'credit': 0, 'debit': 0})
+                montos_not_round[line.product_id.id]['credit'] += ((amount_not_round > 0) and amount_not_round) or 0.0
+                montos_not_round[line.product_id.id]['debit'] += ((amount_not_round < 0) and -amount_not_round) or 0.0
                 data = {
                     'name': name,
                     'quantity': line.qty,
@@ -902,33 +930,32 @@ class POS(models.Model):
                 if not line_taxes:
                     raise UserError("Hay un producto sin impuesto, seleccionar exento si no afecta al IVA")
                     continue
-            #el Cálculo se hace sumando todos los valores redondeados, luego se cimprueba si hay descuadre de $1 y se agrega como línea de ajuste
-            taxes = line.tax_ids_after_fiscal_position.filtered(lambda t: t.company_id.id == current_company.id)
-            for tax in taxes.compute_all(price, cur, line.qty, discount=line.discount, uom_id=line.product_id.uom_id)['taxes']:
-                if cur != cur_company:
-                    round_tax = False if rounding_method == 'round_globally' else True
-                    amount_tax = cur._convert(tax['amount'], cur_company, order.company_id, date_order, round=round_tax)
-                    # amount_tax = cur.with_context(date=date_order).compute(tax['amount'], cur_company, round=round_tax)
-                else:
-                    amount_tax = tax['amount']
-                data = {
-                    'name': _('Tax') + ' ' + tax['name'],
-                    'product_id': line.product_id.id,
-                    'quantity': line.qty,
-                    'account_id': tax['account_id'] or income_account,
-                    'credit': ((amount_tax > 0) and amount_tax) or 0.0,
-                    'debit': ((amount_tax < 0) and -amount_tax) or 0.0,
-                    'tax_line_id': tax['id'],
-                    'partner_id': partner_id,
-                    'order_id': order.id
-                }
-                if cur != cur_company:
-                    data['currency_id'] = cur.id
-                    data['amount_currency'] = -abs(tax['amount']) if data.get('credit') else abs(tax['amount'])
-                    amount_cur_company += data['credit'] - data['debit']
-                insert_data('tax', data)
-
-            # round tax lines per order
+                #el Cálculo se hace sumando todos los valores redondeados, luego se cimprueba si hay descuadre de $1 y se agrega como línea de ajuste
+                taxes = line.tax_ids_after_fiscal_position.filtered(lambda t: t.company_id.id == current_company.id)
+                for tax in taxes.with_context(date=order.date_order, currency=cur_company.code).compute_all(line.price_unit, cur, line.qty, discount=line.discount, uom_id=line.product_id.uom_id)['taxes']:
+                    if cur != cur_company:
+                        round_tax = False if rounding_method == 'round_globally' else True
+                        amount_tax = cur._convert(tax['amount'], cur_company, order.company_id, date_order, round=round_tax)
+                        # amount_tax = cur.with_context(date=date_order).compute(tax['amount'], cur_company, round=round_tax)
+                    else:
+                        amount_tax = tax['amount']
+                    data = {
+                        'name': _('Tax') + ' ' + tax['name'],
+                        'product_id': line.product_id.id,
+                        'quantity': line.qty,
+                        'account_id': tax['account_id'] or income_account,
+                        'credit': ((amount_tax > 0) and amount_tax) or 0.0,
+                        'debit': ((amount_tax < 0) and -amount_tax) or 0.0,
+                        'tax_line_id': tax['id'],
+                        'partner_id': partner_id,
+                        'order_id': order.id
+                    }
+                    if cur != cur_company:
+                        data['currency_id'] = cur.id
+                        data['amount_currency'] = -abs(tax['amount']) if data.get('credit') else abs(tax['amount'])
+                        amount_cur_company += data['credit'] - data['debit']
+                    insert_data('tax', data)
+            # round tax lines  per order
             if rounding_method == 'round_globally':
                 for group_key, group_value in grouped_data.items():
                     if group_key[0] == 'tax':
@@ -937,7 +964,16 @@ class POS(models.Model):
                             line['debit'] = cur_company.round(line['debit'])
                             if line.get('currency_id'):
                                 line['amount_currency'] = cur.round(line.get('amount_currency', 0.0))
-
+                    if group_key[0] == 'product':
+                        for line in group_value:
+                            if not montos_linea.get(line['product_id']):
+                                continue
+                            dif_credit = montos_linea[line['product_id']]['credit'] - cur.round(montos_not_round[line['product_id']]['credit'])
+                            if dif_credit != 0:
+                                line['credit'] -= dif_credit
+                            dif_debit = montos_linea[line['product_id']]['debit'] - cur.round(montos_not_round[line['product_id']]['debit'])
+                            if dif_debit != 0:
+                                line['debit'] -= dif_debit
             # counterpart
             if cur != cur_company:
                 # 'amount_cur_company' contains the sum of the AML converted in the company
@@ -963,7 +999,6 @@ class POS(models.Model):
 
         if self and order.company_id.anglo_saxon_accounting:
             add_anglosaxon_lines(grouped_data)
-
         return {
             'grouped_data': grouped_data,
             'move': move,
@@ -1149,3 +1184,104 @@ class Referencias(models.Model):
             string="Fecha Documento",
             required=True,
         )
+
+
+class ReportSaleDetails(models.AbstractModel):
+    _inherit = 'report.point_of_sale.report_saledetails'
+
+    @api.model
+    def get_sale_details(self, date_start=False, date_stop=False, configs=False):
+        """ Serialise the orders of the day information
+
+        params: date_start, date_stop string representing the datetime of order
+        """
+        if not configs:
+            configs = self.env['pos.config'].search([])
+
+        user_tz = pytz.timezone(self.env.context.get('tz') or self.env.user.tz or 'UTC')
+        today = user_tz.localize(fields.Datetime.from_string(fields.Date.context_today(self)))
+        today = today.astimezone(pytz.timezone('UTC'))
+        if date_start:
+            date_start = fields.Datetime.from_string(date_start)
+        else:
+            # start by default today 00:00:00
+            date_start = today
+
+        if date_stop:
+            # set time to 23:59:59
+            date_stop = fields.Datetime.from_string(date_stop)
+        else:
+            # stop by default today 23:59:59
+            date_stop = today + timedelta(days=1, seconds=-1)
+
+        # avoid a date_stop smaller than date_start
+        date_stop = max(date_stop, date_start)
+
+        date_start = fields.Datetime.to_string(date_start)
+        date_stop = fields.Datetime.to_string(date_stop)
+
+        orders = self.env['pos.order'].search([
+            ('date_order', '>=', date_start),
+            ('date_order', '<=', date_stop),
+            ('state', 'in', ['paid','invoiced','done']),
+            ('config_id', 'in', configs.ids)])
+
+        user_currency = self.env.user.company_id.currency_id
+
+        total = 0.0
+        products_sold = {}
+        taxes = {}
+        for order in orders:
+            if user_currency != order.pricelist_id.currency_id:
+                total += order.pricelist_id.currency_id.compute(order.amount_total, user_currency)
+            else:
+                total += order.amount_total
+            currency = order.session_id.currency_id
+
+            for line in order.lines:
+                key = (line.product_id, line.price_unit, line.discount)
+                products_sold.setdefault(key, 0.0)
+                products_sold[key] += line.qty
+
+                if line.tax_ids_after_fiscal_position:
+                    line_taxes = line.tax_ids_after_fiscal_position.with_context(date=order.date_order, currency=currency).compute_all(line.price_unit, currency, line.qty, product=line.product_id, partner=line.order_id.partner_id or False, discount=line.discount, uom_id=line.product_id.uom_id)
+                    for tax in line_taxes['taxes']:
+                        taxes.setdefault(tax['id'], {'name': tax['name'], 'tax_amount':0.0, 'base_amount':0.0})
+                        taxes[tax['id']]['tax_amount'] += tax['amount']
+                        taxes[tax['id']]['base_amount'] += tax['base']
+                else:
+                    taxes.setdefault(0, {'name': _('No Taxes'), 'tax_amount':0.0, 'base_amount':0.0})
+                    taxes[0]['base_amount'] += line.price_subtotal_incl
+
+        st_line_ids = self.env["account.bank.statement.line"].search([('pos_statement_id', 'in', orders.ids)]).ids
+        if st_line_ids:
+            self.env.cr.execute("""
+                SELECT aj.name, sum(amount) total
+                FROM account_bank_statement_line AS absl,
+                     account_bank_statement AS abs,
+                     account_journal AS aj
+                WHERE absl.statement_id = abs.id
+                    AND abs.journal_id = aj.id
+                    AND absl.id IN %s
+                GROUP BY aj.name
+            """, (tuple(st_line_ids),))
+            payments = self.env.cr.dictfetchall()
+        else:
+            payments = []
+
+        return {
+            'currency_precision': user_currency.decimal_places,
+            'total_paid': user_currency.round(total),
+            'payments': payments,
+            'company_name': self.env.user.company_id.name,
+            'taxes': list(taxes.values()),
+            'products': sorted([{
+                'product_id': product.id,
+                'product_name': product.name,
+                'code': product.default_code,
+                'quantity': qty,
+                'price_unit': price_unit,
+                'discount': discount,
+                'uom': product.uom_id.name
+            } for (product, price_unit, discount), qty in products_sold.items()], key=lambda l: l['product_name'])
+        }

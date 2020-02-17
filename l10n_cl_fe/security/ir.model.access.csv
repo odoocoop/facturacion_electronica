@@ -59,3 +59,5 @@ access_model_sii_firma_group_user,access_model_sii_firma_group_user,model_sii_fi
 access_model_sii_firma_group_system,access_model_sii_firma_group_system,model_sii_firma,base.group_system,1,1,1,1
 edit_sii_respuesta_cliente,edit_sii_respuesta_cliente,model_sii_respuesta_cliente,account.group_account_invoice,1,1,1,1
 access_sii_respuesta_cliente,access_sii_respuesta_cliente,model_sii_respuesta_cliente,,1,0,0,0
+edit_account_tax_mepco,edit_account_tax_mepco,model_account_tax_mepco,account.group_account_invoice,1,1,1,1
+access_account_tax_mepco,access_account_tax_mepco,model_account_tax_mepco,,1,0,0,0

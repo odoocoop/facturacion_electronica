@@ -16,78 +16,94 @@ class Exportacion(models.Model):
         copy=False,
     )
     pais_destino = fields.Many2one(
-            'aduanas.paises',
-            related="exportacion.pais_destino",
-            string='País de Destino',
-        )
+        'aduanas.paises',
+        related="exportacion.pais_destino",
+        string='País de Destino',
+        readonly=False,
+    )
     puerto_embarque = fields.Many2one(
-            'aduanas.puertos',
-            related="exportacion.puerto_embarque",
-            string='Puerto Embarque',
-        )
+        'aduanas.puertos',
+        related="exportacion.puerto_embarque",
+        string='Puerto Embarque',
+        readonly=False,
+    )
     puerto_desembarque = fields.Many2one(
-            'aduanas.puertos',
-            related="exportacion.puerto_desembarque",
-            string='Puerto de Desembarque',
-        )
+        'aduanas.puertos',
+        related="exportacion.puerto_desembarque",
+        string='Puerto de Desembarque',
+        readonly=False,
+    )
     via = fields.Many2one(
-            'aduanas.tipos_transporte',
-            related="exportacion.via",
-            string='Vía',
-        )
+        'aduanas.tipos_transporte',
+        related="exportacion.via",
+        string='Vía',
+        readonly=False,
+    )
     carrier_id = fields.Many2one(
-            'delivery.carrier',
-            related="exportacion.carrier_id",
-            string="Transporte",
-        )
+        'delivery.carrier',
+        related="exportacion.carrier_id",
+        string="Transporte",
+        readonly=False,
+    )
     tara = fields.Integer(
-            related="exportacion.tara",
-            string="Tara",
-        )
+        related="exportacion.tara",
+        string="Tara",
+        readonly=False,
+    )
     uom_tara = fields.Many2one(
-            'uom.uom',
-            related="exportacion.uom_tara",
-            string='Unidad Medida Tara',
-        )
+        'uom.uom',
+        related="exportacion.uom_tara",
+        string='Unidad Medida Tara',
+        readonly=False,
+    )
     peso_bruto = fields.Float(
-            related="exportacion.peso_bruto",
-            string="Peso Bruto",
-        )
+        related="exportacion.peso_bruto",
+        string="Peso Bruto",
+        readonly=False,
+    )
     uom_peso_bruto = fields.Many2one(
-            'uom.uom',
-            related="exportacion.uom_peso_bruto",
-            string='Unidad Medida Peso Bruto',
-        )
+        'uom.uom',
+        related="exportacion.uom_peso_bruto",
+        string='Unidad Medida Peso Bruto',
+        readonly=False,
+    )
     peso_neto = fields.Float(
-            related="exportacion.peso_neto",
-            string="Peso Neto",
-        )
+        related="exportacion.peso_neto",
+        string="Peso Neto",
+        readonly=False,
+    )
     uom_peso_neto = fields.Many2one(
-            'uom.uom',
-            related="exportacion.uom_peso_neto",
-            string='Unidad Medida Peso Neto',
-        )
+        'uom.uom',
+        related="exportacion.uom_peso_neto",
+        string='Unidad Medida Peso Neto',
+        readonly=False,
+    )
     total_items = fields.Integer(
-            related="exportacion.total_items",
-            string="Total Items",
-        )
+        related="exportacion.total_items",
+        string="Total Items",
+        readonly=False,
+    )
     total_bultos = fields.Integer(
-            related="exportacion.total_bultos",
-            string="Total Bultos",
-        )
+        related="exportacion.total_bultos",
+        string="Total Bultos",
+        readonly=False,
+    )
     monto_flete = fields.Monetary(
-            related="exportacion.monto_flete",
-            string="Monto Flete",
-        )
+        related="exportacion.monto_flete",
+        string="Monto Flete",
+        readonly=False,
+    )
     monto_seguro = fields.Monetary(
-            related="exportacion.monto_seguro",
-            string="Monto Seguro",
-        )
+        related="exportacion.monto_seguro",
+        string="Monto Seguro",
+        readonly=False,
+    )
     pais_recepcion = fields.Many2one(
-            'aduanas.paises',
-            related="exportacion.pais_recepcion",
-            string='País de Recepción',
-        )
+        'aduanas.paises',
+        related="exportacion.pais_recepcion",
+        string='País de Recepción',
+        readonly=False,
+    )
     bultos = fields.One2many(
         string="Bultos",
         comodel_name="account.invoice.bultos",
@@ -99,6 +115,7 @@ class Exportacion(models.Model):
     picking_id = fields.Many2one(
         'stock.picking',
         string="Movimiento Relacionado",
+        readonly=False,
     )
 
     @api.one
@@ -125,7 +142,7 @@ class Exportacion(models.Model):
 
     @api.multi
     def eliminar_exportacion(self):
-        if self.state == 'draft':
+        if self.exportacion:
             self.exportacion.unlink()
 
     def _es_nc_exportacion(self):
@@ -171,14 +188,16 @@ class Exportacion(models.Model):
                                                                  IVA, TasaIVA,
                                                                  MntTotal, MntBase)
         Totales = {}
-        Totales['TpoMoneda'] = self._acortar_str(currency_id.abreviatura, 15)
-        Totales['TpoCambio'] = currency_id.rate
+        currency_target = self.currency_target()
+        Totales['TpoMoneda'] = self._acortar_str(currency_target.abreviatura, 15)
+        base = self.currency_base()
+        Totales['TpoCambio'] = base.rate
         if MntExe:
             if currency_id:
-                MntExe = currency_id.compute(MntExe, self.company_id.currency_id)
+                MntExe = base._convert(MntExe, self.company_id.currency_id, self.company_id, self.date_invoice)
             Totales['MntExeOtrMnda'] = MntExe
-        if currency_id:
-            MntTotal = currency_id.compute(MntTotal, self.company_id.currency_id)
+        if currency_target:
+            MntTotal = base._convert(MntTotal, self.company_id.currency_id, self.company_id, self.date_invoice)
         Totales['MntTotOtrMnda'] = MntTotal
         return Totales
 

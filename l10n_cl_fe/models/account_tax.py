@@ -22,6 +22,16 @@ meses = {1: 'Enero',2: 'Febrero', 3: 'Marzo', 4: 'Abril', 5: 'Mayo', 6: 'Junio',
 class SiiTax(models.Model):
     _inherit = 'account.tax'
 
+    def compute_factor(self, uom_id):
+        amount_tax = self.amount or 0.0
+        if self.uom_id and self.uom_id != uom_id:
+            if self.env.context.get('date'):
+                mepco = self._target_mepco(self.env.context.get('date'))
+                amount_tax = mepco.amount
+            factor = self.uom_id._compute_quantity(1, uom_id)
+            amount_tax = (amount_tax / factor)
+        return amount_tax
+
     @api.multi
     def compute_all(self, price_unit, currency=None, quantity=1.0, product=None, partner=None, discount=None, uom_id=None):
         """ Returns all information required to apply taxes (in self + their children in case of a tax goup).
@@ -201,10 +211,11 @@ class SiiTax(models.Model):
 
     @api.multi
     def actualizar_mepco(self):
-        currency_id = self.env['res.currency'].sudo().search([('name', '=', 'CLP')])
-        self.verify_mepco(date_target=False, currency_id=currency_id, force=True)
+        self.verify_mepco(date_target=False, currency_id=False, force=True)
 
-    def verify_mepco(self, date_target=False, currency_id=False, force=False):
+    def _target_mepco(self, date_target=False, currency_id=False, force=False):
+        if not currency_id:
+            currency_id = self.env['res.currency'].sudo().search([('name', '=', self.env.get('currency', 'CLP'))])
         tz = pytz.timezone('America/Santiago')
         if date_target:
             fields_model = self.env['ir.fields.converter']
@@ -217,15 +228,24 @@ class SiiTax(models.Model):
                 date = date.astimezone(tz)
         else:
             date = datetime.now(tz)
-        mepco = self.env['account.tax.mepco'].sudo().search([
-            ('date', '>=', date.strftime("%Y-%m-%d")),
+        query = [
+            ('date', '<=', date.strftime("%Y-%m-%d")),
             ('company_id', '=', self.company_id.id),
             ('type', '=', self.mepco),
-        ],
-        limit=1)
-        mepco_data = self.prepare_mepco(date, currency_id)
+        ]
+        mepco = self.env['account.tax.mepco'].sudo().search(query, limit=1)
+        if mepco:
+            diff = (date.date() - mepco.date)
+            if diff.days > 6:
+                mepco = False
         if not mepco:
+            mepco_data = self.prepare_mepco(date, currency_id)
             mepco = self.env['account.tax.mepco'].sudo().create(mepco_data)
         elif force:
+            mepco_data = self.prepare_mepco(date, currency_id)
             mepco.sudo().write(mepco_data)
+        return mepco
+
+    def verify_mepco(self, date_target=False, currency_id=False, force=False):
+        mepco = self._target_mepco(date_target, currency_id, force)
         self.amount = mepco.amount

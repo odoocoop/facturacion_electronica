@@ -294,8 +294,8 @@
           </t>
   </t>
 </template>
-
-<template id="thermal_layouts.picking_thermal">
+<!--<template id="thermal_layouts.picking_thermal">-->
+<template id="picking_thermal">
     <t t-foreach="docs" t-as="doc">
       <t t-if="doc and 'company_id' in doc">
           <t t-set="company" t-value="doc.company_id.sudo()"/>
