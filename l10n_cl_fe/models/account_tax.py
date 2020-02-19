@@ -186,12 +186,12 @@ class SiiTax(models.Model):
         for r in tables:
             sub = r.find('tr/th')
             res = re.search('\d{1,2}\-\d{1,2}\-\d{4}', sub.text.lower())
-            rangos[datetime.strptime(res[0], "%d-%m-%Y").astimezone(tz)] = i
+            rangos[datetime.strptime(res[0], "%d-%m-%Y").astimezone(pytz.UTC)] = i
             i += 1
         ant = datetime.now(tz)
         target = (ant, 0)
         for k, v in rangos.items():
-            if k >= date < ant:
+            if k <= date < ant:
                 target = (k, v)
                 break
             ant = k

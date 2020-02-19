@@ -975,12 +975,14 @@ class UploadXMLWizard(models.TransientModel):
             except Exception as e:
                 _logger.warning('Error en crear 1 factura con error:  %s' % str(e))
         if created and self.option not in [False, 'upload'] and self.type == 'compras':
+            datos = {
+                'invoice_ids': [(6, 0, created)],
+                'action': 'validate',
+                'option': self.option,
+                'claim': 'ACD'
+            }
             wiz_accept = self.env['sii.dte.validar.wizard'].create(
-                {
-                    'invoice_ids': [(6, 0, created)],
-                    'action': 'validate',
-                    'option': self.option,
-                }
+                datos
             )
             wiz_accept.confirm()
         return created

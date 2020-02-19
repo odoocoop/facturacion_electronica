@@ -3,13 +3,8 @@ from odoo import models, fields, api
 from odoo.tools.translate import _
 from odoo.exceptions import UserError
 import logging
-import base64
 _logger = logging.getLogger(__name__)
 
-try:
-    from facturacion_electronica import facturacion_electronica as fe
-except:
-    _logger.warning('No se ha podido cargar fe')
 
 class ValidarDTEWizard(models.TransientModel):
     _name = 'sii.dte.validar.wizard'
@@ -84,7 +79,7 @@ class ValidarDTEWizard(models.TransientModel):
     def do_reject(self, document_ids):
         for doc in document_ids:
             claims = 1
-            claim = self.env['sii.dte.claim'].create({
+            claim = self.env['sii.dte.claim'].sudo().create({
                 'claim': self.claim,
                 'date': fields.Datetime.now(),
                 'user_id': self.env.uid,
@@ -100,34 +95,35 @@ class ValidarDTEWizard(models.TransientModel):
     def do_validar_comercial(self):
         for doc in self.invoice_ids:
             claims = 1
-            claim = self.env['sii.dte.claim'].create({
-                'invoice_id': inv.id,
+            claim = self.env['sii.dte.claim'].sudo().create({
+                'invoice_id': doc.id,
                 'claim': self.claim,
                 'date': fields.Datetime.now(),
                 'user_id': self.env.uid,
                 'claim_description': self.claim_description,
                 'sequence': claims,
             })
-            if self.tipo.model == 'account.invoice':
-                claim.invoice_id = doc.id
-            else:
-                claim.document_id = doc.id
+            #if self.tipo.model == 'account.invoice':
+            claim.invoice_id = doc.id
+            #else:
+            #    claim.document_id = doc.id
             claim.do_validar_comercial()
 
     @api.multi
     def do_receipt(self):
         message = ""
         for doc in self.invoice_ids:
-            claim = self.env['sii.dte.claim'].create({
-                'invoice_id': inv.id,
+            claims = 1
+            claim = self.env['sii.dte.claim'].sudo().create({
+                'invoice_id': doc.id,
                 'claim': self.claim,
                 'date': fields.Datetime.now(),
                 'user_id': self.env.uid,
                 'claim_description': self.claim_description,
                 'sequence': claims,
             })
-            if self.tipo.model == 'account.invoice':
-                claim.invoice_id = doc.id
-            else:
-                claim.document_id = doc.id
+            #if self.tipo.model == 'account.invoice':
+            claim.invoice_id = doc.id
+            #else:
+            #    claim.document_id = doc.id
             claim.do_recep_mercaderia()

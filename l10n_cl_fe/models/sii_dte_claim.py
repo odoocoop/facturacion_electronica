@@ -2,6 +2,7 @@
 from odoo import fields, models, api
 from odoo.tools.safe_eval import safe_eval
 from odoo.tools.translate import _
+import base64
 import logging
 _logger = logging.getLogger(__name__)
 try:
@@ -145,150 +146,150 @@ class DTEClaim(models.Model):
             "firma_electronica": signature_id.parametros_firma(),
         }
 
-    def do_reject(self, document_ids):
+    def do_reject(self):
         inv_obj = self.env['account.invoice']
         id_seq = self.env.ref('l10n_cl_fe.response_sequence')
         IdRespuesta = id_seq.next_by_id()
         NroDetalles = 1
-        for doc in document_ids:
-            datos = self._get_datos_empresa(doc.company_id)
-            ''' @TODO separar estos dos'''
-            dte = {
-                'xml': doc.xml,
-                'CodEnvio': IdRespuesta,
-            }
-            datos['filename'] = 'rechazo_comercial_%s.xml' % str(IdRespuesta)
-            datos["ValidacionCom"] = {
-                'IdRespuesta': IdRespuesta,
-                'NroDetalles': NroDetalles,
-                "RutResponde": doc.company_id.document_number,
-                'NmbContacto': self.env.user.partner_id.name,
-                'FonoContacto': self.env.user.partner_id.phone,
-                'MailContacto': self.env.user.partner_id.email,
-                "xml_dte": dte,
-                'EstadoDTE': 2,
-                'EstadoDTEGlosa': 'Rechazo Absoluto',
-                'CodRchDsc': -1,
-            }
-            resp = fe.validacion_comercial(datos)
-            att = self._create_attachment(
-                resp['respuesta_xml'],
-                resp['nombre_xml'],
-            )
-            partners = doc.partner_id.ids
-            dte_email_id = doc.company_id.dte_email_id or self.env.user.company_id.dte_email_id
-            values = {
-                        'res_id': doc.id,
-                        'email_from': dte_email_id.name_get()[0][1],
-                        'email_to': doc.dte_id.sudo().mail_id.email_from ,
-                        'auto_delete': False,
-                        'model': "mail.message.dte.document",
-                        'body': 'XML de Respuesta DTE, Estado: %s , Glosa: %s ' % (resp['EstadoDTE'], resp['EstadoDTEGlosa']),
-                        'subject': 'XML de Respuesta DTE',
-                        'attachment_ids': [[6, 0, att.ids]],
-                    }
-            send_mail = self.env['mail.mail'].create(values)
-            send_mail.send()
-            doc.set_dte_claim(claim=self.claim)
+        doc = self.invoice_id or self.document_id
+        datos = self._get_datos_empresa(doc.company_id)
+        ''' @TODO separar estos dos'''
+        dte = {
+            'xml': doc.xml,
+            'CodEnvio': IdRespuesta,
+        }
+        datos['filename'] = 'rechazo_comercial_%s.xml' % str(IdRespuesta)
+        datos["ValidacionCom"] = {
+            'IdRespuesta': IdRespuesta,
+            'NroDetalles': NroDetalles,
+            "RutResponde": doc.company_id.document_number,
+            'NmbContacto': self.env.user.partner_id.name,
+            'FonoContacto': self.env.user.partner_id.phone,
+            'MailContacto': self.env.user.partner_id.email,
+            "xml_dte": dte,
+            'EstadoDTE': 2,
+            'EstadoDTEGlosa': 'Rechazo Absoluto',
+            'CodRchDsc': -1,
+        }
+        resp = fe.validacion_comercial(datos)
+        att = self._create_attachment(
+            resp['respuesta_xml'],
+            resp['nombre_xml'],
+        )
+        partners = doc.partner_id.ids
+        dte_email_id = doc.company_id.dte_email_id or self.env.user.company_id.dte_email_id
+        values = {
+                    'res_id': doc.id,
+                    'email_from': dte_email_id.name_get()[0][1],
+                    'email_to': doc.dte_id.sudo().mail_id.email_from ,
+                    'auto_delete': False,
+                    'model': "mail.message.dte.document",
+                    'body': 'XML de Respuesta DTE, Estado: %s , Glosa: %s ' % (resp['EstadoDTE'], resp['EstadoDTEGlosa']),
+                    'subject': 'XML de Respuesta DTE',
+                    'attachment_ids': [[6, 0, att.ids]],
+                }
+        send_mail = self.env['mail.mail'].create(values)
+        send_mail.send()
+        doc.set_dte_claim(claim=self.claim)
 
     def do_validar_comercial(self):
         id_seq = self.env.ref('l10n_cl_fe.response_sequence')
         IdRespuesta = id_seq.next_by_id()
         NroDetalles = 1
-        for inv in self.invoice_ids:
-            if inv.claim in ['ACD', 'RCD'] or inv.type in ['out_invoice', 'out_refund']:
-                continue
-            datos = inv._get_datos_empresa(inv.company_id)
-            dte = inv._dte()
-            ''' @TODO separar estos dos'''
-            dte['CodEnvio'] = IdRespuesta
-            datos['filename'] = 'validacion_comercial_%s.xml' % str(IdRespuesta)
-            datos["ValidacionCom"] = {
-                'IdRespuesta': IdRespuesta,
-                'NroDetalles': NroDetalles,
-                "RutResponde": inv.format_vat(
-                                inv.company_id.vat),
-                "RutRecibe": inv.partner_id.commercial_partner_id.document_number,
-                'NmbContacto': self.env.user.partner_id.name,
-                'FonoContacto': self.env.user.partner_id.phone,
-                'MailContacto': self.env.user.partner_id.email,
-                "Receptor": {
-                	    "RUTRecep": inv.partner_id.commercial_partner_id.document_number,
-                },
-                "DTEs": [dte],
-            }
-            resp = fe.validacion_comercial(datos)
-            inv.sii_message = resp['respuesta_xml']
-            att = self._create_attachment(
-                resp['respuesta_xml'],
-                resp['nombre_xml'],
-            )
-            dte_email_id = inv.company_id.dte_email_id or self.env.user.company_id.dte_email_id
-            values = {
-                        'res_id': inv.id,
-                        'email_from': dte_email_id.name_get()[0][1],
-                        'email_to': inv.partner_id.commercial_partner_id.dte_email,
-                        'auto_delete': False,
-                        'model': "account.invoice",
-                        'body': 'XML de Validación Comercial, Estado: %s, Glosa: %s' % (resp['EstadoDTE'], resp['EstadoDTEGlosa']),
-                        'subject': 'XML de Validación Comercial',
-                        'attachment_ids': [[6, 0, att.ids]],
-                    }
-            send_mail = self.env['mail.mail'].create(values)
-            send_mail.send()
-            try:
-                inv.set_dte_claim(claim='ACD')
-            except Exception as e:
-                _logger.warning("Error al setear Reclamo %s" %str(e))
-            try:
-                inv.get_dte_claim()
-            except:
-                _logger.warning("@TODO crear código que encole la respuesta")
+        doc = self.invoice_id or self.document_id
+        if doc.claim in ['ACD', 'RCD'] or doc.type in ['out_invoice', 'out_refund']:
+            return
+        datos = doc._get_datos_empresa(doc.company_id)
+        dte = doc._dte()
+        ''' @TODO separar estos dos'''
+        dte['CodEnvio'] = IdRespuesta
+        datos['filename'] = 'validacion_comercial_%s.xml' % str(IdRespuesta)
+        datos["ValidacionCom"] = {
+            'IdRespuesta': IdRespuesta,
+            'NroDetalles': NroDetalles,
+            "RutResponde": doc.format_vat(
+                            doc.company_id.vat),
+            "RutRecibe": doc.partner_id.commercial_partner_id.document_number,
+            'NmbContacto': self.env.user.partner_id.name,
+            'FonoContacto': self.env.user.partner_id.phone,
+            'MailContacto': self.env.user.partner_id.email,
+            "Receptor": {
+            	    "RUTRecep": doc.partner_id.commercial_partner_id.document_number,
+            },
+            "DTEs": [dte],
+        }
+        resp = fe.validacion_comercial(datos)
+        doc.sii_message = resp['respuesta_xml']
+        att = self._create_attachment(
+            resp['respuesta_xml'],
+            resp['nombre_xml'],
+        )
+        dte_email_id = doc.company_id.dte_email_id or self.env.user.company_id.dte_email_id
+        values = {
+                    'res_id': doc.id,
+                    'email_from': dte_email_id.name_get()[0][1],
+                    'email_to': doc.partner_id.commercial_partner_id.dte_email,
+                    'auto_delete': False,
+                    'model': "account.invoice",
+                    'body': 'XML de Validación Comercial, Estado: %s, Glosa: %s' % (resp['EstadoDTE'], resp['EstadoDTEGlosa']),
+                    'subject': 'XML de Validación Comercial',
+                    'attachment_ids': [[6, 0, att.ids]],
+                }
+        send_mail = self.env['mail.mail'].create(values)
+        send_mail.send()
+        try:
+            doc.set_dte_claim(claim='ACD')
+        except Exception as e:
+            _logger.warning("Error al setear Reclamo %s" %str(e))
+        try:
+            doc.get_dte_claim()
+        except:
+            _logger.warning("@TODO crear código que encole la respuesta")
 
     @api.multi
-    def do_receipt(self):
+    def do_recep_mercaderia(self):
         message = ""
-        for inv in self.invoice_ids:
-            if inv.claim in ['ACD', 'RCD']:
-                continue
-            datos = inv._get_datos_empresa(inv.company_id)
-            datos["RecepcionMer"] = {
-                "RutResponde": inv.format_vat(
-                                inv.company_id.vat),
-                "RutRecibe": inv.partner_id.commercial_partner_id.document_number,
-                'Recinto': inv.company_id.street,
-                'NmbContacto': self.env.user.partner_id.name,
-                'FonoContacto': self.env.user.partner_id.phone,
-                'MailContacto': self.env.user.partner_id.email,
-                "Receptor": {
-                	    "RUTRecep": inv.partner_id.commercial_partner_id.document_number,
-                },
-                "DTEs": [inv._dte()],
-            }
-            resp = fe.recepcion_mercaderias(datos)
-            inv.sii_message = resp['respuesta_xml']
-            att = self._create_attachment(
-                resp['respuesta_xml'],
-                resp['nombre_xml'],
-            )
-            dte_email_id = inv.company_id.dte_email_id or self.env.user.company_id.dte_email_id
-            values = {
-                        'res_id': inv.id,
-                        'email_from': dte_email_id.name_get()[0][1],
-                        'email_to': inv.partner_id.commercial_partner_id.dte_email,
-                        'auto_delete': False,
-                        'model': "account.invoice",
-                        'body': 'XML de Recepción de Mercaderías\n %s' % (message),
-                        'subject': 'XML de Recepción de Documento',
-                        'attachment_ids': [[6, 0, att.ids]],
-                    }
-            send_mail = self.env['mail.mail'].create(values)
-            send_mail.send()
-            try:
-                inv.set_dte_claim(claim='ERM')
-            except Exception as e:
-                _logger.warning("Error al setear Reclamo %s" %str(e))
-            try:
-                inv.get_dte_claim()
-            except:
-                _logger.warning("@TODO crear código que encole la respuesta")
+        doc = self.invoice_id or self.document_id
+        if doc.claim in ['ACD', 'RCD']:
+            return
+        datos = doc._get_datos_empresa(doc.company_id)
+        datos["RecepcionMer"] = {
+            "RutResponde": doc.format_vat(
+                            doc.company_id.vat),
+            "RutRecibe": doc.partner_id.commercial_partner_id.document_number,
+            'Recinto': doc.company_id.street,
+            'NmbContacto': self.env.user.partner_id.name,
+            'FonoContacto': self.env.user.partner_id.phone,
+            'MailContacto': self.env.user.partner_id.email,
+            "Receptor": {
+            	    "RUTRecep": doc.partner_id.commercial_partner_id.document_number,
+            },
+            "DTEs": [doc._dte()],
+        }
+        resp = fe.recepcion_mercaderias(datos)
+        doc.sii_message = resp['respuesta_xml']
+        att = self._create_attachment(
+            resp['respuesta_xml'],
+            resp['nombre_xml'],
+        )
+        dte_email_id = doc.company_id.dte_email_id or self.env.user.company_id.dte_email_id
+        values = {
+                    'res_id': doc.id,
+                    'email_from': dte_email_id.name_get()[0][1],
+                    'email_to': doc.partner_id.commercial_partner_id.dte_email,
+                    'auto_delete': False,
+                    'model': "account.invoice",
+                    'body': 'XML de Recepción de Mercaderías\n %s' % (message),
+                    'subject': 'XML de Recepción de Documento',
+                    'attachment_ids': [[6, 0, att.ids]],
+                }
+        send_mail = self.env['mail.mail'].create(values)
+        send_mail.send()
+        try:
+            doc.set_dte_claim(claim='ERM')
+        except Exception as e:
+            _logger.warning("Error al setear Reclamo %s" %str(e))
+        try:
+            doc.get_dte_claim()
+        except:
+            _logger.warning("@TODO crear código que encole la respuesta")
