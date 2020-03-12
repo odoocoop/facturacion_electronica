@@ -152,8 +152,7 @@ class UploadXMLWizard(models.TransientModel):
         firma = self.env.user. get_digital_signature(company_id)
         return {
             "Emisor": {
-              "RUTEmisor": self.env['account.invoice'].format_vat(
-                                            company_id.vat),
+              "RUTEmisor": company_id.partner_id.rut(),
               "Modo": "produccion" if company_id.dte_service_provider == 'SII'\
                           else 'certificacion',
             },
@@ -203,8 +202,7 @@ class UploadXMLWizard(models.TransientModel):
                 [
                     {
                         "IdRespuesta": IdRespuesta,
-                        "RutResponde": self.env['account.invoice'].format_vat(
-                                        company_id.vat),
+                        "RutResponde": company_id.partner_id.rut(),
                         "NmbContacto": self.env.user.partner_id.name,
                         "FonoContacto": self.env.user.partner_id.phone,
                         "MailContacto": self.env.user.partner_id.email,
@@ -639,16 +637,16 @@ class UploadXMLWizard(models.TransientModel):
             if self.type == "ventas":
                 invoice["type"] = "out_refund"
         if partner_id:
-            account_id = partner_id.property_account_payable_id.id or journal_id.default_debit_account_id.id
-            if invoice['type'] in ('out_invoice', 'in_refund'):
-                account_id = partner_id.property_account_receivable_id.id or journal_id.default_credit_account_id.id
-            fpos = self.env['account.fiscal.position'].get_fiscal_position(partner_id.id, delivery_id=partner_id.address_get(['delivery'])['delivery'])
-            invoice.update(
-                {
-                    'fiscal_position': fpos.id if fpos else False,
-                    'account_id': account_id,
-                    'partner_id': partner_id.id,
-                })
+            if journal_id:
+                account_id = partner_id.property_account_payable_id.id or journal_id.default_debit_account_id.id
+                if invoice['type'] in ('out_invoice', 'in_refund'):
+                    account_id = partner_id.property_account_receivable_id.id or journal_id.default_credit_account_id.id
+                fpos = self.env['account.fiscal.position'].get_fiscal_position(partner_id.id, delivery_id=partner_id.address_get(['delivery'])['delivery'])
+                invoice.update(
+                    {
+                        'fiscal_position': fpos.id if fpos else False,
+                        'account_id': account_id,
+                    })
             partner_id = partner_id.id
         try:
             name = self.filename.decode('ISO-8859-1').encode('UTF-8')
@@ -671,11 +669,12 @@ class UploadXMLWizard(models.TransientModel):
             'date_invoice': FchEmis,
             'partner_id': partner_id,
             'company_id': company_id.id,
-            'journal_id': journal_id.id,
             #'sii_xml_request': xml_envio.id,
             'sii_xml_dte':  "<DTE>%s</DTE>" % etree.tostring(documento),
             'sii_barcode': ted_string.decode(),
         })
+        if journal_id:
+            invoice['journal_id'] = journal_id.id
         DscRcgGlobal = documento.findall("DscRcgGlobal")
         if DscRcgGlobal:
             drs = [(5,)]
@@ -708,7 +707,7 @@ class UploadXMLWizard(models.TransientModel):
             })
         return invoice
 
-    def _get_journal(self, sii_code, company_id):
+    def _get_journal(self, sii_code, company_id, ignore_journal=False):
         dc_id = self.env['sii.document_class'].search([
                             ('sii_code', '=', sii_code)
                             ])
@@ -723,7 +722,7 @@ class UploadXMLWizard(models.TransientModel):
             ],
             limit=1,
         )
-        if not journal_id:
+        if not journal_id and not ignore_journal:
             raise UserError('No existe Diario para el tipo de documento %s, por favor añada uno primero, o ignore el documento' % dc_id.name.encode('UTF-8'))
         return journal_id
 
@@ -737,13 +736,14 @@ class UploadXMLWizard(models.TransientModel):
                 lines.append(new_line)
         return lines
 
-    def _get_data(self, documento, company_id):
+    def _get_data(self, documento, company_id, ignore_journal=False):
         Encabezado = documento.find("Encabezado")
         IdDoc = Encabezado.find("IdDoc")
         price_included = Encabezado.find("MntBruto")
         journal_id = self._get_journal(
                     IdDoc.find("TipoDTE").text,
-                    company_id)
+                    company_id,
+                    ignore_journal)
         data = self._prepare_invoice(
                     documento,
                     company_id,
@@ -886,7 +886,7 @@ class UploadXMLWizard(models.TransientModel):
         if dte:
             _logger.warning(_("El documento %s %s ya se encuentra registrado" % ( dte.number, dte.document_class_id.name )))
             return dte
-        data = self._get_data(documento, company_id)
+        data = self._get_data(documento, company_id, ignore_journal=True)
         data.update({
             'dte_id': self.dte_id.id,
         })
@@ -973,15 +973,20 @@ class UploadXMLWizard(models.TransientModel):
                     if self.type == 'ventas':
                         inv.move_id.write(guardar)
                         inv.state = 'open'
+                if self.type == 'compras':
+                    inv.set_reference()
             except Exception as e:
                 _logger.warning('Error en crear 1 factura con error:  %s' % str(e))
         if created and self.option not in [False, 'upload'] and self.type == 'compras':
+            datos = {
+                'invoice_ids': [(6, 0, created)],
+                'action': 'ambas',
+                'claim': 'ACD',
+                'estado_dte': '0',
+                'tipo': 'account.invoice',
+            }
             wiz_accept = self.env['sii.dte.validar.wizard'].create(
-                {
-                    'invoice_ids': [(6, 0, created)],
-                    'action': 'validate',
-                    'option': self.option,
-                }
+                datos
             )
             wiz_accept.confirm()
         return created

@@ -8,7 +8,28 @@
     <field name="arch" type="xml">
       <xpath expr="//div[hasclass('settings')]" position="inside">
         <div class="app_settings_block" data-string="Electronic Invoice" string="Facturación Electrónica" data-key="l10n_cl_fe" >
-          <div >
+          <div>
+            <h2 class="mt32">Versión de librería Facturación Electrónica</h2>
+            <div class="row mt16 o_settings_container">
+              <div class="col-xs-12 col-md-6 o_setting_box" id="fe_version_instalador">
+                <div class="o_setting_left_pane" />
+                <div class="o_setting_right_pane">
+                  <label for="fe_version"/>:
+                  <field name="fe_version" />
+                </div>
+              </div>
+              <div class="col-xs-12 col-md-6 o_setting_box" id="fe_version">
+                <div class="o_setting_left_pane" />
+                <div class="o_setting_right_pane">
+                    <strong>Requerido:</strong><div class="text-muted">0.10.6</div>
+                    <div class="text-muted" attrs="{'invisible': [('fe_version', '>=', '0.10.6')]}" style="color:red !important">
+                        ¡Debe Actualizar o verificar su versión instalada!
+                    </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div>
             <h2 class="mt32">Firmas Electrónica (Certificados digitales)</h2>
             <div class="row mt16 o_settings_container">
               <div class="col-xs-12 col-md-6 o_setting_box" title="Configure firmas electrónicas y usuarios autorizados a usarlas." id="firmas">

@@ -2,10 +2,14 @@
 from odoo import fields, models, api, _
 from odoo.exceptions import UserError
 from datetime import datetime, timedelta
-import logging
 import json
-
+import logging
 _logger = logging.getLogger(__name__)
+
+try:
+    from facturacion_electronica import clase_util as util
+except ImportError:
+    _logger.warning("Error al cargar facturación electrónica desde caf")
 
 
 class PosSession(models.Model):
@@ -70,6 +74,14 @@ class PosSession(models.Model):
             })
         return super(PosSession, self).create(values)
 
+    def recursive_xml(self, el):
+        if el.text and bool(el.text.strip()):
+            return el.text
+        res = {}
+        for e in el:
+            res.setdefault(e.tag, self.recursive_xml(e))
+        return res
+
     @api.model
     def get_caf_string(self, sequence=None):
         if not sequence:
@@ -84,7 +96,8 @@ class PosSession(models.Model):
             return
         caffs = []
         for caffile in caffiles:
-            caffs += [caffile.decode_caf()]
+            xml = caffile.decode_caf()
+            caffs += [{xml.tag: self.recursive_xml(xml)}]
         if caffs:
             return json.dumps(caffs, ensure_ascii=False)
         msg = '''No hay CAF para el folio de este documento: {}.\

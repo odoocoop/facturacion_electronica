@@ -67,18 +67,6 @@ class stock_picking(models.Model):
         # saca el folio directamente de la secuencia
         return int(self.sii_document_number)
 
-    def format_vat(self, value, con_cero=False):
-        ''' Se Elimina el 0 para prevenir problemas con el sii, ya que las muestras no las toma si va con
-        el 0 , y tambien internamente se generan problemas, se mantiene el 0 delante, para cosultas, o sino retorna "error de datos"'''
-        if not value or value=='' or value == 0:
-            value ="CL666666666"
-            #@TODO opción de crear código de cliente en vez de rut genérico
-        rut = value[:10] + '-' + value[10:]
-        if not con_cero:
-            rut = rut.replace('CL0','')
-        rut = rut.replace('CL','')
-        return rut
-
     def pdf417bc(self, ted, columns=13, ratio=3):
         bc = pdf417gen.encode(
             ted,
@@ -244,7 +232,7 @@ class stock_picking(models.Model):
 
     def _emisor(self):
         Emisor = {}
-        Emisor['RUTEmisor'] = self.format_vat(self.company_id.vat)
+        Emisor['RUTEmisor'] = self.company_id.partner_id.rut()
         Emisor['RznSoc'] = self.company_id.partner_id.name
         Emisor['GiroEmis'] = self.company_id.activity_description.name
         Emisor['Telefono'] = self.company_id.phone or ''
@@ -267,11 +255,14 @@ class stock_picking(models.Model):
         partner_id = self.partner_id or self.company_id.partner_id
         if not partner_id.commercial_partner_id.vat :
             raise UserError("Debe Ingresar RUT Receptor")
-        Receptor['RUTRecep'] = self.format_vat(partner_id.commercial_partner_id.vat)
+        Receptor['RUTRecep'] = partner_id.rut()
         Receptor['RznSocRecep'] = partner_id.commercial_partner_id.name
         activity_description = self.activity_description or partner_id.activity_description
         if not activity_description:
-            raise UserError(_('Seleccione giro del partner'))
+            if self.partner_id.commercial_partner_id.acteco_ids:
+                activity_description = self.partner_id.commercial_partner_id.acteco_ids[0]
+            else:
+                raise UserError(_('Seleccione giro del partner'))
         Receptor['GiroRecep'] = activity_description.name
         if partner_id.commercial_partner_id.phone:
             Receptor['Contacto'] = partner_id.commercial_partner_id.phone
@@ -292,16 +283,16 @@ class stock_picking(models.Model):
             if not self.chofer.vat:
                 raise UserError("Debe llenar los datos del chofer")
             if self.transport_type == '2':
-                Transporte['RUTTrans'] = self.format_vat(self.company_id.vat)
+                Transporte['RUTTrans'] = self.company_id.partner_id.rut()
             else:
                 if not self.carrier_id.partner_id.vat:
                     raise UserError("Debe especificar el RUT del transportista, en su ficha de partner")
-                Transporte['RUTTrans'] = self.format_vat(self.carrier_id.partner_id.vat)
+                Transporte['RUTTrans'] = self.carrier_id.partner_id.rut()
             if self.chofer:
                 Transporte['Chofer'] = {}
-                Transporte['Chofer']['RUTChofer'] = self.format_vat(self.chofer.vat)
+                Transporte['Chofer']['RUTChofer'] = self.chofer.rut()
                 Transporte['Chofer']['NombreChofer'] = self.chofer.name[:30]
-        partner_id = self.partner_id or self.company_id.partner_id
+        partner_id = self.partner_id or self.partner_id.commercial_partner_id or self.company_id.partner_id
         Transporte['DirDest'] = (partner_id.street or '')+ ' '+ (partner_id.street2 or '')
         Transporte['CmnaDest'] = partner_id.city_id.name or ''
         Transporte['CiudadDest'] = partner_id.city or ''
@@ -389,8 +380,9 @@ class stock_picking(models.Model):
             if line.discount > 0:
                 lines['DescuentoPct'] = line.discount
                 lines['DescuentoMonto'] = int(round((((line.discount / 100) * lines['PrcItem'])* qty)))
-            if not no_product :
-                lines['MontoItem'] = int(round(line.subtotal,0))
+            if not no_product:
+                subtotal = line.subtotal if taxInclude else line.price_untaxed
+                lines['MontoItem'] = int(round(subtotal, 0))
             if no_product:
                 lines['MontoItem'] = 0
             line_number += 1
@@ -554,17 +546,18 @@ class stock_picking(models.Model):
             signature_id = self.env.user.get_digital_signature(r.company_id)
             url = server_url[r.company_id.dte_service_provider] + 'QueryEstDte.jws?WSDL'
             _server = Client(url)
-            receptor = r.format_vat(partner_id.commercial_partner_id.vat)
+            partner_id = r.partner_id.commercial_partner_id
+            receptor = partner_id.rut()
             scheduled_date = fields.Datetime.context_timestamp(r.with_context(tz='America/Santiago'), fields.Datetime.from_string(r.scheduled_date)).strftime("%d-%m-%Y")
             total = str(int(round(r.amount_total, 0)))
             sii_code = str(r.document_class_id.sii_code)
             rut = signature_id.subject_serial_number
             respuesta = _server.service.getEstDte(
-                            rut[:8].replace('-', ''),
+                            rut[:-2],
                             str(rut[-1]),
-                            r.company_id.vat[2:-1],
-                            r.company_id.vat[-1],
-                            receptor[:8].replace('-', ''),
+                            r.company_id.partner_id.rut()[:-2],
+                            r.company_id.partner_id.rut()[-1],
+                            receptor[:-2],
                             receptor[-1],
                             sii_code,
                             str(r.sii_document_number),

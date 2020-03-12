@@ -341,14 +341,6 @@ class Libro(models.Model):
             'target': 'self',
         }
 
-    def format_vat(self, value):
-        if not value or value=='' or value == 0:
-            value ="CL666666666"
-            #@TODO opción de crear código de cliente en vez de rut genérico
-        rut = value[:10] + '-' + value[10:]
-        rut = rut.replace('CL0','').replace('CL','')
-        return rut
-
     @api.onchange('periodo_tributario', 'tipo_operacion')
     def _setName(self):
         self.name = self.tipo_operacion
@@ -376,12 +368,12 @@ class Libro(models.Model):
                 ('state', 'not in', ['cancel', 'draft']),
             ]
             ref = self.env['account.invoice'].search(query)
-            recs.append(ref.with_context(tax_detaiL=True)._dte())
+            recs.append(ref)
         return recs
 
     def _emisor(self):
         Emisor = {}
-        Emisor['RUTEmisor'] = self.format_vat(self.company_id.vat)
+        Emisor['RUTEmisor'] = self.company_id.partner_id.rut()
         Emisor['RznSoc'] = self.company_id.name
         Emisor["Modo"] = "produccion" if self.company_id.dte_service_provider == 'SII'\
                   else 'certificacion'
@@ -403,13 +395,13 @@ class Libro(models.Model):
     def _validar(self):
         datos = self._get_datos_empresa(self.company_id)
         grupos = {}
+        boletas = []
         recs = self._get_moves()
         for r in recs:
             grupos.setdefault(r.document_class_id.sii_code, [])
             grupos[r.document_class_id.sii_code].append(r.with_context(tax_detail=True)._dte())
-        for boletas in self.boletas:
-            resumenesPeriodo[boletas.tipo_boleta.id] = {}
-            resumen = self._setResumenBoletas(boletas)
+        for b in self.boletas:
+            boletas.append(b._dte())
         datos['Libro'] = {
             "PeriodoTributario": self.periodo_tributario,
             "TipoOperacion": self.tipo_operacion,
@@ -419,6 +411,7 @@ class Libro(models.Model):
             "CodigoRectificacion": self.codigo_rectificacion,
             "Documento": [{'TipoDTE': k, 'documentos': v} for k, v in grupos.items()],
             'FctProp': self.fact_prop,
+            'boletas': boletas,
         }
         datos['test'] = True
         result = fe.libro(datos)

@@ -77,15 +77,16 @@ class CesionDTE(models.Model):
     @api.onchange('cesionario_id')
     def set_declaracion(self):
         if self.cesionario_id:
+            partner_id = self.commercial_partner_id or self.partner_id.commercial_partner_id
             declaracion_jurada = u'''Se declara bajo juramento que {0}, RUT {1} \
 ha puesto a disposicion del cesionario {2}, RUT {3}, el o los documentos donde constan los recibos de las mercaderías entregadas o servicios prestados, \
 entregados por parte del deudor de la factura {4}, RUT {5}, de acuerdo a lo establecido en la Ley No. 19.983'''.format(
                 self.company_id.partner_id.name,
-                self.format_vat(self.company_id.partner_id.vat),
+                self.company_id.partner_id.rut(),
                 self.cesionario_id.name,
-                self.format_vat(self.cesionario_id.vat),
+                self.cesionario_id.rut(),
                 self.partner_id.commercial_partner_id.name,
-                self.format_vat(self.partner_id.commercial_partner_id.vat),
+                partner_id.rut(),
             )
             self.declaracion_jurada = declaracion_jurada
 
@@ -101,11 +102,12 @@ entregados por parte del deudor de la factura {4}, RUT {5}, de acuerdo a lo esta
     def _id_dte(self):
         IdDoc = {}
         IdDoc['TipoDTE'] = self.document_class_id.sii_code
-        IdDoc['RUTEmisor'] = self.format_vat(self.company_id.vat)
+        IdDoc['RUTEmisor'] = self.company_id.partner_id.rut()
         if not self.partner_id.commercial_partner_id.vat:
             raise UserError("Debe Ingresar RUT Receptor")
         IdDoc['RznSocReceptor'] = self.partner_id.commercial_partner_id.name
-        IdDoc['RUTReceptor'] = self.format_vat(self.partner_id.commercial_partner_id.vat)
+        partner_id = self.commercial_partner_id or self.partner_id.commercial_partner_id
+        IdDoc['RUTReceptor'] = partner_id.rut()
         IdDoc['Folio'] = self.get_folio()
         IdDoc['FchEmis'] = self.date_invoice
         IdDoc['MntTotal'] = self.currency_id.round(self.amount_total )
@@ -115,7 +117,7 @@ entregados por parte del deudor de la factura {4}, RUT {5}, de acuerdo a lo esta
         Receptor = {}
         if not self.cesionario_id.commercial_partner_id.vat:
             raise UserError("Debe Ingresar RUT Cesionario")
-        Receptor['RUT'] = self.format_vat(self.cesionario_id.commercial_partner_id.vat)
+        Receptor['RUT'] = self.cesionario_id.commercial_partner_id.rut()
         Receptor['RazonSocial'] = self._acortar_str(self.cesionario_id.commercial_partner_id.name, 100)
         Receptor['Direccion'] = self._acortar_str((self.cesionario_id.street or self.cesionario_id.commercial_partner_id.street) + ' ' + (self.cesionario_id.street2 or self.cesionario_id.commercial_partner_id.street2 or ''),70)
         Receptor['eMail'] = self.cesionario_id.commercial_partner_id.email
@@ -126,7 +128,7 @@ entregados por parte del deudor de la factura {4}, RUT {5}, de acuerdo a lo esta
 
     def _cedente(self):
         Cedente = {
-            'RUT': self.format_vat(self.env.user.vat),
+            'RUT': self.env.user.partner_id.rut(),
             'Nombre': self.env.user.name,
             'Phono': self.env.user.partner_id.phone,
             'eMail': self.env.user.partner_id.email,

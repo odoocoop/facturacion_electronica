@@ -19,74 +19,106 @@ class Exportacion(models.Model):
             'aduanas.paises',
             related="exportacion.pais_destino",
             string='País de Destino',
+            readonly=True,
+            states={'draft': [('readonly', False)]},
         )
     puerto_embarque = fields.Many2one(
             'aduanas.puertos',
             related="exportacion.puerto_embarque",
             string='Puerto Embarque',
+            readonly=True,
+            states={'draft': [('readonly', False)]},
         )
     puerto_desembarque = fields.Many2one(
             'aduanas.puertos',
             related="exportacion.puerto_desembarque",
             string='Puerto de Desembarque',
+            readonly=True,
+            states={'draft': [('readonly', False)]},
         )
     via = fields.Many2one(
             'aduanas.tipos_transporte',
             related="exportacion.via",
             string='Vía',
+            readonly=True,
+            states={'draft': [('readonly', False)]},
         )
     carrier_id = fields.Many2one(
             'delivery.carrier',
             related="exportacion.carrier_id",
             string="Transporte",
+            readonly=True,
+            states={'draft': [('readonly', False)]},
         )
     tara = fields.Integer(
             related="exportacion.tara",
             string="Tara",
+            readonly=True,
+            states={'draft': [('readonly', False)]},
         )
     uom_tara = fields.Many2one(
             'product.uom',
             related="exportacion.uom_tara",
             string='Unidad Medida Tara',
+            readonly=True,
+            states={'draft': [('readonly', False)]},
         )
     peso_bruto = fields.Float(
             related="exportacion.peso_bruto",
             string="Peso Bruto",
+            readonly=True,
+            states={'draft': [('readonly', False)]},
         )
     uom_peso_bruto = fields.Many2one(
             'product.uom',
             related="exportacion.uom_peso_bruto",
             string='Unidad Medida Peso Bruto',
+            readonly=True,
+            states={'draft': [('readonly', False)]},
         )
     peso_neto = fields.Float(
             related="exportacion.peso_neto",
             string="Peso Neto",
+            readonly=True,
+            states={'draft': [('readonly', False)]},
         )
     uom_peso_neto = fields.Many2one(
             'product.uom',
             related="exportacion.uom_peso_neto",
             string='Unidad Medida Peso Neto',
+            readonly=True,
+            states={'draft': [('readonly', False)]},
         )
     total_items = fields.Integer(
             related="exportacion.total_items",
             string="Total Items",
+            readonly=True,
+            states={'draft': [('readonly', False)]},
         )
     total_bultos = fields.Integer(
             related="exportacion.total_bultos",
             string="Total Bultos",
+            readonly=True,
+            states={'draft': [('readonly', False)]},
         )
     monto_flete = fields.Monetary(
             related="exportacion.monto_flete",
             string="Monto Flete",
+            readonly=True,
+            states={'draft': [('readonly', False)]},
         )
     monto_seguro = fields.Monetary(
             related="exportacion.monto_seguro",
             string="Monto Seguro",
+            readonly=True,
+            states={'draft': [('readonly', False)]},
         )
     pais_recepcion = fields.Many2one(
             'aduanas.paises',
             related="exportacion.pais_recepcion",
             string='País de Recepción',
+            readonly=True,
+            states={'draft': [('readonly', False)]},
         )
     bultos = fields.One2many(
         string="Bultos",
@@ -99,6 +131,8 @@ class Exportacion(models.Model):
     picking_id = fields.Many2one(
         'stock.picking',
         string="Movimiento Relacionado",
+        readonly=True,
+        states={'draft': [('readonly', False)]},
     )
 
     @api.one
@@ -109,12 +143,6 @@ class Exportacion(models.Model):
             exp = self.exportacion.copy()
             default.setdefault('exportacion', exp.id)
         return super(Exportacion, self).copy(default)
-
-    def format_vat(self, value, con_cero=False):
-        if self[0]._es_exportacion():
-            if self[0].company_id.vat != value:
-                value = "CL555555555"
-        return super(Exportacion, self).format_vat(value, con_cero)
 
     @api.multi
     def crear_exportacion(self):
@@ -171,14 +199,16 @@ class Exportacion(models.Model):
                                                                  IVA, TasaIVA,
                                                                  MntTotal, MntBase)
         Totales = {}
-        Totales['TpoMoneda'] = self._acortar_str(currency_id.abreviatura, 15)
-        Totales['TpoCambio'] = currency_id.rate
+        currency_target = self.currency_target()
+        Totales['TpoMoneda'] = self._acortar_str(currency_target.abreviatura, 15)
+        base = self.currency_base()
+        Totales['TpoCambio'] = base.rate
         if MntExe:
             if currency_id:
-                MntExe = currency_id.compute(MntExe, self.company_id.currency_id)
+                MntExe = base.compute(MntExe, currency_target)
             Totales['MntExeOtrMnda'] = MntExe
         if currency_id:
-            MntTotal = currency_id.compute(MntTotal, self.company_id.currency_id)
+            MntTotal = base.compute(MntTotal, currency_target)
         Totales['MntTotOtrMnda'] = MntTotal
         return Totales
 
@@ -190,37 +220,40 @@ class Exportacion(models.Model):
 
     def _receptor(self):
         Receptor = {}
-        if not self.commercial_partner_id.vat and not self._es_boleta() and not self._nc_boleta() and not self._es_exportacion():
+        commercial_partner_id = self.commercial_partner_id or self.partner_id.commercial_partner_id
+        if not commercial_partner_id.vat and not self._es_boleta() and not self._nc_boleta() and not self._es_exportacion():
             raise UserError("Debe Ingresar RUT Receptor")
         #if self._es_boleta():
         #    Receptor['CdgIntRecep']
-        Receptor['RUTRecep'] = self.format_vat(self.commercial_partner_id.vat)
-        Receptor['RznSocRecep'] = self._acortar_str( self.commercial_partner_id.name, 100)
+        Receptor['RUTRecep'] = commercial_partner_id.rut()
+        Receptor['RznSocRecep'] = self._acortar_str( commercial_partner_id.name, 100)
         if not self.partner_id or Receptor['RUTRecep'] == '66666666-6':
             return Receptor
+        elif self._es_exportacion():
+            Receptor['RUTRecep'] = '55.555.555-5'
         if not self._es_boleta() and not self._nc_boleta():
-            GiroRecep = self.acteco_id.name or self.commercial_partner_id.activity_description.name
+            GiroRecep = self.acteco_id.name or commercial_partner_id.activity_description.name
             if not GiroRecep and not self._es_exportacion():
                 raise UserError(_('Seleccione giro del partner'))
             if GiroRecep:
                 Receptor['GiroRecep'] = self._acortar_str(GiroRecep, 40)
-        if self.partner_id.phone or self.commercial_partner_id.phone:
-            Receptor['Contacto'] = self._acortar_str(self.partner_id.phone or self.commercial_partner_id.phone or self.partner_id.email, 80)
-        if (self.commercial_partner_id.email or self.commercial_partner_id.dte_email or self.partner_id.email or self.partner_id.dte_email) and not self._es_boleta():
-            Receptor['CorreoRecep'] = self.commercial_partner_id.dte_email or self.partner_id.dte_email or self.commercial_partner_id.email or self.partner_id.email
-        street_recep = (self.partner_id.street or self.commercial_partner_id.street or False)
+        if self.partner_id.phone or commercial_partner_id.phone:
+            Receptor['Contacto'] = self._acortar_str(self.partner_id.phone or commercial_partner_id.phone or self.partner_id.email, 80)
+        if (commercial_partner_id.email or commercial_partner_id.dte_email or self.partner_id.email or self.partner_id.dte_email) and not self._es_boleta():
+            Receptor['CorreoRecep'] = commercial_partner_id.dte_email or self.partner_id.dte_email or commercial_partner_id.email or self.partner_id.email
+        street_recep = (self.partner_id.street or commercial_partner_id.street or False)
         if not street_recep and not self._es_boleta() and not self._nc_boleta():
         # or self.indicador_servicio in [1, 2]:
             raise UserError('Debe Ingresar dirección del cliente')
-        street2_recep = (self.partner_id.street2 or self.commercial_partner_id.street2 or False)
+        street2_recep = (self.partner_id.street2 or commercial_partner_id.street2 or False)
         if street_recep or street2_recep:
             Receptor['DirRecep'] = self._acortar_str(street_recep + (' ' + street2_recep if street2_recep else ''), 70)
-        cmna_recep = self.partner_id.city_id.name or self.commercial_partner_id.city_id.name
+        cmna_recep = self.partner_id.city_id.name or commercial_partner_id.city_id.name
         if not cmna_recep and not self._es_boleta() and not self._nc_boleta() and not self._es_exportacion():
             raise UserError('Debe Ingresar Comuna del cliente')
         else:
             Receptor['CmnaRecep'] = cmna_recep
-        ciudad_recep = self.partner_id.city or self.commercial_partner_id.city
+        ciudad_recep = self.partner_id.city or commercial_partner_id.city
         if ciudad_recep:
             Receptor['CiudadRecep'] = ciudad_recep
         Receptor['Nacionalidad'] = self.partner_id.commercial_partner_id.country_id.aduanas_id.code
@@ -270,7 +303,7 @@ class Exportacion(models.Model):
         if expo.chofer_id:
             Aduana['NombreTransp'] = expo.chofer_id.name
         if expo.carrier_id:
-            Aduana['RUTCiaTransp'] = self.format_vat(expo.carrier_id.partner_id.vat)
+            Aduana['RUTCiaTransp'] = expo.carrier_id.partner_id.rut()
         if expo.carrier_id:
             Aduana['NomCiaTransp'] = expo.carrier_id.name
         #Aduana['IdAdicTransp'] = self.indicador_adicional
@@ -324,14 +357,14 @@ class Exportacion(models.Model):
                 if not self.chofer.vat:
                     raise UserError("Debe llenar los datos del chofer")
                 if self.transport_type == 2:
-                    Transporte['RUTTrans'] = self.format_vat(self.company_id.vat)
+                    Transporte['RUTTrans'] = self.company_id.partner_id.rut()
                 else:
                     if not self.carrier_id.partner_id.vat:
                         raise UserError("Debe especificar el RUT del transportista, en su ficha de partner")
-                    Transporte['RUTTrans'] = self.format_vat(self.carrier_id.partner_id.vat)
+                    Transporte['RUTTrans'] = self.carrier_id.partner_id.rut()
                 if self.chofer:
                     Transporte['Chofer'] = {}
-                    Transporte['Chofer']['RUTChofer'] = self.format_vat(self.chofer.vat)
+                    Transporte['Chofer']['RUTChofer'] = self.chofer.rut()
                     Transporte['Chofer']['NombreChofer'] = self.chofer.name[:30]
         if not self._es_exportacion():
             partner_id = self.partner_id or self.company_id.partner_id

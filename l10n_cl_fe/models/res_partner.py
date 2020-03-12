@@ -108,6 +108,13 @@ class ResPartner(models.Model):
         string="Fecha Actualizado",
     )
 
+    def rut(self):
+        rut = '66666666-6'
+        if self.document_number:
+            d = self.document_number.replace('.', '').split('-')
+            rut = str(int(d[0])) + '-' + d[1]
+        return rut
+
     def write(self, vals):
         result = super(ResPartner, self).write(vals)
         if not vals.get('sync', False):
@@ -116,9 +123,7 @@ class ResPartner(models.Model):
                     try:
                         for r in self:
                             if r.sync and r.document_number \
-                                and self.check_vat_cl(
-                                        r.document_number.replace('.', '')\
-                                        .replace('-', '')) \
+                                and self.check_vat_cl(r.rut()) \
                                 and not r.parent_id:
                                 r.put_remote_user_data()
                     except Exception as e:
@@ -300,9 +305,8 @@ class ResPartner(models.Model):
         if data.get('direccion'):
             self.street = data['direccion']
         if data.get('actecos'):
-            for a in data['actecos']:
-                ac = self.env['sii.document_class'].search([('code', '=', a)])
-                self.acteco_ids += ac
+            acs = self.env['partner.activities'].sudo().search([('code', 'in', data['actecos'])])
+            self.acteco_ids = acs
         if data.get('glosa_giro'):
             query = [('name', '=', data.get('glosa_giro'))]
             ad = self.env['sii.activity.description'].search(query)

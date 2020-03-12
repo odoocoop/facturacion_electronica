@@ -160,17 +160,9 @@ class LibroGuia(models.Model):
         self._validar()
         return self.write({'state': 'NoEnviado'})
 
-    def format_vat(self, value):
-        if not value or value=='' or value == 0:
-            value ="CL666666666"
-            #@TODO opción de crear código de cliente en vez de rut genérico
-        rut = value[:10] + '-' + value[10:]
-        rut = rut.replace('CL0','').replace('CL','')
-        return rut
-
     def _emisor(self):
         Emisor = {}
-        Emisor['RUTEmisor'] = self.format_vat(self.company_id.vat)
+        Emisor['RUTEmisor'] = self.company_id.partner_id.rut()
         Emisor['RznSoc'] = self.company_id.name
         Emisor["Modo"] = "produccion" if self.company_id.dte_service_provider == 'SII'\
                   else 'certificacion'

@@ -30,6 +30,9 @@
         <field name="state" />
         <button name="accept_document" string="Aceptar" type="object" attrs="{'invisible':[('state', '!=', 'draft')]}"/>
         <button name="reject_document" string="Rechazar" type="object" attrs="{'invisible':[('state', '!=', 'draft')]}"/>
+        <button name="%(l10n_cl_fe.action_validar_wizard)d" type='action' string='Reclamo Avanzado'
+          attrs="{'invisible': [('state', '!=', 'draft')]}"
+          context="{'default_tipo': 'mail.message.dte.document'}"/>
       </tree>
     </field>
   </record>
@@ -128,6 +131,15 @@
                 <field name='claim' widget="statusbar"/>
               </header>
               <field name="claim_description" />
+              <field name="claim_ids" readonly="1">
+                <tree>
+                  <field name="date" />
+                  <field name="claim" />
+                  <field name="estado_dte" />
+                  <field name="claim_description" />
+                  <field name="user_id" />
+                </tree>
+              </field>
             </page>
           </notebook>
         </sheet>
@@ -183,7 +195,7 @@
 
   <record id="action_dte_process" model="ir.actions.act_window">
       <field name="type">ir.actions.act_window</field>
-      <field name="name">Aceptar / Rechazar Documentos</field>
+      <field name="name">Aceptar o Rechazar Documentos</field>
       <field name="domain">[]</field>
       <field name="res_model">mail.message.dte.document</field>
       <field name="view_type">form</field>

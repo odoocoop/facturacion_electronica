@@ -31,11 +31,12 @@ class StockPicking(models.Model):
         The line parameter is an account.invoice.line, and the
         tax parameter is the output of account.tax.compute_all().
         """
+        t = self.env['account.tax'].browse(tax['id'])
         vals = {
-            'invoice_id': self.id,
-            'name': tax['name'],
+            'picking_id': self.id,
+            'description': t.with_context(**{'lang': self.partner_id.lang} if self.partner_id else {}).description,
             'tax_id': tax['id'],
-            'amount': tax['amount'],
+            'amount': self.currency_id.round(tax['amount'] if tax['amount'] > 0 else (tax['amount'] * -1)),
             'base': tax['base'],
             'manual': False,
             'sequence': tax['sequence'],
@@ -43,10 +44,13 @@ class StockPicking(models.Model):
         }
         return vals
 
+    def get_grouping_key(self, vals):
+        return str(vals['tax_id'])
+
     def _get_grouped_taxes(self, line, taxes, tax_grouped={}):
         for tax in taxes:
             val = self._prepare_tax_line_vals(line, tax)
-            key = self.env['account.tax'].browse(tax['id']).get_grouping_key(val)
+            key = self.get_grouping_key(val)
             if key not in tax_grouped:
                 tax_grouped[key] = val
             else:
@@ -76,7 +80,9 @@ class StockPicking(models.Model):
                 included = False
             if (totales and not included) or (included and not totales):
                 raise UserError('No se puede hacer timbrado mixto, todos los impuestos en este pedido deben ser uno de estos dos:  1.- precio incluído, 2.-  precio sin incluir')
-            taxes = line.move_line_tax_ids.compute_all(line.price_unit, self.currency_id, qty, line.product_id, self.partner_id, discount=line.discount, uom_id=line.product_uom)['taxes']
+            taxes = line.move_line_tax_ids.with_context(
+                date=self.scheduled_date,
+                currency=self.currency_id.code).compute_all(line.precio_unitario, self.currency_id, qty, line.product_id, self.partner_id, discount=line.discount, uom_id=line.product_uom)['taxes']
             tax_grouped = self._get_grouped_taxes(line, taxes, tax_grouped)
         #if totales:
         #    tax_grouped = {}
@@ -101,7 +107,7 @@ class StockPicking(models.Model):
             else:
                 taxes[t]['amount'] *= gdr_exe
         '''
-        return taxes
+        return tax_grouped
 
     def set_use_document(self):
         return (self.picking_type_id and self.picking_type_id.code != 'incoming')

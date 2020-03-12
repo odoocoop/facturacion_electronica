@@ -19,8 +19,9 @@ class Mepco(models.Model):
     date = fields.Date(
         string="Día Inicio Validez"
     )
-    amount = fields.Integer(
+    amount = fields.Float(
         string="Monto",
+        digits=(12, 6),
         default=0,
     )
     type = fields.Selection(
@@ -41,10 +42,11 @@ class Mepco(models.Model):
         'res.currency'
     )
     factor = fields.Float(
-        string="Factor cálculo"
+        string="Factor cálculo",
+        digits=(12, 6),
     )
 
-    _order = 'date, sequence desc'
+    _order = 'date desc, sequence desc'
     _sql_constraint = [
         ('date_unique', 'unique(date)', 'Error! Date Already Exist!'),
     ]

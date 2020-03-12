@@ -419,7 +419,7 @@
       <field name="code">232</field>
 
   </record>
-  <record model="aduanas.paises">
+  <record model="aduanas.paises" id="gr">
 
       <field name="name">GRECIA</field>
       <field name="code">520</field>
@@ -480,19 +480,15 @@
 
   </record>
   <record model="aduanas.paises">
-
       <field name="name">HOLANDA</field>
       <field name="code">515</field>
-
   </record>
-  <record model="aduanas.paises">
-
+  <record model="aduanas.paises" id="hk">
       <field name="name">HONG KONG - REGIÓN ADMINISTRATIVA ESPECIAL DE CHINA</field>
       <field name="code">342</field>
       <field name="abreviatura">HONG KONG</field>
   </record>
-  <record model="aduanas.paises">
-
+  <record model="aduanas.paises" id="hn">
       <field name="name">HONDURAS</field>
       <field name="code">214</field>
 

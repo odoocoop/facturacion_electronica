@@ -96,7 +96,7 @@ class AccountInvoiceLine(models.Model):
 class Referencias(models.Model):
     _name = 'account.invoice.referencias'
     _description = 'Línea de referencia de Documentos DTE'
-    
+
     origen = fields.Char(
             string="Origin",
             )
@@ -414,6 +414,11 @@ class AccountInvoice(models.Model):
         (4, '4.- Servicios de Hotelería'),
         (5, '5.- Servicio de Transporte Terrestre Internacional'),
     ])
+    claim_ids = fields.One2many(
+        'sii.dte.claim',
+        'invoice_id',
+        strign="Historial de Reclamos"
+    )
 
     @api.onchange('invoice_line_ids')
     def _onchange_invoice_line_ids(self):
@@ -967,7 +972,7 @@ a VAT."))
         for obj_inv in self:
             invtype = obj_inv.type
             if obj_inv.journal_document_class_id and not obj_inv.sii_document_number:
-                if invtype in ('out_invoice', 'out_refund'):
+                if invtype in ('out_invoice', 'out_refund') and obj_inv.use_documents:
                     if not obj_inv.journal_document_class_id.sequence_id:
                         raise UserError(_(
                             'Please define sequence on the journal related documents to this invoice.'))
@@ -1036,7 +1041,7 @@ a VAT."))
     @api.multi
     def invoice_validate(self):
         for inv in self:
-            if not inv.journal_id.use_documents or not inv.document_class_id.dte:
+            if not inv.use_documents or not inv.document_class_id.dte:
                 continue
             inv._validaciones_uso_dte()
             inv.sii_result = 'NoEnviado'
@@ -1089,8 +1094,8 @@ a VAT."))
         return datetime.now(tz).strftime(formato)
 
     def crear_intercambio(self):
-        rut = self.format_vat(self.partner_id.commercial_partner_id.vat)
-        envio = self._crear_envio(RUTRecep=rut)
+        partner_id = self.commercial_partner_id or self.partner_id.commercial_partner_id
+        envio = self._crear_envio(RUTRecep=partner_id.rut())
         result = fe.xml_envio(envio)
         return result['sii_xml_request'].encode('ISO-8859-1')
 
@@ -1159,18 +1164,6 @@ a VAT."))
     def get_folio(self):
         # saca el folio directamente de la secuencia
         return self.sii_document_number
-
-    def format_vat(self, value, con_cero=False):
-        ''' Se Elimina el 0 para prevenir problemas con el sii, ya que las muestras no las toma si va con
-        el 0 , y tambien internamente se generan problemas, se mantiene el 0 delante, para cosultas, o sino retorna "error de datos"'''
-        if not value or value=='' or value == 0:
-            value ="CL666666666"
-            #@TODO opción de crear código de cliente en vez de rut genérico
-        rut = value[:10] + '-' + value[10:]
-        if not con_cero:
-            rut = rut.replace('CL0','')
-        rut = rut.replace('CL','')
-        return rut
 
     def pdf417bc(self, ted, columns=13, ratio=3):
         bc = pdf417gen.encode(
@@ -1254,7 +1247,7 @@ a VAT."))
 
     def _actecos_emisor(self):
         actecos = []
-        if not self.journal_id.journal_activities_ids:
+        if self.type in ['out_invoice', 'out_refund'] and not self.journal_id.journal_activities_ids:
             raise UserError('El Diario no tiene ACTECOS asignados')
         for acteco in self.journal_id.journal_activities_ids:
             actecos.append(acteco.code)
@@ -1286,7 +1279,7 @@ a VAT."))
 
     def _emisor(self):
         Emisor = {}
-        Emisor['RUTEmisor'] = self.format_vat(self.company_id.vat)
+        Emisor['RUTEmisor'] = self.company_id.partner_id.rut()
         if self._es_boleta():
             Emisor['RznSocEmisor'] = self._acortar_str(self.company_id.partner_id.name, 100)
             Emisor['GiroEmisor'] = self._acortar_str(self.company_id.activity_description.name, 80)
@@ -1316,36 +1309,37 @@ a VAT."))
 
     def _receptor(self):
         Receptor = {}
-        if not self.commercial_partner_id.vat and not self._es_boleta() and not self._nc_boleta():
+        commercial_partner_id = self.commercial_partner_id or self.partner_id.commercial_partner_id
+        if not commercial_partner_id.vat and not self._es_boleta() and not self._nc_boleta():
             raise UserError("Debe Ingresar RUT Receptor")
         #if self._es_boleta():
         #    Receptor['CdgIntRecep']
-        Receptor['RUTRecep'] = self.format_vat(self.commercial_partner_id.vat)
-        Receptor['RznSocRecep'] = self._acortar_str( self.commercial_partner_id.name, 100)
+        Receptor['RUTRecep'] = commercial_partner_id.rut()
+        Receptor['RznSocRecep'] = self._acortar_str( commercial_partner_id.name, 100)
         if not self.partner_id or Receptor['RUTRecep'] == '66666666-6':
             return Receptor
         if not self._es_boleta() and not self._nc_boleta():
-            GiroRecep = self.acteco_id.name or self.commercial_partner_id.activity_description.name
+            GiroRecep = self.acteco_id.name or commercial_partner_id.activity_description.name
             if not GiroRecep:
                 raise UserError(_('Seleccione giro del partner'))
             Receptor['GiroRecep'] = self._acortar_str(GiroRecep, 40)
-        if self.partner_id.phone or self.commercial_partner_id.phone:
-            Receptor['Contacto'] = self._acortar_str(self.partner_id.phone or self.commercial_partner_id.phone or self.partner_id.email, 80)
-        if (self.commercial_partner_id.email or self.commercial_partner_id.dte_email or self.partner_id.email or self.partner_id.dte_email) and not self._es_boleta():
-            Receptor['CorreoRecep'] = self.commercial_partner_id.dte_email or self.partner_id.dte_email or self.commercial_partner_id.email or self.partner_id.email
-        street_recep = (self.partner_id.street or self.commercial_partner_id.street or False)
+        if self.partner_id.phone or commercial_partner_id.phone:
+            Receptor['Contacto'] = self._acortar_str(self.partner_id.phone or commercial_partner_id.phone or self.partner_id.email, 80)
+        if (commercial_partner_id.email or commercial_partner_id.dte_email or self.partner_id.email or self.partner_id.dte_email) and not self._es_boleta():
+            Receptor['CorreoRecep'] = commercial_partner_id.dte_email or self.partner_id.dte_email or commercial_partner_id.email or self.partner_id.email
+        street_recep = (self.partner_id.street or commercial_partner_id.street or False)
         if not street_recep and not self._es_boleta() and not self._nc_boleta():
         # or self.indicador_servicio in [1, 2]:
             raise UserError('Debe Ingresar dirección del cliente')
-        street2_recep = (self.partner_id.street2 or self.commercial_partner_id.street2 or False)
+        street2_recep = (self.partner_id.street2 or commercial_partner_id.street2 or False)
         if street_recep or street2_recep:
             Receptor['DirRecep'] = self._acortar_str(street_recep + (' ' + street2_recep if street2_recep else ''), 70)
-        cmna_recep = self.partner_id.city_id.name or self.commercial_partner_id.city_id.name
+        cmna_recep = self.partner_id.city_id.name or commercial_partner_id.city_id.name
         if not cmna_recep and not self._es_boleta() and not self._nc_boleta():
             raise UserError('Debe Ingresar Comuna del cliente')
         else:
             Receptor['CmnaRecep'] = cmna_recep
-        ciudad_recep = self.partner_id.city or self.commercial_partner_id.city
+        ciudad_recep = self.partner_id.city or commercial_partner_id.city
         if ciudad_recep:
             Receptor['CiudadRecep'] = ciudad_recep
         return Receptor
@@ -1476,7 +1470,8 @@ a VAT."))
         return Encabezado
 
     def _validaciones_caf(self, caf):
-        if not self.commercial_partner_id.vat and not self._es_boleta() and not self._nc_boleta():
+        commercial_partner_id = self.commercial_partner_id or self.partner_id.commercial_partner_id
+        if not commercial_partner_id.vat and not self._es_boleta() and not self._nc_boleta():
             raise UserError(_("Fill Partner VAT"))
         timestamp = self.time_stamp()
         invoice_date = date(int(self.date_invoice[:4]), int(self.date_invoice[5:7]), int(self.date_invoice[8:10]))
@@ -1563,11 +1558,10 @@ a VAT."))
                 lines['PrcItem'] = round(line.price_unit, 6)
                 if currency_id:
                     lines['OtrMnda'] = {}
-                    lines['OtrMnda']['PrcOtrMon'] = round(line.price_unit, 6)
+                    lines['OtrMnda']['PrcOtrMon'] = round(currency_base.compute(
+                        line.price_unit, currency_id, round=False), 6)
                     lines['OtrMnda']['Moneda'] = self._acortar_str(currency_base.name, 3)
                     lines['OtrMnda']['FctConv'] = round(currency_id.rate, 4)
-                    lines['PrcItem'] = round(currency_base.compute(
-                        line.price_unit, currency_id, round=False), 6)
             if line.discount > 0:
                 lines['DescuentoPct'] = line.discount
                 DescMonto = (((line.discount / 100) * lines['PrcItem'])* qty)
@@ -1583,15 +1577,13 @@ a VAT."))
             if not no_product and not taxInclude:
                 price_subtotal = line.price_subtotal
                 if currency_id:
-                    lines['OtrMnda']['MontoItemOtrMnda'] = price_subtotal
-                    price_subtotal = currency_base.compute(price_subtotal, currency_id)
-                lines['MontoItem'] = currency_base.round(price_subtotal)
+                    lines['OtrMnda']['MontoItemOtrMnda'] = currency_base.compute(price_subtotal, currency_id)
+                lines['MontoItem'] = price_subtotal
             elif not no_product:
                 price_total = line.price_total
                 if currency_id:
-                    lines['OtrMnda']['MontoItemOtrMnda'] = price_total
-                    price_total = currency_base.compute(price_total, currency_id)
-                lines['MontoItem'] = currency_base.round(price_total)
+                    lines['OtrMnda']['MontoItemOtrMnda'] = currency_base.compute(price_total, currency_id)
+                lines['MontoItem'] = price_total
             if no_product:
                 lines['MontoItem'] = 0
             if lines['MontoItem'] < 0:
@@ -1810,11 +1802,12 @@ a VAT."))
                 continue
             if r.sii_xml_request and r.sii_xml_request.state not in ['Aceptado', 'Rechazado']:
                 continue
-            rut_emisor = self.format_vat(r.company_id.vat)
+            rut_emisor = r.company_id.partner_id.rut()
             token = r.sii_xml_request.get_token(self.env.user, r.company_id)
             url = server_url[r.company_id.dte_service_provider] + 'QueryEstDte.jws?WSDL'
             _server = Client(url)
-            receptor = r.format_vat(r.commercial_partner_id.vat)
+            commercial_partner_id = r.commercial_partner_id or r.partner_id
+            receptor = commercial_partner_id.rut()
             date_invoice = datetime.strptime(r.date_invoice, "%Y-%m-%d").strftime("%d-%m-%Y")
             signature_id = self.env.user.get_digital_signature(r.company_id)
             rut = signature_id.subject_serial_number
@@ -1882,8 +1875,8 @@ a VAT."))
         if self.document_class_id.sii_code not in [33, 34, 43]:
             self.claim = claim
             return
-        rut_emisor = self.format_vat(
-                    self.partner_id.commercial_partner_id.vat)
+        partner_id = self.commercial_partner_id or self.partner_id.commercial_partner_id
+        rut_emisor = partner_id.rut()
         token = self.sii_xml_request.get_token(self.env.user, self.company_id)
         url = claim_url[self.company_id.dte_service_provider] + '?wsdl'
         _server = Client(
@@ -1921,9 +1914,10 @@ a VAT."))
                 },
         )
         try:
-            rut_emisor = self.format_vat(self.company_id.vat)
+            rut_emisor = self.company_id.partner_id.rut()
             if self.type in ['in_invoice', 'in_refund']:
-                rut_emisor = self.format_vat(self.partner_id.vat)
+                partner_id = self.commercial_partner_id or self.partner_id.commercial_partner_id
+                rut_emisor = partner_id.rut()
             respuesta = _server.service.listarEventosHistDoc(
                 rut_emisor[:-2],
                 rut_emisor[-1],
@@ -1951,19 +1945,6 @@ a VAT."))
                 }
 
     @api.multi
-    def wizard_validar(self):
-        return {
-                'type': 'ir.actions.act_window',
-                'res_model': 'sii.dte.validar.wizard',
-                'src_model': 'account.invoice',
-                'view_mode': 'form',
-                'view_type': 'form',
-                'views': [(False, 'form')],
-                'target': 'new',
-                'tag': 'action_validar_wizard'
-                }
-
-    @api.multi
     def invoice_print(self):
         self.ensure_one()
         self.sent = True
@@ -1982,11 +1963,12 @@ a VAT."))
         return self.env.ref('l10n_cl_fe.action_print_copy_cedible').report_action(self)
 
     def send_exchange(self):
+        commercial_partner_id = self.commercial_partner_id or self.partner_id.commercial_partner_id
         att = self._create_attachment()
         body = 'XML de Intercambio DTE: %s' % (self.number)
         subject = 'XML de Intercambio DTE: %s' % (self.number)
         dte_email_id = self.company_id.dte_email_id or self.env.user.company_id.dte_email_id
-        dte_receptors = self.commercial_partner_id.child_ids + self.commercial_partner_id
+        dte_receptors = commercial_partner_id.child_ids + commercial_partner_id
         email_to = ''
         for dte_email in dte_receptors:
             if not dte_email.send_dte or not dte_email.email:

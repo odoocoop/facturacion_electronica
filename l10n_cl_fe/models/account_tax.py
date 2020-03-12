@@ -156,24 +156,23 @@ class SiiTax(models.Model):
         rangos = {}
         i = 0
         tables = sii.findall('.//div[@id="pp_%s"]/div/table' % (month))
-        if not tables:
-            month = meses[int((date - relativedelta.relativedelta(months=1)).strftime("%m"))].lower()
-            tables = sii.findall('.//div[@id="pp_%s"]/div/table' % (month))
         for r in tables:
             sub = r.find('tr/th')
             res = re.search('\d{1,2}\-\d{1,2}\-\d{4}', sub.text.lower())
-            rangos[datetime.strptime(res[0], "%d-%m-%Y").astimezone(tz)] = i
+            rangos[datetime.strptime(res[0], "%d-%m-%Y").astimezone(pytz.UTC)] = i
             i += 1
         ant = datetime.now(tz)
         target = (ant, 0)
         for k, v in rangos.items():
-            if k >= date < ant:
+            if k <= date < ant:
                 target = (k, v)
                 break
             ant = k
+        if target[0] > date:
+            return self.prepare_mepco((date - relativedelta.relativedelta(days=1)), currency_id)
         val = tables[target[1]].findall('tr')[line].findall('td')[4].text.replace('.', '').replace(',', '.')
         utm = self.env['res.currency'].sudo().search([('name', '=', 'UTM')])
-        amount = utm.with_context(date=date.strftime(DTF)).compute(float(val), currency_id)
+        amount = utm._convert(float(val), currency_id, self.company_id, date)
         return {
             'amount': amount,
             'date': target[0].strftime("%Y-%m-%d"),
@@ -187,31 +186,41 @@ class SiiTax(models.Model):
 
     @api.multi
     def actualizar_mepco(self):
-        currency_id = self.env['res.currency'].sudo().search([('name', '=', 'CLP')])
-        self.verify_mepco(date_target=False, currency_id=currency_id, force=True)
+        self.verify_mepco(date_target=False, currency_id=False, force=True)
 
-    def verify_mepco(self, date_target=False, currency_id=False, force=False):
+    def _target_mepco(self, date_target=False, currency_id=False, force=False):
+        if not currency_id:
+            currency_id = self.env['res.currency'].sudo().search([('name', '=', self.env.get('currency', 'CLP'))])
         tz = pytz.timezone('America/Santiago')
         if date_target:
             fields_model = self.env['ir.fields.converter']
             ''' @TODO crearlo como utilidad python'''
             user_zone = fields_model._input_tz()
             if tz != user_zone:
-                date = date_target
+                date = datetime.strptime(date_target, "%Y-%m-%d")
                 if not date.tzinfo:
-                    date = user_zone.localize(date_target)
+                    date = user_zone.localize(date)
                 date = date.astimezone(tz)
         else:
             date = datetime.now(tz)
-        mepco = self.env['account.tax.mepco'].sudo().search([
-            ('date', '>=', date.strftime("%Y-%m-%d")),
+        query = [
+            ('date', '<=', date.strftime("%Y-%m-%d")),
             ('company_id', '=', self.company_id.id),
             ('type', '=', self.mepco),
-        ],
-        limit=1)
-        mepco_data = self.prepare_mepco(date, currency_id)
+        ]
+        mepco = self.env['account.tax.mepco'].sudo().search(query, limit=1)
+        if mepco:
+            diff = (date.date() - mepco.date)
+            if diff.days > 6:
+                mepco = False
         if not mepco:
+            mepco_data = self.prepare_mepco(date, currency_id)
             mepco = self.env['account.tax.mepco'].sudo().create(mepco_data)
         elif force:
+            mepco_data = self.prepare_mepco(date, currency_id)
             mepco.sudo().write(mepco_data)
+        return mepco
+
+    def verify_mepco(self, date_target=False, currency_id=False, force=False):
+        mepco = self._target_mepco(date_target, currency_id, force)
         self.amount = mepco.amount

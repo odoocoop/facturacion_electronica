@@ -32,6 +32,8 @@ Se crea este repositorio, para dar un enfoque de firma electrónica directa con 
  - - Específico Retención Carnes
  - - Específico ILA cervezas
  - - Específico Combustibles (diesel, gasolina 93, gasolina 97)
+ 
+ Si tiene dudas sobre el funcionamiento y consecuencias, recordar visitar <a href="https://globalresponse.cl/forum/how-to">la documentación pública</a> o en <a href="www.sii.cl">www.sii.cl</a> o <a href="https://globalresponse.cl/helpdesk/">realizar una consulta a soporte(de pago)</a> o <a href="https://globalresponse.cl/forum/1">postear en foro(gratuito)</a>
 
  Agradecimientos y colaboradores:
 

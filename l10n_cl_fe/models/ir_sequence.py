@@ -119,9 +119,10 @@ www.sii.cl'''.format(folio)
                                           int(caffile.expiration_date[5:7]),
                                           int(caffile.expiration_date[8:10])
                                           )
-                    if date(int(timestamp[:4]),
-                            int(timestamp[5:7]),
-                            int(timestamp[8:10])) > expiration_caf:
+                    if self.sii_document_class_id.sii_code not in [39, 41] and \
+                            date(int(timestamp[:4]),
+                                int(timestamp[5:7]),
+                                int(timestamp[8:10])) > expiration_caf:
                         msg = "CAF Vencido. %s" % msg
                         continue
 

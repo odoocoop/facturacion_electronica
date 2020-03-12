@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from odoo import api, fields, models
 from openerp.exceptions import UserError
+import os
 
 
 class ResConfigSettings(models.TransientModel):
@@ -50,6 +51,10 @@ class ResConfigSettings(models.TransientModel):
             string="AutoEnviar Consumo de Folios",
             default=False,
         )
+    fe_version = fields.Char(
+        string="Versión FE instalado",
+        readonly=True,
+    )
 
     @api.model
     def get_values(self):
@@ -76,6 +81,12 @@ class ResConfigSettings(models.TransientModel):
                     'dte.token_apicaf', default="token_publico")
         cf_autosend = ICPSudo.get_param(
                     'cf_extras.cf_autosend', default=False)
+        v = os.popen('pip3 show facturacion_electronica').read()
+        fe_version = '0.0.0'
+        for r in v.split('\n'):
+            d = r.split(':')
+            if d[0] == 'Version':
+                fe_version = d[1].replace(' ', '')
         res.update(
                 auto_send_email=account_auto_send_email,
                 auto_send_dte=account_auto_send_dte,
@@ -87,6 +98,7 @@ class ResConfigSettings(models.TransientModel):
                 url_apicaf=dte_url_apicaf,
                 token_apicaf=dte_token_apicaf,
                 cf_autosend=cf_autosend,
+                fe_version=fe_version,
             )
         return res
 

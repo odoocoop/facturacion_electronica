@@ -30,10 +30,11 @@ class SIIXMLEnvio(models.Model):
         if "AEC_" in self.name:
             params['emailNotif'] = self.env.user.email
         else:
-            params['rutSender'] = signature_id.subject_serial_number[:8]
+            params['rutSender'] = signature_id.subject_serial_number[:-2]
             params['dvSender'] = signature_id.subject_serial_number[-1]
-        params['rutCompany'] = self.company_id.vat[2:-1]
-        params['dvCompany'] = self.company_id.vat[-1]
+        rut = self.company_id.partner_id.rut()
+        params['rutCompany'] = rut[:-2]
+        params['dvCompany'] = rut[-1]
         params['archivo'] = (self.name, self.xml_envio, "text/xml")
         return params
 
@@ -53,7 +54,6 @@ class SIIXMLEnvio(models.Model):
         token = self.get_token(self.env.user, self.company_id)
         url = server_url[self.company_id.dte_service_provider] + 'services/wsRPETCConsulta?wsdl'
         _server = Client(url)
-        rut = self.env['account.invoice'].format_vat(self.company_id.vat, con_cero=True)
         respuesta = _server.service.getEstEnvio(
             token,
             self.sii_send_ident,
