@@ -416,6 +416,11 @@ class AccountInvoice(models.Model):
         (4, '4.- Servicios de Hotelería'),
         (5, '5.- Servicio de Transporte Terrestre Internacional'),
     ])
+    claim_ids = fields.One2many(
+        'sii.dte.claim',
+        'invoice_id',
+        strign="Historial de Reclamos"
+    )
 
     @api.onchange('invoice_line_ids')
     def _onchange_invoice_line_ids(self):
@@ -1312,36 +1317,37 @@ a VAT."""))
 
     def _receptor(self):
         Receptor = {}
-        if not self.commercial_partner_id.vat and not self._es_boleta() and not self._nc_boleta():
+        commercial_partner_id = self.commercial_partner_id or self.partner_id.commercial_partner_id
+        if not commercial_partner_id.vat and not self._es_boleta() and not self._nc_boleta():
             raise UserError("Debe Ingresar RUT Receptor")
         #if self._es_boleta():
         #    Receptor['CdgIntRecep']
-        Receptor['RUTRecep'] = self.format_vat(self.commercial_partner_id.vat)
-        Receptor['RznSocRecep'] = self._acortar_str( self.commercial_partner_id.name, 100)
+        Receptor['RUTRecep'] = self.format_vat(commercial_partner_id.vat)
+        Receptor['RznSocRecep'] = self._acortar_str( commercial_partner_id.name, 100)
         if not self.partner_id or Receptor['RUTRecep'] == '66666666-6':
             return Receptor
-        if not self._es_boleta() and not self._nc_boleta():
-            GiroRecep = self.acteco_id.name or self.commercial_partner_id.activity_description.name
+        if not self._es_boleta() and not self._nc_boleta() and self.type not in ['in_invoice', 'in_refund']:
+            GiroRecep = self.acteco_id.name or commercial_partner_id.activity_description.name
             if not GiroRecep:
                 raise UserError(_('Seleccione giro del partner'))
             Receptor['GiroRecep'] = self._acortar_str(GiroRecep, 40)
-        if self.partner_id.phone or self.commercial_partner_id.phone:
-            Receptor['Contacto'] = self._acortar_str(self.partner_id.phone or self.commercial_partner_id.phone or self.partner_id.email, 80)
-        if (self.commercial_partner_id.email or self.commercial_partner_id.dte_email or self.partner_id.email or self.partner_id.dte_email) and not self._es_boleta():
-            Receptor['CorreoRecep'] = self.commercial_partner_id.dte_email or self.partner_id.dte_email or self.commercial_partner_id.email or self.partner_id.email
-        street_recep = (self.partner_id.street or self.commercial_partner_id.street or False)
-        if not street_recep and not self._es_boleta() and not self._nc_boleta():
+        if self.partner_id.phone or commercial_partner_id.phone:
+            Receptor['Contacto'] = self._acortar_str(self.partner_id.phone or commercial_partner_id.phone or self.partner_id.email, 80)
+        if (commercial_partner_id.email or commercial_partner_id.dte_email or self.partner_id.email or self.partner_id.dte_email) and not self._es_boleta():
+            Receptor['CorreoRecep'] = commercial_partner_id.dte_email or self.partner_id.dte_email or commercial_partner_id.email or self.partner_id.email
+        street_recep = (self.partner_id.street or commercial_partner_id.street or False)
+        if not street_recep and not self._es_boleta() and not self._nc_boleta() and self.type not in ['in_invoice', 'in_refund']:
         # or self.indicador_servicio in [1, 2]:
             raise UserError('Debe Ingresar dirección del cliente')
-        street2_recep = (self.partner_id.street2 or self.commercial_partner_id.street2 or False)
+        street2_recep = (self.partner_id.street2 or commercial_partner_id.street2 or False)
         if street_recep or street2_recep:
             Receptor['DirRecep'] = self._acortar_str(street_recep + (' ' + street2_recep if street2_recep else ''), 70)
-        cmna_recep = self.partner_id.city_id.name or self.commercial_partner_id.city_id.name
-        if not cmna_recep and not self._es_boleta() and not self._nc_boleta():
+        cmna_recep = self.partner_id.city_id.name or commercial_partner_id.city_id.name
+        if not cmna_recep and not self._es_boleta() and not self._nc_boleta() and self.type not in ['in_invoice', 'in_refund']:
             raise UserError('Debe Ingresar Comuna del cliente')
         else:
             Receptor['CmnaRecep'] = cmna_recep
-        ciudad_recep = self.partner_id.city or self.commercial_partner_id.city
+        ciudad_recep = self.partner_id.city or commercial_partner_id.city
         if ciudad_recep:
             Receptor['CiudadRecep'] = ciudad_recep
         return Receptor
@@ -1491,7 +1497,8 @@ a VAT."""))
         return Encabezado
 
     def _validaciones_caf(self, caf):
-        if not self.commercial_partner_id.vat and not self._es_boleta() and not self._nc_boleta():
+        commercial_partner_id = self.commercial_partner_id or self.partner_id.commercial_partner_id
+        if not commercial_partner_id.vat and not self._es_boleta() and not self._nc_boleta():
             raise UserError(_("Fill Partner VAT"))
         timestamp = self.time_stamp()
         invoice_date = self.date_invoice
@@ -1955,19 +1962,6 @@ a VAT."""))
                 'views': [(False, 'form')],
                 'target': 'new',
                 'tag': 'action_upload_xml_wizard'
-                }
-
-    @api.multi
-    def wizard_validar(self):
-        return {
-                'type': 'ir.actions.act_window',
-                'res_model': 'sii.dte.validar.wizard',
-                'src_model': 'account.invoice',
-                'view_mode': 'form',
-                'view_type': 'form',
-                'views': [(False, 'form')],
-                'target': 'new',
-                'tag': 'action_validar_wizard'
                 }
 
     @api.multi

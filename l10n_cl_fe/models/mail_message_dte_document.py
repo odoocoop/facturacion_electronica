@@ -106,7 +106,6 @@ class ProcessMailsDocument(models.Model):
     )
     claim_description = fields.Char(
         string="Detalle Reclamo",
-        readonly=True,
     )
     claim_ids = fields.One2many(
         'sii.dte.claim',
@@ -115,6 +114,78 @@ class ProcessMailsDocument(models.Model):
     )
 
     _order = 'create_date DESC'
+
+    def _emisor(self, company_id):
+        Emisor = {}
+        Emisor['RUTEmisor'] = company_id.document_number
+        Emisor['RznSoc'] = company_id.partner_id.name
+        Emisor['GiroEmis'] = company_id.activity_description.name
+        if company_id.phone:
+            Emisor['Telefono'] = company_id.phone
+        Emisor['CorreoEmisor'] = company_id.dte_email_id.name_get()[0][1]
+        #Emisor['Actecos'] = self._actecos_emisor()
+        Emisor['DirOrigen'] = company_id.street + ' ' + (company_id.street2 or '')
+        if not company_id.city_id:
+            raise UserError("Debe ingresar la Comuna de compañía emisora")
+        Emisor['CmnaOrigen'] = company_id.city_id.name
+        if not company_id.city:
+            raise UserError("Debe ingresar la Ciudad de compañía emisora")
+        Emisor['CiudadOrigen'] = company_id.city
+        Emisor["Modo"] = "produccion" if company_id.dte_service_provider == 'SII'\
+                  else 'certificacion'
+        Emisor["NroResol"] = company_id.dte_resolution_number
+        Emisor["FchResol"] = company_id.dte_resolution_date
+        return Emisor
+
+    def _get_datos_empresa(self, company_id):
+        signature_id = self.env.user.get_digital_signature(company_id)
+        if not signature_id:
+            raise UserError(_('''There are not a Signature Cert Available for this user, please upload your signature or tell to someelse.'''))
+        emisor = self._emisor(company_id)
+        return {
+            "Emisor": emisor,
+            "firma_electronica": signature_id.parametros_firma(),
+        }
+
+    def _id_doc(self):
+        IdDoc = {}
+        IdDoc['TipoDTE'] = self.document_class_id.sii_code
+        IdDoc['Folio'] = self.number
+        IdDoc['FchEmis'] = self.date.strftime('%Y-%m-%d')
+        return IdDoc
+
+    def _receptor(self):
+        Receptor = {}
+        commercial_partner_id = self.partner_id.commercial_partner_id
+        if not commercial_partner_id.vat and not self._es_boleta() and not self._nc_boleta():
+            raise UserError("Debe Ingresar RUT Receptor")
+        #if self._es_boleta():
+        #    Receptor['CdgIntRecep']
+        Receptor['RUTRecep'] = self.format_vat(commercial_partner_id.vat)
+        Receptor['RznSocRecep'] = self._acortar_str( commercial_partner_id.name, 100)
+        return Receptor
+
+    def _totales(self):
+        return {'MntTotal': self.amount}
+
+    def _encabezado(self,):
+        Encabezado = {}
+        Encabezado['IdDoc'] = self._id_doc()
+        Encabezado['Receptor'] = self._receptor()
+        Encabezado['Totales'] = self._totales()
+        return Encabezado
+
+    def _dte(self):
+        if self.invoice_id:
+            return self.invoice_id._dte()
+        dte = {}
+        dte['Encabezado'] = self._encabezado()
+        return dte
+
+    @api.onchange('invoice_id')
+    def update_claim(self):
+        for r in self.claim_ids:
+            r.invoice_id = self.invoice_id.id
 
     @api.model
     def auto_accept_documents(self):
@@ -150,6 +221,35 @@ class ProcessMailsDocument(models.Model):
             created.extend(resp)
             try:
                 r.get_dte_claim()
+            except Exception as e:
+                _logger.warning("Problema al obtener claim %s" %str(e))
+            for i in self.env['account.invoice'].browse(resp):
+                if i.claim in ['ACD', 'ERM']:
+                    r.state = 'accepted'
+        xml_id = 'account.action_invoice_tree2'
+        result = self.env.ref('%s' % (xml_id)).read()[0]
+        if created:
+            domain = safe_eval(result.get('domain', '[]'))
+            domain.append(('id', 'in', created))
+            result['domain'] = domain
+        return result
+
+    @api.multi
+    def accept_document(self):
+        created = []
+        for r in self:
+            vals = {
+                'xml_file': r.xml.encode('ISO-8859-1'),
+                'filename': r.dte_id.name,
+                'pre_process': False,
+                'document_id': r.id,
+                'option': 'accept'
+            }
+            val = self.env['sii.dte.upload_xml.wizard'].create(vals)
+            resp = val.confirm(ret=True)
+            created.extend(resp)
+            try:
+                r.get_dte_claim()
             except:
                 _logger.warning("encolar")
             for i in self.env['account.invoice'].browse(resp):
@@ -166,6 +266,14 @@ class ProcessMailsDocument(models.Model):
     @api.multi
     def reject_document(self):
         for r in self:
+            if r.xml:
+                vals = {
+                    'document_ids': [(6, 0, r.ids)],
+                    'estado_dte': '2',
+                    'action': 'ambos',
+                }
+                val = self.env['sii.dte.validar.wizard'].create(vals)
+                resp = val.confirm()
             r.set_dte_claim(claim='RCD')
             if r.claim in ['RCD']:
                 r.state = 'rejected'

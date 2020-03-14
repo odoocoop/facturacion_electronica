@@ -59,11 +59,11 @@ class POSL(models.Model):
 
     @api.depends('price_unit', 'tax_ids', 'qty', 'discount', 'product_id')
     def _compute_amount_line_all(self):
-        cur_company = self.company_id.currency_id
         for line in self:
+            cur_company = line.company_id.currency_id
             fpos = line.order_id.fiscal_position_id
             tax_ids_after_fiscal_position = fpos.map_tax(line.tax_ids, line.product_id, line.order_id.partner_id) if fpos else line.tax_ids
-            taxes = tax_ids_after_fiscal_position.with_context(date=self.date_order, currency=cur_company.code).compute_all(line.price_unit, line.order_id.pricelist_id.currency_id, line.qty, product=line.product_id, partner=line.order_id.partner_id, discount=line.discount, uom_id=line.product_id.uom_id)
+            taxes = tax_ids_after_fiscal_position.with_context(date=self.order_id.date_order, currency=cur_company.code).compute_all(line.price_unit, line.order_id.pricelist_id.currency_id, line.qty, product=line.product_id, partner=line.order_id.partner_id, discount=line.discount, uom_id=line.product_id.uom_id)
             line.update({
                 'price_subtotal_incl': taxes['total_included'],
                 'price_subtotal': taxes['total_excluded'],
@@ -196,9 +196,9 @@ class POS(models.Model):
         if fiscal_position_id:
             taxes = fiscal_position_id.map_tax(taxes, line.product_id, line.order_id.partner_id)
         cur = line.order_id.pricelist_id.currency_id
-        cur_company = self.company_id.currency_id
-        taxes = taxes.with_context(date=self.date_order, currency=cur_company.code).compute_all(line.price_unit, cur, line.qty, product=line.product_id, partner=line.order_id.partner_id or False, discount=line.discount, uom_id=line.product_id.uom_id)['taxes']
-        return sum(tax.get('amount', 0.0) for tax in taxes)
+        cur_company = line.order_id.company_id.currency_id
+        taxes = taxes.with_context(date=line.order_id.date_order, currency=cur_company.code).compute_all(line.price_unit, cur, line.qty, product=line.product_id, partner=line.order_id.partner_id or False, discount=line.discount, uom_id=line.product_id.uom_id)['taxes']
+        return taxes
 
     def crear_intercambio(self):
         envio = self._crear_envio(RUTRecep=rut)
@@ -243,13 +243,6 @@ class POS(models.Model):
     def get_folio(self):
         return int(self.sii_document_number)
 
-    def format_vat(self, value):
-        if not value or value == '' or value == 0:
-            value = "CL666666666"
-        rut = value[:10] + '-' + value[10:]
-        rut = rut.replace('CL0', '').replace('CL', '')
-        return rut
-
     def pdf417bc(self, ted):
         bc = pdf417gen.encode(
             ted,
@@ -273,6 +266,16 @@ class POS(models.Model):
         return cadena
 
     @api.model
+    def _order_fields(self, ui_order):
+        result = super(POS, self)._order_fields(ui_order)
+        result.update({
+            'sequence_id': ui_order.get('sequence_id', False),
+            'sii_document_number': ui_order.get('sii_document_number', 0),
+            'signature': ui_order.get('signature', ''),
+        })
+        return result
+
+    @api.model
     def _process_order(self, order):
         lines = []
         for l in order['lines']:
@@ -280,32 +283,30 @@ class POS(models.Model):
             lines.append(l)
         order['lines'] = lines
         order_id = super(POS, self)._process_order(order)
+        if order_id.amount_total != float(order['amount_total']):
+            raise UserError("Diferencia de cálculo, verificar. En el caso de que el cálculo use Mepco, debe intentar cerrar la caja porque el valor a cambiado")
         order_id.sequence_number = order['sequence_number'] #FIX odoo bug
-        if order.get('orden_numero', False) and order.get('sequence_id', False):
-            order_id.sequence_id = order['sequence_id'].get('id', False)
+        if order.get('sequence_id'):
+            order_id.document_class_id = order_id.sequence_id.sii_document_class_id.id
+        if order.get('orden_numero', False) and order_id.document_class_id:
             order_id.document_class_id = order_id.sequence_id.sii_document_class_id.id
             if order_id.sequence_id and order_id.document_class_id.sii_code == 39 and order['orden_numero'] > order_id.session_id.numero_ordenes:
                 order_id.session_id.numero_ordenes = order['orden_numero']
             elif order_id.sequence_id and order_id.document_class_id.sii_code == 41 and order['orden_numero'] > order_id.session_id.numero_ordenes_exentas:
                 order_id.session_id.numero_ordenes_exentas = order['orden_numero']
-            order_id.sii_document_number = order['sii_document_number']
             sign = self.env.user.get_digital_signature(self.env.user.company_id)
             if (order_id.session_id.caf_files or order_id.session_id.caf_files_exentas) and sign:
-                order_id.signature = order['signature']
+                timbre = etree.fromstring(order['signature'])
+                order_id.timestamp_timbre = timbre.find('DD/TSTED').text
                 order_id._timbrar()
                 order_id.sequence_id.next_by_id()#consumo Folio
-        elif order.get('to_invoice'):
-            query = []
-            if order['exenta']:
-                query.append(('sii_code', '=', 34))
-            else:
-                query.append(('sii_code', '=', 33))
-            dc = self.env['sii.document_class'].sudo().search(query)
-            order_id.document_class_id = dc.id
         return order_id
 
     def _prepare_invoice(self):
         result = super(POS, self)._prepare_invoice()
+        if not self.sequence_id:
+            return result
+        self.document_class_id= self.sequence_id.sii_document_class_id.id
         sale_journal = self.session_id.config_id.invoice_journal_id
         journal_document_class_id = self.env['account.journal.sii_document_class'].search(
                 [
@@ -314,11 +315,11 @@ class POS(models.Model):
                 ],
             )
         if not journal_document_class_id:
-            raise UserError("Por favor defina Secuencia de Facturas para el Journal %s" % sale_journal.name)
+            raise UserError("Por favor defina Secuencia de %s para el Journal %s" % (self.document_class_id.name, sale_journal.name))
         result.update({
             'activity_description': self.partner_id.activity_description.id,
             'ticket':  self.session_id.config_id.ticket,
-            'document_class_id': journal_document_class_id.sii_document_class_id.id,
+            'document_class_id': self.document_class_id.id,
             'journal_document_class_id': journal_document_class_id.id,
             'responsable_envio': self.env.uid,
         })
@@ -328,7 +329,8 @@ class POS(models.Model):
     def do_validate(self):
         ids = []
         for order in self:
-            if order.session_id.config_id.restore_mode and order.invoice_id:
+            if order.session_id.config_id.restore_mode or not order.sequence_id or \
+            (not order.document_class_id.es_boleta() and order.document_class_id.sii_code not in [61]):
                 continue
             order._timbrar()
             if order.document_class_id.sii_code in [61]:
@@ -336,7 +338,7 @@ class POS(models.Model):
         if ids:
             order.sii_result = 'EnCola'
             tiempo_pasivo = (datetime.now() + timedelta(hours=int(self.env['ir.config_parameter'].sudo().get_param('account.auto_send_dte', default=12))))
-            self.env['sii.cola_envio'].create({
+            self.env['sii.cola_envio'].sudo().create({
                 'company_id': self[0].company_id.id,
                 'doc_ids': ids,
                 'model': 'pos.order',
@@ -356,7 +358,7 @@ class POS(models.Model):
                 if order.document_class_id.sii_code in [61]:
                     ids.append(order.id)
         if ids:
-            self.env['sii.cola_envio'].create({
+            self.env['sii.cola_envio'].sudo().create({
                 'company_id': self[0].company_id.id,
                 'doc_ids': ids,
                 'model': 'pos.order',
@@ -368,8 +370,11 @@ class POS(models.Model):
 
     def _giros_emisor(self):
         giros_emisor = []
+        i=0
         for turn in self.company_id.company_activities_ids:
-            giros_emisor.append({'Acteco': turn.code})
+            if i < 4:
+                giros_emisor.append({'Acteco': turn.code})
+            i += 1
         return giros_emisor
 
     def _id_doc(self, taxInclude=False, MntExe=0):
@@ -401,7 +406,7 @@ class POS(models.Model):
 
     def _emisor(self):
         Emisor = {}
-        Emisor['RUTEmisor'] = self.format_vat(self.company_id.vat)
+        Emisor['RUTEmisor'] = self.company_id.partner_id.rut()
         if self.document_class_id.es_boleta():
             Emisor['RznSocEmisor'] = self.company_id.partner_id.name
             Emisor['GiroEmisor'] = self._acortar_str(self.company_id.activity_description.name, 80)
@@ -427,7 +432,7 @@ class POS(models.Model):
     def _receptor(self):
         Receptor = {}
         #Receptor['CdgIntRecep']
-        Receptor['RUTRecep'] = self.format_vat(self.partner_id.vat)
+        Receptor['RUTRecep'] = self.partner_id.commercial_partner_id.rut()
         Receptor['RznSocRecep'] = self._acortar_str(self.partner_id.name or "Usuario Anonimo", 100)
         if self.partner_id.phone:
             Receptor['Contacto'] = self.partner_id.phone
@@ -698,7 +703,7 @@ class POS(models.Model):
             token = r.sii_xml_request.get_token(self.env.user, r.company_id)
             url = server_url[r.company_id.dte_service_provider] + 'QueryEstDte.jws?WSDL'
             _server = Client(url)
-            receptor = r.format_vat(r.partner_id.vat)
+            receptor = r.partner_id.commercial_partner_id.rut()
             util_model = self.env['cl.utils']
             fields_model = self.env['ir.fields.converter']
             from_zone = pytz.UTC
@@ -709,11 +714,11 @@ class POS(models.Model):
             amount_total = r.amount_total if r.amount_total >= 0 else r.amount_total*-1
             try:
                 respuesta = _server.service.getEstDte(
-                    rut[:8].replace('-', ''),
+                    rut[:-2],
                     str(rut[-1]),
-                    r.company_id.vat[2:-1],
-                    r.company_id.vat[-1],
-                    receptor[:8],
+                    r.company_id.partner_id.rut()[:-2],
+                    r.company_id.partner_id.rut()[-1],
+                    receptor[:-2],
                     receptor[-1],
                     str(r.document_class_id.sii_code),
                     str(r.sii_document_number),
@@ -872,8 +877,8 @@ class POS(models.Model):
             cur_company = order.company_id.currency_id
             amount_cur_company = 0.0
             date_order = order.date_order.date() if order.date_order else fields.Date.today()
-            montos_linea = {}
-            montos_not_round = {}
+            total = 0
+            all_tax = {}
             for line in order.lines:
                 if cur != cur_company:
                     amount_subtotal = cur._convert(line.price_subtotal, cur_company, order.company_id, date_order)
@@ -898,16 +903,9 @@ class POS(models.Model):
                 # Just like for invoices, a group of taxes must be present on this base line
                 # As well as its children
                 base_line_tax_ids = _flatten_tax_and_children(line.tax_ids_after_fiscal_position).filtered(lambda tax: tax.type_tax_use in ['sale', 'none'])
-                montos_linea.setdefault(line.product_id.id, {'credit': 0, 'debit': 0})
-                montos_linea[line.product_id.id]['credit'] += ((amount_subtotal > 0) and amount_subtotal) or 0.0
-                montos_linea[line.product_id.id]['debit'] += ((amount_subtotal < 0) and -amount_subtotal) or 0.0
                 fpos = line.order_id.fiscal_position_id
                 tax_ids_after_fiscal_position = fpos.map_tax(line.tax_ids, line.product_id, order.partner_id) if fpos else line.tax_ids
                 taxes = tax_ids_after_fiscal_position.with_context(round=False, date=order.date_order, currency=cur_company.code).compute_all(line.price_unit, order.pricelist_id.currency_id, line.qty, product=line.product_id, partner=order.partner_id, discount=line.discount, uom_id=line.product_id.uom_id)
-                amount_not_round = taxes['total_excluded']
-                montos_not_round.setdefault(line.product_id.id, {'credit': 0, 'debit': 0})
-                montos_not_round[line.product_id.id]['credit'] += ((amount_not_round > 0) and amount_not_round) or 0.0
-                montos_not_round[line.product_id.id]['debit'] += ((amount_not_round < 0) and -amount_not_round) or 0.0
                 data = {
                     'name': name,
                     'quantity': line.qty,
@@ -919,6 +917,7 @@ class POS(models.Model):
                     'tax_ids': [(6, 0, base_line_tax_ids.ids)],
                     'partner_id': partner_id
                 }
+                total += (amount_subtotal if (amount_subtotal > 0) else -amount_subtotal)
                 if cur != cur_company:
                     data['currency_id'] = cur.id
                     data['amount_currency'] = -abs(line.price_subtotal) if data.get('credit') else abs(line.price_subtotal)
@@ -950,12 +949,21 @@ class POS(models.Model):
                         'partner_id': partner_id,
                         'order_id': order.id
                     }
+                    all_tax.setdefault(tax['name'], 0)
+                    all_tax[tax['name']] += (amount_tax if amount_tax > 0 else -amount_tax)
                     if cur != cur_company:
                         data['currency_id'] = cur.id
                         data['amount_currency'] = -abs(tax['amount']) if data.get('credit') else abs(tax['amount'])
                         amount_cur_company += data['credit'] - data['debit']
                     insert_data('tax', data)
             # round tax lines  per order
+            total_tax = 0
+            for t, v in all_tax.items():
+                total_tax += cur_company.round(v)
+            _logger.warning(order)
+            _logger.warning(cur.round(total) + total_tax)
+            _logger.warning(order.amount_total)
+            dif = order.amount_total - (cur.round(total) + total_tax)
             if rounding_method == 'round_globally':
                 for group_key, group_value in grouped_data.items():
                     if group_key[0] == 'tax':
@@ -964,16 +972,6 @@ class POS(models.Model):
                             line['debit'] = cur_company.round(line['debit'])
                             if line.get('currency_id'):
                                 line['amount_currency'] = cur.round(line.get('amount_currency', 0.0))
-                    if group_key[0] == 'product':
-                        for line in group_value:
-                            if not montos_linea.get(line['product_id']):
-                                continue
-                            dif_credit = montos_linea[line['product_id']]['credit'] - cur.round(montos_not_round[line['product_id']]['credit'])
-                            if dif_credit != 0:
-                                line['credit'] -= dif_credit
-                            dif_debit = montos_linea[line['product_id']]['debit'] - cur.round(montos_not_round[line['product_id']]['debit'])
-                            if dif_debit != 0:
-                                line['debit'] -= dif_debit
             # counterpart
             if cur != cur_company:
                 # 'amount_cur_company' contains the sum of the AML converted in the company
@@ -1077,7 +1075,7 @@ class POS(models.Model):
 
             for line in order.lines.filtered(lambda l: l.product_id.type in ['product', 'consu'] and not float_is_zero(l.qty, precision_rounding=l.product_id.uom_id.rounding)):
                 m =  Move.create({
-                    'name': line.name,
+                    'name': line.product_id.name,
                     'product_uom': line.product_id.uom_id.id,
                     'picking_id': order_picking.id if line.qty >= 0 else return_picking.id,
                     'picking_type_id': picking_type.id if line.qty >= 0 else return_pick_type.id,
@@ -1122,7 +1120,13 @@ class POS(models.Model):
             currency = order.pricelist_id.currency_id
             order.amount_paid = sum(payment.amount for payment in order.statement_ids)
             order.amount_return = sum(payment.amount < 0 and payment.amount or 0 for payment in order.statement_ids)
-            order.amount_tax = currency.round(sum(self._amount_line_tax(line, order.fiscal_position_id) for line in order.lines))
+            taxes = {}
+            for line in order.lines:
+                line_taxes = self._amount_line_tax(line, order.fiscal_position_id)
+                for t in line_taxes:
+                    taxes.setdefault(t['id'], 0)
+                    taxes[t['id']] += t.get('amount', 0.0)
+            order.amount_tax = sum(currency.round(t) for k, t in taxes.items())
             amount_total = currency.round(sum(line.price_subtotal_incl for line in order.lines))
             order.amount_total = amount_total
 

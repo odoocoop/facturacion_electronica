@@ -5,13 +5,9 @@ from odoo.exceptions import UserError
 from datetime import datetime, date
 from dateutil.relativedelta import relativedelta
 import pytz
+from lxml import etree
 import logging
 _logger = logging.getLogger(__name__)
-
-try:
-    import xmltodict
-except ImportError:
-    pass
 
 try:
     import base64
@@ -109,18 +105,19 @@ has been exhausted.''',
     def load_caf(self, flags=False):
         if not self.caf_file or not self.sequence_id:
             return
-        result = self.decode_caf()['AUTORIZACION']['CAF']['DA']
-        self.start_nm = result['RNG']['D']
-        self.final_nm = result['RNG']['H']
-        self.sii_document_class = result['TD']
-        self.issued_date = result['FA']
+        result = self.decode_caf().find('CAF/DA')
+        self.start_nm = result.find('RNG/D').text
+        self.final_nm = result.find('RNG/H').text
+        self.sii_document_class = result.find('TD').text
+        fa = result.find('FA').text
+        self.issued_date = fa
         if self.sequence_id.sii_document_class_id.sii_code not in [34, 52]\
            and not self.sequence_id.sii_document_class_id.es_boleta():
-            self.expiration_date = date(int(result['FA'][:4]),
-                                    int(result['FA'][5:7]),
-                                    int(result['FA'][8:10])
+            self.expiration_date = date(int(fa[:4]),
+                                    int(fa[5:7]),
+                                    int(fa[8:10])
                                    ) + relativedelta(months=6)
-        self.rut_n = 'CL' + result['RE'].replace('-', '')
+        self.rut_n = 'CL' + result.find('RE').text.replace('-', '')
         if self.rut_n != self.company_id.vat.replace('L0', 'L'):
             raise UserError(_(
                 'Company vat %s should be the same that assigned company\'s vat: %s!') % (self.rut_n, self.company_id.vat))
@@ -156,6 +153,5 @@ to work properly!''') % (self.sii_document_class, self.sequence_id.sii_document_
 
     def decode_caf(self):
         post = base64.b64decode(self.caf_file).decode('ISO-8859-1')
-        post = xmltodict.parse(post.replace(
-            '<?xml version="1.0"?>', '', 1))
+        post = etree.fromstring(post)
         return post

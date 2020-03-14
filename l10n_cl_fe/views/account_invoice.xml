@@ -309,9 +309,11 @@
                     <page string="Electronic Invoice" name="electronic_invoice" >
                       <header>
                         <button string="Subir XML" type="object"  name="wizard_upload"  attrs="{'invisible':[('state', 'in', ['paid']), '|', ('sii_xml_request','!=', False)]}"/>
-                        <button string="Validar DTE" type="object" class="oe_highlight" name="wizard_validar" attrs="{
+                        <button name="%(l10n_cl_fe.action_validar_wizard)d" type='action' string="Validar DTE" class="oe_highlight"
+                          attrs="{
                               'readonly':[('estado_recep_dte','in',['','NoEnviado','Proceso'])],
-                              'invisible':[('state', 'in', ['draft']),('estado_recep_dte','in',['','NoEnviado'])]}"/>
+                              'invisible':[('state', 'in', ['draft']),('estado_recep_dte','in',['','NoEnviado'])]}"
+                          context="{'default_tipo': 'account.invoice'}"/>
                         <field name='estado_recep_dte' widget="statusbar"/>
                       </header>
                       <group>
@@ -326,6 +328,15 @@
                       </header>
                       <group>
                         <field name="claim_description" />
+                        <field name="claim_ids" readonly="1">
+                          <tree>
+                            <field name="date" />
+                            <field name="claim" />
+                            <field name="estado_dte" />
+                            <field name="claim_description" />
+                            <field name="user_id" />
+                          </tree>
+                        </field>
                       </group>
                     </page>
                 </notebook>

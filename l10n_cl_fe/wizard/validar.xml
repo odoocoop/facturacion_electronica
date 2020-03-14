@@ -2,14 +2,27 @@
 <odoo>
     <data>
         <record id="sii_dte_validar_form" model="ir.ui.view">
-            <field name="name">SII WS Consult Wizard form</field>
+            <field name="name">Reclamo Avanzado DTE</field>
             <field name="model">sii.dte.validar.wizard</field>
             <field name="arch" type="xml">
                 <form string="SII DTE Upload XML Wizard">
                     <group>
+                      <group string="Opciones Intercambio entre contribuyentes">
                         <field name="action" widget="radio"/>
-                        <field name="option" widget="radio"/>
-                        <field name="invoice_ids" widget="many2many_tag" />
+                        <field name="estado_dte" widget="radio" attrs="{'invisible': [('action', 'in', ['receipt'])]}"/>
+                      </group>
+                      <group string="Opciones Reclamo hacia el SII">
+                        <field name="claim" widget="radio"/>
+                      </group>
+                    </group>
+                    <div>Si tiene dudas sobre el funcionamiento y consecuencias, recordar visitar <a href="https://globalresponse.cl/forum/how-to">la documentación pública</a> o en <a href="www.sii.cl">www.sii.cl</a> o <a href="https://globalresponse.cl/helpdesk/">realizar una consulta a soporte(de pago)</a> o <a href="https://globalresponse.cl/forum/1">postear en foro(gratuito)</a></div>
+                    <group>
+                      <group>
+                        <field name="claim_description" atts="{'readonly': [('estado_dte', '=', '0')], 'required': [('estado_dte', '!=', '0')]}"/>
+                        <field name="invoice_ids" widget="many2many_tags" attrs="{'invisible': [('tipo', '!=', 'account.invoice')]}"/>
+                        <field name="document_ids" widget="many2many_tags" attrs="{'invisible': [('tipo', '!=', 'mail.message.dte.document')]}"/>
+                        <field name="tipo" invisible="1"/>
+                      </group>
                     </group>
                     <footer>
                         <button string="Confirm" name="confirm" type="object" class="oe_highlight" />
@@ -18,6 +31,17 @@
                     </footer>
                 </form>
             </field>
+        </record>
+
+        <record id="action_validar_wizard" model="ir.actions.act_window">
+            <field name="type">ir.actions.act_window</field>
+            <field name="name">Aceptar / Rechazar Documentos</field>
+            <field name="domain">[]</field>
+            <field name="res_model">sii.dte.validar.wizard</field>
+            <field name="view_id" ref="l10n_cl_fe.sii_dte_validar_form"/>
+            <field name="view_type">form</field>
+            <field name="view_mode">form</field>
+            <field name="target">new</field>
         </record>
     </data>
 </odoo>

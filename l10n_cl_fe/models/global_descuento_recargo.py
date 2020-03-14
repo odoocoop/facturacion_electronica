@@ -7,7 +7,7 @@ _logger = logging.getLogger(__name__)
 
 class GlobalDescuentoRecargo(models.Model):
     _name = "account.invoice.gdr"
-
+    _description = 'Linea de descuento global factura'
 
     def _get_name(self):
         for g in self:

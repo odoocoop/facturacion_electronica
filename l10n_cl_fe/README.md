@@ -26,6 +26,15 @@ Se crea este repositorio, para dar un enfoque de firma electrónica directa con 
  - - Liquidación de Facturas: No desarrollada
  - - Factura de Compra Electrónica ( 46 ): No desarrollada (NO confundir con el concepto de ingresar facturas de proveedor, que la mayoría le dice de compras, este es un documento de retención de impuestos, la recepción de documentos proveedor, está soportada, con los4 tipos de respuesta que se deben generar según normativa del sii)
 
+ - Impuestos Soportados Para Ventas(Probados en emisión):
+ - - IVA
+ - - Exentos
+ - - Específico Retención Carnes
+ - - Específico ILA cervezas
+ - - Específico Combustibles (diesel, gasolina 93, gasolina 97)
+
+ Si tiene dudas sobre el funcionamiento y consecuencias, recordar visitar <a href="https://globalresponse.cl/forum/how-to">la documentación pública</a> o en <a href="www.sii.cl">www.sii.cl</a> o <a href="https://globalresponse.cl/helpdesk/">realizar una consulta a soporte(de pago)</a> o <a href="https://globalresponse.cl/forum/1">postear en foro(gratuito)</a>
+
 
  Agradecimientos y colaboradores:
 

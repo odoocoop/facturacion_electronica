@@ -18,10 +18,6 @@ try:
     from suds.client import Client
 except:
     _logger.warning("no se ha cargado suds")
-try:
-    import xmltodict
-except ImportError:
-    _logger.warning('Cannot import xmltodict library')
 
 connection_status = {
     '0': 'Upload OK',
@@ -207,17 +203,17 @@ class SIIXMLEnvio(models.Model):
         return params
 
     def procesar_recepcion(self, retorno, respuesta_dict):
-        if respuesta_dict['RECEPCIONDTE']['STATUS'] != '0':
-            _logger.warning(connection_status[respuesta_dict['RECEPCIONDTE']['STATUS']])
-            if respuesta_dict['RECEPCIONDTE']['STATUS'] in ['7']:
-                retorno.update({
-                    'state': 'Rechazado'
-                    })
+        respuesta_dict = etree.fromstring(response.data)
+        code = respuesta_dict.find('STATUS').text
+        if code != '0':
+            _logger.warning(connection_status[code])
+            if code in ['7', '106']:
+                retorno['sii_result'] = 'Rechazado'
         else:
             retorno.update({
-                            'state': 'Enviado',
-                            'sii_send_ident': respuesta_dict['RECEPCIONDTE']['TRACKID']
-                            })
+                'sii_result': 'Enviado',
+                'sii_send_ident': respuesta_dict.find('TRACKID').text
+                })
         return retorno
 
     def send_xml(self, post='/cgi_dte/UPL/DTEUpload'):
@@ -248,7 +244,7 @@ class SIIXMLEnvio(models.Model):
             retorno.update({ 'sii_xml_response': response.data })
             if response.status != 200 or not response.data or response.data == '':
                 return retorno
-            respuesta_dict = xmltodict.parse(response.data)
+            respuesta_dict = etree.fromstring(response.data)
             retorno = self.procesar_recepcion(retorno, respuesta_dict)
             self.write(retorno)
         except Exception as e:
@@ -286,16 +282,33 @@ class SIIXMLEnvio(models.Model):
                 raise UserError('%s: Conexión al SII caída/rechazada o el SII está temporalmente fuera de línea, reintente la acción' % (msg))
             raise UserError(("%s: %s" % (msg, str(e))))
         result = {"sii_receipt" : respuesta}
-        resp = xmltodict.parse(respuesta)
+        resp = etree.XML(
+            respuesta.replace('<?xml version="1.0" encoding="UTF-8"?>', '')\
+            .replace('SII:', '')\
+            .replace(' xmlns="http://www.sii.cl/XMLSchema"', '')
+            )
         result.update({"state": "Enviado"})
-        if resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] == "-11":
-            if resp['SII:RESPUESTA']['SII:RESP_HDR']['ERR_CODE'] == "2":
+        estado = resp.find('RESP_HDR/ESTADO')
+        if estado is None:
+            return result
+        if estado.text == "-11":
+            if resp.find('RESP_HDR/ERR_CODE').text == "2":
                 status = {'warning':{'title':_('Estado -11'), 'message': _("Estado -11: Espere a que sea aceptado por el SII, intente en 5s más")}}
-        if resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] in ["EPR", "LOK"]:
+        if estado.text in ["EPR", "LOK"]:
             result.update({"state": "Aceptado"})
-            if resp['SII:RESPUESTA'].get('SII:RESP_BODY') and resp['SII:RESPUESTA']['SII:RESP_BODY']['RECHAZADOS'] == "1":
-                result.update({ "state": "Rechazado" })
-        elif resp['SII:RESPUESTA']['SII:RESP_HDR']['ESTADO'] in ["RCT", "RFR", "LRH", "RCH", "RSC", "LRF", "LNC", "LRS", "106"]:
+            body = resp.find('RESP_BODY')
+
+            if body is not None:
+                if body.find('RECHAZADOS').text == "1":
+                    result['state'] = "Rechazado"
+            #    if body.find('REPAROS').text == "1":
+            #        result['state'] = "Reparo"
+
+            if body.find('GLOSA_ESTADO') is not None:
+                result['glosa'] = body.find('GLOSA_ESTADO').text
+        elif estado.text in ["RCT", "RFR", "LRH", "RCH", "RSC", "FNA", "LRF", "LNC", "LRS", "106"]:
             result.update({"state": "Rechazado"})
-            _logger.warning(resp)
+        if resp.find('RESP_HDR/GLOSA') is not None:
+            result['glosa'] = resp.find('RESP_HDR/GLOSA').text
+            _logger.warning(result)
         self.write(result)

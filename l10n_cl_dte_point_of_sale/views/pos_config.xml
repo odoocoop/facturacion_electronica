@@ -5,6 +5,30 @@
           <field name="name">pos.config.sii.form</field>
           <field name="inherit_id" ref="point_of_sale.pos_config_view_form" />
           <field name="arch" type="xml">
+            <div id="iface_invoicing" position="inside">
+              <div class="o_setting_right_pane">
+                  <h3>Secuencias de Factura</h3>
+                  <div class="text-muted" id="journal_document_class_id_label">
+                     Secuencias de Factura Electrónica
+                  </div>
+                  <div class="content-group mt16">
+                      <div class="row mt16">
+                          <label string="Secuencias de Factura Afecta" for="secuencia_factura_afecta" class="col-md-3 o_light_label"/>
+                          <field name="secuencia_factura_afecta"
+                                 domain="[('sii_document_class_id.sii_code', 'in', [33])]" />
+                      </div>
+                      <div class="row mt16">
+                        <label string="Secuencias de Factura Exenta" for="secuencia_factura_exenta" class="col-md-3 o_light_label"/>
+                        <field name="secuencia_factura_exenta"
+                                  domain="[('sii_document_class_id.sii_code', 'in', [34])]" />
+                      </div>
+                      <div class="row mt16">
+                          <label string="¿Facturas en formato Ticket?" for="ticket" class="col-md-3 o_light_label"/>
+                          <field name="ticket" />
+                      </div>
+                  </div>
+              </div>
+            </div>
             <div id="iface_invoicing" position="after">
               <div class="col-xs-12 col-md-6 o_setting_box" id="iface_boleta">
                   <div class="o_setting_right_pane">
@@ -28,8 +52,6 @@
                                       domain="[('sii_document_class_id.sii_code', 'in', [41])]" />
                           </div>
                           <div class="row mt16">
-                              <label string="Ticket?" for="ticket" class="col-md-3 o_light_label"/>
-                              <field name="ticket" />
                               <label string="Marcar por defecto" for="marcar" class="col-md-3 o_light_label"/>
                               <field name="marcar" widget="radio" />
                           </div>

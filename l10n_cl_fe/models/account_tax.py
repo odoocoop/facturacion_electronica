@@ -3,6 +3,7 @@ from odoo import api, models, fields
 from odoo.tools.translate import _
 from odoo.tools import DEFAULT_SERVER_DATETIME_FORMAT as DTF
 from datetime import datetime
+import dateutil.relativedelta as relativedelta
 import pytz
 import logging
 import decimal
@@ -195,6 +196,8 @@ class SiiTax(models.Model):
                 target = (k, v)
                 break
             ant = k
+        if target[0] > date:
+            return self.prepare_mepco((date - relativedelta.relativedelta(days=1)), currency_id)
         val = tables[target[1]].findall('tr')[line].findall('td')[4].text.replace('.', '').replace(',', '.')
         utm = self.env['res.currency'].sudo().search([('name', '=', 'UTM')])
         amount = utm._convert(float(val), currency_id, self.company_id, date)
@@ -221,8 +224,8 @@ class SiiTax(models.Model):
             fields_model = self.env['ir.fields.converter']
             ''' @TODO crearlo como utilidad python'''
             user_zone = fields_model._input_tz()
+            date = date_target
             if tz != user_zone:
-                date = date_target
                 if not date.tzinfo:
                     date = user_zone.localize(date_target)
                 date = date.astimezone(tz)

@@ -17,9 +17,10 @@ class Mepco(models.Model):
     date = fields.Date(
         string="Día Inicio Validez"
     )
-    amount = fields.Integer(
+    amount = fields.Float(
         string="Monto",
-        default=0,
+        digits=(12, 6),
+        default=0.0,
     )
     type = fields.Selection(
         [

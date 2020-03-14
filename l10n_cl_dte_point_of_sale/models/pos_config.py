@@ -31,6 +31,14 @@ class PosConfig(models.Model):
             'ir.sequence',
             string='Secuencia Boleta Exenta',
         )
+    secuencia_factura_afecta = fields.Many2one(
+            'ir.sequence',
+            string='Secuencia Factura Afecta',
+        )
+    secuencia_factura_exenta = fields.Many2one(
+            'ir.sequence',
+            string='Secuencia Factura Exenta',
+        )
     ticket = fields.Boolean(
             string="¿Facturas en Formato Ticket?",
             default=False,
@@ -56,6 +64,7 @@ class PosConfig(models.Model):
             ('boleta', 'Boletas'),
             ('factura', 'Facturas'),
             ('boleta_exenta', 'Boletas Exentas'),
+            ('factura_exenta', 'Facturas Exentas'),
         ],
         string="Marcar por defecto",
     )
@@ -125,6 +134,14 @@ class PosConfig(models.Model):
             string="Folios restantes Boletas",
         )
 
+    @api.onchange('iface_invoicing')
+    def set_seq(self):
+        for r in self.invoice_journal_id.journal_document_class_ids:
+            if r.sii_document_class_id.sii_code == 33:
+                self.secuencia_factura_afecta = r.sequence_id
+            if r.sii_document_class_id.sii_code == 34:
+                self.secuencia_factura_exenta = r.sequence_id
+
     @api.one
     @api.constrains('marcar', 'secuencia_boleta', 'secuencia_boleta_exenta', 'iface_invoicing')
     def _check_document_type(self):
@@ -136,7 +153,11 @@ class PosConfig(models.Model):
             raise ValidationError("Al marcar por defecto Boletas Exentas, "
                                   "debe seleccionar la Secuencia de Boletas Exentas, "
                                   "por favor verifique su configuracion")
-        elif self.marcar == 'factura' and not self.iface_invoicing:
+        elif self.marcar == 'factura' and not self.iface_invoicing and not self.secuencia_factura_afecta:
             raise ValidationError("Al marcar por defecto Facturas, "
+                                  "debe activar el check de Facturacion, "
+                                  "por favor verifique su configuracion")
+        elif self.marcar == 'factura_exenta' and not self.iface_invoicing and not self.secuencia_factura_exenta:
+            raise ValidationError("Al marcar por defecto Facturas Exenta, "
                                   "debe activar el check de Facturacion, "
                                   "por favor verifique su configuracion")

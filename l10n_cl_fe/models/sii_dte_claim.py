@@ -52,6 +52,13 @@ class DTEClaim(models.Model):
         copy=False,
         default="N/D",
     )
+    estado_dte = fields.Selection([
+            ('0', 'DTE Recibido Ok'),
+            ('1', 'DTE Aceptado con Discrepancia.'),
+            ('2', 'DTE Rechazado'),
+        ],
+        string="Estado de Recepción Documento"
+    )
     date = fields.Datetime(
         string="Fecha Reclamo",
     )
@@ -114,45 +121,13 @@ class DTEClaim(models.Model):
         att = self.env['ir.attachment'].create(values)
         return att
 
-    def _emisor(self, company_id):
-        Emisor = {}
-        Emisor['RUTEmisor'] = company_id.document_number
-        Emisor['RznSoc'] = company_id.partner_id.name
-        Emisor['GiroEmis'] = company_id.activity_description.name
-        if company_id.phone:
-            Emisor['Telefono'] = company_id.phone
-        Emisor['CorreoEmisor'] = company_id.dte_email_id.name_get()[0][1]
-        #Emisor['Actecos'] = self._actecos_emisor()
-        Emisor['DirOrigen'] = company_id.street + ' ' + (company_id.street2 or '')
-        if not company_id.city_id:
-            raise UserError("Debe ingresar la Comuna de compañía emisora")
-        Emisor['CmnaOrigen'] = company_id.city_id.name
-        if not company_id.city:
-            raise UserError("Debe ingresar la Ciudad de compañía emisora")
-        Emisor['CiudadOrigen'] = company_id.city
-        Emisor["Modo"] = "produccion" if company_id.dte_service_provider == 'SII'\
-                  else 'certificacion'
-        Emisor["NroResol"] = company_id.dte_resolution_number
-        Emisor["FchResol"] = company_id.dte_resolution_date
-        return Emisor
-
-    def _get_datos_empresa(self, company_id):
-        signature_id = self.env.user.get_digital_signature(company_id)
-        if not signature_id:
-            raise UserError(_('''There are not a Signature Cert Available for this user, please upload your signature or tell to someelse.'''))
-        emisor = self._emisor(company_id)
-        return {
-            "Emisor": emisor,
-            "firma_electronica": signature_id.parametros_firma(),
-        }
-
     def do_reject(self):
         inv_obj = self.env['account.invoice']
         id_seq = self.env.ref('l10n_cl_fe.response_sequence')
         IdRespuesta = id_seq.next_by_id()
         NroDetalles = 1
         doc = self.invoice_id or self.document_id
-        datos = self._get_datos_empresa(doc.company_id)
+        datos = doc._get_datos_empresa(doc.company_id)
         ''' @TODO separar estos dos'''
         dte = {
             'xml': doc.xml,
@@ -168,7 +143,7 @@ class DTEClaim(models.Model):
             'MailContacto': self.env.user.partner_id.email,
             "xml_dte": dte,
             'EstadoDTE': 2,
-            'EstadoDTEGlosa': 'Rechazo Absoluto',
+            'EstadoDTEGlosa': self.claim_description,
             'CodRchDsc': -1,
         }
         resp = fe.validacion_comercial(datos)
@@ -190,16 +165,23 @@ class DTEClaim(models.Model):
                 }
         send_mail = self.env['mail.mail'].create(values)
         send_mail.send()
-        doc.set_dte_claim(claim=self.claim)
+        if self.claim != 'N/D':
+            doc.set_dte_claim(claim=self.claim)
 
     def do_validar_comercial(self):
+        if self.estado_dte == '0':
+            self.claim_description = 'DTE Recibido Ok'
         id_seq = self.env.ref('l10n_cl_fe.response_sequence')
         IdRespuesta = id_seq.next_by_id()
         NroDetalles = 1
-        doc = self.invoice_id or self.document_id
-        if doc.claim in ['ACD', 'RCD'] or doc.type in ['out_invoice', 'out_refund']:
+        doc = self.invoice_id
+        tipo = "account.invoice"
+        if not doc:
+            tipo = 'mail.message.dte.document'
+            doc = self.document_id
+        if doc.claim in ['ACD'] or (self.invoice_id and doc.type in ['out_invoice', 'out_refund']):
             return
-        datos = doc._get_datos_empresa(doc.company_id)
+        datos = doc._get_datos_empresa(doc.company_id) if self.invoice_id else self._get_datos_empresa(doc.company_id)
         dte = doc._dte()
         ''' @TODO separar estos dos'''
         dte['CodEnvio'] = IdRespuesta
@@ -207,17 +189,22 @@ class DTEClaim(models.Model):
         datos["ValidacionCom"] = {
             'IdRespuesta': IdRespuesta,
             'NroDetalles': NroDetalles,
-            "RutResponde": doc.format_vat(
+            "RutResponde": self.invoice_id.format_vat(
                             doc.company_id.vat),
             "RutRecibe": doc.partner_id.commercial_partner_id.document_number,
             'NmbContacto': self.env.user.partner_id.name,
             'FonoContacto': self.env.user.partner_id.phone,
             'MailContacto': self.env.user.partner_id.email,
+            'EstadoDTE': self.estado_dte,
+            'EstadoDTEGlosa': self.claim_description,
             "Receptor": {
             	    "RUTRecep": doc.partner_id.commercial_partner_id.document_number,
             },
             "DTEs": [dte],
         }
+
+        if self.estado_dte != '0':
+            datos["ValidacionCom"]['CodRchDsc'] = -2
         resp = fe.validacion_comercial(datos)
         doc.sii_message = resp['respuesta_xml']
         att = self._create_attachment(
@@ -230,15 +217,17 @@ class DTEClaim(models.Model):
                     'email_from': dte_email_id.name_get()[0][1],
                     'email_to': doc.partner_id.commercial_partner_id.dte_email,
                     'auto_delete': False,
-                    'model': "account.invoice",
+                    'model': tipo,
                     'body': 'XML de Validación Comercial, Estado: %s, Glosa: %s' % (resp['EstadoDTE'], resp['EstadoDTEGlosa']),
                     'subject': 'XML de Validación Comercial',
                     'attachment_ids': [[6, 0, att.ids]],
                 }
         send_mail = self.env['mail.mail'].create(values)
         send_mail.send()
+        if self.claim == 'N/D':
+            return
         try:
-            doc.set_dte_claim(claim='ACD')
+            doc.set_dte_claim(claim=self.claim)
         except Exception as e:
             _logger.warning("Error al setear Reclamo %s" %str(e))
         try:
@@ -249,44 +238,53 @@ class DTEClaim(models.Model):
     @api.multi
     def do_recep_mercaderia(self):
         message = ""
-        doc = self.invoice_id or self.document_id
-        if doc.claim in ['ACD', 'RCD']:
+        doc = self.invoice_id
+        tipo = "account.invoice"
+        if not doc:
+            tipo = 'mail.message.dte.document'
+            doc = self.document_id
+        if doc.claim in ['ACD']:
             return
-        datos = doc._get_datos_empresa(doc.company_id)
-        datos["RecepcionMer"] = {
-            "RutResponde": doc.format_vat(
-                            doc.company_id.vat),
-            "RutRecibe": doc.partner_id.commercial_partner_id.document_number,
-            'Recinto': doc.company_id.street,
-            'NmbContacto': self.env.user.partner_id.name,
-            'FonoContacto': self.env.user.partner_id.phone,
-            'MailContacto': self.env.user.partner_id.email,
-            "Receptor": {
-            	    "RUTRecep": doc.partner_id.commercial_partner_id.document_number,
-            },
-            "DTEs": [doc._dte()],
-        }
-        resp = fe.recepcion_mercaderias(datos)
-        doc.sii_message = resp['respuesta_xml']
-        att = self._create_attachment(
-            resp['respuesta_xml'],
-            resp['nombre_xml'],
-        )
-        dte_email_id = doc.company_id.dte_email_id or self.env.user.company_id.dte_email_id
-        values = {
-                    'res_id': doc.id,
-                    'email_from': dte_email_id.name_get()[0][1],
-                    'email_to': doc.partner_id.commercial_partner_id.dte_email,
-                    'auto_delete': False,
-                    'model': "account.invoice",
-                    'body': 'XML de Recepción de Mercaderías\n %s' % (message),
-                    'subject': 'XML de Recepción de Documento',
-                    'attachment_ids': [[6, 0, att.ids]],
-                }
-        send_mail = self.env['mail.mail'].create(values)
-        send_mail.send()
+        if self.claim == 'ERM':
+            datos = doc._get_datos_empresa(doc.company_id) if self.invoice_id else self._get_datos_empresa(doc.company_id)
+            datos["RecepcionMer"] = {
+                'EstadoRecepDTE': self.estado_dte,
+                'RecepDTEGlosa': self.claim_description,
+                "RutResponde": doc.format_vat(
+                                doc.company_id.vat),
+                "RutRecibe": doc.partner_id.commercial_partner_id.document_number,
+                'Recinto': doc.company_id.street,
+                'NmbContacto': self.env.user.partner_id.name,
+                'FonoContacto': self.env.user.partner_id.phone,
+                'MailContacto': self.env.user.partner_id.email,
+                "Receptor": {
+                	    "RUTRecep": doc.partner_id.commercial_partner_id.document_number,
+                },
+                "DTEs": [doc._dte()],
+            }
+            resp = fe.recepcion_mercaderias(datos)
+            doc.sii_message = resp['respuesta_xml']
+            att = self._create_attachment(
+                resp['respuesta_xml'],
+                resp['nombre_xml'],
+            )
+            dte_email_id = doc.company_id.dte_email_id or self.env.user.company_id.dte_email_id
+            values = {
+                        'res_id': doc.id,
+                        'email_from': dte_email_id.name_get()[0][1],
+                        'email_to': doc.partner_id.commercial_partner_id.dte_email,
+                        'auto_delete': False,
+                        'model': tipo,
+                        'body': 'XML de Recepción de Mercaderías\n %s' % (message),
+                        'subject': 'XML de Recepción de Documento',
+                        'attachment_ids': [[6, 0, att.ids]],
+                    }
+            send_mail = self.env['mail.mail'].create(values)
+            send_mail.send()
+        if self.claim == 'N/D':
+            return
         try:
-            doc.set_dte_claim(claim='ERM')
+            doc.set_dte_claim(claim=self.claim)
         except Exception as e:
             _logger.warning("Error al setear Reclamo %s" %str(e))
         try:

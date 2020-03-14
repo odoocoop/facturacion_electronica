@@ -299,9 +299,8 @@ class ResPartner(models.Model):
         if data.get('direccion'):
             self.street = data['direccion']
         if data.get('actecos'):
-            for a in data['actecos']:
-                ac = self.env['sii.document_class'].search([('code', '=', a)])
-                self.acteco_ids += ac
+            acs = self.env['partner.activities'].sudo().search([('code', 'in', data['actecos'])])
+            self.acteco_ids = acs
         if data.get('glosa_giro'):
             query = [('name', '=', data.get('glosa_giro'))]
             ad = self.env['sii.activity.description'].search(query)

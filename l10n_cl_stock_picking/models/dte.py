@@ -186,7 +186,7 @@ class stock_picking(models.Model):
                 s.responsable_envio = self.env.uid
                 s.sii_result = 'NoEnviado'
                 s._timbrar()
-                self.env['sii.cola_envio'].create({
+                self.env['sii.cola_envio'].sudo().create({
                                             'company_id': s.company_id.id,
                                             'doc_ids': [s.id],
                                             'model': 'stock.picking',
@@ -209,7 +209,7 @@ class stock_picking(models.Model):
                 rec.sii_result = "EnCola"
                 ids.append(rec.id)
         if ids:
-            self.env['sii.cola_envio'].create({
+            self.env['sii.cola_envio'].sudo().create({
                                     'company_id': self[0].company_id.id,
                                     'doc_ids': ids,
                                     'model': 'stock.picking',
@@ -307,15 +307,18 @@ class stock_picking(models.Model):
 
     def _totales(self, MntExe=0, no_product=False, taxInclude=False):
         Totales = {}
-        IVA = 19
+        IVA = False
         for line in self.move_lines:
             if line.move_line_tax_ids:
                 for t in line.move_line_tax_ids:
-                    IVA = t.amount
-        if IVA > 0 and not no_product:
+                    if t.sii_code in [14, 15, 17]:
+                        IVA = t
+        if IVA and not no_product:
             Totales['MntNeto'] = int(round(self.amount_untaxed, 0))
-            Totales['TasaIVA'] = round(IVA,2)
-            Totales['IVA'] = int(round(self.amount_tax, 0))
+            Totales['TasaIVA'] = round(IVA.amount,2)
+            for k, t in self.get_taxes_values().items():
+                if k == str(IVA.id):
+                    Totales['IVA'] = int(round(t['amount'], 0))
         monto_total = int(round(self.amount_total, 0))
         if no_product:
             monto_total = 0
@@ -386,7 +389,9 @@ class stock_picking(models.Model):
                 lines['DescuentoPct'] = line.discount
                 lines['DescuentoMonto'] = int(round((((line.discount / 100) * lines['PrcItem'])* qty)))
             if not no_product :
-                lines['MontoItem'] = int(round(line.subtotal,0))
+                subtotal = line.subtotal if taxInclude else line.price_untaxed
+                lines['MontoItem'] = int(round(subtotal,0))
+
             if no_product:
                 lines['MontoItem'] = 0
             line_number += 1
@@ -607,22 +612,22 @@ class stock_picking(models.Model):
     @api.multi
     def sii_header(self):
         W, H = (560, 255)
-        img = Image.new('RGB', (W, H), color=(255,255,255))
+        img = Image.new('RGB', (W, H), color=(0,0,255))
 
         d = ImageDraw.Draw(img)
         w, h = (0, 0)
         for i in range(10):
-            d.rectangle(((w, h), (550+w, 220+h)), outline="black")
+            d.rectangle(((w, h), (550+w, 240+h)), outline="black")
             w += 1
             h += 1
         font = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', 40)
         d.text((50,30), "R.U.T.: %s" % self.company_id.document_number, fill=(0,0,0), font=font)
-        d.text((50,90), "Guía de Despacho", fill=(0,0,0), font=font)
-        d.text((100,150), "Electrónica", fill=(0,0,0), font=font)
-        d.text((220,210), "N° %s" % self.sii_document_number, fill=(0,0,0), font=font)
+        d.text((70,85), "Guía de Despacho", fill=(0,0,0), font=font)
+        d.text((150,145), "Electrónica", fill=(0,0,0), font=font)
+        d.text((220,195), "N° %s" % self.sii_document_number, fill=(0,0,0), font=font)
         font = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', 20)
 
         buffered = BytesIO()
-        img.save(buffered, format="PNG")
+        img.save(buffered, format="PNG", transparency=(0,0,255))
         imm = base64.b64encode(buffered.getvalue()).decode()
         return imm

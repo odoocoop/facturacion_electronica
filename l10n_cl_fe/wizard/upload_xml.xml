@@ -40,6 +40,6 @@
          <menuitem
            action="action_upload_xml"
            id="menu_action_account_upload_xml"
-           parent="account.menu_finance_payables"
+           parent="l10n_cl_fe.menu_sii_exchange"
            sequence="4"/>
 </odoo>

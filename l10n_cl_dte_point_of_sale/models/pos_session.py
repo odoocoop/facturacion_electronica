@@ -69,7 +69,17 @@ class PosSession(models.Model):
                 'secuencia_boleta_exenta': config_id.secuencia_boleta_exenta.id,
                 'caf_files_exentas': self.get_caf_string(sequence),
             })
+        for t in self.env['account.tax'].sudo().search([('mepco', '!=', False)]):
+            t.verify_mepco(date_target=False, currency_id=config_id.company_id.currency_id)
         return super(PosSession, self).create(values)
+
+    def recursive_xml(self, el):
+        if el.text and bool(el.text.strip()):
+            return el.text
+        res = {}
+        for e in el:
+            res.setdefault(e.tag, self.recursive_xml(e))
+        return res
 
     @api.model
     def get_caf_string(self, sequence=None):
@@ -85,7 +95,8 @@ class PosSession(models.Model):
             return
         caffs = []
         for caffile in caffiles:
-            caffs += [caffile.decode_caf()]
+            xml = caffile.decode_caf()
+            caffs += [{xml.tag: self.recursive_xml(xml)}]
         if caffs:
             return json.dumps(caffs, ensure_ascii=False)
         msg = '''No hay CAF para el folio de este documento: {}.\

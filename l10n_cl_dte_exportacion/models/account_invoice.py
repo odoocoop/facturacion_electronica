@@ -128,7 +128,7 @@ class Exportacion(models.Model):
         return super(Exportacion, self).copy(default)
 
     def format_vat(self, value, con_cero=False):
-        if self[0]._es_exportacion():
+        if self.env.context.get('exportacion'):
             if self[0].company_id.vat != value:
                 value = "CL555555555"
         return super(Exportacion, self).format_vat(value, con_cero)
@@ -209,37 +209,38 @@ class Exportacion(models.Model):
 
     def _receptor(self):
         Receptor = {}
-        if not self.commercial_partner_id.vat and not self._es_boleta() and not self._nc_boleta() and not self._es_exportacion():
+        commercial_partner_id = self.commercial_partner_id or self.partner_id.commercial_partner_id
+        if not commercial_partner_id.vat and not self._es_boleta() and not self._nc_boleta() and not self._es_exportacion():
             raise UserError("Debe Ingresar RUT Receptor")
         #if self._es_boleta():
         #    Receptor['CdgIntRecep']
-        Receptor['RUTRecep'] = self.format_vat(self.commercial_partner_id.vat)
-        Receptor['RznSocRecep'] = self._acortar_str( self.commercial_partner_id.name, 100)
+        Receptor['RUTRecep'] = self.format_vat(commercial_partner_id.vat)
+        Receptor['RznSocRecep'] = self._acortar_str( commercial_partner_id.name, 100)
         if not self.partner_id or Receptor['RUTRecep'] == '66666666-6':
             return Receptor
         if not self._es_boleta() and not self._nc_boleta():
-            GiroRecep = self.acteco_id.name or self.commercial_partner_id.activity_description.name
+            GiroRecep = self.acteco_id.name or commercial_partner_id.activity_description.name
             if not GiroRecep and not self._es_exportacion():
                 raise UserError(_('Seleccione giro del partner'))
             if GiroRecep:
                 Receptor['GiroRecep'] = self._acortar_str(GiroRecep, 40)
-        if self.partner_id.phone or self.commercial_partner_id.phone:
-            Receptor['Contacto'] = self._acortar_str(self.partner_id.phone or self.commercial_partner_id.phone or self.partner_id.email, 80)
-        if (self.commercial_partner_id.email or self.commercial_partner_id.dte_email or self.partner_id.email or self.partner_id.dte_email) and not self._es_boleta():
-            Receptor['CorreoRecep'] = self.commercial_partner_id.dte_email or self.partner_id.dte_email or self.commercial_partner_id.email or self.partner_id.email
-        street_recep = (self.partner_id.street or self.commercial_partner_id.street or False)
+        if self.partner_id.phone or commercial_partner_id.phone:
+            Receptor['Contacto'] = self._acortar_str(self.partner_id.phone or commercial_partner_id.phone or self.partner_id.email, 80)
+        if (commercial_partner_id.email or commercial_partner_id.dte_email or self.partner_id.email or self.partner_id.dte_email) and not self._es_boleta():
+            Receptor['CorreoRecep'] = commercial_partner_id.dte_email or self.partner_id.dte_email or commercial_partner_id.email or self.partner_id.email
+        street_recep = (self.partner_id.street or commercial_partner_id.street or False)
         if not street_recep and not self._es_boleta() and not self._nc_boleta():
         # or self.indicador_servicio in [1, 2]:
             raise UserError('Debe Ingresar dirección del cliente')
-        street2_recep = (self.partner_id.street2 or self.commercial_partner_id.street2 or False)
+        street2_recep = (self.partner_id.street2 or commercial_partner_id.street2 or False)
         if street_recep or street2_recep:
             Receptor['DirRecep'] = self._acortar_str(street_recep + (' ' + street2_recep if street2_recep else ''), 70)
-        cmna_recep = self.partner_id.city_id.name or self.commercial_partner_id.city_id.name
+        cmna_recep = self.partner_id.city_id.name or commercial_partner_id.city_id.name
         if not cmna_recep and not self._es_boleta() and not self._nc_boleta() and not self._es_exportacion():
             raise UserError('Debe Ingresar Comuna del cliente')
         else:
             Receptor['CmnaRecep'] = cmna_recep
-        ciudad_recep = self.partner_id.city or self.commercial_partner_id.city
+        ciudad_recep = self.partner_id.city or commercial_partner_id.city
         if ciudad_recep:
             Receptor['CiudadRecep'] = ciudad_recep
         Receptor['Nacionalidad'] = self.partner_id.commercial_partner_id.country_id.aduanas_id.code

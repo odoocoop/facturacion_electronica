@@ -9,6 +9,7 @@ var _t = core._t;
 
 var modules = models.PosModel.prototype.models;
 var round_pr = utils.round_precision;
+var secuencias = {};
 
 for(var i=0; i<modules.length; i++){
 	var model=modules[i];
@@ -41,24 +42,44 @@ models.load_models({
       	},
 });
 
-models.load_models({
-	model: 'ir.sequence',
-	fields: ['id', 'sii_document_class_id'],
-	domain: function(self){ return [['id', '=', self.config.secuencia_boleta[0]]]; },
-		loaded: function(self, doc){
-			if(doc.length > 0){
-				self.config.secuencia_boleta = doc[0];
-			}
-		}
-});
+var dcs = [];
 
 models.load_models({
 	model: 'ir.sequence',
 	fields: ['id', 'sii_document_class_id'],
-	domain: function(self){ return [['id', '=', self.config.secuencia_boleta_exenta[0]]]; },
-		loaded: function(self, doc){
-			if (doc.length > 0){
-				self.config.secuencia_boleta_exenta = doc[0];
+	domain: function(self){
+						var seqs = [];
+						if(self.config.secuencia_boleta){
+							seqs.push(self.config.secuencia_boleta[0]);
+						}
+						if(self.config.secuencia_boleta_exenta){
+							seqs.push(self.config.secuencia_boleta_exenta[0]);
+						}
+						if(self.config.secuencia_factura_afecta){
+							seqs.push(self.config.secuencia_factura_afecta[0]);
+						}
+						if(self.config.secuencia_factura_exenta){
+							seqs.push(self.config.secuencia_factura_exenta[0]);
+						}
+						return [['id', 'in', seqs]];
+		},
+		loaded: function(self, docs){
+			if(docs.length > 0){
+				docs.forEach(function(doc){
+					dcs.push(doc.sii_document_class_id[0]);
+					if (doc.id === self.config.secuencia_boleta[0]){
+						self.config.secuencia_boleta = doc;
+					}
+					else if (doc.id === self.config.secuencia_boleta_exenta[0]){
+						self.config.secuencia_boleta_exenta = doc;
+					}
+					else if (doc.id === self.config.secuencia_factura_afecta[0]){
+						self.config.secuencia_factura_afecta = doc;
+					}
+					else if (doc.id === self.config.secuencia_factura_exenta[0]){
+						self.config.secuencia_factura_exenta = doc;
+					}
+				})
 			}
 		}
 });
@@ -66,23 +87,26 @@ models.load_models({
 models.load_models({
 	model: 'sii.document_class',
 	fields: ['id', 'name', 'sii_code'],
-	domain: function(self){ return [['id', '=', (self.config.secuencia_boleta ? self.config.secuencia_boleta.sii_document_class_id[0]: false)]]; },
-		loaded: function(self, doc){
-			if(doc.length > 0){
-				self.config.secuencia_boleta.sii_document_class_id = doc[0];
-				self.config.secuencia_boleta.caf_files = self.pos_session.caf_files;
-			}
-		}
-});
-
-models.load_models({
-	model: 'sii.document_class',
-	fields: ['id', 'name', 'sii_code'],
-	domain: function(self){ return [['id', '=', (self.config.secuencia_boleta_exenta ? self.config.secuencia_boleta_exenta.sii_document_class_id[0]:false)]]; },
-		loaded: function(self, doc){
-			if(doc.length > 0){
-				self.config.secuencia_boleta_exenta.sii_document_class_id = doc[0];
-				self.config.secuencia_boleta_exenta.caf_files = self.pos_session.caf_files_exentas;
+	domain: function(self){ return [['id', 'in', dcs]]; },
+	loaded: function(self, docs){
+			if(docs.length > 0){
+				docs.forEach(function(doc){
+					secuencias[doc.id] = doc;
+					if (self.config.secuencia_boleta && doc.id === self.config.secuencia_boleta.sii_document_class_id[0]){
+						self.config.secuencia_boleta.sii_document_class_id = doc;
+						self.config.secuencia_boleta.caf_files = self.pos_session.caf_files;
+					}
+					if (self.config.secuencia_boleta_exenta && doc.id === self.config.secuencia_boleta_exenta.sii_document_class_id[0]){
+						self.config.secuencia_boleta_exenta.sii_document_class_id = doc;
+						self.config.secuencia_boleta_exenta.caf_files = self.pos_session.caf_files_exentas;
+					}
+					if (self.config.secuencia_factura_afecta && doc.id === self.config.secuencia_factura_afecta.sii_document_class_id[0]){
+						self.config.secuencia_factura_afecta.sii_document_class_id = doc;
+					}
+					if (self.config.secuencia_factura_exenta && doc.id === self.config.secuencia_factura_exenta.sii_document_class_id[0]){
+						self.config.secuencia_factura_exenta.sii_document_class_id = doc;
+					}
+				})
 			}
 		}
 });
@@ -133,6 +157,12 @@ models.load_models({
 
 var PosModelSuper = models.PosModel.prototype;
 models.PosModel = models.PosModel.extend({
+	folios_factura_afecta: function(){
+		return this.secuencia_factura_afecta || !this.folios_factura_exenta();
+	},
+	folios_factura_exenta: function(){
+		return this.secuencia_factura_exenta;
+	},
 	folios_boleta_exenta: function(){
 		return this.pos_session.caf_files_exentas;
 	},
@@ -309,7 +339,6 @@ models.Orderline = models.Orderline.extend({
 var _super_order = models.Order.prototype;
 models.Order = models.Order.extend({
 	initialize: function(attr, options) {
-		this.exenta = false;
 		_super_order.initialize.call(this,attr,options);
 		this.unset_boleta();
 		if (this.pos.config.marcar === 'boleta' && this.pos.config.secuencia_boleta){
@@ -319,6 +348,8 @@ models.Order = models.Order.extend({
 			this.set_boleta(true);
 			this.set_tipo_boleta(this.pos.config.secuencia_boleta_exenta);
 		}else if (this.pos.config.marcar === 'factura'){
+			this.set_to_invoice(true);
+		}else if (this.pos.config.marcar === 'factura_exenta'){
 			this.set_to_invoice(true);
 		}
 		if(this.es_boleta()){
@@ -332,22 +363,26 @@ models.Order = models.Order.extend({
 	},
 	export_as_JSON: function() {
 		var json = _super_order.export_as_JSON.apply(this,arguments);
-		json.sequence_id = this.sequence_id;
+		if (this.sequence_id){
+			json.sequence_id = this.sequence_id.id;
+		}else{
+			json.sequence_id = false;
+		}
 		json.sii_document_number = this.sii_document_number;
 		json.signature = this.signature;
 		json.orden_numero = this.orden_numero;
 		json.finalized = this.finalized;
-		json.exenta = this.exenta;
 		return json;
 	},
     init_from_JSON: function(json) {// carga pedido individual
-    	_super_order.init_from_JSON.apply(this,arguments);
-    	this.sequence_id = json.sequence_id;
+			_super_order.init_from_JSON.apply(this,arguments);
+			if (json.sequence_id){
+    		this.sequence_id = secuencias[json.sequence_id];
+			}
     	this.sii_document_number = json.sii_document_number;
     	this.signature = json.signature;
     	this.orden_numero = json.orden_numero;
 			this.finalized = json.finalized;
-			this.exenta = json.exenta;
 	},
 	export_for_printing: function() {
 		var self = this;
@@ -394,11 +429,21 @@ models.Order = models.Order.extend({
 			this.finalized = true;
 		}
 	},
-  get_total_with_tax: function() {
-  	_super_order.get_total_with_tax.apply(this,arguments);
-  	return round_pr(this.orderlines.reduce((function(sum, orderLine) {
-  		return sum + orderLine.get_price_with_tax();
-  	}), 0), this.pos.currency.rounding);
+	get_total_tax: function() {
+		var tax = 0;
+		var tDetails = this.get_tax_details();
+		tDetails.forEach(function(t) {
+			tax += round_pr(t.amount);
+			}, this.pos.currency.rounding);
+		return tax;
+	},
+  	get_total_with_tax: function() {
+	  	_super_order.get_total_with_tax.apply(this,arguments);
+	  	var neto = round_pr(this.orderlines.reduce((function(sum, orderLine) {
+	  		return sum + orderLine.get_price_without_tax();
+	  	}), 0), this.pos.currency.rounding);
+		return (neto + this.get_total_tax());
+
 	},
 	fix_tax_included_price: function(line){
 			if(this.fiscal_position){
@@ -421,17 +466,21 @@ models.Order = models.Order.extend({
 					line.set_unit_price(unit_price);
 			}
 	},
-	set_tipo_boleta: function(tipo_boleta){
-		this.sequence_id = tipo_boleta;
+	set_tipo: function(tipo){
+		this.sequence_id = tipo;
 	},
 	set_boleta: function(boleta){
 		this.boleta = boleta;
 	},
+	unset_tipo: function(){
+		this.sequence_id = false;
+	},
 	unset_boleta: function(){
-		this.set_tipo_boleta(false);
+		this.set_tipo(false);
 		this.set_boleta(false);
 		this.orden_numero = false;
 		this.sii_document_number = false;
+		this.unset_tipo();
 	},
     // esto devolvera True si es Boleta(independiente si es exenta o afecta)
     // para diferenciar solo si es una factura o una boleta
@@ -439,30 +488,39 @@ models.Order = models.Order.extend({
 		return this.boleta;
 	},
     // esto devolvera True si es Boleta exenta(sii_code = 41)
-	es_boleta_exenta: function(check_marcar=false){
-		if(!this.es_boleta()){
-			return false;
+		es_boleta_exenta: function(check_marcar=false){
+			if(!this.es_boleta()){
+				return false;
+			}
+			return (this.sequence_id.sii_document_class_id.sii_code === 41);
+	  },
+	    // esto devolvera True si es Boleta afecta(sii_code = 39)
+		es_boleta_afecta: function(check_marcar=false){
+			if(!this.es_boleta()){
+				return false;
+			}
+			return (this.sequence_id.sii_document_class_id.sii_code === 39);
+		},
+		es_factura_afecta: function(){
+			return (this.sequence_id && this.sequence_id.sii_document_class_id.sii_code === 33 && this.is_to_invoice());
+		},
+		es_factura_exenta: function(){
+			return (this.sequence_id && this.sequence_id.sii_document_class_id.sii_code === 34 && this.is_to_invoice());
+		},
+	crear_guia: function(){
+		return (this.pos.config.dte_picking && (this.pos.config.dte_picking_option === 'all' || (this.pos.config.dte_picking_option === 'no_tributarios' && !this.es_tributaria())));
+	},
+	es_tributaria(){
+		if (this.es_boleta()){
+			return this.es_boleta();
 		}
-		if (this.sequence_id.sii_document_class_id.sii_code === 41){
-			return true;
+		if (this.is_to_invoice()){
+			if (this.pos.config.secuencia_factura_afecta){
+				return true;
+			}
+			return (this.es_factura_exenta() && this.pos.config.secuencia_factura_exenta);
 		}
 		return false;
-    },
-    // esto devolvera True si es Boleta afecta(sii_code = 39)
-	es_boleta_afecta: function(check_marcar=false){
-		if(!this.es_boleta()){
-			return false;
-		}
-		if (this.sequence_id.sii_document_class_id.sii_code === 39){
-			return true;
-		}
-		return false;
-	},
-	es_factura_afecta: function(){
-		return !this.exenta && this.is_to_invoice();
-	},
-	es_factura_exenta: function(){
-		return this.exenta && this.is_to_invoice();
 	},
   get_total_exento:function(){
   	var taxes =  this.pos.taxes;

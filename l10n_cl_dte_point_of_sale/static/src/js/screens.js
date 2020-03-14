@@ -17,20 +17,23 @@ screens.PaymentScreenWidget.include({
 		this.$('.js_boleta_exenta').click(function(){
 			self.click_boleta_exenta();
 		});
+		this.$('.js_factura_exenta').click(function(){
+			self.click_factura_exenta();
+		});
 	},
 	order_is_valid: function(force_validation) {
 		var self = this;
 		var res = this._super(force_validation);
 		var order = self.pos.get_order();
 		if (order.is_to_invoice() || order.es_boleta()){
-		      var total_tax = order.get_total_tax();
-		      if (order.es_boleta_exenta() && total_tax > 0){// @TODO agrregar facturas exentas
+      var total_tax = order.get_total_tax();
+      if ((order.es_boleta_exenta() || order.es_factura_exenta()) && total_tax > 0){// @TODO agrregar facturas exentas
 		        this.gui.show_popup('error',{
 		        	'title': "Error de integridad",
 		        	'body': "No pueden haber productos afectos en boleta/factura exenta",
 		        });
 				return false;
-		      }else if(!order.es_boleta_exenta() && total_tax <= 0 && order.get_total_exento() > 0){
+			}else if((order.es_boleta_afecta() || order.es_factura_afecta()) && total_tax <= 0 && order.get_total_exento() > 0){
 		        this.gui.show_popup('error',{
 		        	'title': "Error de integridad",
 		        	'body': "Debe haber almenos un producto afecto",
@@ -38,7 +41,7 @@ screens.PaymentScreenWidget.include({
 				return false;
 		    };
 		};
-		if (order.is_to_invoice() && order.get_client()) {
+		if ((order.is_to_invoice() || order.crear_guia()) && order.get_client()) {
 			var client = order.get_client();
 			if (!client.street){
 				this.gui.show_popup('error',{
@@ -111,10 +114,11 @@ screens.PaymentScreenWidget.include({
 		var order = this.pos.get_order();
 		order.set_to_invoice(false);
 		this.$('.js_invoice').removeClass('highlight');
+		this.$('.js_factura_exenta').removeClass('highlight');
 		if (this.pos.pos_session.caf_files && (order.es_boleta_exenta() || !order.es_boleta())) {
 			this.unset_boleta(order);
 			order.set_boleta(true);
-			order.set_tipo_boleta(this.pos.config.secuencia_boleta);
+			order.set_tipo(this.pos.config.secuencia_boleta);
 			this.$('.js_boleta').addClass('highlight');
 			return;
 		}
@@ -124,10 +128,11 @@ screens.PaymentScreenWidget.include({
 		var order = this.pos.get_order();
 		order.set_to_invoice(false);
 		this.$('.js_invoice').removeClass('highlight');
+		this.$('.js_factura_exenta').removeClass('highlight');
 		if (this.pos.pos_session.caf_files_exentas && !order.es_boleta_exenta()){
 			this.unset_boleta(order);
 			order.set_boleta(true);
-			order.set_tipo_boleta(this.pos.config.secuencia_boleta_exenta);
+			order.set_tipo(this.pos.config.secuencia_boleta_exenta);
 			this.$('.js_boleta_exenta').addClass('highlight');
 			return;
 		}
@@ -135,8 +140,36 @@ screens.PaymentScreenWidget.include({
 	},
 	click_invoice: function(){
 		var order = this.pos.get_order();
+		if(order.es_factura_exenta()){
+			this.$('.js_factura_exenta').removeClass('highlight');
+			this.$('.js_invoice').addClass('highlight');
+			order.set_tipo(this.pos.config.secuencia_factura_afecta);
+		}else{
+			this.unset_boleta(order);
+			var res = this._super();
+			if (order.is_to_invoice()){
+				order.set_tipo(this.pos.config.secuencia_factura_afecta);
+			}else{
+				order.unset_tipo();
+			}
+		}
+	},
+	click_factura_exenta: function(){
+		var order = this.pos.get_order();
 		this.unset_boleta(order);
-		var res = this._super();
+		if(order.is_to_invoice() && order.es_factura_afecta()){
+				this.$('.js_invoice').removeClass('highlight');
+		}
+		else{
+			order.set_to_invoice(!order.is_to_invoice());
+		}
+		if (order.is_to_invoice()) {
+				this.$('.js_factura_exenta').addClass('highlight');
+				order.set_tipo(this.pos.config.secuencia_factura_exenta);
+		} else {
+				this.$('.js_factura_exenta').removeClass('highlight');
+				order.unset_tipo();
+		}
 	},
 });
 
@@ -266,13 +299,13 @@ screens.ClientListScreenWidget.include({
 				method: 'get_remote_user_data',
 				args: [false, vat, false]
 			}).
-		          then(function(resp){
-		              if (resp){
-		                  self.$(".client-name").val(resp.razon_social);
-		                  self.$(".client-dte_email").val(resp.dte_email);
+      then(function(resp){
+          if (resp){
+              self.$(".client-name").val(resp.razon_social);
+              self.$(".client-dte_email").val(resp.dte_email);
 
-		              }
-		          });
+          }
+      });
 		}
 		this._super(visibility, partner, clickpos);
 		if (visibility === "edit"){
@@ -302,7 +335,7 @@ screens.ClientListScreenWidget.include({
 				document_number = document_number.replace(/[^1234567890Kk]/g, "").toUpperCase();
 				document_number = _.str.lpad(document_number, 9, '0');
 				document_number = _.str.sprintf('%s.%s.%s-%s',
-					document_number.slice(0, 2),
+						document_number.slice(0, 2),
     				document_number.slice(2, 5),
     				document_number.slice(5, 8),
     				document_number.slice(-1))
