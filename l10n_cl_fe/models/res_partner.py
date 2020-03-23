@@ -89,7 +89,7 @@ class ResPartner(models.Model):
         )
     principal = fields.Boolean(
         string="Principal DTE",
-        default=lambda self: self.verify_principal(),
+        default=lambda self: self._verify_principal(),
     )
     send_dte = fields.Boolean(
         string="Auto Enviar DTE",
@@ -166,6 +166,9 @@ class ResPartner(models.Model):
 
     @api.onchange('principal')
     def verify_principal(self):
+        self._verify_principal()
+
+    def _verify_principal(self):
         another = False
         if self.type != 'dte':
             return another
