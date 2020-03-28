@@ -11,19 +11,32 @@ _logger = logging.getLogger(__name__)
 class StockPicking(models.Model):
     _inherit = "stock.picking"
 
-    @api.onchange('currency_id', 'move_lines.subtotal', 'move_reason')
+    @api.onchange('currency_id', 'move_lines', 'move_reason')
     def _compute_amount(self):
         for rec in self:
             amount_untaxed = 0
-            amount_total = 0
+            amount_tax = 0
             if rec.move_reason not in ['5']:
-                taxes = {}
-                for move in rec.move_lines:
-                    amount_untaxed += move.price_untaxed
-                    amount_total += move.subtotal
-                rec.amount_tax = (amount_total -amount_untaxed)
-                rec.amount_untaxed = amount_untaxed
-            rec.amount_total = amount_untaxed + rec.amount_tax
+                for line in rec.move_lines:
+                    qty = line.quantity_done
+                    if qty <= 0:
+                        qty = line.product_uom_qty
+                    taxes = line.move_line_tax_ids.with_context(
+                        date=rec.scheduled_date,
+                        currency=rec.currency_id.code).compute_all(
+                            line.precio_unitario,
+                            rec.currency_id,
+                            qty,
+                            line.product_id,
+                            rec.partner_id,
+                            discount=line.discount,
+                            uom_id=line.product_uom)
+                    amount_untaxed += taxes['total_excluded']
+                    for tax in taxes['taxes']:
+                        amount_tax += tax['amount']
+            rec.amount_untaxed = rec.currency_id.round(amount_untaxed)
+            rec.amount_tax = rec.currency_id.round(amount_tax)
+            rec.amount_total = rec.amount_untaxed + rec.amount_tax
 
     def _prepare_tax_line_vals(self, line, tax):
         """ Prepare values to create an account.invoice.tax line
@@ -36,7 +49,7 @@ class StockPicking(models.Model):
             'picking_id': self.id,
             'description': t.with_context(**{'lang': self.partner_id.lang} if self.partner_id else {}).description,
             'tax_id': tax['id'],
-            'amount': self.currency_id.round(tax['amount'] if tax['amount'] > 0 else (tax['amount'] * -1)),
+            'amount': tax['amount'] if tax['amount'] > 0 else (tax['amount'] * -1),
             'base': tax['base'],
             'manual': False,
             'sequence': tax['sequence'],
@@ -96,18 +109,10 @@ class StockPicking(models.Model):
         if not self.global_descuentos_recargos:
             return tax_grouped
         gdr, gdr_exe = self.porcentaje_dr()
-        taxes = {}
-        for t, group in tax_grouped.items():
-            if t not in taxes:
-                taxes[t] = group
-            tax = self.env['account.tax'].browse(group['tax_id'])
-            if tax.amount > 0:
-                taxes[t]['amount'] *= gdr
-                taxes[t]['base'] *= gdr
-            else:
-                taxes[t]['amount'] *= gdr_exe
         '''
-        _logger.warning(tax_grouped)
+        for t, group in tax_grouped.items():
+            group['base'] = self.currency_id.round(group['base'])
+            group['amount'] = self.currency_id.round(group['amount'])
         return tax_grouped
 
     def set_use_document(self):

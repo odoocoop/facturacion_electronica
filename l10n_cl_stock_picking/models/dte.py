@@ -314,12 +314,12 @@ class stock_picking(models.Model):
                     if t.sii_code in [14, 15, 17]:
                         IVA = t
         if IVA and not no_product:
-            Totales['MntNeto'] = int(round(self.amount_untaxed, 0))
+            Totales['MntNeto'] = self.currency_id.round(self.amount_untaxed)
             Totales['TasaIVA'] = round(IVA.amount,2)
             for k, t in self.get_taxes_values().items():
                 if k == str(IVA.id):
-                    Totales['IVA'] = int(round(t['amount'], 0))
-        monto_total = int(round(self.amount_total, 0))
+                    Totales['IVA'] = self.currency_id.round(t['amount'])
+        monto_total = self.currency_id.round(self.amount_total)
         if no_product:
             monto_total = 0
         Totales['MntTotal'] = monto_total
