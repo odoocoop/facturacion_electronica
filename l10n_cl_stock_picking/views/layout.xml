@@ -469,6 +469,6 @@
                     name="l10n_cl_stock_picking.stock_picking_cedible"
                     file="l10n_cl_stock_picking.report_stock_picking_cedible"
                     attachment_use="True"
-                    attachment="(object.state in ('open','paid')) and ('CED_'+(object.number or '').replace('/','')+'.pdf')"
+                    attachment="(object.state in ('done')) and ('CED_'+(object.name or '').replace('/','')+'.pdf')"
           />
 </odoo>

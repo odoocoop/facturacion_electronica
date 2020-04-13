@@ -203,7 +203,6 @@ class SIIXMLEnvio(models.Model):
         return params
 
     def procesar_recepcion(self, retorno, respuesta_dict):
-        respuesta_dict = etree.fromstring(response.data)
         code = respuesta_dict.find('STATUS').text
         if code != '0':
             _logger.warning(connection_status[code])

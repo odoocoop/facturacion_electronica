@@ -63,7 +63,16 @@ class POSL(models.Model):
             cur_company = line.company_id.currency_id
             fpos = line.order_id.fiscal_position_id
             tax_ids_after_fiscal_position = fpos.map_tax(line.tax_ids, line.product_id, line.order_id.partner_id) if fpos else line.tax_ids
-            taxes = tax_ids_after_fiscal_position.with_context(date=self.order_id.date_order, currency=cur_company.code).compute_all(line.price_unit, line.order_id.pricelist_id.currency_id, line.qty, product=line.product_id, partner=line.order_id.partner_id, discount=line.discount, uom_id=line.product_id.uom_id)
+            taxes = tax_ids_after_fiscal_position.with_context(
+                date=self.order_id.date_order,
+                currency=cur_company.code).compute_all(
+                    line.price_unit,
+                    line.order_id.pricelist_id.currency_id,
+                    line.qty,
+                    product=line.product_id,
+                    partner=line.order_id.partner_id,
+                    discount=line.discount,
+                    uom_id=line.product_id.uom_id)
             line.update({
                 'price_subtotal_incl': taxes['total_included'],
                 'price_subtotal': taxes['total_excluded'],
@@ -1085,8 +1094,8 @@ class POS(models.Model):
                     'location_id': location_id if line.qty >= 0 else destination_id,
                     'location_dest_id': destination_id if line.qty >= 0 else return_pick_type != picking_type and return_pick_type.default_location_dest_id.id or location_id,
                     'precio_unitario': line.price_unit,
+                    'move_line_tax_ids': ((6,0, line.tax_ids_after_fiscal_position.ids)),
                 })
-                m.move_line_tax_ids = line.tax_ids_after_fiscal_position
                 moves |= m
 
             # prefer associating the regular order picking, not the return
