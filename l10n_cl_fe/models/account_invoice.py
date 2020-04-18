@@ -62,6 +62,17 @@ class AccountInvoiceLine(models.Model):
             string="Sequence",
             default=-1,
         )
+    discount_amount = fields.Float(
+        string="Monto Descuento",
+        default=0.00
+    )
+
+    @api.onchange('discount', 'price_unit', 'quantity')
+    def set_discount_amount(self):
+        total = self.currency_id.round((self.quantity * self.price_unit))
+        decimal.getcontext().rounding = decimal.ROUND_HALF_UP
+        self.discount_amount = int(decimal.Decimal((total * ((self.discount or 0.0) / 100.0))).to_integral_value())
+
 
     @api.one
     @api.depends('price_unit', 'discount', 'invoice_line_tax_ids', 'quantity',
@@ -82,10 +93,8 @@ class AccountInvoiceLine(models.Model):
             if taxes:
                 line.price_subtotal = price_subtotal_signed = taxes['total_excluded']
             else:
-                total = line.currency_id.round((line.quantity * line.price_unit))
-                decimal.getcontext().rounding = decimal.ROUND_HALF_UP
-                total_discount = int(decimal.Decimal((total * ((line.discount or 0.0) / 100.0))).to_integral_value())
-                total -= total_discount
+                line.set_discount_amount()
+                total = line.currency_id.round((line.quantity * line.price_unit)) - line.discount_amount
                 line.price_subtotal = price_subtotal_signed = int(decimal.Decimal(total).to_integral_value())
             if self.invoice_id.currency_id and self.invoice_id.currency_id != self.invoice_id.company_id.currency_id:
                 currency = self.invoice_id.currency_id
@@ -685,7 +694,7 @@ class AccountInvoice(models.Model):
                         if t not in totales:
                             totales[t] = 0
                         amount_line = (self.currency_id.round(line.price_unit *line.quantity))
-                        totales[t] += (amount_line * (1 - (line.discount / 100)))
+                        totales[t] += (amount_line - line.discount_amount)
                 included = True
             else:
                 included = False
@@ -1589,14 +1598,14 @@ a VAT."""))
                     lines['OtrMnda']['FctConv'] = round(currency_id.rate, 4)
             if line.discount > 0:
                 lines['DescuentoPct'] = line.discount
-                DescMonto = (((line.discount / 100) * lines['PrcItem'])* qty)
-                lines['DescuentoMonto'] = int(decimal.Decimal(DescMonto).to_integral_value())
+                DescMonto = line.discount_amount
+                lines['DescuentoMonto'] = DescMonto
                 if currency_id:
                     lines['DescuentoMonto'] = currency_id._convert(DescMonto, currency_base, self.company_id, self.date_invoice)
                     lines['OtrMnda']['DctoOtrMnda'] = DescMonto
             if line.discount < 0:
                 lines['RecargoPct'] = (line.discount *-1)
-                RecargoMonto = int(decimal.Decimal(((((lines['RecargoPct'] / 100) * lines['PrcItem'])* qty))).to_integral_value())
+                RecargoMonto = (line.discount_amount *-1)
                 lines['RecargoMonto'] = RecargoMonto
                 if currency_id:
                     lines['OtrMnda']['RecargoOtrMnda'] = currency_id._convert(RecargoMonto, currency_base, self.company_id, self.date_invoice)
@@ -1722,7 +1731,6 @@ a VAT."""))
             'sii_xml_dte': result[0]['sii_xml_request'],
             'sii_barcode': result[0]['sii_barcode'],
         })
-        return
 
     def _crear_envio(self, n_atencion=None, RUTRecep="60803000-K"):
         grupos = {}
@@ -2046,7 +2054,8 @@ a VAT."""))
         for l in self.invoice_line_ids:
             if not l.account_id:
                 continue
-            total_discount +=  (((l.discount or 0.00) /100) * l.price_unit * l.quantity)
+            total = l.currency_id.round((l.quantity * l.price_unit))
+            total_discount += (total - l.discount_amount)
         return self.currency_id.round(total_discount)
 
     @api.multi

@@ -286,7 +286,7 @@ class DTEClaim(models.Model):
         try:
             doc.set_dte_claim(claim=self.claim)
         except Exception as e:
-            _logger.warning("Error al setear Reclamo %s" %str(e))
+            _logger.warning("Error al setear Reclamo  Recep Mercadería %s" %str(e))
         try:
             doc.get_dte_claim()
         except:

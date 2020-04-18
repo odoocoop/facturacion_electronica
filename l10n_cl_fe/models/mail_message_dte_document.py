@@ -250,8 +250,12 @@ class ProcessMailsDocument(models.Model):
             created.extend(resp)
             try:
                 r.get_dte_claim()
-            except:
+            except Exception as e:
+                _logger.warning("Problema al obtener claim desde accept %s" %str(e))
                 _logger.warning("encolar")
+            if r.company_id.dte_service_provider == 'SIICERT':
+                r.state = 'accepted'
+                continue
             for i in self.env['account.invoice'].browse(resp):
                 if i.claim in ['ACD', 'ERM']:
                     r.state = 'accepted'
