@@ -121,7 +121,7 @@ has been exhausted.''',
         self.rut_n = result.find('RE').text
         if self.rut_n != self.company_id.partner_id.rut():
             raise UserError(_(
-                'Company vat %s should be the same that assigned company\'s vat: %s!') % (self.rut_n, self.company_id.vat))
+                'Company vat %s should be the same that assigned company\'s vat: %s!') % (self.rut_n, self.company_id.partner_id.rut()))
         elif self.sii_document_class != self.sequence_id.sii_document_class_id.sii_code:
             raise UserError(_(
                 '''SII Document Type for this CAF is %s and selected sequence

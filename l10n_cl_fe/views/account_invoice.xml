@@ -51,8 +51,13 @@
                  <button string="Imprimir Copia y Cedible" type="object" name="print_copy_cedible" />
                  <button string="Imprimir Cedible" type="object" name="print_cedible" />
               </button>
+
               <field name="invoice_line_tax_ids" position="attributes">
                 <attribute name="required">1</attribute>
+              </field>
+
+              <field name="discount" position="after">
+                <field name="discount_amount" invisible="1"/>
               </field>
 
               <field name="state" position="before">

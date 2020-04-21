@@ -55,6 +55,9 @@ class SignatureCert(models.Model):
         elif self.file_content:
             self.state = 'incomplete'
 
+    def default_users(self):
+        return [1, self.env.uid]
+
     name = fields.Char(
             string='File Name',
             required=True,
@@ -121,7 +124,7 @@ class SignatureCert(models.Model):
     user_ids = fields.Many2many(
             'res.users',
             string='Authorized Users',
-            default=lambda self: [self.env.uid],
+            default=lambda self: self.default_users(),
     )
     company_ids = fields.Many2many(
         'res.company',

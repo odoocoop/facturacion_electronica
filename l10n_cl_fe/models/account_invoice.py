@@ -62,6 +62,16 @@ class AccountInvoiceLine(models.Model):
             string="Sequence",
             default=-1,
         )
+    discount_amount = fields.Float(
+        string="Monto Descuento",
+        default=0.00
+    )
+
+    @api.onchange('discount', 'price_unit', 'quantity')
+    def set_discount_amount(self):
+        total = self.currency_id.round((self.quantity * self.price_unit))
+        decimal.getcontext().rounding = decimal.ROUND_HALF_UP
+        self.discount_amount = int(decimal.Decimal((total * ((self.discount or 0.0) / 100.0))).to_integral_value())
 
     @api.depends('price_unit', 'discount', 'invoice_line_tax_ids', 'quantity',
         'product_id', 'invoice_id.partner_id', 'invoice_id.currency_id',
@@ -81,10 +91,10 @@ class AccountInvoiceLine(models.Model):
             if taxes:
                 line.price_subtotal = price_subtotal_signed = taxes['total_excluded']
             else:
+                line.set_discount_amount()
                 total = line.currency_id.round((line.quantity * line.price_unit))
                 decimal.getcontext().rounding = decimal.ROUND_HALF_UP
-                total_discount = int(decimal.Decimal((total * ((line.discount or 0.0) / 100.0))).to_integral_value())
-                total -= total_discount
+                total = line.currency_id.round((line.quantity * line.price_unit)) - line.discount_amount
                 line.price_subtotal = price_subtotal_signed = int(decimal.Decimal(total).to_integral_value())
             if line.invoice_id.currency_id and line.invoice_id.currency_id != line.invoice_id.company_id.currency_id:
                 price_subtotal_signed = line.invoice_id.currency_id.with_context(date=line.invoice_id._get_currency_rate_date()).compute(price_subtotal_signed, line.invoice_id.company_id.currency_id)
@@ -675,7 +685,7 @@ class AccountInvoice(models.Model):
                         if t not in totales:
                             totales[t] = 0
                         amount_line = (self.currency_id.round(line.price_unit *line.quantity))
-                        totales[t] += (amount_line * (1 - (line.discount / 100)))
+                        totales[t] += (amount_line - line.discount_amount)
                 included = True
             else:
                 included = False
@@ -1318,7 +1328,7 @@ a VAT."))
         Receptor['RznSocRecep'] = self._acortar_str( commercial_partner_id.name, 100)
         if not self.partner_id or Receptor['RUTRecep'] == '66666666-6':
             return Receptor
-        if not self._es_boleta() and not self._nc_boleta():
+        if not self._es_boleta() and not self._nc_boleta() and self.type not in ['in_invoice', 'in_refund']:
             GiroRecep = self.acteco_id.name or commercial_partner_id.activity_description.name
             if not GiroRecep:
                 raise UserError(_('Seleccione giro del partner'))
@@ -1328,14 +1338,14 @@ a VAT."))
         if (commercial_partner_id.email or commercial_partner_id.dte_email or self.partner_id.email or self.partner_id.dte_email) and not self._es_boleta():
             Receptor['CorreoRecep'] = commercial_partner_id.dte_email or self.partner_id.dte_email or commercial_partner_id.email or self.partner_id.email
         street_recep = (self.partner_id.street or commercial_partner_id.street or False)
-        if not street_recep and not self._es_boleta() and not self._nc_boleta():
+        if not street_recep and not self._es_boleta() and not self._nc_boleta() and self.type not in ['in_invoice', 'in_refund']:
         # or self.indicador_servicio in [1, 2]:
             raise UserError('Debe Ingresar dirección del cliente')
         street2_recep = (self.partner_id.street2 or commercial_partner_id.street2 or False)
         if street_recep or street2_recep:
             Receptor['DirRecep'] = self._acortar_str(street_recep + (' ' + street2_recep if street2_recep else ''), 70)
         cmna_recep = self.partner_id.city_id.name or commercial_partner_id.city_id.name
-        if not cmna_recep and not self._es_boleta() and not self._nc_boleta():
+        if not cmna_recep and not self._es_boleta() and not self._nc_boleta() and self.type not in ['in_invoice', 'in_refund']:
             raise UserError('Debe Ingresar Comuna del cliente')
         else:
             Receptor['CmnaRecep'] = cmna_recep
@@ -1564,13 +1574,13 @@ a VAT."))
                     lines['OtrMnda']['FctConv'] = round(currency_id.rate, 4)
             if line.discount > 0:
                 lines['DescuentoPct'] = line.discount
-                DescMonto = (((line.discount / 100) * lines['PrcItem'])* qty)
-                lines['DescuentoMonto'] = int(decimal.Decimal(DescMonto).to_integral_value())
+                DescMonto = line.discount_amount
+                lines['DescuentoMonto'] = DescMonto
                 if currency_id:
                     lines['OtrMnda']['DsctoOtrMnda'] = currency_id.compute(DescMonto, currency_base)
             if line.discount < 0:
                 lines['RecargoPct'] = (line.discount *-1)
-                RecargoMonto = int(decimal.Decimal(((((lines['RecargoPct'] / 100) * lines['PrcItem'])* qty))).to_integral_value())
+                RecargoMonto = (line.discount_amount *-1)
                 lines['RecargoMonto'] = RecargoMonto
                 if currency_id:
                     lines['OtrMnda']['RecargoOtrMnda'] = currency_id.compute(RecargoMonto, currency_base)
@@ -1761,6 +1771,12 @@ a VAT."))
                 i.sii_result = 'Enviado'
         else:
             envio_id.write(envio)
+        if self[0].document_class_id.es_boleta():
+            envio_id.write({
+                'state': "Aceptado",
+                'sii_send_ident': 'BE'
+            })
+
         return envio_id
 
     def process_response_xml(self, respuesta):
@@ -2017,7 +2033,8 @@ a VAT."))
     def getTotalDiscount(self):
         total_discount = 0
         for l in self.invoice_line_ids:
-            total_discount +=  (((l.discount or 0.00) /100) * l.price_unit * l.quantity)
+            total = l.currency_id.round((l.quantity * l.price_unit))
+            total_discount += (total - l.discount_amount)
         return self.currency_id.round(total_discount)
 
     @api.multi

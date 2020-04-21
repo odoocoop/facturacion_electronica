@@ -222,7 +222,10 @@ class ProcessMailsDocument(models.Model):
             try:
                 r.get_dte_claim()
             except Exception as e:
-                _logger.warning("Problema al obtener claim %s" %str(e))
+                _logger.warning("Problema al obtener claim desde accept %s" %str(e))
+            if r.company_id.dte_service_provider == 'SIICERT':
+                r.state = 'accepted'
+                continue
             for i in self.env['account.invoice'].browse(resp):
                 if i.claim in ['ACD', 'ERM']:
                     r.state = 'accepted'
@@ -237,6 +240,14 @@ class ProcessMailsDocument(models.Model):
     @api.multi
     def reject_document(self):
         for r in self:
+            if r.xml:
+                vals = {
+                    'document_ids': [(6, 0, r.ids)],
+                    'estado_dte': '2',
+                    'action': 'ambos',
+                }
+                val = self.env['sii.dte.validar.wizard'].create(vals)
+                resp = val.confirm()
             r.set_dte_claim(claim='RCD')
             if r.claim in ['RCD']:
                 r.state = 'rejected'
@@ -297,6 +308,11 @@ class ProcessMailsDocument(models.Model):
                 str(self.number),
             )
             self.claim_description = respuesta
+            if respuesta.codResp in [15]:
+                for e in respuesta.listaEventosDoc:
+                    if e.codEvento == "PAG":
+                        self.claim = "ACD"
+                        self.state = 'accepted'
         except Exception as e:
             _logger.warning("Error al obtener aceptación %s" %(str(e)))
             if self.company_id.dte_service_provider == 'SII':

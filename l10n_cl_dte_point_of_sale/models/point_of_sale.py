@@ -77,7 +77,8 @@ class POSL(models.Model):
             price = self.price_unit * (1 - (self.discount or 0.0) / 100.0)
             self.price_subtotal = self.price_subtotal_incl = price * self.qty
             if (self.product_id.taxes_id):
-                taxes = self.product_id.taxes_id.compute_all(self.price_unit, self.order_id.pricelist_id.currency_id, self.qty, product=self.product_id, partner=False, discount=self.discount, uom_id=self.product_id.uom_id)
+                cur_company = self.order_id.pricelist_id.currency_id
+                taxes = self.product_id.taxes_id.with_context(date=self.order_id.date_order, currency=cur_company.code).compute_all(self.price_unit, cur_company, self.qty, product=self.product_id, partner=False, discount=self.discount, uom_id=self.product_id.uom_id)
                 self.price_subtotal = taxes['total_excluded']
                 self.price_subtotal_incl = taxes['total_included']
 
@@ -1129,7 +1130,7 @@ class POS(models.Model):
     @api.multi
     def action_pos_order_paid(self):
         if self.test_paid():
-            if self.sequence_id and not self.sii_xml_request:
+            if self.sequence_id and not self.sii_xml_request and self.document_class_id.sii_code not in [33, 34]:
                 if (not self.sii_document_number or self.sii_document_number == 0) and not self.signature:
                     self.sii_document_number = self.sequence_id.next_by_id()
                 self.do_validate()

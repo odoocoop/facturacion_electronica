@@ -83,8 +83,8 @@ ha puesto a disposicion del cesionario {2}, RUT {3}, el o los documentos donde c
 entregados por parte del deudor de la factura {4}, RUT {5}, de acuerdo a lo establecido en la Ley No. 19.983'''.format(
                 self.company_id.partner_id.name,
                 self.company_id.partner_id.rut(),
-                self.cesionario_id.name,
-                self.cesionario_id.rut(),
+                self.cesionario_id.commercial_partner_id.name,
+                self.cesionario_id.commercial_partner_id.rut(),
                 self.partner_id.commercial_partner_id.name,
                 partner_id.rut(),
             )

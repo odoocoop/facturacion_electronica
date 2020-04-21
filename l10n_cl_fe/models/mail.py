@@ -150,19 +150,23 @@ class ProcessMails(models.Model):
             'attachment_id': att.id,
         }
         if el.tag == 'EnvioDTE':
-            val = self.env['mail.message.dte'].create(data)
+            val = self.env['mail.message.dte'].sudo().create(data)
             val.pre_process()
         elif el.tag in ['RespuestaDTE', 'EnvioRecibos']:
             self._proccess_respuesta(el, att)
 
     @api.multi
     def process_mess(self):
+        if self.model == 'mail.message.dte':
+            dte = self.env[self.model].sudo().browse(self.res_id)
+            dte.self.process_message(pre=True)
+            return
         for att in self.attachment_ids:
             if not att.name:
                 continue
             name = att.name.upper()
             if att.mimetype in ['text/plain'] and name.find('.XML') > -1:
-                if not self.env['mail.message.dte'].search([
+                if not self.env['mail.message.dte'].sudo().search([
                                         ('name', '=', name)]):
                     self._process_xml(att)
 

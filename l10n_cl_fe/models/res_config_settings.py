@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from odoo import api, fields, models
-from openerp.exceptions import UserError
+from odoo.exceptions import UserError
 import os
 
 

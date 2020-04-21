@@ -19,106 +19,74 @@ class Exportacion(models.Model):
             'aduanas.paises',
             related="exportacion.pais_destino",
             string='País de Destino',
-            readonly=True,
-            states={'draft': [('readonly', False)]},
         )
     puerto_embarque = fields.Many2one(
             'aduanas.puertos',
             related="exportacion.puerto_embarque",
             string='Puerto Embarque',
-            readonly=True,
-            states={'draft': [('readonly', False)]},
         )
     puerto_desembarque = fields.Many2one(
             'aduanas.puertos',
             related="exportacion.puerto_desembarque",
             string='Puerto de Desembarque',
-            readonly=True,
-            states={'draft': [('readonly', False)]},
         )
     via = fields.Many2one(
             'aduanas.tipos_transporte',
             related="exportacion.via",
             string='Vía',
-            readonly=True,
-            states={'draft': [('readonly', False)]},
         )
     carrier_id = fields.Many2one(
             'delivery.carrier',
             related="exportacion.carrier_id",
             string="Transporte",
-            readonly=True,
-            states={'draft': [('readonly', False)]},
         )
     tara = fields.Integer(
             related="exportacion.tara",
             string="Tara",
-            readonly=True,
-            states={'draft': [('readonly', False)]},
         )
     uom_tara = fields.Many2one(
             'product.uom',
             related="exportacion.uom_tara",
             string='Unidad Medida Tara',
-            readonly=True,
-            states={'draft': [('readonly', False)]},
         )
     peso_bruto = fields.Float(
             related="exportacion.peso_bruto",
             string="Peso Bruto",
-            readonly=True,
-            states={'draft': [('readonly', False)]},
         )
     uom_peso_bruto = fields.Many2one(
             'product.uom',
             related="exportacion.uom_peso_bruto",
             string='Unidad Medida Peso Bruto',
-            readonly=True,
-            states={'draft': [('readonly', False)]},
         )
     peso_neto = fields.Float(
             related="exportacion.peso_neto",
             string="Peso Neto",
-            readonly=True,
-            states={'draft': [('readonly', False)]},
         )
     uom_peso_neto = fields.Many2one(
             'product.uom',
             related="exportacion.uom_peso_neto",
             string='Unidad Medida Peso Neto',
-            readonly=True,
-            states={'draft': [('readonly', False)]},
         )
     total_items = fields.Integer(
             related="exportacion.total_items",
             string="Total Items",
-            readonly=True,
-            states={'draft': [('readonly', False)]},
         )
     total_bultos = fields.Integer(
             related="exportacion.total_bultos",
             string="Total Bultos",
-            readonly=True,
-            states={'draft': [('readonly', False)]},
         )
     monto_flete = fields.Monetary(
             related="exportacion.monto_flete",
             string="Monto Flete",
-            readonly=True,
-            states={'draft': [('readonly', False)]},
         )
     monto_seguro = fields.Monetary(
             related="exportacion.monto_seguro",
             string="Monto Seguro",
-            readonly=True,
-            states={'draft': [('readonly', False)]},
         )
     pais_recepcion = fields.Many2one(
             'aduanas.paises',
             related="exportacion.pais_recepcion",
             string='País de Recepción',
-            readonly=True,
-            states={'draft': [('readonly', False)]},
         )
     bultos = fields.One2many(
         string="Bultos",
@@ -131,8 +99,6 @@ class Exportacion(models.Model):
     picking_id = fields.Many2one(
         'stock.picking',
         string="Movimiento Relacionado",
-        readonly=True,
-        states={'draft': [('readonly', False)]},
     )
 
     @api.one
@@ -227,7 +193,7 @@ class Exportacion(models.Model):
         #    Receptor['CdgIntRecep']
         Receptor['RUTRecep'] = commercial_partner_id.rut()
         Receptor['RznSocRecep'] = self._acortar_str( commercial_partner_id.name, 100)
-        if not self.partner_id or Receptor['RUTRecep'] == '66666666-6':
+        if not self.partner_id or (not self._es_exportacion() and Receptor['RUTRecep'] == '66666666-6'):
             return Receptor
         elif self._es_exportacion():
             Receptor['RUTRecep'] = '55.555.555-5'
@@ -426,6 +392,45 @@ class Exportacion(models.Model):
                         'gdr_type': 'amount',
                     })
                 seguro.valor = self.monto_seguro
+
+    def _get_dte_status(self):
+        for r in self:
+            if r._es_boleta():
+                continue
+            if r.sii_xml_request and r.sii_xml_request.state not in ['Aceptado', 'Rechazado']:
+                continue
+            rut_emisor = r.company_id.partner_id.rut()
+            token = r.sii_xml_request.get_token(self.env.user, r.company_id)
+            url = server_url[r.company_id.dte_service_provider] + 'QueryEstDte.jws?WSDL'
+            _server = Client(url)
+            commercial_partner_id = r.commercial_partner_id or r.partner_id
+            receptor = commercial_partner_id.rut()
+            if r._es_exportacion():
+                receptor = '55555555-5'
+            date_invoice = datetime.strptime(r.date_invoice, "%Y-%m-%d").strftime("%d-%m-%Y")
+            signature_id = self.env.user.get_digital_signature(r.company_id)
+            rut = signature_id.subject_serial_number
+            try:
+                respuesta = _server.service.getEstDte(
+                    rut[:-2],
+                    str(rut[-1]),
+                    rut_emisor[:-2],
+                    rut_emisor[-1],
+                    receptor[:-2],
+                    receptor[-1],
+                    str(r.document_class_id.sii_code),
+                    str(r.sii_document_number),
+                    date_invoice,
+                    str(int(r.amount_total)),
+                    token,
+                )
+            except Exception as e:
+                msg = "Error al obtener Estado DTE"
+                _logger.warning("%s: %s" % (msg, str(e)))
+                if e.args[0][0] == 503:
+                    raise UserError('%s: Conexión al SII caída/rechazada o el SII está temporalmente fuera de línea, reintente la acción' % (msg))
+                raise UserError(("%s: %s" % (msg, str(e))))
+            r.sii_message = respuesta
 
     @api.onchange('bultos')
     def tot_bultos(self):

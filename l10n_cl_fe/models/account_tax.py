@@ -16,6 +16,10 @@ try:
     pool = urllib3.PoolManager()
 except:
     _logger.warning("no se ha cargado urllib3")
+try:
+    import fitz
+except Exception as e:
+    _logger.warning("error en PyMUPDF: %s" % str(e))
 
 meses = {1: 'Enero',2: 'Febrero', 3: 'Marzo', 4: 'Abril', 5: 'Mayo', 6: 'Junio', 7: 'Julio', 8: 'Agosto', 9: 'Septiembre', 10: 'Octubre', 11: 'Noviembre', 12: 'Diciembre'}
 
@@ -140,27 +144,68 @@ class SiiTax(models.Model):
         if (self.amount_type == 'percent' and not self.price_include) or (self.amount_type == 'division' and self.price_include):
             return base_amount * self.retencion / 100
 
+    def _list_from_cne(self, year, month):
+        url = "https://www.cne.cl/tarificacion/hidrocarburos/mecanismo-de-estabilizacion-de-precios-de-los-combustibles-mepco/%s-2/" % (year)
+        resp = pool.request('GET', url)
+        cne = html.fromstring(resp.data)
+        ds = cne.findall('.//a[@class="btn descargar"]')
+        rangos = {}
+        i = 0
+        for d in ds:
+            fecha = re.search('\d{4}\_\d{1,2}\_\d{1,2}', d.attrib['href'])
+            rangos[datetime.strptime(fecha[0], "%Y_%m_%d").astimezone(pytz.UTC)] = i
+            i += 1
+        return rangos
 
-    def prepare_mepco(self, date, currency_id=False):
-        tz = pytz.timezone('America/Santiago')
-        year = date.strftime("%Y")
-        month = meses[int(date.strftime("%m"))].lower()
+    def _get_from_cne(self, year, month, day):
+        url = "https://www.cne.cl/wp-content/uploads/{0}/{1}/{0}_{1}_{2}_MEPCO.pdf".format(year, month, day)
+        resp = pool.request('GET', url)
+        doc = fitz.open(stream=resp.data, filetype="pdf")
+        target = 'Gasolina Automotriz de 93 octanos\n\(en UTM\/m[\w]\)'
+        if self.mepco == 'gasolina_97':
+            target = 'Gasolina Automotriz de 97 octanos\n\(en UTM\/m[\w]\)'
+        elif self.mepco == 'diesel':
+            target = 'Petróleo Diésel \(en UTM\/m[\w]\)'
+        elif self.mepco == 'gas_licuado':
+            target = 'Gas Licuado del Petróleo de Consumo\nVehicular \(en UTM\/m[\w]\)'
+        elif self.mepco == 'gas_natural':
+            target = 'Gas Natural Comprimido de Consumo Vehicular'
+        val = re.findall('%s\n[0-9.,]*\n[0-9.,]*\n([0-9.,]*)' % target, doc.loadPage(3).getText())
+        return val[0].replace('.', '').replace(',', '.')
+
+    def _connect_sii(self, year, month):
+        month = meses[int(month)].lower()
         url = "http://www.sii.cl/valores_y_fechas/mepco/mepco%s.htm" % year
         resp = pool.request('GET', url)
         sii = html.fromstring(resp.data)
-        line = 1
-        if self.mepco == 'gasolina_97':
-            line = 3
-        elif self.mepco == 'diesel':
-            line = 5
+        return sii.findall('.//div[@id="pp_%s"]/div/table' % (month))
+
+    def _list_from_sii(self, year, month):
+        tables = self._connect_sii(year, month)
         rangos = {}
         i = 0
-        tables = sii.findall('.//div[@id="pp_%s"]/div/table' % (month))
         for r in tables:
             sub = r.find('tr/th')
             res = re.search('\d{1,2}\-\d{1,2}\-\d{4}', sub.text.lower())
             rangos[datetime.strptime(res[0], "%d-%m-%Y").astimezone(pytz.UTC)] = i
             i += 1
+        return rangos
+
+    def _get_from_sii(self, year, month, target):
+        tables = self._connect_sii(year, month)
+        line = 1
+        if self.mepco == 'gasolina_97':
+            line = 3
+        elif self.mepco == 'diesel':
+            line = 5
+        val = tables[target[1]].findall('tr')[line].findall('td')[4].text.replace('.', '').replace(',', '.')
+        return val
+
+    def prepare_mepco(self, date, currency_id=False):
+        tz = pytz.timezone('America/Santiago')
+        year = date.strftime("%Y")
+        month = date.strftime("%m")
+        rangos = self._list_from_cne(year, month)
         ant = datetime.now(tz)
         target = (ant, 0)
         for k, v in rangos.items():
@@ -169,8 +214,10 @@ class SiiTax(models.Model):
                 break
             ant = k
         if target[0] > date:
-            return self.prepare_mepco((date - relativedelta.relativedelta(days=1)), currency_id)
-        val = tables[target[1]].findall('tr')[line].findall('td')[4].text.replace('.', '').replace(',', '.')
+            return self.prepare_mepco((date - relativedelta.relativedelta(days=1)),
+                                      currency_id)
+        day = date.strftime("%d")
+        val = self._get_from_cne(year, month, day)
         utm = self.env['res.currency'].sudo().search([('name', '=', 'UTM')])
         amount = utm._convert(float(val), currency_id, self.company_id, date)
         return {
@@ -190,16 +237,18 @@ class SiiTax(models.Model):
 
     def _target_mepco(self, date_target=False, currency_id=False, force=False):
         if not currency_id:
-            currency_id = self.env['res.currency'].sudo().search([('name', '=', self.env.get('currency', 'CLP'))])
+            currency_id = self.env['res.currency'].sudo().search([
+                ('name', '=', self.env.get('currency', 'CLP'))
+            ])
         tz = pytz.timezone('America/Santiago')
         if date_target:
             fields_model = self.env['ir.fields.converter']
             ''' @TODO crearlo como utilidad python'''
             user_zone = fields_model._input_tz()
+            date = datetime.strptime(date_target, "%Y-%m-%d")
             if tz != user_zone:
-                date = datetime.strptime(date_target, "%Y-%m-%d")
                 if not date.tzinfo:
-                    date = user_zone.localize(date)
+                    date = user_zone.localize(date_target)
                 date = date.astimezone(tz)
         else:
             date = datetime.now(tz)
@@ -210,12 +259,19 @@ class SiiTax(models.Model):
         ]
         mepco = self.env['account.tax.mepco'].sudo().search(query, limit=1)
         if mepco:
-            diff = (date.date() - mepco.date)
+            diff = (date.date() - datetime.strptime(mepco.date, "%Y-%m-%d"))
             if diff.days > 6:
                 mepco = False
         if not mepco:
             mepco_data = self.prepare_mepco(date, currency_id)
-            mepco = self.env['account.tax.mepco'].sudo().create(mepco_data)
+            query = [
+                ('date', '=', mepco_data['date']),
+                ('company_id', '=', mepco_data['company_id']),
+                ('type', '=', mepco_data['type']),
+            ]
+            mepco = self.env['account.tax.mepco'].sudo().search(query, limit=1)
+            if not mepco:
+                mepco = self.env['account.tax.mepco'].sudo().create(mepco_data)
         elif force:
             mepco_data = self.prepare_mepco(date, currency_id)
             mepco.sudo().write(mepco_data)

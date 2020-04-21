@@ -216,10 +216,10 @@ class SIIXMLEnvio(models.Model):
         if code != '0':
             _logger.warning(connection_status[code])
             if code in ['7', '106']:
-                retorno['sii_result'] = 'Rechazado'
+                retorno['state'] = 'Rechazado'
         else:
             retorno.update({
-                'sii_result': 'Enviado',
+                'state': 'Enviado',
                 'sii_send_ident': respuesta_dict.find('TRACKID').text
                 })
         return retorno
@@ -307,13 +307,14 @@ class SIIXMLEnvio(models.Model):
             if body is not None:
                 if body.find('RECHAZADOS').text == "1":
                     result['state'] = "Rechazado"
+                if body.find('GLOSA_ESTADO') is not None:
+                    result['glosa'] = body.find('GLOSA_ESTADO').text
             '''
                 if body.find('REPAROS').text == "1":
                     result['state'] = "Reparo"
             '''
-            if body.find('GLOSA_ESTADO') is not None:
-                result['glosa'] = body.find('GLOSA_ESTADO').text
-        elif estado.text in ["RCT", "RFR", "LRH", "RCH", "RSC", "FNA", "LRF", "LNC", "LRS", "106"]:
+
+        elif estado.text in ["RCT", "RFR", "LRH", "RCH", "RSC", "FNA", "LRF", "LNC", "LRS", "106", "LRC"]:
             result.update({"state": "Rechazado"})
             _logger.warning(resp)
         if resp.find('RESP_HDR/GLOSA') is not None:

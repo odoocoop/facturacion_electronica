@@ -90,11 +90,10 @@ class ResPartner(models.Model):
         )
     principal = fields.Boolean(
         string="Principal DTE",
-        default=lambda self: self.verify_principal(),
+        default=lambda self: self._verify_principal(),
     )
     send_dte = fields.Boolean(
         string="Auto Enviar DTE",
-        default=True,
     )
     acteco_ids = fields.Many2many(
         'partner.activities',
@@ -170,8 +169,8 @@ class ResPartner(models.Model):
                     r.email = self.dte_email
                     r.name = self.dte_email
 
-    @api.onchange('principal')
-    def verify_principal(self):
+
+    def _verify_principal(self):
         another = False
         if self.type != 'dte':
             return another
@@ -184,6 +183,10 @@ class ResPartner(models.Model):
         if another:
             raise UserError(_('Existe otro correo establecido como Principal'))
         return True
+
+    @api.onchange('principal')
+    def verify_principal(self):
+        self._verify_principal()
 
     #def create(self, vals):
     #    partner = super(ResPartner, self).create(vals)

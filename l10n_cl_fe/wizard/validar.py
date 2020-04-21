@@ -161,7 +161,7 @@ class ValidarDTEWizard(models.TransientModel):
         for doc in docs:
             claims = 1
             datos = {
-                'claim': self.claim,
+                'claim': 'ERM',
                 'date': fields.Datetime.now(),
                 'user_id': self.env.uid,
                 'claim_description': self.claim_description,
