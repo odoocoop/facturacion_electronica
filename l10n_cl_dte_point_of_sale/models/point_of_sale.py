@@ -117,6 +117,9 @@ class POS(models.Model):
             string='Document Type',
             copy=False,
         )
+    sii_code = fields.Integer(
+            related="document_class_id.sii_code",
+        )
     sii_batch_number = fields.Integer(
             copy=False,
             string='Batch Number',
@@ -357,11 +360,10 @@ class POS(models.Model):
     def do_dte_send_order(self):
         ids = []
         for order in self:
-            if not order.invoice_id:
+            if not order.invoice_id and order.document_class_id.sii_code in [61, 39, 41]:
                 if order.sii_result not in [False, '', 'NoEnviado', 'Rechazado']:
                     raise UserError("El documento %s ya ha sido enviado o está en cola de envío" % order.sii_document_number)
-                if order.document_class_id.sii_code in [61]:
-                    ids.append(order.id)
+                ids.append(order.id)
         if ids:
             self.env['sii.cola_envio'].sudo().create({
                 'company_id': self[0].company_id.id,
@@ -371,7 +373,6 @@ class POS(models.Model):
                 'tipo_trabajo': 'envio',
                 'send_email': False if self[0].company_id.dte_service_provider=='SIICERT' or not self.env['ir.config_parameter'].sudo().get_param('account.auto_send_email', default=True) else True,
             })
-        self.do_dte_send()
 
     def _giros_emisor(self):
         giros_emisor = []
@@ -588,6 +589,14 @@ class POS(models.Model):
         )
         lin_ref = 1
         ref_lines = []
+        if self.company_id.dte_service_provider == 'SIICERT' and self.document_class_id.es_boleta():
+            RazonRef = "CASO-" + str(self.sii_batch_number)
+            ref_line = {}
+            ref_line['NroLinRef'] = lin_ref
+            ref_line['CodRef'] = "SET"
+            ref_line['RazonRef'] = RazonRef
+            lin_ref = 2
+            ref_lines.append(ref_line)
         for ref in self.referencias:
             ref_line = {}
             ref_line['NroLinRef'] = lin_ref
@@ -645,7 +654,7 @@ class POS(models.Model):
         batch = 0
         for r in self.with_context(lang='es_CL'):
             batch += 1
-            if r.sii_result in ['Rechazado']:
+            if r.sii_result in ['Rechazado'] or r.company_id.dte_service_provider == 'SIICERT':
                 r._timbrar()
             #@TODO Mejarorar esto en lo posible
             grupos.setdefault(r.document_class_id.sii_code, [])
@@ -686,7 +695,7 @@ class POS(models.Model):
             envio_id = self.env['sii.xml.envio'].create(envio)
             for i in self:
                 i.sii_xml_request = envio_id.id
-                i.sii_result = 'Enviado'
+                i.sii_result = result.get('sii_result')
         else:
             envio_id.write(envio)
         return envio_id
@@ -694,6 +703,9 @@ class POS(models.Model):
     @api.onchange('sii_message')
     def get_sii_result(self):
         for r in self:
+            if r.company_id.dte_service_provider != 'SIICERT' and r.document_class_id.es_boleta():
+                r.sii_result = 'Proceso'
+                continue
             if r.sii_message:
                 r.sii_result = self.env['account.invoice'].process_response_xml(r.sii_message)
                 continue
@@ -704,7 +716,7 @@ class POS(models.Model):
 
     def _get_dte_status(self):
         for r in self:
-            if r.sii_xml_request and r.sii_xml_request.state not in ['Aceptado', 'Rechazado']:
+            if r.sii_xml_request.state not in ['Aceptado', 'Rechazado']:
                 continue
             token = r.sii_xml_request.get_token(self.env.user, r.company_id)
             url = server_url[r.company_id.dte_service_provider] + 'QueryEstDte.jws?WSDL'
@@ -732,17 +744,19 @@ class POS(models.Model):
                     str(int(amount_total)),
                     token,
                 )
+                r.sii_message = respuesta
             except Exception as e:
                 msg = "Error al obtener Estado DTE"
                 _logger.warning("%s: %s" % (msg, str(e)))
                 if e.args[0][0] == 503:
                     raise UserError('%s: Conexión al SII caída/rechazada o el SII está temporalmente fuera de línea, reintente la acción' % (msg))
                 raise UserError(("%s: %s" % (msg, str(e))))
-            r.sii_message = respuesta
 
     @api.multi
     def ask_for_dte_status(self):
         for r in self:
+            if r.document_class_id.es_boleta() and r.company_id.dte_service_provider != 'SIICERT':
+                continue
             if not r.sii_xml_request and not r.sii_xml_request.sii_send_ident:
                 raise UserError('No se ha enviado aún el documento, aún está en cola de envío interna en odoo')
             if r.sii_xml_request.state not in ['Aceptado', 'Rechazado']:

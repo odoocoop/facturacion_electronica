@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-  <templates inherit_id="template" id="switch_boleta">
+  <templates inherit_id="point_of_sale.template" id="switch_boleta">
     <t t-extend="PaymentScreenWidget">
       <t t-jquery="div.js_invoice" t-operation="replace">
         <t t-if='widget.pos.get_order() and widget.pos.folios_factura_afecta()'>
@@ -17,17 +17,16 @@
       <t t-jquery="div.js_set_customer" t-operation="before">
         <t t-if='widget.pos.get_order() and widget.pos.folios_boleta_afecta()'>
           <div t-attf-class='button js_boleta #{ widget.pos.get_order().es_boleta_afecta() ? "highlight" : ""} '>
-              <i class='fa fa-file-text-o' /> Boleta <t t-esc="'(' + widget.pos.get_sequence_next(widget.pos.config.secuencia_boleta) +')'" />
-              <br />
-              <small t-esc="'Quedan: ' + widget.pos.get_sequence_left(self.pos.config.secuencia_boleta) + ' Folios'"/>
+              <i class='fa fa-file-text-o' /> Boleta <t t-esc="'(F' + widget.pos.get_sequence_next(widget.pos.config.secuencia_boleta) +')'" />
+              <small><br /> <t t-esc="'Quedan: ' + widget.pos.get_sequence_left(widget.pos.config.secuencia_boleta) + ' Folios'" /></small>
           </div>
         </t>
 
         <t t-if='widget.pos.get_order() and widget.pos.folios_boleta_exenta()'>
           <div t-attf-class='button js_boleta_exenta #{ widget.pos.get_order().es_boleta_exenta() ? "highlight" : ""} '>
-              <i class='fa fa-file-text-o' /> Boleta Exenta <t t-esc="'(' + widget.pos.get_sequence_next(widget.pos.config.secuencia_boleta_exenta) +')'" />
+              <i class='fa fa-file-text-o' /> Boleta Exenta <t t-esc="'(F' + widget.pos.get_sequence_next(widget.pos.config.secuencia_boleta_exenta) +')'" />
               <br />
-              <small t-esc="'Quedan: ' + widget.pos.get_sequence_left(self.pos.config.secuencia_boleta_exenta)+' Folios'"/>
+              <small t-esc="'Quedan: ' + widget.pos.get_sequence_left(widget.pos.config.secuencia_boleta_exenta)+' Folios'"/>
           </div>
         </t>
       </t>

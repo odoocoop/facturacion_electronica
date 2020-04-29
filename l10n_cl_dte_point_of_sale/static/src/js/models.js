@@ -653,7 +653,7 @@ models.Order = models.Order.extend({
 				'<RSAPK><M>' + caf_file.AUTORIZACION.CAF.DA.RSAPK.M + '</M><E>' + caf_file.AUTORIZACION.CAF.DA.RSAPK.E + '</E></RSAPK>' +
 				'<IDK>' + caf_file.AUTORIZACION.CAF.DA.IDK + '</IDK>' +
 				'</DA>' +
-				'<FRMA algoritmo="SHA1withRSA">' + caf_file.AUTORIZACION.CAF.FRMA["#text"] + '</FRMA>' +
+				'<FRMA algoritmo="SHA1withRSA">' + caf_file.AUTORIZACION.CAF.FRMA + '</FRMA>' +
 			'</CAF>'+
 			'<TSTED>' + date + '</TSTED></DD>';
 		md.update(string);
