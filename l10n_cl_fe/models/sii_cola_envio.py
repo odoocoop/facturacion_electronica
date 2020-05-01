@@ -132,8 +132,6 @@ class ColaEnvio(models.Model):
         if self.tipo_trabajo == 'consulta':
             try:
                 docs.ask_for_dte_status()
-                if docs[0].sii_xml_request.state in ['Aceptado']:
-                    self.unlink()
             except Exception as e:
                 _logger.warning("Error en Consulta")
                 _logger.warning(str(e))
@@ -144,7 +142,7 @@ class ColaEnvio(models.Model):
                             user=self.user_id.id,
                             company_id=self.company_id.id).do_dte_send(
                                                             self.n_atencion)
-                if envio_id.sii_send_ident:
+                if envio_id.sii_send_ident or (self.company_id.dte_service_provider == 'SIICERT' and docs[0].document_class_id.es_boleta()):
                     self.tipo_trabajo = 'consulta'
             except Exception as e:
                 _logger.warning("Error en envío Cola")

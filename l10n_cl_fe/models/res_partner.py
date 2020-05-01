@@ -93,7 +93,6 @@ class ResPartner(models.Model):
     )
     send_dte = fields.Boolean(
         string="Auto Enviar DTE",
-        default=True,
     )
     acteco_ids = fields.Many2many(
         'partner.activities',

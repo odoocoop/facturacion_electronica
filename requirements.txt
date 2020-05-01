@@ -4,6 +4,6 @@ signxml
 num2words
 xlsxwriter
 pillow
-xmltodict
-dicttoxml
 requests>=2.21.0
+PyMuPDF
+pip>=20.0.2

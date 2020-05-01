@@ -1669,13 +1669,20 @@ a VAT."""))
         )
         lin_ref = 1
         ref_lines = []
-        if self.company_id.dte_service_provider == 'SIICERT' and isinstance(n_atencion, string_types) and n_atencion != '' and not self._es_boleta():
+        if (self.company_id.dte_service_provider == 'SIICERT' and (isinstance(n_atencion, string_types) and n_atencion != '') or self._es_boleta()):
+            RazonRef = "CASO"
+            if isinstance(n_atencion, string_types) and n_atencion != '':
+                RazonRef += ' ' + n_atencion
+            RazonRef +="-" + str(self.sii_batch_number)
             ref_line = {}
             ref_line['NroLinRef'] = lin_ref
-            ref_line['TpoDocRef'] = "SET"
-            ref_line['FolioRef'] = self.get_folio()
-            ref_line['FchRef'] = datetime.strftime(datetime.now(), '%Y-%m-%d')
-            ref_line['RazonRef'] = "CASO "+n_atencion+"-" + str(self.sii_batch_number)
+            if self._es_boleta():
+                ref_line['CodRef'] = "SET"
+            else:
+                ref_line['TpoDocRef'] = "SET"
+                ref_line['FolioRef'] = self.get_folio()
+                ref_line['FchRef'] = datetime.strftime(datetime.now(), '%Y-%m-%d')
+            ref_line['RazonRef'] = RazonRef
             lin_ref = 2
             ref_lines.append(ref_line)
         if self.referencias:
@@ -1815,10 +1822,10 @@ a VAT."""))
             return "Anulado"  #Desde El sii o por NC
 
     @api.onchange('sii_message')
-    def get_sii_result(self):
+    ef get_sii_result(self):
         for r in self:
-            if r._es_boleta():
-                r.sii_result = "Proceso"
+            if r.company_id.dte_service_provider != 'SIICERT' and r.document_class_id.es_boleta():
+                r.sii_result = 'Proceso'
                 continue
             if r.sii_message:
                 r.sii_result = r.process_response_xml(r.sii_message)
@@ -1830,9 +1837,7 @@ a VAT."""))
 
     def _get_dte_status(self):
         for r in self:
-            if r._es_boleta():
-                continue
-            if r.sii_xml_request and r.sii_xml_request.state not in ['Aceptado', 'Rechazado']:
+            if r.sii_xml_request.state not in ['Aceptado', 'Rechazado']:
                 continue
             token = r.sii_xml_request.get_token(self.env.user, r.company_id)
             url = server_url[r.company_id.dte_service_provider] + 'QueryEstDte.jws?WSDL'
@@ -1843,11 +1848,11 @@ a VAT."""))
             rut = signature_id.subject_serial_number
             try:
                 respuesta = _server.service.getEstDte(
-                    rut[:8].replace('-', ''),
+                    rut[:-2],
                     str(rut[-1]),
                     r.company_id.vat[2:-1],
                     r.company_id.vat[-1],
-                    receptor[:8].replace('-', ''),
+                    receptor[:-2],
                     receptor[-1],
                     str(r.document_class_id.sii_code),
                     str(r.sii_document_number),
@@ -1855,17 +1860,19 @@ a VAT."""))
                     str(int(r.amount_total)),
                     token,
                 )
+                r.sii_message = respuesta
             except Exception as e:
                 msg = "Error al obtener Estado DTE"
                 _logger.warning("%s: %s" % (msg, str(e)))
                 if e.args[0][0] == 503:
                     raise UserError('%s: Conexión al SII caída/rechazada o el SII está temporalmente fuera de línea, reintente la acción' % (msg))
                 raise UserError(("%s: %s" % (msg, str(e))))
-            r.sii_message = respuesta
 
     @api.multi
     def ask_for_dte_status(self):
         for r in self:
+            if r.document_class_id.es_boleta() and r.company_id.dte_service_provider != 'SIICERT':
+                continue
             if not r.sii_xml_request and not r.sii_xml_request.sii_send_ident:
                 raise UserError('No se ha enviado aún el documento, aún está en cola de envío interna en odoo')
             if r.sii_xml_request.state not in ['Aceptado', 'Rechazado']:
@@ -1997,7 +2004,8 @@ a VAT."""))
         body = 'XML de Intercambio DTE: %s' % (self.number)
         subject = 'XML de Intercambio DTE: %s' % (self.number)
         dte_email_id = self.company_id.dte_email_id or self.env.user.company_id.dte_email_id
-        dte_receptors = self.commercial_partner_id.child_ids + self.commercial_partner_id
+        commercial_partner_id = self.commercial_partner_id or self.partner_id.commercial_partner_id
+        dte_receptors = commercial_partner_id.child_ids + commercial_partner_id
         email_to = ''
         for dte_email in dte_receptors:
             if not dte_email.send_dte or not dte_email.email:

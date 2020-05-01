@@ -21,6 +21,7 @@
       <field name="arch" type="xml">
           <search string="Valores Mepco">
               <field name="date" string="Fecha"/>
+              <field name="type" string="Tipo Mepco" />
           </search>
       </field>
   </record>
