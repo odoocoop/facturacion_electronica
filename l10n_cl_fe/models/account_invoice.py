@@ -1822,7 +1822,7 @@ a VAT."""))
             return "Anulado"  #Desde El sii o por NC
 
     @api.onchange('sii_message')
-    ef get_sii_result(self):
+    def get_sii_result(self):
         for r in self:
             if r.company_id.dte_service_provider != 'SIICERT' and r.document_class_id.es_boleta():
                 r.sii_result = 'Proceso'
