@@ -1451,7 +1451,7 @@ a VAT."""))
             if self.amount_tax > 0:
                 raise UserError("NO pueden ir productos afectos en documentos exentos")
         elif self.amount_untaxed and self.amount_untaxed != 0:
-            if not self._es_boleta() or not taxInclude:
+            if not self._es_boleta() or not taxInclude or self._context.get('tax_detail'):
                 IVA = False
                 for t in self.tax_line_ids:
                     if t.tax_id.sii_code in [14, 15]:
@@ -1466,12 +1466,12 @@ a VAT."""))
             MntExe = MntExe
         if not self._es_boleta() or not taxInclude or self._context.get('tax_detail'):
             if IVA:
-                if not self._es_boleta():
+                if not self._es_boleta() or self._context.get('tax_detail'):
                     TasaIVA = round(IVA.tax_id.amount, 2)
                 MntIVA = IVA.amount
             if no_product:
                 MntNeto = 0
-                if not self._es_boleta():
+                if not self._es_boleta() or self._context.get('tax_detail'):
                     TasaIVA = 0
                 MntIVA = 0
         MntTotal = self.amount_total

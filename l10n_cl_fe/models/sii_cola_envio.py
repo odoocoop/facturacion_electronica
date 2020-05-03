@@ -144,7 +144,7 @@ class ColaEnvio(models.Model):
                             user=self.user_id.id,
                             company_id=self.company_id.id).do_dte_send(
                                                             self.n_atencion)
-                if envio_id.sii_send_ident or (self.company_id.dte_service_provider == 'SIICERT' and docs[0].document_class_id.es_boleta()):
+                if envio_id.sii_send_ident or (self.company_id.dte_service_provider == 'SIICERT' and self.es_boleta(docs[0])):
                     self.tipo_trabajo = 'consulta'
             except Exception as e:
                 _logger.warning("Error en envío Cola")
