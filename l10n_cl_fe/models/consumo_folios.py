@@ -12,6 +12,7 @@ import logging
 _logger = logging.getLogger(__name__)
 try:
     from facturacion_electronica import facturacion_electronica as fe
+    from facturacion_electronica.consumo_folios import ConsumoFolios as CF
 except Exception as e:
     _logger.warning("Problema al cargar Facturación electrónica: %s" % str(e))
 
@@ -241,7 +242,7 @@ class ConsumoFolios(models.Model):
 
     @api.onchange('move_ids', 'anulaciones')
     def _resumenes(self):
-        resumenes, TpoDocs = self._get_resumenes()
+        resumenes = self._get_resumenes()
         if self.impuestos and isinstance(self.id, int):
             self._cr.execute("DELETE FROM account_move_consumo_folios_impuestos WHERE cf_id=%s", (self.id,))
             self.invalidate_cache()
@@ -259,8 +260,8 @@ class ConsumoFolios(models.Model):
             }
             detalles.append([0,0,rango])
         for r, value in resumenes.items():
-            if '%s_folios' %str(r) in value:
-                Rangos = value[ str(r)+'_folios' ]
+            if value.get('T%s' %str(r) ):
+                Rangos = value[ 'T'+str(r)]
                 if 'itemUtilizados' in Rangos:
                     for rango in Rangos['itemUtilizados']:
                         pushItem('RangoUtilizados', rango, r)
@@ -268,7 +269,7 @@ class ConsumoFolios(models.Model):
                     for rango in Rangos['itemAnulados']:
                         pushItem('RangoAnulados', rango, r)
         self.detalles = detalles
-        docs = collections.OrderedDict()
+        docs = {}
         for r, value in resumenes.items():
             if value.get('FoliosUtilizados', False):
                 docs[r] = {
@@ -335,6 +336,19 @@ class ConsumoFolios(models.Model):
         rut = rut.replace('CL0','').replace('CL','')
         return rut
 
+    @api.multi
+    def validar_consumo_folios(self):
+        self._validar()
+        consumos = self.search([
+            ('fecha_inicio', '=', self.fecha_inicio),
+            ('state', 'not in', ['draft', 'Rechazado', 'Anulado']),
+            ('company_id', '=', self.company_id.id),
+            ('id', '!=', self.id),
+            ])
+        for r in consumos:
+            r.state = "Anulado"
+        return self.write({'state': 'NoEnviado'})
+
     def _emisor(self):
         Emisor = {}
         Emisor['RUTEmisor'] = self.format_vat(self.company_id.vat)
@@ -371,7 +385,7 @@ class ConsumoFolios(models.Model):
                 ('journal_id', '=', rec.journal_id.id),
                 ('state', 'not in', ['cancel', 'draft']),
             ])
-            recs.append(ref._dte())
+            recs.append(ref)
         return recs
 
     def _validar(self):
@@ -380,22 +394,30 @@ class ConsumoFolios(models.Model):
         recs = self._get_moves()
         for r in recs:
             grupos.setdefault(r.document_class_id.sii_code, [])
-            grupos[r.document_class_id.sii_code].append(r)
-        for anulaciones in self.anulaciones:
-            raise UserError("terminar código anulaciones manuales")
+            grupos[r.document_class_id.sii_code].append(r.with_context(tax_detail=True)._dte())
+        for r in self.anulaciones:
             grupos.setdefault(r.document_class_id.sii_code, [])
-            grupos[r.document_class_id.sii_code].append(r)
-        datos['ConsumoFolios'] = {
-            "FchInicio": self.fecha_inicio,
-            "FchFinal": self.fecha_final,
+            for i in range(r.rango_inicio, r.rango_final+1):
+                grupos[r.document_class_id.sii_code].append({
+                    "Encabezado": {
+                        "IdDoc": {
+                            "Folio": i,
+                            "FechaEmis": r.fecha_inicio.strftime("%d-%m-%Y"),
+                            "Anulado": True,
+                        }
+                    }
+                })
+        datos['ConsumoFolios'] = [{
+            "FchInicio": self.fecha_inicio.strftime("%d-%m-%Y"),
+            "FchFinal": self.fecha_final.strftime("%d-%m-%Y"),
             "SecEnvio": self.sec_envio,
             "Correlativo": self.correlativo,
             "Documento": [{'TipoDTE': k, 'documentos': v} for k, v in grupos.items()]
-        }
+        }]
         datos['test'] = True
-        result = fe.libro(datos)[0]
+        result = fe.consumo_folios(datos)[0]
         envio_dte = result['sii_xml_request']
-        doc_id = '%s_%s' % (self.tipo_operacion, self.periodo_tributario)
+        doc_id = '%s_%s' % (self.fecha_inicio, self.sec_envio)
         self.sii_xml_request = self.env['sii.xml.envio'].create({
             'xml_envio': envio_dte,
             'name': doc_id,

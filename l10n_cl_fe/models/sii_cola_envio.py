@@ -114,7 +114,9 @@ class ColaEnvio(models.Model):
                 except Exception as e:
                     _logger.warning("Error temporal de conexión en consulta %s" % str(e))
             return
-        if (self._es_doc(docs[0]) or self.es_boleta(docs[0])) and docs[0].sii_result in ['Proceso', 'Reparo', 'Rechazado', 'Anulado']:
+        if (self._es_doc(docs[0]) or (self.es_boleta(docs[0]) and \
+                    docs[0].company_id.dte_service_provider == 'SII')) \
+            and docs[0].sii_result in ['Proceso', 'Reparo', 'Rechazado', 'Anulado']:
             if self.send_email and docs[0].sii_result in ['Proceso', 'Reparo']:
                 for doc in docs:
                     self.enviar_email(doc)

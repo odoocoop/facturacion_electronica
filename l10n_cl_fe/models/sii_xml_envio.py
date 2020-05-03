@@ -269,7 +269,7 @@ class SIIXMLEnvio(models.Model):
         rut = self.invoice_ids.format_vat( self.company_id.vat, con_cero=True)
         try:
             respuesta = _server.service.getEstUp(
-                    rut[:8].replace('-', ''),
+                    rut[:-2],
                     str(rut[-1]),
                     self.sii_send_ident,
                     token,
@@ -289,7 +289,7 @@ class SIIXMLEnvio(models.Model):
         result.update({"state": "Enviado"})
         estado = resp.find('RESP_HDR/ESTADO')
         if estado is None:
-            return result
+            return
         if estado.text == "-11":
             if resp.find('RESP_HDR/ERR_CODE').text == "2":
                 status = {'warning':{'title':_('Estado -11'), 'message': _("Estado -11: Espere a que sea aceptado por el SII, intente en 5s más")}}
@@ -303,11 +303,14 @@ class SIIXMLEnvio(models.Model):
             #    if body.find('REPAROS').text == "1":
             #        result['state'] = "Reparo"
 
-            if body.find('GLOSA_ESTADO') is not None:
-                result['glosa'] = body.find('GLOSA_ESTADO').text
+                if body.find('GLOSA_ESTADO') is not None:
+                    result['glosa'] = body.find('GLOSA_ESTADO').text
         elif estado.text in ["RCT", "RFR", "LRH", "RCH", "RSC", "FNA", "LRF", "LNC", "LRS", "106", "LRC"]:
             result.update({"state": "Rechazado"})
         if resp.find('RESP_HDR/GLOSA') is not None:
             result['glosa'] = resp.find('RESP_HDR/GLOSA').text
-            _logger.warning(result)
         self.write(result)
+
+    @api.multi
+    def ask_for(self):
+        self.get_send_status(self.user_id)

@@ -105,6 +105,10 @@ class ResPartner(models.Model):
     last_sync_update = fields.Datetime(
         string="Fecha Actualizado",
     )
+    es_mipyme = fields.Boolean(
+        string="Es MiPyme",
+        help="Usa el sistema gratuito del SII"
+    )
 
     def write(self, vals):
         result = super(ResPartner, self).write(vals)
@@ -290,6 +294,7 @@ class ResPartner(models.Model):
             return False
 
     def _process_data(self, data={}):
+        self.es_mipyme = data.get('es_mipyme', False)
         if data.get('razon_social'):
             self.name = data['razon_social']
         if data.get('dte_email') and data['dte_email'].lower() not in ['facturacionmipyme2@sii.cl', 'facturacionmipyme@sii.cl']:

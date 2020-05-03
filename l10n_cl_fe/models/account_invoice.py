@@ -1669,7 +1669,7 @@ a VAT."""))
         )
         lin_ref = 1
         ref_lines = []
-        if (self.company_id.dte_service_provider == 'SIICERT' and (isinstance(n_atencion, string_types) and n_atencion != '') or self._es_boleta()):
+        if self.company_id.dte_service_provider == 'SIICERT' and ((isinstance(n_atencion, string_types) and n_atencion != '') or self._es_boleta()):
             RazonRef = "CASO"
             if isinstance(n_atencion, string_types) and n_atencion != '':
                 RazonRef += ' ' + n_atencion
@@ -2000,11 +2000,13 @@ a VAT."""))
         return self.env.ref('l10n_cl_fe.action_print_copy_cedible').report_action(self)
 
     def send_exchange(self):
+        commercial_partner_id = self.commercial_partner_id or self.partner_id.commercial_partner_id
         att = self._create_attachment()
+        if commercial_partner_id.es_mipyme:
+            return
         body = 'XML de Intercambio DTE: %s' % (self.number)
         subject = 'XML de Intercambio DTE: %s' % (self.number)
         dte_email_id = self.company_id.dte_email_id or self.env.user.company_id.dte_email_id
-        commercial_partner_id = self.commercial_partner_id or self.partner_id.commercial_partner_id
         dte_receptors = commercial_partner_id.child_ids + commercial_partner_id
         email_to = ''
         for dte_email in dte_receptors:

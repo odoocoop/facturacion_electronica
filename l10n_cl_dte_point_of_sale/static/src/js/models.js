@@ -343,10 +343,10 @@ models.Order = models.Order.extend({
 		this.unset_boleta();
 		if (this.pos.config.marcar === 'boleta' && this.pos.config.secuencia_boleta){
 			this.set_boleta(true);
-			this.set_tipo_boleta(this.pos.config.secuencia_boleta);
+			this.set_tipo(this.pos.config.secuencia_boleta);
 		}else if (this.pos.config.marcar === 'boleta_exenta' && this.pos.config.secuencia_boleta_exenta){
 			this.set_boleta(true);
-			this.set_tipo_boleta(this.pos.config.secuencia_boleta_exenta);
+			this.set_tipo(this.pos.config.secuencia_boleta_exenta);
 		}else if (this.pos.config.marcar === 'factura'){
 			this.set_to_invoice(true);
 		}else if (this.pos.config.marcar === 'factura_exenta'){
