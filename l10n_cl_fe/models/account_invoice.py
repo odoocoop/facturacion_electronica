@@ -1442,12 +1442,12 @@ a VAT."))
             MntExe = MntExe
         if not self._es_boleta() or not taxInclude or self._context.get('tax_detail'):
             if IVA:
-                if not self._es_boleta():
+                if not self._es_boleta() or self._context.get('tax_detail'):
                     TasaIVA = round(IVA.tax_id.amount, 2)
                 MntIVA = IVA.amount
             if no_product:
                 MntNeto = 0
-                if not self._es_boleta():
+                if not self._es_boleta() or self._context.get('tax_detail'):
                     TasaIVA = 0
                 MntIVA = 0
         MntTotal = self.amount_total

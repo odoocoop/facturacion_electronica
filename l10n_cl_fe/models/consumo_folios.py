@@ -440,6 +440,8 @@ class ConsumoFolios(models.Model):
         self.state = 'EnCola'
 
     def do_dte_send(self, n_atencion=''):
+        if not self.sii_xml_request:
+            self._validar()
         if self.sii_xml_request and self.sii_xml_request.state == "Rechazado":
             self.sii_xml_request.unlink()
             self._validar()
