@@ -10,6 +10,9 @@
           <button name="do_send_xml" string="Send XML" type="object"
               attrs="{'invisible': [('state', 'not in', ['draft', 'NoEnviado', 'Rechazado'])]}"
             />
+          <button name="ask_for" string="Ask for XML" type="object"
+              attrs="{'invisible': [('sii_send_ident', '=', False)]}"
+            />
         </header>
         <sheet>
           <group>

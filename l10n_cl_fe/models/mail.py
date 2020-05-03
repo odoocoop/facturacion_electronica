@@ -159,7 +159,7 @@ class ProcessMails(models.Model):
     def process_mess(self):
         if self.model == 'mail.message.dte':
             dte = self.env[self.model].sudo().browse(self.res_id)
-            dte.self.process_message(pre=True)
+            dte.process_message(pre=True)
             return
         for att in self.attachment_ids:
             if not att.name:

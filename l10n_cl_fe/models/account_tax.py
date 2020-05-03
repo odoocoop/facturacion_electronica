@@ -144,21 +144,24 @@ class SiiTax(models.Model):
         if (self.amount_type == 'percent' and not self.price_include) or (self.amount_type == 'division' and self.price_include):
             return base_amount * self.retencion / 100
 
-    def _list_from_cne(self, year, month):
-        url = "https://www.cne.cl/tarificacion/hidrocarburos/mecanismo-de-estabilizacion-de-precios-de-los-combustibles-mepco/%s-2/" % (year)
-        resp = pool.request('GET', url)
-        cne = html.fromstring(resp.data)
-        ds = cne.findall('.//a[@class="btn descargar"]')
-        rangos = {}
-        i = 0
-        for d in ds:
-            fecha = re.search('\d{4}\_\d{1,2}\_\d{1,2}', d.attrib['href'])
-            rangos[datetime.strptime(fecha[0], "%Y_%m_%d").astimezone(pytz.UTC)] = i
-            i += 1
-        return rangos
+    def _list_from_diario(self, day, year, month):
+        date = datetime.strptime("%s-%s-%s" %(day, month, year), "%d-%m-%Y").astimezone(pytz.UTC)
+        t = (date - relativedelta.relativedelta(days=1))
+        t_date = "date=%s-%s-%s" %(
+            t.strftime('%d'),
+            t.strftime('%m'),
+            t.strftime('%Y'),
+        )
+        url = "https://www.diariooficial.interior.gob.cl/edicionelectronica/"
+        resp = pool.request('GET', "%sselect_edition.php?%s" % (url, t_date))
+        target = 'a href="index.php[?]%s&edition=([0-9]*)&v=1"' % t_date
+        url2 = re.findall(target, resp.data.decode('utf-8'))
+        resp2 = pool.request('GET', "%sindex.php?%s&edition=%s" %(url, t_date, url2[0]))
+        target = 'Determina el componente variable para el cálculo del impuesto específico establecido en la ley N° 18.502 [a-zA-Z \r\n</>="_0-9]* href="([a-zA-Z 0-9/.:]*)"'
+        url3 = re.findall(target, resp2.data.decode('utf-8'))
+        return {date: url3[0].replace('http', 'https')}
 
-    def _get_from_cne(self, year, month, day):
-        url = "https://www.cne.cl/wp-content/uploads/{0}/{1}/{0}_{1}_{2}_MEPCO.pdf".format(year, month, day)
+    def _get_from_diario(self, url):
         resp = pool.request('GET', url)
         doc = fitz.open(stream=resp.data, filetype="pdf")
         target = 'Gasolina Automotriz de 93 octanos\n\(en UTM\/m[\w]\)'
@@ -170,7 +173,7 @@ class SiiTax(models.Model):
             target = 'Gas Licuado del Petróleo de Consumo\nVehicular \(en UTM\/m[\w]\)'
         elif self.mepco == 'gas_natural':
             target = 'Gas Natural Comprimido de Consumo Vehicular'
-        val = re.findall('%s\n[0-9.,]*\n[0-9.,]*\n([0-9.,]*)' % target, doc.loadPage(3).getText())
+        val = re.findall('%s\n[0-9.,]*\n[0-9.,]*\n([0-9.,]*)' % target, doc.loadPage(1).getText())
         return val[0].replace('.', '').replace(',', '.')
 
     def _connect_sii(self, year, month):
@@ -205,7 +208,8 @@ class SiiTax(models.Model):
         tz = pytz.timezone('America/Santiago')
         year = date.strftime("%Y")
         month = date.strftime("%m")
-        rangos = self._list_from_cne(year, month)
+        day = date.strftime("%d")
+        rangos = self._list_from_diario(day, year, month)
         ant = datetime.now(tz)
         target = (ant, 0)
         for k, v in rangos.items():
@@ -214,10 +218,8 @@ class SiiTax(models.Model):
                 break
             ant = k
         if target[0] > date:
-            return self.prepare_mepco((date - relativedelta.relativedelta(days=1)),
-                                      currency_id)
-        day = date.strftime("%d")
-        val = self._get_from_cne(year, month, day)
+            return self.prepare_mepco((date - relativedelta.relativedelta(days=1)), currency_id)
+        val = self._get_from_diario(target[1])
         utm = self.env['res.currency'].sudo().search([('name', '=', 'UTM')])
         amount = utm._convert(float(val), currency_id, self.company_id, date)
         return {

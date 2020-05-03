@@ -1646,7 +1646,7 @@ a VAT."))
         )
         lin_ref = 1
         ref_lines = []
-        if (self.company_id.dte_service_provider == 'SIICERT' and (isinstance(n_atencion, string_types) and n_atencion != '') or self._es_boleta()):
+        if self.company_id.dte_service_provider == 'SIICERT' and ((isinstance(n_atencion, string_types) and n_atencion != '') or self._es_boleta()):
             RazonRef = "CASO"
             if isinstance(n_atencion, string_types) and n_atencion != '':
                 RazonRef += ' ' + n_atencion
@@ -1852,7 +1852,7 @@ a VAT."))
                 _logger.warning("%s: %s" % (msg, str(e)))
                 if e.args[0][0] == 503:
                     raise UserError('%s: Conexión al SII caída/rechazada o el SII está temporalmente fuera de línea, reintente la acción' % (msg))
-                raise UserError(("%s: %s" % (msg, str(e))))            
+                raise UserError(("%s: %s" % (msg, str(e))))
 
     @api.multi
     def ask_for_dte_status(self):
@@ -1988,6 +1988,8 @@ a VAT."))
     def send_exchange(self):
         commercial_partner_id = self.commercial_partner_id or self.partner_id.commercial_partner_id
         att = self._create_attachment()
+        if commercial_partner_id.es_mipyme:
+            return
         body = 'XML de Intercambio DTE: %s' % (self.number)
         subject = 'XML de Intercambio DTE: %s' % (self.number)
         dte_email_id = self.company_id.dte_email_id or self.env.user.company_id.dte_email_id

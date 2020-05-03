@@ -63,7 +63,16 @@ class POSL(models.Model):
             cur_company = line.company_id.currency_id
             fpos = line.order_id.fiscal_position_id
             tax_ids_after_fiscal_position = fpos.map_tax(line.tax_ids, line.product_id, line.order_id.partner_id) if fpos else line.tax_ids
-            taxes = tax_ids_after_fiscal_position.with_context(date=line.order_id.date_order, currency=cur_company.code).compute_all(line.price_unit, line.order_id.pricelist_id.currency_id, line.qty, product=line.product_id, partner=line.order_id.partner_id, discount=line.discount, uom_id=line.product_id.uom_id)
+            taxes = tax_ids_after_fiscal_position.with_context(
+                date=line.order_id.date_order,
+                currency=cur_company.code).compute_all(
+                    line.price_unit,
+                    line.order_id.pricelist_id.currency_id,
+                    line.qty,
+                    product=line.product_id,
+                    partner=line.order_id.partner_id,
+                    discount=line.discount,
+                    uom_id=line.product_id.uom_id)
             line.update({
                 'price_subtotal_incl': taxes['total_included'],
                 'price_subtotal': taxes['total_excluded'],
@@ -341,8 +350,7 @@ class POS(models.Model):
             (not order.document_class_id.es_boleta() and order.document_class_id.sii_code not in [61]):
                 continue
             order._timbrar()
-            if order.document_class_id.sii_code in [61]:
-                ids.append(order.id)
+            ids.append(order.id)
         if ids:
             order.sii_result = 'EnCola'
             tiempo_pasivo = (datetime.now() + timedelta(hours=int(self.env['ir.config_parameter'].sudo().get_param('account.auto_send_dte', default=12))))
@@ -992,9 +1000,6 @@ class POS(models.Model):
             total_tax = 0
             for t, v in all_tax.items():
                 total_tax += cur_company.round(v)
-            _logger.warning(order)
-            _logger.warning(cur.round(total) + total_tax)
-            _logger.warning(order.amount_total)
             dif = order.amount_total - (cur.round(total) + total_tax)
             if rounding_method == 'round_globally':
                 for group_key, group_value in grouped_data.items():

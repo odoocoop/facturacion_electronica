@@ -320,3 +320,7 @@ class SIIXMLEnvio(models.Model):
         if resp.find('RESP_HDR/GLOSA') is not None:
             result['glosa'] = resp.find('RESP_HDR/GLOSA').text
         self.write(result)
+
+    @api.multi
+    def ask_for(self):
+        self.get_send_status(self.user_id)
