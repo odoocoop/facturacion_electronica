@@ -189,8 +189,7 @@ class DTEClaim(models.Model):
         datos["ValidacionCom"] = {
             'IdRespuesta': IdRespuesta,
             'NroDetalles': NroDetalles,
-            "RutResponde": self.invoice_id.format_vat(
-                            doc.company_id.vat),
+            "RutResponde": doc.company_id.partner_id.rut(),
             "RutRecibe": doc.partner_id.commercial_partner_id.document_number,
             'NmbContacto': self.env.user.partner_id.name,
             'FonoContacto': self.env.user.partner_id.phone,
@@ -250,8 +249,7 @@ class DTEClaim(models.Model):
             datos["RecepcionMer"] = {
                 'EstadoRecepDTE': self.estado_dte,
                 'RecepDTEGlosa': self.claim_description,
-                "RutResponde": doc.format_vat(
-                                doc.company_id.vat),
+                "RutResponde": doc.company_id.partner_id.rut(),
                 "RutRecibe": doc.partner_id.commercial_partner_id.document_number,
                 'Recinto': doc.company_id.street,
                 'NmbContacto': self.env.user.partner_id.name,

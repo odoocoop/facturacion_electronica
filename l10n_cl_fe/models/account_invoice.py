@@ -1097,7 +1097,7 @@ a VAT."""))
         return datetime.now(tz).strftime(formato)
 
     def crear_intercambio(self):
-        rut = self.format_vat(self.partner_id.commercial_partner_id.vat)
+        rut = self.partner_id.commercial_partner_id.rut()
         envio = self._crear_envio(RUTRecep=rut)
         result = fe.xml_envio(envio)
         return result['sii_xml_request'].encode('ISO-8859-1')
@@ -1296,7 +1296,7 @@ a VAT."""))
 
     def _emisor(self):
         Emisor = {}
-        Emisor['RUTEmisor'] = self.format_vat(self.company_id.vat)
+        Emisor['RUTEmisor'] = self.company_id.partner_id.rut()
         if self._es_boleta():
             Emisor['RznSocEmisor'] = self._acortar_str(self.company_id.partner_id.name, 100)
             Emisor['GiroEmisor'] = self._acortar_str(self.company_id.activity_description.name, 80)
@@ -1331,7 +1331,7 @@ a VAT."""))
             raise UserError("Debe Ingresar RUT Receptor")
         #if self._es_boleta():
         #    Receptor['CdgIntRecep']
-        Receptor['RUTRecep'] = self.format_vat(commercial_partner_id.vat)
+        Receptor['RUTRecep'] = commercial_partner_id.rut()
         Receptor['RznSocRecep'] = self._acortar_str( commercial_partner_id.name, 100)
         if not self.partner_id or Receptor['RUTRecep'] == '66666666-6':
             return Receptor
@@ -1842,7 +1842,7 @@ a VAT."""))
             token = r.sii_xml_request.get_token(self.env.user, r.company_id)
             url = server_url[r.company_id.dte_service_provider] + 'QueryEstDte.jws?WSDL'
             _server = Client(url)
-            receptor = r.format_vat(r.commercial_partner_id.vat)
+            receptor = r.commercial_partner_id.rut()
             date_invoice = r.date_invoice.strftime("%d-%m-%Y")
             signature_id = self.env.user.get_digital_signature(r.company_id)
             rut = signature_id.subject_serial_number
@@ -1850,8 +1850,8 @@ a VAT."""))
                 respuesta = _server.service.getEstDte(
                     rut[:-2],
                     str(rut[-1]),
-                    r.company_id.vat[2:-1],
-                    r.company_id.vat[-1],
+                    r.company_id.partner_id.rut()[:-2],
+                    r.company_id.partner_id.rut()[-1],
                     receptor[:-2],
                     receptor[-1],
                     str(r.document_class_id.sii_code),
@@ -1912,8 +1912,7 @@ a VAT."""))
         if self.document_class_id.sii_code not in [33, 34, 43]:
             self.claim = claim
             return
-        rut_emisor = self.format_vat(
-                    self.partner_id.commercial_partner_id.vat)
+        rut_emisor = self.partner_id.commercial_partner_id.rut()
         token = self.sii_xml_request.get_token(self.env.user, self.company_id)
         url = claim_url[self.company_id.dte_service_provider] + '?wsdl'
         _server = Client(
@@ -1951,9 +1950,9 @@ a VAT."""))
                 },
         )
         try:
-            rut_emisor = self.format_vat(self.company_id.vat)
+            rut_emisor = self.company_id.partner_id.rut()
             if self.type in ['in_invoice', 'in_refund']:
-                rut_emisor = self.format_vat(self.partner_id.commercial_partner_id.vat)
+                rut_emisor = self.partner_id.commercial_partner_id.rut()
             respuesta = _server.service.listarEventosHistDoc(
                 rut_emisor[:-2],
                 rut_emisor[-1],

@@ -110,6 +110,13 @@ class ResPartner(models.Model):
         help="Usa el sistema gratuito del SII"
     )
 
+    def rut(self):
+        rut = '66666666-6'
+        if self.document_number:
+            d = self.document_number.replace('.', '').split('-')
+            rut = str(int(d[0])) + '-' + d[1]
+        return rut
+
     def write(self, vals):
         result = super(ResPartner, self).write(vals)
         if not vals.get('sync', False):

@@ -17,7 +17,7 @@ except ImportError:
 
 class CAF(models.Model):
     _name = 'dte.caf'
-    _description = 'CAF DTE'
+    _description = 'Archivo CAF'
 
     @api.depends('caf_file')
     def _compute_data(self):
@@ -28,7 +28,7 @@ class CAF(models.Model):
     name = fields.Char(
             string='File Name',
             readonly=True,
-            compute='_get_filename',
+            related='filename',
         )
     filename = fields.Char(
             string='File Name',
@@ -129,27 +129,22 @@ to work properly!''') % (self.sii_document_class, self.sequence_id.sii_document_
         if flags:
             return True
         self.status = 'in_use'
-        self._used_level()
+
+    def _set_level(self):
+        folio = self.sequence_id.number_next_actual
+        try:
+            if folio > self.final_nm:
+                self.use_level = 100
+            elif folio < self.start_nm:
+                self.use_level = 0
+            else:
+                self.use_level = 100.0 * ((int(folio) - self.start_nm) / float(self.final_nm - self.start_nm + 1))
+        except ZeroDivisionError:
+            self.use_level = 0
 
     def _used_level(self):
         for r in self:
-            if r.status not in ['draft']:
-                folio = r.sequence_id.number_next_actual
-                try:
-                    if folio > r.final_nm:
-                        r.use_level = 100
-                    elif folio < r.start_nm:
-                        r.use_level = 0
-                    else:
-                        r.use_level = 100.0 * ((int(folio) - r.start_nm) / float(r.final_nm - r.start_nm + 1))
-                except ZeroDivisionError:
-                    r.use_level = 0
-            else:
-                r.use_level = 0
-
-    def _get_filename(self):
-        for r in self:
-            r.name = r.filename
+            r._set_level()
 
     def decode_caf(self):
         post = base64.b64decode(self.caf_file).decode('ISO-8859-1')

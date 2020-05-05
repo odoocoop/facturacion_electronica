@@ -161,7 +161,7 @@ class ProcessMailsDocument(models.Model):
             raise UserError("Debe Ingresar RUT Receptor")
         #if self._es_boleta():
         #    Receptor['CdgIntRecep']
-        Receptor['RUTRecep'] = self.format_vat(commercial_partner_id.vat)
+        Receptor['RUTRecep'] = commercial_partner_id.rut()
         Receptor['RznSocRecep'] = self._acortar_str( commercial_partner_id.name, 100)
         return Receptor
 
@@ -289,8 +289,7 @@ class ProcessMailsDocument(models.Model):
         if not self.partner_id:
             rut_emisor = self.new_partner.split(' ')[0]
         else:
-            rut_emisor = self.env['account.invoice'].format_vat(
-                    self.partner_id.vat)
+            rut_emisor = self.partner_id.rut()
         token = self.env['sii.xml.envio'].get_token(self.env.user, self.company_id)
         url = claim_url[self.company_id.dte_service_provider] + '?wsdl'
         _server = Client(
@@ -322,8 +321,7 @@ class ProcessMailsDocument(models.Model):
         if not self.partner_id:
             rut_emisor = self.new_partner.split(' ')[0]
         else:
-            rut_emisor = self.env['account.invoice'].format_vat(
-                    self.partner_id.vat)
+            rut_emisor = self.partner_id.rut()
         token = self.env['sii.xml.envio'].get_token(self.env.user, self.company_id)
         url = claim_url[self.company_id.dte_service_provider] + '?wsdl'
         _server = Client(

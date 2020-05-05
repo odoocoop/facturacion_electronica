@@ -120,8 +120,6 @@ class UploadXMLWizard(models.TransientModel):
 
     def format_rut(self, RUTEmisor=None):
         rut = RUTEmisor.replace('-', '')
-        if int(rut[:-1]) < 10000000:
-            rut = '0' + str(rut)
         rut = 'CL' + rut
         return rut
 
@@ -151,8 +149,7 @@ class UploadXMLWizard(models.TransientModel):
         firma = self.env.user. get_digital_signature(company_id)
         return {
             "Emisor": {
-              "RUTEmisor": self.env['account.invoice'].format_vat(
-                                            company_id.vat),
+              "RUTEmisor": company_id.partner_id.rut(),
               "Modo": "produccion" if company_id.dte_service_provider == 'SII'\
                           else 'certificacion',
             },
@@ -202,8 +199,7 @@ class UploadXMLWizard(models.TransientModel):
                 [
                     {
                         "IdRespuesta": IdRespuesta,
-                        "RutResponde": self.env['account.invoice'].format_vat(
-                                        company_id.vat),
+                        "RutResponde": company_id.partner_id.rut(),
                         "NmbContacto": self.env.user.partner_id.name,
                         "FonoContacto": self.env.user.partner_id.phone,
                         "MailContacto": self.env.user.partner_id.email,
