@@ -31,8 +31,6 @@ class ProcessMails(models.Model):
 
     def _format_rut(self, text):
             rut = text.replace('-', '')
-            if int(rut[:-1]) < 10000000:
-                rut = '0' + str(rut)
             return 'CL' + rut
 
     def _process_recepcion_comercial(self, doc, company_id, att):

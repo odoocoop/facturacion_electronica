@@ -21,6 +21,7 @@ except:
 
 class SignatureCert(models.Model):
     _name = 'sii.firma'
+    _description = 'Firma Electronica'
 
     def alerta_vencimiento(self):
         expiration = datetime.strptime(self.expire_date, '%Y-%m-%d')
@@ -49,7 +50,7 @@ class SignatureCert(models.Model):
             check_rut = rut = self.subject_serial_number.replace('.', '').upper()
             if len(rut) == 9:
                 check_rut = '0' + rut
-            if not self.env.user.partner_id.check_vat_cl(check_rut.replace('-', '')):
+            if not '-' in check_rut or not self.env.user.partner_id.check_vat_cl(check_rut.replace('-', '')):
                 raise UserError(_('Not Valid Subject Serial Number'))
             self.subject_serial_number = rut
         elif self.file_content:

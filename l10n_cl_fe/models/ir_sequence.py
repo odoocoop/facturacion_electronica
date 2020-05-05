@@ -11,7 +11,6 @@ _logger = logging.getLogger(__name__)
 class IRSequence(models.Model):
     _inherit = "ir.sequence"
 
-
     def get_qty_available(self, folio=None):
         folio = folio or self._get_folio()
         try:
@@ -59,10 +58,13 @@ class IRSequence(models.Model):
         wiz_caf.cant_doctos = self.autoreponer_cantidad
         wiz_caf.obtener_caf()
 
+    def _set_qty_available(self):
+        self.qty_available = self.get_qty_available()
+
     def _qty_available(self):
         for i in self:
             if i.sii_document_class_id:
-                i.qty_available = i.get_qty_available()
+                i._set_qty_available()
 
     sii_document_class_id = fields.Many2one(
             'sii.document_class',
