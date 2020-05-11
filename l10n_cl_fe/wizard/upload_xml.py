@@ -274,6 +274,7 @@ class UploadXMLWizard(models.TransientModel):
         name = (data.find('RznSoc').text or data.find('RznSocEmisor').text) if self.type == "compras" else data.find('RznSocRecep').text
         city_id = self.env['res.city'].search([
                     ('name', '=',  data.find('Cmna%s' % dest).text.title())])
+        ciudad = data.find('Ciudad%s' % dest)
         partner = {
             'name': name,
             'activity_description': giro_id.id,
@@ -282,7 +283,7 @@ class UploadXMLWizard(models.TransientModel):
             'responsability_id': self.env.ref('l10n_cl_fe.res_IVARI').id,
             'document_number': data.find(rut_path).text,
             'street': data.find('Dir%s' % dest).text,
-            'city': data.find('Ciudad%s' % dest).text,
+            'city': ciudad.text if ciudad is not None else city_id.name,
             'company_type': 'company',
             'city_id': city_id.id
         }

@@ -107,7 +107,7 @@ entregados por parte del deudor de la factura {4}, RUT {5}, de acuerdo a lo esta
         IdDoc['RznSocReceptor'] = self.partner_id.commercial_partner_id.name
         IdDoc['RUTReceptor'] = self.format_vat(self.partner_id.commercial_partner_id.vat)
         IdDoc['Folio'] = self.get_folio()
-        IdDoc['FchEmis'] = self.date_invoice
+        IdDoc['FchEmis'] = self.date_invoice.strftime('%Y-%m-%d')
         IdDoc['MntTotal'] = self.currency_id.round(self.amount_total )
         return IdDoc
 
@@ -141,7 +141,7 @@ entregados por parte del deudor de la factura {4}, RUT {5}, de acuerdo a lo esta
             'Cedente': self._cedente(),
             'Cesionario': self._cesionario(),
             'MontoCesion': self._monto_cesion(),
-            'UltimoVencimiento': self.date_invoice,
+            'UltimoVencimiento': self.date_invoice.strftime('%Y-%m-%d'),
             'xml_dte': self.sii_xml_dte,
             'DeclaracionJurada': self.declaracion_jurada,
         }
@@ -219,7 +219,7 @@ entregados por parte del deudor de la factura {4}, RUT {5}, de acuerdo a lo esta
         _server = Client(url)
         respuesta = _server.service.getEstCesion(
             token,
-            rut[:8],
+            rut[:-2],
             str(rut[-1]),
             str(self.document_class_id.sii_code),
             str(self.sii_document_number),
@@ -249,7 +249,7 @@ entregados por parte del deudor de la factura {4}, RUT {5}, de acuerdo a lo esta
         tenedor_rut = self.company_id.vat if self.sii_cesion_result == 'Cedido' else self.cesionario_id.vat
         respuesta = _server.service.getEstCesionRelac(
             token,
-            rut[:8],
+            rut[:-2],
             str(rut[-1]),
             str(self.document_class_id.sii_code),
             str(self.sii_document_number),

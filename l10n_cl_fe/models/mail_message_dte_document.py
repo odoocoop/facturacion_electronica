@@ -2,6 +2,7 @@
 from odoo import fields, models, api
 from odoo.tools.safe_eval import safe_eval
 from odoo.tools.translate import _
+from odoo.exceptions import UserError
 import logging
 _logger = logging.getLogger(__name__)
 try:
@@ -214,38 +215,9 @@ class ProcessMailsDocument(models.Model):
                 'filename': r.dte_id.name,
                 'pre_process': False,
                 'document_id': r.id,
-                'option': 'accept'
+                'option': 'accept',
             }
-            val = self.env['sii.dte.upload_xml.wizard'].create(vals)
-            resp = val.confirm(ret=True)
-            created.extend(resp)
-            try:
-                r.get_dte_claim()
-            except Exception as e:
-                _logger.warning("Problema al obtener claim %s" %str(e))
-            for i in self.env['account.invoice'].browse(resp):
-                if i.claim in ['ACD', 'ERM']:
-                    r.state = 'accepted'
-        xml_id = 'account.action_invoice_tree2'
-        result = self.env.ref('%s' % (xml_id)).read()[0]
-        if created:
-            domain = safe_eval(result.get('domain', '[]'))
-            domain.append(('id', 'in', created))
-            result['domain'] = domain
-        return result
-
-    @api.multi
-    def accept_document(self):
-        created = []
-        for r in self:
-            vals = {
-                'xml_file': r.xml.encode('ISO-8859-1'),
-                'filename': r.dte_id.name,
-                'pre_process': False,
-                'document_id': r.id,
-                'option': 'accept'
-            }
-            val = self.env['sii.dte.upload_xml.wizard'].create(vals)
+            val = self.env['sii.dte.upload_xml.wizard'].sudo().create(vals)
             resp = val.confirm(ret=True)
             created.extend(resp)
             try:
@@ -276,7 +248,7 @@ class ProcessMailsDocument(models.Model):
                     'estado_dte': '2',
                     'action': 'ambos',
                 }
-                val = self.env['sii.dte.validar.wizard'].create(vals)
+                val = self.env['sii.dte.validar.wizard'].sudo().create(vals)
                 resp = val.confirm()
             r.set_dte_claim(claim='RCD')
             if r.claim in ['RCD']:
@@ -338,6 +310,13 @@ class ProcessMailsDocument(models.Model):
                 str(self.number),
             )
             self.claim_description = respuesta
+            if respuesta.codResp in [15]:
+                for res in respuesta.listaEventosDoc:
+                    if self.claim != "ACD":
+                        if self.claim != 'ERM':
+                            self.claim = res.codEvento
+            if self.claim in ["ACD", "ERM"]:
+                self.state = 'accepted'
         except Exception as e:
             _logger.warning("Error al obtener aceptación %s" %(str(e)))
             if self.company_id.dte_service_provider == 'SII':
