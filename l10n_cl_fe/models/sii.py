@@ -6,11 +6,19 @@ from odoo.exceptions import Warning
 
 class SIISucursal(models.Model):
     _name = 'sii.sucursal'
+    _description = 'Sucursal SII'
 
-    name = fields.Char(string='Nombre de la Sucursal', required=True)
-    sii_code = fields.Char(string="Código SII de la Sucursal", )
+    name = fields.Char(
+            string='Nombre de la Sucursal',
+            required=True)
+    sii_code = fields.Char(
+            string="Código SII de la Sucursal",
+            required=True,
+        )
     company_id = fields.Many2one(
-        'res.company', 'Company', required=True,
+        'res.company',
+        string='Company',
+        required=True,
         default=lambda self: self.env.user.company_id.id,
         )
 

@@ -72,6 +72,12 @@ class PosSession(models.Model):
                 'secuencia_boleta_exenta': config_id.secuencia_boleta_exenta.id,
                 'caf_files_exentas': self.get_caf_string(sequence),
             })
+        if self.env['product.template'].search([
+                ('available_in_pos', '=', True),
+                ('taxes_id.mepco', '!=', False)],
+            limit=1):
+            for t in self.env['account.tax'].sudo().search([('mepco', '!=', False)]):
+                t.verify_mepco(date_target=False, currency_id=config_id.company_id.currency_id)
         return super(PosSession, self).create(values)
 
     def recursive_xml(self, el):

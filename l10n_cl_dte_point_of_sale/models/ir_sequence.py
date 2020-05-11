@@ -23,3 +23,7 @@ class IRSequence(models.Model):
                 ]
             if self.env['pos.session'].search(query):
                 raise UserError("No puede Editar CAF de Una sesión de Punto de Ventas abierto. Cierre y contabiliza el punto de ventas primero")
+
+    def solicitar_caf(self):
+        self.verificar_pos()
+        return super(IRSequence, self).solicitar_caf()
