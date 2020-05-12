@@ -394,7 +394,7 @@ class POS(models.Model):
         fields_model = self.env['ir.fields.converter']
         from_zone = pytz.UTC
         to_zone = pytz.timezone('America/Santiago')
-        date_order = util_model._change_time_zone(datetime.strptime(self.date_order, DTF), from_zone, to_zone).strftime(DTF)
+        date_order = util_model._change_time_zone(self.date_order, from_zone, to_zone).strftime(DTF)
         IdDoc = {}
         IdDoc['TipoDTE'] = self.document_class_id.sii_code
         IdDoc['Folio'] = self.get_folio()
@@ -731,7 +731,7 @@ class POS(models.Model):
             fields_model = self.env['ir.fields.converter']
             from_zone = pytz.UTC
             to_zone = pytz.timezone('America/Santiago')
-            date_order = util_model._change_time_zone(datetime.strptime(r.date_order, DTF), from_zone, to_zone).strftime("%d-%m-%Y")
+            date_order = util_model._change_time_zone(r.date_order, from_zone, to_zone).strftime("%d-%m-%Y")
             signature_id = self.env.user.get_digital_signature(r.company_id)
             rut = signature_id.subject_serial_number
             amount_total = r.amount_total if r.amount_total >= 0 else r.amount_total*-1
