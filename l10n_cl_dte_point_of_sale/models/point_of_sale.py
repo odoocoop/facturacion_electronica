@@ -387,7 +387,7 @@ class POS(models.Model):
         i=0
         for turn in self.company_id.company_activities_ids:
             if i < 4:
-                giros_emisor.append({'Acteco': turn.code})
+                giros_emisor.append(turn.code)
             i += 1
         return giros_emisor
 
@@ -429,7 +429,7 @@ class POS(models.Model):
             Emisor['GiroEmis'] = self._acortar_str(self.company_id.activity_description.name, 80)
             Emisor['Telefono'] = self.company_id.phone or ''
             Emisor['CorreoEmisor'] = self.company_id.dte_email_id.name_get()[0][1]
-            Emisor['GiroEmisor'] = self._giros_emisor()
+            Emisor['Actecos'] = self._giros_emisor()
         if self.sale_journal.sucursal_id:
             Emisor['Sucursal'] = self.sale_journal.sucursal_id.name
             Emisor['CdgSIISucur'] = self.sale_journal.sucursal_id.sii_code
