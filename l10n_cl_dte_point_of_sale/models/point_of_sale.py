@@ -116,12 +116,16 @@ class POS(models.Model):
             'ir.sequence',
             string='Sequencia de Boleta',
             states={'draft': [('readonly', False)]},
+            readonly=True,
+            copy=True,
             domain=lambda self: self._get_available_sequence(),
         )
     document_class_id = fields.Many2one(
             'sii.document_class',
             string='Document Type',
-            copy=False,
+            states={'draft': [('readonly', False)]},
+            readonly=True,
+            copy=True,
         )
     sii_code = fields.Integer(
             related="document_class_id.sii_code",
@@ -129,17 +133,19 @@ class POS(models.Model):
     sii_batch_number = fields.Integer(
             copy=False,
             string='Batch Number',
+            states={'draft': [('readonly', False)]},
             readonly=True,
+            copy=True,
             help='Batch number for processing multiple invoices together',
         )
     sii_barcode = fields.Char(
             copy=False,
             string='SII Barcode',
+            states={'draft': [('readonly', False)]},
             readonly=True,
             help='SII Barcode Name',
         )
     sii_barcode_img = fields.Binary(
-            copy=False,
             string=_('SII Barcode Image'),
             help='SII Barcode Image in PDF417 format',
             compute='_get_barcode_img',
@@ -177,6 +183,8 @@ class POS(models.Model):
         )
     sii_document_number = fields.Integer(
             string="Folio de documento",
+            states={'draft': [('readonly', False)]},
+            readonly=True,
             copy=False,
         )
     referencias = fields.One2many(
@@ -202,7 +210,10 @@ class POS(models.Model):
             readonly=True,
         )
     timestamp_timbre = fields.Char(
-        string="TimeStamp Timbre"
+        string="TimeStamp Timbre",
+        states={'draft': [('readonly', False)]},
+        readonly=True,
+        copy=True,
     )
 
     @api.model
