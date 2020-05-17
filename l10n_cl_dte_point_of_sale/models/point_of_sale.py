@@ -216,7 +216,8 @@ class POS(models.Model):
         return taxes
 
     def crear_intercambio(self):
-        envio = self._crear_envio(RUTRecep=rut)
+        partner_id = self.partner_id.commercial_partner_id
+        envio = self._crear_envio(RUTRecep=partner_id.rut())
         result = fe.xml_envio(envio)
         return result['sii_xml_request'].encode('ISO-8859-1')
 
@@ -700,9 +701,14 @@ class POS(models.Model):
             envio_id = self.env['sii.xml.envio'].create(envio)
             for i in self:
                 i.sii_xml_request = envio_id.id
-                i.sii_result = result.get('sii_result')
+                i.sii_result = 'Enviado'
         else:
             envio_id.write(envio)
+        if self[0].document_class_id.es_boleta():
+            envio_id.write({
+                'state': "Aceptado",
+                'sii_send_ident': 'BE'
+            })
         return envio_id
 
     @api.onchange('sii_message')

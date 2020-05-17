@@ -104,7 +104,7 @@ class ColaEnvio(models.Model):
             if self.date_time and datetime.now() >= self.date_time:
                 try:
                     envio_id = docs.do_dte_send(self.n_atencion)
-                    if envio_id.sii_send_ident:
+                    if envio_id.sii_send_ident or (self.company_id.dte_service_provider == 'SIICERT' and self.es_boleta(docs[0])):
                         self.tipo_trabajo = 'consulta'
                 except Exception as e:
                     _logger.warning('Error en Envío automático')

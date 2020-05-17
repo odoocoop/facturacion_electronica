@@ -41,7 +41,9 @@ class ProccessMail(models.Model):
     def process_message(self, pre=False, option=False):
         created = []
         for r in self:
-            mail_id = r.sudo().mail_id or self.env['mail.message'].sudo().search([('model', '=', 'mail.message.dte'), ('res_id', '=', r.id)])
+            mail_id = r.sudo().mail_id or self.env['mail.message'].sudo().search(
+                [('model', '=', 'mail.message.dte'), ('res_id', '=', r.id)],
+                limit=1,)
             for att in mail_id.attachment_ids:
                 if not att.name:
                     continue
