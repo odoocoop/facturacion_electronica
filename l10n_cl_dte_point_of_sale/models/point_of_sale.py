@@ -135,7 +135,6 @@ class POS(models.Model):
             string='Batch Number',
             states={'draft': [('readonly', False)]},
             readonly=True,
-            copy=True,
             help='Batch number for processing multiple invoices together',
         )
     sii_barcode = fields.Char(
