@@ -437,7 +437,7 @@ class POS(models.Model):
         Emisor["Modo"] = "produccion" if self.company_id.dte_service_provider == 'SII'\
                   else 'certificacion'
         Emisor["NroResol"] = self.company_id.dte_resolution_number
-        Emisor["FchResol"] = self.company_id.dte_resolution_date
+        Emisor["FchResol"] = self.company_id.dte_resolution_date.strftime('%Y-%m-%d')
         Emisor["ValorIva"] = 19
         return Emisor
 

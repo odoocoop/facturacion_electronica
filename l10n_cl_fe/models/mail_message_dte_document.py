@@ -135,7 +135,7 @@ class ProcessMailsDocument(models.Model):
         Emisor["Modo"] = "produccion" if company_id.dte_service_provider == 'SII'\
                   else 'certificacion'
         Emisor["NroResol"] = company_id.dte_resolution_number
-        Emisor["FchResol"] = company_id.dte_resolution_date
+        Emisor["FchResol"] = company_id.dte_resolution_date.strftime('%Y-%m-%d')
         return Emisor
 
     def _get_datos_empresa(self, company_id):
