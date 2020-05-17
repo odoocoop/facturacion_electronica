@@ -219,7 +219,8 @@ class POS(models.Model):
         return taxes
 
     def crear_intercambio(self):
-        envio = self._crear_envio(RUTRecep=rut)
+        partner_id = self.partner_id.commercial_partner_id
+        envio = self._crear_envio(RUTRecep=partner_id.rut())
         result = fe.xml_envio(envio)
         return result['sii_xml_request'].encode('ISO-8859-1')
 

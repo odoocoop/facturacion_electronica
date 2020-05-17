@@ -268,6 +268,8 @@ class stock_picking(models.Model):
             Receptor['Contacto'] = partner_id.commercial_partner_id.phone
         if partner_id.commercial_partner_id.dte_email:
             Receptor['CorreoRecep'] = partner_id.commercial_partner_id.dte_email
+        if not partner_id.commercial_partner_id.street:
+            raise UserError("Debe Ingresar Dirección Receptor")
         Receptor['DirRecep'] = (partner_id.commercial_partner_id.street) + ' ' + ((partner_id.commercial_partner_id.street2) or '')
         Receptor['CmnaRecep'] = partner_id.commercial_partner_id.city_id.name
         Receptor['CiudadRecep'] = partner_id.commercial_partner_id.city

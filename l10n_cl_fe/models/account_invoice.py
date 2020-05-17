@@ -1783,7 +1783,6 @@ a VAT."))
                 'state': "Aceptado",
                 'sii_send_ident': 'BE'
             })
-
         return envio_id
 
     def process_response_xml(self, respuesta):
