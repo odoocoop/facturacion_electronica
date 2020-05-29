@@ -1123,7 +1123,7 @@ class POS(models.Model):
                     'location_id': location_id if line.qty >= 0 else destination_id,
                     'location_dest_id': destination_id if line.qty >= 0 else return_pick_type != picking_type and return_pick_type.default_location_dest_id.id or location_id,
                     'precio_unitario': line.price_unit,
-                    'move_line_tax_ids': ((6,0, line.tax_ids_after_fiscal_position.ids)),
+                    'move_line_tax_ids': [(6,0, line.tax_ids_after_fiscal_position.filtered(lambda t: t.company_id.id == line.order_id.company_id.id).ids)],
                 })
                 moves |= m
 

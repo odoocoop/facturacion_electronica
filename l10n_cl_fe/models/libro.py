@@ -38,6 +38,7 @@ class Libro(models.Model):
         ('NoEnviado', 'No Enviado'),
         ('EnCola', 'En Cola'),
         ('Enviado', 'Enviado'),
+
         ('Aceptado', 'Aceptado'),
         ('Rechazado', 'Rechazado'),
         ('Reparo', 'Reparo'),
@@ -375,7 +376,7 @@ class Libro(models.Model):
                 ('state', 'not in', ['cancel', 'draft']),
             ]
             ref = self.env['account.invoice'].search(query)
-            recs.append(ref._dte())
+            recs.append(ref)
         return recs
 
     def _emisor(self):
@@ -402,13 +403,13 @@ class Libro(models.Model):
     def _validar(self):
         datos = self._get_datos_empresa(self.company_id)
         grupos = {}
+        boletas = []
         recs = self._get_moves()
         for r in recs:
-            grupos.setdefault(r['Encabezado']['IdDoc']['TipoDTE'], [])
-            grupos[r['Encabezado']['IdDoc']['TipoDTE']].append(r)
-        for boletas in self.boletas:
-            resumenesPeriodo[boletas.tipo_boleta.id] = {}
-            resumen = self._setResumenBoletas(boletas)
+            grupos.setdefault(r.document_class_id.sii_code, [])
+            grupos[r.document_class_id.sii_code].append(r.with_context(tax_detail=True)._dte())
+        for b in self.boletas:
+            boletas.append(b._dte())
         datos['Libro'] = {
             "PeriodoTributario": self.periodo_tributario,
             "TipoOperacion": self.tipo_operacion,
@@ -418,6 +419,7 @@ class Libro(models.Model):
             "CodigoRectificacion": self.codigo_rectificacion,
             "Documento": [{'TipoDTE': k, 'documentos': v} for k, v in grupos.items()],
             'FctProp': self.fact_prop,
+            'boletas': boletas,
         }
         datos['test'] = True
         result = fe.libro(datos)

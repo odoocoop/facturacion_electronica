@@ -232,6 +232,7 @@ class AccountInvoice(models.Model):
             string='Document Number',
             copy=False,
             readonly=True,
+            states={'draft': [('readonly', False)]},
         )
     responsability_id = fields.Many2one(
             'sii.responsability',
@@ -952,9 +953,10 @@ a VAT."""))
     def _check_reference_in_invoice(self):
         if self.type in ['in_invoice', 'in_refund'] and self.sii_document_number:
             domain = [('type', '=', self.type),
-                      ('reference', '=', self.reference),
+                      ('sii_document_number', '=', self.sii_document_number),
                       ('partner_id', '=', self.partner_id.id),
-                      ('document_class_id', '=', self.document_class_id.id),
+                      ('journal_document_class_id.sii_document_class_id', '=',
+                       self.document_class_id.id),
                       ('company_id', '=', self.company_id.id),
                       ('id', '!=', self.id),
                       ('state', '!=', 'cancel')]

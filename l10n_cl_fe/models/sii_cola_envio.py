@@ -2,7 +2,7 @@
 from odoo import fields, models, api, SUPERUSER_ID
 from odoo.tools.translate import _
 import ast
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import logging
 _logger = logging.getLogger(__name__)
 
@@ -75,11 +75,13 @@ class ColaEnvio(models.Model):
         if self.tipo_trabajo == 'persistencia':
             if self.date_time and datetime.now() >= self.date_time:
                 for doc in docs:
-                    if self.env['sii.respuesta.cliente'].search([
-                        ('id', 'in', doc.respuesta_ids.ids),
-                        ('company_id', '=', self.company_id.id),
-                        ('recep_envio', '=', 'no_revisado'),
-                        ('type', '=', 'RecepcionEnvio'),
+                    if doc.sii_xml_request.create_date <= (datetime.now() + timedelta(
+                        days=8
+                        )) and self.env['sii.respuesta.cliente'].search([
+                            ('id', 'in', doc.respuesta_ids.ids),
+                            ('company_id', '=', self.company_id.id),
+                            ('recep_envio', '=', 'no_revisado'),
+                            ('type', '=', 'RecepcionEnvio'),
                     ]):
                         self.enviar_email(doc)
                     else:

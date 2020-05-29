@@ -293,7 +293,7 @@ class SIIXMLEnvio(models.Model):
         if estado.text == "-11":
             if resp.find('RESP_HDR/ERR_CODE').text == "2":
                 status = {'warning':{'title':_('Estado -11'), 'message': _("Estado -11: Espere a que sea aceptado por el SII, intente en 5s más")}}
-        if estado.text in ["EPR", "LOK"]:
+        if estado.text in ["EPR", "LOK", "PRD"]:
             result.update({"state": "Aceptado"})
             body = resp.find('RESP_BODY')
 

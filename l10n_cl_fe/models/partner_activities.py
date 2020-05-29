@@ -25,7 +25,6 @@ class PartnerActivities(models.Model):
     code = fields.Char(
             string='Activity Code',
             required=True,
-            translate=True,
         )
     parent_id = fields.Many2one(
             'partner.activities',

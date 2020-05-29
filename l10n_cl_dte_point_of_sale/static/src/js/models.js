@@ -258,6 +258,7 @@ models.Orderline = models.Orderline.extend({
 				 currency_rounding = currency_rounding * 0.00001;
 			}
 			var total_excluded = round_pr(price_unit * quantity, currency_rounding);
+			total_excluded = round_pr(total_excluded, currency_rounding_bak);
 			var total_included = total_excluded;
 			var base = total_excluded;
 			_(taxes).each(function(tax) {
@@ -571,6 +572,10 @@ models.Order = models.Order.extend({
 		if(!partner_id.document_number){
 			partner_id.document_number = "66666666-6";
 		}
+
+		function format_str(text){
+			return text.replace('&', '&amp;');
+		}
 		var product_name = false;
 		var ols = order.orderlines.models;
 		var ols2 = ols;
@@ -581,7 +586,7 @@ models.Order = models.Order.extend({
 					es_menor = false;
 				}
 				if(es_menor === true){
-					product_name = ols[p].product.name;
+					product_name = format_str(ols[p].product.name);
 				}
 			}
 		}
@@ -606,11 +611,11 @@ models.Order = models.Order.extend({
 			'<F>' + order.sii_document_number + '</F>' +
 			'<FE>' + curr_year + '-' + curr_month + '-' + curr_date + '</FE>' +
 			'<RR>' + partner_id.document_number.replace('.','').replace('.','') +'</RR>' +
-			'<RSR>' + partner_id.name + '</RSR>' +
+			'<RSR>' + format_str(partner_id.name) + '</RSR>' +
 			'<MNT>' + Math.round(this.get_total_with_tax()) + '</MNT>' +
 			'<IT1>' + product_name + '</IT1>' +
 			'<CAF version="1.0"><DA><RE>' + caf_file.AUTORIZACION.CAF.DA.RE + '</RE>' +
-				'<RS>' + caf_file.AUTORIZACION.CAF.DA.RS + '</RS>' +
+				'<RS>' + format_str(caf_file.AUTORIZACION.CAF.DA.RS) + '</RS>' +
 				'<TD>' + caf_file.AUTORIZACION.CAF.DA.TD + '</TD>' +
 				'<RNG><D>' + caf_file.AUTORIZACION.CAF.DA.RNG.D + '</D><H>' + caf_file.AUTORIZACION.CAF.DA.RNG.H + '</H></RNG>' +
 				'<FA>' + caf_file.AUTORIZACION.CAF.DA.FA + '</FA>' +
