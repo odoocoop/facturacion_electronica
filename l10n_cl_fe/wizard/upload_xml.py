@@ -324,20 +324,24 @@ class UploadXMLWizard(models.TransientModel):
             ('activo_fijo', '=', False),
             ('company_id', '=', company_id.id)
         ]
-        if IndExe:
-            query.append(
-                    ('sii_type', '=', False)
-            )
-        if amount == 0 and sii_code == 0 and not IndExe:
-            query.append(
-                    ('name', '=', name)
-            )
-        if sii_type:
+        if IndExe is not None:
+            query.exxtend([
+                    ('sii_type', '=', False),
+            ])
+        elif sii_type:
             query.extend([
                 ('sii_type', '=', sii_type),
             ])
+        if amount == 0 and sii_code == 0 and IndExe is None:
+            query.append(
+                    ('name', '=', name)
+            )
         imp = self.env['account.tax'].search(query)
         if not imp:
+            if IndExe is not None:
+                name = 'Exento %s' % self.type.title()
+                sii_code = 0
+                sii_type = False
             imp = self.env['account.tax'].sudo().create({
                 'amount': amount,
                 'name': name,
@@ -353,7 +357,7 @@ class UploadXMLWizard(models.TransientModel):
         amount = 0
         sii_code = 0
         sii_type = False
-        if not IndExe:
+        if IndExe is None:
             amount = 19
             sii_code = 14
             sii_type = False
@@ -545,7 +549,7 @@ class UploadXMLWizard(models.TransientModel):
                 amount = 0
                 sii_code = 0
                 sii_type = False
-                if not IndExe:
+                if IndExe is None:
                     amount = 19
                     sii_code = 14
                     sii_type = False

@@ -27,13 +27,13 @@ screens.PaymentScreenWidget.include({
 		var order = self.pos.get_order();
 		if (order.is_to_invoice() || order.es_boleta()){
       var total_tax = order.get_total_tax();
-      if ((order.es_boleta_exenta() || order.es_factura_exenta()) && total_tax > 0){// @TODO agrregar facturas exentas
+      if ((order.es_boleta_exenta() || order.es_factura_exenta()) && total_tax > 0){
 		        this.gui.show_popup('error',{
 		        	'title': "Error de integridad",
 		        	'body': "No pueden haber productos afectos en boleta/factura exenta",
 		        });
 				return false;
-			}else if((order.es_boleta_afecta() || order.es_factura_afecta()) && total_tax <= 0 && order.get_total_exento() > 0){
+			}else if((order.es_boleta_afecta() || order.es_factura_afecta()) && total_tax <= 0){
 		        this.gui.show_popup('error',{
 		        	'title': "Error de integridad",
 		        	'body': "Debe haber almenos un producto afecto",

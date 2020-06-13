@@ -164,13 +164,13 @@ class SiiTax(models.Model):
     def _get_from_diario(self, url):
         resp = pool.request('GET', url)
         doc = fitz.open(stream=resp.data, filetype="pdf")
-        target = 'Gasolina Automotriz de 93 octanos\n\(en UTM\/m[\w]\)'
+        target = 'Gasolina Automotriz de[\n ]93 octanos[\n ]\(*en UTM\/m[\w]\)'
         if self.mepco == 'gasolina_97':
-            target = 'Gasolina Automotriz de 97 octanos\n\(en UTM\/m[\w]\)'
+            target = 'Gasolina Automotriz de[\n ]97 octanos[\n ]\(en UTM\/m[\w]\)'
         elif self.mepco == 'diesel':
-            target = 'Petróleo Diésel \(en UTM\/m[\w]\)'
+            target = 'Petróleo Diésel[\n ]\(en UTM\/m[\w]\)'
         elif self.mepco == 'gas_licuado':
-            target = 'Gas Licuado del Petróleo de Consumo\nVehicular \(en UTM\/m[\w]\)'
+            target = 'Gas Licuado del Petróleo de Consumo[\n ]Vehicular[\n ]\(en UTM\/m[\w]\)'
         elif self.mepco == 'gas_natural':
             target = 'Gas Natural Comprimido de Consumo Vehicular'
         val = re.findall('%s\n[0-9.,]*\n[0-9.,]*\n([0-9.,]*)' % target, doc.loadPage(1).getText())

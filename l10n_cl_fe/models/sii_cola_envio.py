@@ -2,7 +2,7 @@
 from odoo import fields, models, api
 from odoo.tools.translate import _
 import ast
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from odoo.tools import DEFAULT_SERVER_DATETIME_FORMAT as DTF
 import logging
 _logger = logging.getLogger(__name__)
@@ -49,6 +49,8 @@ class ColaEnvio(models.Model):
     )
 
     def enviar_email(self, doc):
+        if not doc.partner_id:
+            return
         doc.send_exchange()
 
     def es_boleta(self, doc):
@@ -73,7 +75,10 @@ class ColaEnvio(models.Model):
             if self.date_time and datetime.now() >= datetime.strptime(
                             self.date_time, DTF):
                 for doc in docs:
-                    if self.env['sii.respuesta.cliente'].search([
+                    if  doc.partner_id and datetime.strptime(
+                            doc.sii_xml_request.create_date, DTF) <= (datetime.now() + timedelta(
+                                        days=8
+                                    )) and self.env['sii.respuesta.cliente'].search([
                         ('id', 'in', doc.respuesta_ids.ids),
                         ('company_id', '=', self.company_id.id),
                         ('recep_envio', '=', 'no_revisado'),
@@ -118,7 +123,13 @@ class ColaEnvio(models.Model):
             and docs[0].sii_result in ['Proceso', 'Reparo', 'Rechazado', 'Anulado']:
             if self.send_email and docs[0].sii_result in ['Proceso', 'Reparo']:
                 for doc in docs:
+                    if not doc.partner_id:
+                        docs-= doc
+                        continue
                     self.enviar_email(doc)
+                if not docs:
+                    self.unlink()
+                    return
                 self.tipo_trabajo = 'persistencia'
                 persistente = int(self.env[
                                 'ir.config_parameter'].sudo().get_param(

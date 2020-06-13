@@ -9,7 +9,7 @@
               <field name="sii_code" invisible="1"/>
               <button string="Imprimir" type="object"  name="print_nc"  attrs="{'invisible':[('state', 'in', ['draft']), ('document_class_id','=', False)]}"/>
               <button name="action_pos_order_invoice" position="attributes">
-                <attribute name="attrs">{'readonly': [('partner_id', '=', False), ('sii_code', 'in', [39, 41])]}</attribute>
+                <attribute name="attrs">{'invisible': ['|', ('invoice_group', '=', False), ('state','!=','paid'), '|', ('partner_id', '=', False), ('sii_code', 'in', [39, 41])]}</attribute>
               </button>
             </header>
             <button name="refund" position="replace">

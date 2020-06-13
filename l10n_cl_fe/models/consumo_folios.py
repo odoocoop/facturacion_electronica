@@ -196,9 +196,10 @@ class ConsumoFolios(models.Model):
             total = 0
             total_boletas = 0
             for d in r.impuestos:
-                total_iva += d.monto_iva
-                total_exento += d.monto_exento
-                total += d.monto_total
+                if d.tpo_doc.sii_code in [39, 41]:
+                    total_iva += d.monto_iva
+                    total_exento += d.monto_exento
+                    total += d.monto_total
             for d in r.detalles:
                 if d.tpo_doc.sii_code in [39, 41] and d.tipo_operacion == "utilizados":
                     total_boletas += d.cantidad
@@ -215,9 +216,9 @@ class ConsumoFolios(models.Model):
             grupos.setdefault(r.document_class_id.sii_code, [])
             grupos[r.document_class_id.sii_code].append(r.with_context(tax_detail=True)._dte())
         for r in self.anulaciones:
-            grupos.setdefault(r.document_class_id.sii_code, [])
+            grupos.setdefault(r.tpo_doc.sii_code, [])
             for i in range(r.rango_inicio, r.rango_final+1):
-                grupos[r.document_class_id.sii_code].append({
+                grupos[r.tpo_doc.sii_code].append({
                     "Encabezado": {
                         "IdDoc": {
                             "Folio": i,
@@ -393,9 +394,9 @@ class ConsumoFolios(models.Model):
             grupos.setdefault(r.document_class_id.sii_code, [])
             grupos[r.document_class_id.sii_code].append(r.with_context(tax_detail=True)._dte())
         for r in self.anulaciones:
-            grupos.setdefault(r.document_class_id.sii_code, [])
+            grupos.setdefault(r.tpo_doc.sii_code, [])
             for i in range(r.rango_inicio, r.rango_final+1):
-                grupos[r.document_class_id.sii_code].append({
+                grupos[r.tpo_doc.sii_code].append({
                     "Encabezado": {
                         "IdDoc": {
                             "Folio": i,

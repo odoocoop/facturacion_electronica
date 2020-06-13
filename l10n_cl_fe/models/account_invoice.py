@@ -1771,6 +1771,11 @@ a VAT."))
                 'sii_xml_response': result.get('sii_xml_response'),
                 'state': result.get('sii_result'),
             }
+        if self[0].document_class_id.es_boleta() and self[0].company_id.dte_service_provider == 'SII':
+            envio.update({
+                'state': "Aceptado",
+                'sii_send_ident': 'BE'
+            })
         if not envio_id:
             envio_id = self.env['sii.xml.envio'].create(envio)
             for i in self:
@@ -1778,11 +1783,6 @@ a VAT."))
                 i.sii_result = 'Enviado'
         else:
             envio_id.write(envio)
-        if self[0].document_class_id.es_boleta():
-            envio_id.write({
-                'state': "Aceptado",
-                'sii_send_ident': 'BE'
-            })
         return envio_id
 
     def process_response_xml(self, respuesta):
@@ -2041,8 +2041,7 @@ a VAT."))
     def getTotalDiscount(self):
         total_discount = 0
         for l in self.invoice_line_ids:
-            total = l.currency_id.round((l.quantity * l.price_unit))
-            total_discount += (total - l.discount_amount)
+            total_discount += l.discount_amount
         return self.currency_id.round(total_discount)
 
     @api.multi

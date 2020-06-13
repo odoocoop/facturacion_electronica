@@ -101,11 +101,14 @@ class PosSession(models.Model):
         if not caffiles:
             return
         caffs = []
+        existe_caf = False
         for caffile in caffiles:
+            if int(folio) <= caffile.final_nm:
+                existe_caf = True
             xml = caffile.decode_caf()
             caffs += [{xml.tag: self.recursive_xml(xml)}]
-        if caffs:
+        if caffs and existe_caf:
             return json.dumps(caffs, ensure_ascii=False)
         msg = '''No hay CAF para el folio de este documento: {}.\
- Solicite un nuevo CAF en el sitio www.sii.cl'''.format(folio)
+ Solicite un nuevo CAF en el sitio www.sii.cl o use el asistente en odoo apicaf para solicitar folios usando su token'''.format(folio)
         raise UserError(_(msg))
