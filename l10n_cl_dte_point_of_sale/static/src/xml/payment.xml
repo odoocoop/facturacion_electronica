@@ -18,14 +18,13 @@
         <t t-if='widget.pos.get_order() and widget.pos.folios_boleta_afecta()'>
           <div t-attf-class='button js_boleta #{ widget.pos.get_order().es_boleta_afecta() ? "highlight" : ""} '>
               <i class='fa fa-file-text-o' /> Boleta <t t-esc="'(F' + widget.pos.get_sequence_next(widget.pos.config.secuencia_boleta) +')'" />
-              <small><br /> <t t-esc="'Quedan: ' + widget.pos.get_sequence_left(widget.pos.config.secuencia_boleta) + ' Folios'" /></small>
+              <small><t t-esc="'Quedan: ' + widget.pos.get_sequence_left(widget.pos.config.secuencia_boleta) + ' Folios'" /></small>
           </div>
         </t>
 
         <t t-if='widget.pos.get_order() and widget.pos.folios_boleta_exenta()'>
           <div t-attf-class='button js_boleta_exenta #{ widget.pos.get_order().es_boleta_exenta() ? "highlight" : ""} '>
               <i class='fa fa-file-text-o' /> Boleta Exenta <t t-esc="'(F' + widget.pos.get_sequence_next(widget.pos.config.secuencia_boleta_exenta) +')'" />
-              <br />
               <small t-esc="'Quedan: ' + widget.pos.get_sequence_left(widget.pos.config.secuencia_boleta_exenta)+' Folios'"/>
           </div>
         </t>

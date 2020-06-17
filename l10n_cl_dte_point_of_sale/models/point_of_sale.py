@@ -1024,12 +1024,20 @@ class POS(models.Model):
             dif = order.amount_total - (cur.round(total) + total_tax)
             if rounding_method == 'round_globally':
                 for group_key, group_value in grouped_data.items():
+                    if dif != 0 and group_key[0] == 'product':
+                        for l in group_value:
+                            if line.product_id.id == l['product_id']:
+                                if l['credit'] > 0:
+                                    l['credit'] += dif
+                                else:
+                                    l['debit'] += dif
+                                dif += 1
                     if group_key[0] == 'tax':
-                        for line in group_value:
-                            line['credit'] = cur_company.round(line['credit'])
-                            line['debit'] = cur_company.round(line['debit'])
-                            if line.get('currency_id'):
-                                line['amount_currency'] = cur.round(line.get('amount_currency', 0.0))
+                        for l in group_value:
+                            l['credit'] = cur_company.round(l['credit'])
+                            l['debit'] = cur_company.round(l['debit'])
+                            if l.get('currency_id'):
+                                l['amount_currency'] = cur.round(l.get('amount_currency', 0.0))
             # counterpart
             if cur != cur_company:
                 # 'amount_cur_company' contains the sum of the AML converted in the company

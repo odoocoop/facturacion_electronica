@@ -69,6 +69,7 @@
                 <group>
                   <field name="impuestos" options="{'no_open': True, 'no_create': True}">
                           <tree >
+                            <field name="tpo_doc" invisible="1" />
                             <field name="monto_neto" />
                             <field name="monto_iva" />
                             <field name="monto_exento" />

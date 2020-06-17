@@ -295,7 +295,9 @@ models.Orderline = models.Orderline.extend({
 			total_excluded = round_pr(total_excluded, currency_rounding_bak);
 			var total_included = total_excluded;
 			var base = total_excluded;
+			var included = false;
 			_(taxes).each(function(tax) {
+					included = tax.price_include;
 					if (!no_map_tax){
 							tax = self._map_tax_fiscal_position(tax);
 					}
@@ -333,12 +335,15 @@ models.Orderline = models.Orderline.extend({
 							}
 					}
 			});
-			return {
+			var vals = {
 					taxes: list_taxes,
 					total_excluded: round_pr(total_excluded, currency_rounding_bak),
 					total_included: round_pr(total_included, currency_rounding_bak),
-					not_round: round_pr(total_excluded, currency_rounding)
 			};
+			if (included){
+				vals.not_round = round_pr(total_excluded, currency_rounding);
+			}
+			return vals;
 	},
 	get_all_prices: function(){
 			var price_unit = this.get_unit_price() * (1.0 - (this.get_discount() / 100.0));
@@ -362,13 +367,16 @@ models.Orderline = models.Orderline.extend({
 					taxdetail[tax.id] = tax.amount;
 			});
 
-			return {
+			var vals = {
 					"priceWithTax": all_taxes.total_included,
 					"priceWithoutTax": all_taxes.total_excluded,
-					"priceNotRound": all_taxes.not_round,
 					"tax": taxtotal,
 					"taxDetails": taxdetail,
 			};
+			if (all_taxes.not_round){
+				vals.priceNotRound = all_taxes.not_round;
+			}
+			return vals;
 	},
 
 });
@@ -476,17 +484,10 @@ models.Order = models.Order.extend({
 			}, this.pos.currency.rounding);
 		return tax;
 	},
-  	get_total_with_tax: function() {
-	  	_super_order.get_total_with_tax.apply(this,arguments);
-	  	var neto = round_pr(this.orderlines.reduce((function(sum, orderLine) {
-	  		return sum + orderLine.get_price_without_tax();
-	  	}), 0), this.pos.currency.rounding);
-		return (neto + this.get_total_tax());
-
-	},
 	get_total_without_tax: function() {
 			return round_pr(this.orderlines.reduce((function(sum, orderLine) {
-					var price = orderLine.get_all_prices().priceNotRound;
+					var all_prices = orderLine.get_all_prices();
+					var price = all_prices.priceNotRound || all_prices.priceWithoutTax;
 					return sum + price;
 			}), 0), this.pos.currency.rounding);
 	},
@@ -555,7 +556,7 @@ models.Order = models.Order.extend({
 	crear_guia: function(){
 		return (this.pos.config.dte_picking && (this.pos.config.dte_picking_option === 'all' || (this.pos.config.dte_picking_option === 'no_tributarios' && !this.es_tributaria())));
 	},
-	es_tributaria(){
+	es_tributaria: function(){
 		if (this.es_boleta()){
 			return this.es_boleta();
 		}
@@ -583,7 +584,7 @@ models.Order = models.Order.extend({
 		});
 		return exento;
 	},
-	completa_cero(val){
+	completa_cero: function(val){
     	if (parseInt(val) < 10){
     		return '0' + val;
     	}

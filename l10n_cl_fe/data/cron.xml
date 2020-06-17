@@ -35,5 +35,17 @@
             <field name="active" eval="True" />
             <field name="nextcall">01/01/2019 00:00:01 AM</field>
         </record>
+
+        <record id="ir_cron_auto_reponer_caf" model="ir.cron">
+            <field name="name">Cron AutoReponer CAF</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">minutes</field>
+            <field name="numbercall">-1</field>
+            <field name="model_id" ref="model_ir_sequence"/>
+            <field name="state">code</field>
+            <field name="code">model.check_cafs()</field>
+            <field name="active" eval="True" />
+            <field name="nextcall">01/01/2019 00:00:01 AM</field>
+        </record>
     </data>
 </odoo>

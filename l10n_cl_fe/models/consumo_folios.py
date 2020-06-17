@@ -76,27 +76,22 @@ class ConsumoFolios(models.Model):
     total_neto = fields.Monetary(
         string="Total Neto",
         store=True,
-        readonly=True,
         compute='get_totales',)
     total_iva = fields.Monetary(
         string="Total Iva",
         store=True,
-        readonly=True,
         compute='get_totales',)
     total_exento = fields.Monetary(
         string="Total Exento",
         store=True,
-        readonly=True,
         compute='get_totales',)
     total = fields.Monetary(
         string="Monto Total",
         store=True,
-        readonly=True,
         compute='get_totales',)
     total_boletas = fields.Integer(
         string="Total Boletas",
         store=True,
-        readonly=True,
         compute='get_totales',)
     company_id = fields.Many2one(
         'res.company',

@@ -11,7 +11,20 @@ _logger = logging.getLogger(__name__)
 class IRSequence(models.Model):
     _inherit = "ir.sequence"
 
+    @api.model
+    def check_cafs(self):
+        self._cr.execute(
+        "SELECT id FROM ir_sequence WHERE autoreponer_caf and qty_available <= nivel_minimo")
+        for r in self.env['ir.sequence'].sudo().browse([x[0] for x in self._cr.fetchall()]):
+            try:
+                r.solicitar_caf()
+            except Exception as e:
+                _logger.warning("Error al solictar folios a secuencia %s: %s" % (r.sii_document_class_id.name, str(e)))
+
+    @api.depends('dte_caf_ids', 'number_next_actual')
     def get_qty_available(self, folio=None):
+        if not self.is_dte:
+            return 0
         folio = folio or self._get_folio()
         try:
             cafs = self.get_caf_files(folio)
@@ -28,23 +41,17 @@ class IRSequence(models.Model):
                 if folio > c.start_nm:
                     available +=1
         if available <= self.nivel_minimo:
-            if self.autoreponer_caf:
-                try:
-                    self.solicitar_caf()
-                except Exception as e:
-                    _logger.warning("Error al solictar folios a secuencia %s: %s" % (self.sii_document_class_id.name, str(e)))
-            else:
-                alert_msg = 'Nivel bajo de CAF para %s, quedan %s foliosself. Recuerde verificar su token apicaf.cl' % (self.sii_document_class_id.name, available)
-                self.env['bus.bus'].sendone((
-                    self._cr.dbname,
-                    'ir.sequence',
-                    self.env.user.partner_id.id),
-                    {
-                    'title': "Alerta sobre Folios",
-                    'message': alert_msg,
-                    'url': 'res_config',
-                    'type': 'dte_notif',
-                    })
+            alert_msg = 'Nivel bajo de CAF para %s, quedan %s foliosself. Recuerde verificar su token apicaf.cl' % (self.sii_document_class_id.name, available)
+            self.env['bus.bus'].sendone((
+                self._cr.dbname,
+                'ir.sequence',
+                self.env.user.partner_id.id),
+                {
+                'title': "Alerta sobre Folios",
+                'message': alert_msg,
+                'url': 'res_config',
+                'type': 'dte_notif',
+                })
         return available
 
     def solicitar_caf(self):
@@ -81,7 +88,8 @@ class IRSequence(models.Model):
         )
     qty_available = fields.Integer(
             string="Quantity Available",
-            compute="_qty_available"
+            compute="_qty_available",
+            store=True,
         )
     forced_by_caf = fields.Boolean(
             string="Forced By CAF"
