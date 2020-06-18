@@ -195,10 +195,10 @@ class SIIXMLEnvio(models.Model):
         'user_signature_key' module has been installed and enable a digital \
         signature, for you or make the signer to authorize you to use his \
         signature.'''))
-        params['rutSender'] = signature_id.subject_serial_number[:8]
+        params['rutSender'] = signature_id.subject_serial_number[:-2]
         params['dvSender'] = signature_id.subject_serial_number[-1]
-        params['rutCompany'] = self.company_id.vat[2:-1]
-        params['dvCompany'] = self.company_id.vat[-1]
+        params['rutCompany'] = self.company_id.partner_id.rut()[:-2]
+        params['dvCompany'] = self.company_id.partner_id.rut()[-1]
         params['archivo'] = (self.name, self.xml_envio, "text/xml")
         return params
 
@@ -258,6 +258,13 @@ class SIIXMLEnvio(models.Model):
     def do_send_xml(self):
         return self.send_xml()
 
+    def object_receipt(self):
+        return etree.XML(
+            self.sii_receipt.replace('<?xml version="1.0" encoding="UTF-8"?>', '')\
+            .replace('SII:', '')\
+            .replace(' xmlns="http://www.sii.cl/XMLSchema"', '')
+            )
+
     def get_send_status(self, user_id=False):
         if not self.sii_send_ident:
             self.state = "NoEnviado"
@@ -266,7 +273,7 @@ class SIIXMLEnvio(models.Model):
         token = self.get_token(user_id, self.company_id)
         url = server_url[self.company_id.dte_service_provider] + 'QueryEstUp.jws?WSDL'
         _server = Client(url)
-        rut = self.invoice_ids.format_vat( self.company_id.vat, con_cero=True)
+        rut = self.company_id.partner_id.rut()
         try:
             respuesta = _server.service.getEstUp(
                     rut[:-2],
@@ -280,13 +287,9 @@ class SIIXMLEnvio(models.Model):
             if e.args[0][0] == 503:
                 raise UserError('%s: Conexión al SII caída/rechazada o el SII está temporalmente fuera de línea, reintente la acción' % (msg))
             raise UserError(("%s: %s" % (msg, str(e))))
-        result = {"sii_receipt" : respuesta}
-        resp = etree.XML(
-            respuesta.replace('<?xml version="1.0" encoding="UTF-8"?>', '')\
-            .replace('SII:', '')\
-            .replace(' xmlns="http://www.sii.cl/XMLSchema"', '')
-            )
-        result.update({"state": "Enviado"})
+        self.sii_receipt = respuesta
+        resp = self.object_receipt()
+        result = {"state": "Enviado"}
         estado = resp.find('RESP_HDR/ESTADO')
         if estado is None:
             return

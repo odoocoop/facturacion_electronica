@@ -220,6 +220,40 @@ models.PosModel = models.PosModel.extend({
 			}
 	  }
 		return PosModelSuper.push_order.call(this, order, opts);
+	},
+	get_sequence_next: function(seq){
+		if (!seq){
+			return 0;
+		}
+		var orden_numero = 0;
+		if(seq.sii_document_class_id.sii_code === 41){
+			orden_numero =this.pos_session.numero_ordenes_exentas;
+		}else{
+			orden_numero = this.pos_session.numero_ordenes;
+		}
+		var caf_files = JSON.parse(seq.caf_files);
+		var start_number = seq.sii_document_class_id.sii_code == 41 ? this.pos_session.start_number_exentas : this.pos_session.start_number;
+		return this.get_next_number(parseInt(orden_numero) + parseInt(start_number), caf_files, start_number);;
+	},
+	get_sequence_left: function(seq){
+		if (!seq){
+			return 0;
+		}
+		var sii_document_number = this.get_sequence_next(seq);
+		var caf_files = JSON.parse(seq.caf_files);
+		var left = 0;
+		for (var x in caf_files){
+			var desde  = parseInt(caf_files[x].AUTORIZACION.CAF.DA.RNG.D);
+			var hasta = parseInt(caf_files[x].AUTORIZACION.CAF.DA.RNG.H);
+			if(sii_document_number <= hasta){
+				var dif = 0;
+				if (desde < sii_document_number){
+					sii_document_number - desde;
+				}
+				left += (hasta -desde -dif) +1;
+			}
+		}
+		return left;
 	}
 });
 
@@ -261,7 +295,9 @@ models.Orderline = models.Orderline.extend({
 			total_excluded = round_pr(total_excluded, currency_rounding_bak);
 			var total_included = total_excluded;
 			var base = total_excluded;
+			var included = false;
 			_(taxes).each(function(tax) {
+					included = tax.price_include;
 					if (!no_map_tax){
 							tax = self._map_tax_fiscal_position(tax);
 					}
@@ -299,11 +335,15 @@ models.Orderline = models.Orderline.extend({
 							}
 					}
 			});
-			return {
+			var vals = {
 					taxes: list_taxes,
 					total_excluded: round_pr(total_excluded, currency_rounding_bak),
-					total_included: round_pr(total_included, currency_rounding_bak)
+					total_included: round_pr(total_included, currency_rounding_bak),
 			};
+			if (included){
+				vals.not_round = round_pr(total_excluded, currency_rounding);
+			}
+			return vals;
 	},
 	get_all_prices: function(){
 			var price_unit = this.get_unit_price() * (1.0 - (this.get_discount() / 100.0));
@@ -327,12 +367,16 @@ models.Orderline = models.Orderline.extend({
 					taxdetail[tax.id] = tax.amount;
 			});
 
-			return {
+			var vals = {
 					"priceWithTax": all_taxes.total_included,
 					"priceWithoutTax": all_taxes.total_excluded,
 					"tax": taxtotal,
 					"taxDetails": taxdetail,
 			};
+			if (all_taxes.not_round){
+				vals.priceNotRound = all_taxes.not_round;
+			}
+			return vals;
 	},
 
 });
@@ -438,14 +482,13 @@ models.Order = models.Order.extend({
 			}, this.pos.currency.rounding);
 		return tax;
 	},
-  	get_total_with_tax: function() {
-	  	_super_order.get_total_with_tax.apply(this,arguments);
-	  	var neto = round_pr(this.orderlines.reduce((function(sum, orderLine) {
-	  		return sum + orderLine.get_price_without_tax();
-	  	}), 0), this.pos.currency.rounding);
-		return (neto + this.get_total_tax());
-
-	},
+get_total_without_tax: function() {
+		return round_pr(this.orderlines.reduce((function(sum, orderLine) {
+				var all_prices = orderLine.get_all_prices();
+				var price = all_prices.priceNotRound || all_prices.priceWithoutTax;
+				return sum + price;
+		}), 0), this.pos.currency.rounding);
+},
 	fix_tax_included_price: function(line){
 			if(this.fiscal_position){
 					var unit_price = line.price;
@@ -511,7 +554,7 @@ models.Order = models.Order.extend({
 	crear_guia: function(){
 		return (this.pos.config.dte_picking && (this.pos.config.dte_picking_option === 'all' || (this.pos.config.dte_picking_option === 'no_tributarios' && !this.es_tributaria())));
 	},
-	es_tributaria(){
+	es_tributaria: function(){
 		if (this.es_boleta()){
 			return this.es_boleta();
 		}
@@ -539,7 +582,7 @@ models.Order = models.Order.extend({
   	});
   	return exento;
   },
-	completa_cero(val){
+	completa_cero: function(val){
   	if (parseInt(val) < 10){
   		return '0' + val;
   	}

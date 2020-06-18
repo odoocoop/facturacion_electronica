@@ -116,13 +116,13 @@
             <div t-if="record.next_number.value > 0" class="row">
               <h3>Boletas Afectas</h3>
               <div class="col-xs-6">
-                  <span>Próximo Folio</span>
+                  <span> Próximo Folio </span>
               </div>
               <div class="col-xs-6">
                   <span><field name="next_number"/></span>
               </div>
               <div class="col-xs-6">
-                  <span>Folios Restantes</span>
+                  <span> Folios Restantes </span>
               </div>
               <div class="col-xs-6">
                   <span><field name="left_number"/></span>
@@ -131,13 +131,13 @@
             <div t-if="record.next_number_exenta.value > 0" class="row">
               <h3>Boletas Exentas</h3>
                 <div class="col-xs-6">
-                    <span>Próximo Folio</span>
+                    <span> Próximo Folio </span>
                 </div>
                 <div class="col-xs-6">
                     <span><field name="next_number_exenta"/></span>
                 </div>
                 <div class="col-xs-6">
-                    <span>Folios Restantes</span>
+                    <span> Folios Restantes </span>
                 </div>
                 <div class="col-xs-6">
                     <span><field name="left_number_exenta"/></span>
@@ -146,13 +146,13 @@
               <div t-if="record.next_number_guia.value > 0" class="row">
                 <h3>Guía de Despacho</h3>
                 <div class="col-xs-6">
-                    <span>Próximo Folio</span>
+                    <span> Próximo Folio </span>
                 </div>
                 <div class="col-xs-6">
                     <span><field name="next_number_guia"/></span>
                 </div>
                 <div class="col-xs-6">
-                    <span>Folios Restantes</span>
+                    <span> Folios Restantes </span>
                 </div>
                 <div class="col-xs-6">
                     <span><field name="left_number_guia"/></span>

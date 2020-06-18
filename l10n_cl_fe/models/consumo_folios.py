@@ -80,27 +80,27 @@ class ConsumoFolios(models.Model):
     total_neto = fields.Monetary(
         string="Total Neto",
         store=True,
-        readonly=True,
+        readonly=False,
         compute='get_totales',)
     total_iva = fields.Monetary(
         string="Total Iva",
         store=True,
-        readonly=True,
+        readonly=False,
         compute='get_totales',)
     total_exento = fields.Monetary(
         string="Total Exento",
         store=True,
-        readonly=True,
+        readonly=False,
         compute='get_totales',)
     total = fields.Monetary(
         string="Monto Total",
         store=True,
-        readonly=True,
+        readonly=False,
         compute='get_totales',)
     total_boletas = fields.Integer(
         string="Total Boletas",
         store=True,
-        readonly=True,
+        readonly=False,
         compute='get_totales',)
     company_id = fields.Many2one(
         'res.company',
@@ -218,13 +218,13 @@ class ConsumoFolios(models.Model):
             grupos.setdefault(r.document_class_id.sii_code, [])
             grupos[r.document_class_id.sii_code].append(r.with_context(tax_detail=True)._dte())
         for r in self.anulaciones:
-            grupos.setdefault(r.document_class_id.sii_code, [])
+            grupos.setdefault(r.tpo_doc.sii_code, [])
             for i in range(r.rango_inicio, r.rango_final+1):
-                grupos[r.document_class_id.sii_code].append({
+                grupos[r.tpo_doc.sii_code].append({
                     "Encabezado": {
                         "IdDoc": {
                             "Folio": i,
-                            "FechaEmis": r.fecha_inicio.strftime("%d-%m-%Y"),
+                            "FechaEmis": self.fecha_inicio.strftime("%d-%m-%Y"),
                             "Anulado": True,
                         }
                     }
@@ -388,13 +388,13 @@ class ConsumoFolios(models.Model):
             grupos.setdefault(r.document_class_id.sii_code, [])
             grupos[r.document_class_id.sii_code].append(r.with_context(tax_detail=True)._dte())
         for r in self.anulaciones:
-            grupos.setdefault(r.document_class_id.sii_code, [])
+            grupos.setdefault(r.tpo_doc.sii_code, [])
             for i in range(r.rango_inicio, r.rango_final+1):
-                grupos[r.document_class_id.sii_code].append({
+                grupos[r.tpo_doc.sii_code].append({
                     "Encabezado": {
                         "IdDoc": {
                             "Folio": i,
-                            "FechaEmis": r.fecha_inicio.strftime("%d-%m-%Y"),
+                            "FechaEmis": self.fecha_inicio.strftime("%d-%m-%Y"),
                             "Anulado": True,
                         }
                     }

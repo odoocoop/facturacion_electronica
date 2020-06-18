@@ -150,6 +150,8 @@ class DTEClaim(models.Model):
         att = self._create_attachment(
             resp['respuesta_xml'],
             resp['nombre_xml'],
+            doc.id,
+            tipo
         )
         partners = doc.partner_id.ids
         dte_email_id = doc.company_id.dte_email_id or self.env.user.company_id.dte_email_id
@@ -209,6 +211,8 @@ class DTEClaim(models.Model):
         att = self._create_attachment(
             resp['respuesta_xml'],
             resp['nombre_xml'],
+            doc.id,
+            tipo
         )
         dte_email_id = doc.company_id.dte_email_id or self.env.user.company_id.dte_email_id
         values = {
@@ -265,6 +269,8 @@ class DTEClaim(models.Model):
             att = self._create_attachment(
                 resp['respuesta_xml'],
                 resp['nombre_xml'],
+                doc.id,
+                tipo
             )
             dte_email_id = doc.company_id.dte_email_id or self.env.user.company_id.dte_email_id
             values = {

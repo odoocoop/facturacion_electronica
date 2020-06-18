@@ -64,7 +64,7 @@ class AccountInvoiceLine(models.Model):
         )
     discount_amount = fields.Float(
         string="Monto Descuento",
-        default=0.00
+        default=0.00,
     )
 
     @api.onchange('discount', 'price_unit', 'quantity')
@@ -1791,10 +1791,15 @@ a VAT."""))
                 'name': result['sii_send_filename'],
                 'company_id': self[0].company_id.id,
                 'user_id': self.env.uid,
-                'sii_send_ident': result['sii_send_ident'],
-                'sii_xml_response': result['sii_xml_response'],
-                'state': result['sii_result'],
+                'sii_send_ident': result.get('sii_send_ident'),
+                'sii_xml_response': result.get('sii_xml_response'),
+                'state': result.get('sii_result'),
             }
+        if self[0].document_class_id.es_boleta() and self[0].company_id.dte_service_provider == 'SII':
+            envio.update({
+                'state': "Aceptado",
+                'sii_send_ident': 'BE'
+            })
         if not envio_id:
             envio_id = self.env['sii.xml.envio'].create(envio)
             for i in self:
@@ -1830,8 +1835,10 @@ a VAT."""))
                 r.sii_result = 'Proceso'
                 continue
             if r.sii_message:
-                r.sii_result = r.process_response_xml(r.sii_message)
-                continue
+                receipt = self.sii_xml_request.object_receipt()
+                if receipt.find('RESP_BODY') is not None:
+                    r.sii_result = r.process_response_xml(r.sii_message)
+                    continue
             if r.sii_xml_request.state == 'NoEnviado':
                 r.sii_result = 'EnCola'
                 continue
@@ -2065,8 +2072,7 @@ a VAT."""))
         for l in self.invoice_line_ids:
             if not l.account_id:
                 continue
-            total = l.currency_id.round((l.quantity * l.price_unit))
-            total_discount += (total - l.discount_amount)
+            total_discount += l.discount_amount
         return self.currency_id.round(total_discount)
 
     @api.multi

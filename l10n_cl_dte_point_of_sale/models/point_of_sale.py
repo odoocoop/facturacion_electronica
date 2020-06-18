@@ -707,6 +707,11 @@ class POS(models.Model):
                 'sii_xml_response': result.get('sii_xml_response'),
                 'state': result.get('sii_result'),
             }
+        if self[0].document_class_id.es_boleta() and self[0].company_id.dte_service_provider == 'SII':
+            envio.update({
+                'state': "Aceptado",
+                'sii_send_ident': 'BE'
+            })
         if not envio_id:
             envio_id = self.env['sii.xml.envio'].create(envio)
             for i in self:
@@ -714,11 +719,6 @@ class POS(models.Model):
                 i.sii_result = 'Enviado'
         else:
             envio_id.write(envio)
-        if self[0].document_class_id.es_boleta():
-            envio_id.write({
-                'state': "Aceptado",
-                'sii_send_ident': 'BE'
-            })
         return envio_id
 
     @api.onchange('sii_message')
@@ -958,7 +958,7 @@ class POS(models.Model):
                     'tax_ids': [(6, 0, base_line_tax_ids.ids)],
                     'partner_id': partner_id
                 }
-                total += (amount_subtotal if (amount_subtotal > 0) else -amount_subtotal)
+                total += amount_subtotal
                 if cur != cur_company:
                     data['currency_id'] = cur.id
                     data['amount_currency'] = -abs(line.price_subtotal) if data.get('credit') else abs(line.price_subtotal)
@@ -991,7 +991,7 @@ class POS(models.Model):
                         'order_id': order.id
                     }
                     all_tax.setdefault(tax['name'], 0)
-                    all_tax[tax['name']] += (amount_tax if amount_tax > 0 else -amount_tax)
+                    all_tax[tax['name']] += amount_tax
                     if cur != cur_company:
                         data['currency_id'] = cur.id
                         data['amount_currency'] = -abs(tax['amount']) if data.get('credit') else abs(tax['amount'])
@@ -1004,12 +1004,20 @@ class POS(models.Model):
             dif = order.amount_total - (cur.round(total) + total_tax)
             if rounding_method == 'round_globally':
                 for group_key, group_value in grouped_data.items():
+                    if dif != 0 and group_key[0] == 'product':
+                        for l in group_value:
+                            if line.product_id.id == l['product_id']:
+                                if l['credit'] > 0:
+                                    l['credit'] += dif
+                                else:
+                                    l['debit'] += dif
+                                dif = 0
                     if group_key[0] == 'tax':
-                        for line in group_value:
-                            line['credit'] = cur_company.round(line['credit'])
-                            line['debit'] = cur_company.round(line['debit'])
-                            if line.get('currency_id'):
-                                line['amount_currency'] = cur.round(line.get('amount_currency', 0.0))
+                        for l in group_value:
+                            l['credit'] = cur_company.round(l['credit'])
+                            l['debit'] = cur_company.round(l['debit'])
+                            if l.get('currency_id'):
+                                l['amount_currency'] = cur.round(l.get('amount_currency', 0.0))
             # counterpart
             if cur != cur_company:
                 # 'amount_cur_company' contains the sum of the AML converted in the company

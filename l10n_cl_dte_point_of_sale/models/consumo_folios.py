@@ -16,11 +16,11 @@ class ConsumoFolios(models.Model):
     def _get_moves(self):
         recs = super(ConsumoFolios, self)._get_moves()
         tz = pytz.timezone('America/Santiago')
-        tz_current = tz.localize(
-            datetime.strptime(
-                self.fecha_inicio.strftime(DTF), DTF)).astimezone(pytz.utc)
+        fecha_inicio = datetime.strptime(self.fecha_inicio.strftime(DTF), DTF)
+        tz_current = tz.localize(fecha_inicio).astimezone(pytz.utc)
         current = tz_current.strftime(DTF)
-        next_day = (self.fecha_inicio + relativedelta.relativedelta(days=1)).strftime(DTF)
+        next_day = tz.localize(fecha_inicio + relativedelta.relativedelta(
+            days=1)).astimezone(pytz.utc)
         orders_array = self.env['pos.order'].search(
             [
              ('invoice_id' , '=', False),
