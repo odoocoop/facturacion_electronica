@@ -14,17 +14,14 @@ class IRSequence(models.Model):
     @api.model
     def check_cafs(self):
         self._cr.execute(
-        "SELECT id FROM ir_sequence WHERE autoreponer_caf and qty_available <= nivel_minimo")
+        "SELECT id FROM ir_sequence WHERE autoreponer_caf and qty_available < nivel_minimo")
         for r in self.env['ir.sequence'].sudo().browse([x[0] for x in self._cr.fetchall()]):
             try:
                 r.solicitar_caf()
             except Exception as e:
                 _logger.warning("Error al solictar folios a secuencia %s: %s" % (r.sii_document_class_id.name, str(e)))
 
-    @api.depends('dte_caf_ids', 'number_next_actual')
     def get_qty_available(self, folio=None):
-        if not self.is_dte:
-            return 0
         folio = folio or self._get_folio()
         try:
             cafs = self.get_caf_files(folio)
@@ -34,12 +31,11 @@ class IRSequence(models.Model):
         folio = int(folio)
         if cafs:
             for c in cafs:
-                if folio >= c.start_nm and folio <= c.final_nm:
-                    available += c.final_nm - folio
-                elif folio <= c.final_nm:
-                    available += (c.final_nm - c.start_nm) + 1
-                if folio > c.start_nm:
-                    available +=1
+                final = (c.final_nm +1)
+                if folio >= c.start_nm and folio < final:
+                    available += final - folio
+                elif folio < final:
+                    available += (final - c.start_nm)
         if available <= self.nivel_minimo:
             alert_msg = 'Nivel bajo de CAF para %s, quedan %s foliosself. Recuerde verificar su token apicaf.cl' % (self.sii_document_class_id.name, available)
             self.env['bus.bus'].sendone((
@@ -62,15 +58,41 @@ class IRSequence(models.Model):
                                     'firma': firma.id,
                                 })
         wiz_caf.conectar_api()
-        wiz_caf.cant_doctos = self.autoreponer_cantidad
+        if not wiz_caf.id_peticion:
+            alert_msg = "Problema al conectar con apicaf.cl"
+        else:
+            cantidad = self.autoreponer_cantidad
+            if wiz_caf.api_max_autor > 0 and cantidad > wiz_caf.api_max_autor:
+                cantidad = wiz_caf.api_max_autor
+            elif wiz_caf.api_max_autor == 0:
+                self.autoreponer_caf = False
+                alert_msg = 'El SII no permite solicitar más CAFs para %s, consuma los %s folios disponibles o verifique situación tributaria en www.sii.cl' % (
+                    self.sii_document_class_id.name,
+                    wiz_caf.api_folios_disp
+                    )
+        if alert_msg:
+            _logger.warning(alert_msg)
+            self.env['bus.bus'].sendone((
+                self._cr.dbname,
+                'ir.sequence',
+                self.env.user.partner_id.id),
+                {
+                'title': "Alerta sobre Folios",
+                'message': alert_msg,
+                'url': 'res_config',
+                'type': 'dte_notif',
+                })
+            return
+        wiz_caf.cant_doctos = cantidad
         wiz_caf.obtener_caf()
 
     def _set_qty_available(self):
         self.qty_available = self.get_qty_available()
 
+    @api.depends('dte_caf_ids', 'number_next_actual')
     def _qty_available(self):
         for i in self:
-            if i.sii_document_class_id:
+            if i.is_dte and i.sii_document_class_id:
                 i._set_qty_available()
 
     sii_document_class_id = fields.Many2one(
@@ -189,5 +211,10 @@ www.sii.cl'''.format(folio)
                 actual = self.number_next_actual
             if number_next +1 != actual: #Fue actualizado
                 number_next = actual
+            if self.implementation == 'no_gap':
+                self._cr.execute("SELECT number_next FROM %s WHERE id=%s FOR UPDATE NOWAIT" % (self._table, self.id))
+                self._cr.execute("UPDATE %s SET number_next=%s WHERE id=%s " % (self._table, number_next, self.id))
+                self.invalidate_cache(['number_next'], [self.id])
             folio = self.get_next_char(number_next)
+        self._qty_available()
         return folio

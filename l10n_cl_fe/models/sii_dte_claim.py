@@ -70,6 +70,38 @@ class DTEClaim(models.Model):
         string="Detalle Reclamo",
     )
 
+    def _emisor(self, company_id):
+        Emisor = {}
+        Emisor['RUTEmisor'] = company_id.document_number
+        Emisor['RznSoc'] = company_id.partner_id.name
+        Emisor['GiroEmis'] = company_id.activity_description.name
+        if company_id.phone:
+            Emisor['Telefono'] = company_id.phone
+        Emisor['CorreoEmisor'] = company_id.dte_email_id.name_get()[0][1]
+        #Emisor['Actecos'] = self._actecos_emisor()
+        Emisor['DirOrigen'] = company_id.street + ' ' + (company_id.street2 or '')
+        if not company_id.city_id:
+            raise UserError("Debe ingresar la Comuna de compañía emisora")
+        Emisor['CmnaOrigen'] = company_id.city_id.name
+        if not company_id.city:
+            raise UserError("Debe ingresar la Ciudad de compañía emisora")
+        Emisor['CiudadOrigen'] = company_id.city
+        Emisor["Modo"] = "produccion" if company_id.dte_service_provider == 'SII'\
+                  else 'certificacion'
+        Emisor["NroResol"] = company_id.dte_resolution_number
+        Emisor["FchResol"] = company_id.dte_resolution_date
+        return Emisor
+
+    def _get_datos_empresa(self, company_id):
+        signature_id = self.env.user.get_digital_signature(company_id)
+        if not signature_id:
+            raise UserError(_('''There are not a Signature Cert Available for this user, please upload your signature or tell to someelse.'''))
+        emisor = self._emisor(company_id)
+        return {
+            "Emisor": emisor,
+            "firma_electronica": signature_id.parametros_firma(),
+        }
+
     def send_claim(self):
         token = self.env['sii.xml.envio'].get_token(self.env.user, self.company_id)
         url = claim_url[self.company_id.dte_service_provider] + '?wsdl'
@@ -155,7 +187,7 @@ class DTEClaim(models.Model):
         att = self._create_attachment(
             resp['respuesta_xml'],
             resp['nombre_xml'],
-            doc,
+            doc.id,
             tipo,
         )
         partners = doc.partner_id.ids
@@ -215,7 +247,7 @@ class DTEClaim(models.Model):
         att = self._create_attachment(
             resp['respuesta_xml'],
             resp['nombre_xml'],
-            doc,
+            doc.id,
             tipo,
         )
         dte_email_id = doc.company_id.dte_email_id or self.env.user.company_id.dte_email_id
@@ -272,7 +304,7 @@ class DTEClaim(models.Model):
         att = self._create_attachment(
             resp['respuesta_xml'],
             resp['nombre_xml'],
-            doc,
+            doc.id,
             tipo,
         )
         dte_email_id = doc.company_id.dte_email_id or self.env.user.company_id.dte_email_id

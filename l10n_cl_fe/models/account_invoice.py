@@ -1804,15 +1804,18 @@ a VAT."))
         elif estado.text in ["FAN"]:
             return "Anulado"  #Desde El sii o por NC
 
-    @api.onchange('sii_message')
     def get_sii_result(self):
         for r in self:
             if r.company_id.dte_service_provider != 'SIICERT' and r.document_class_id.es_boleta():
                 r.sii_result = 'Proceso'
                 continue
             if r.sii_message:
-                r.sii_result = r.process_response_xml(r.sii_message)
-                continue
+                receipt = r.sii_xml_request.object_receipt()
+                if receipt.find('RESP_BODY') is not None:
+                    r.sii_result = r.process_response_xml(r.sii_message)
+                    continue
+                elif receipt.find('RESP_HDR') is not None:
+                    r.sii_xml_request.get_send_status(r.env.user)
             if r.sii_xml_request.state == 'NoEnviado':
                 r.sii_result = 'EnCola'
                 continue
@@ -1846,6 +1849,7 @@ a VAT."))
                     token,
                 )
                 r.sii_message = respuesta
+                r.get_sii_result()
             except Exception as e:
                 msg = "Error al obtener Estado DTE"
                 _logger.warning("%s: %s" % (msg, str(e)))
@@ -1867,7 +1871,6 @@ a VAT."))
                 self._get_dte_status()
             except Exception as e:
                 _logger.warning("Error al obtener DTE Status: %s" %str(e))
-        self.get_sii_result()
         for r in self:
             mess = False
             if r.sii_result == 'Rechazado':

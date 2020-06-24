@@ -860,6 +860,7 @@ class UploadXMLWizard(models.TransientModel):
         for t in inv.tax_line_ids:
             if Totales.find('TasaIVA') is not None and t.tax_id.amount == float(Totales.find('TasaIVA').text):
                 t.amount = float(Totales.find('IVA').text)
+                t.amount_total = float(Totales.find('IVA').text)
                 t.base = float(Totales.find('MntNeto').text)
             else:
                 t.base = float(Totales.find('MntExe').text)

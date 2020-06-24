@@ -537,6 +537,10 @@
             <line><left font='b'>Fecha: </left><right><t t-esc="doc.date_invoice"/></right></line>
             <line><left font='b'>Teléfono: </left><right><t t-esc="doc.company_id.phone"/></right></line>
             <line><left font='b'>Dirección: </left><right><t t-esc="doc.company_id.street"/></right></line>
+            <t t-if="'payment_term_id' in doc and doc.payment_term_id">
+	            <line ><left font='b'>Condición de Pago:</left><right><span t-field="doc.payment_term_id.name"/></right></line>
+	          </t>
+	    	    <line ><left font='b'>Forma de Pago:</left><right><span t-field="doc.forma_pago"/></right></line>
             <t t-if="doc.partner_id">
               <line><right>--------</right></line>
               <line><left font='b'>Cliente: </left><right><span t-esc="doc.partner_id.name"/></right></line>

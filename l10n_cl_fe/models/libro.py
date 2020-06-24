@@ -448,6 +448,7 @@ class Libro(models.Model):
             self.sii_xml_request.state = 'NoEnviado'
         if self.state in ['NoEnviado', 'EnCola']:
             self.sii_xml_request.send_xml()
+            self.state = self.sii_xml_request.state
         return self.sii_xml_request
 
     def _get_send_status(self):

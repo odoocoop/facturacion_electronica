@@ -10,8 +10,12 @@ def migrate(cr, installed_version):
     env = api.Environment(cr, SUPERUSER_ID, {})
     for r in env['account.move.consumo_folios'].sudo().search(
         [
-            ('total_boletas', '>', 0),
             ('total_neto', '=', 0),
             ('total_exento', '=', 0),
         ]):
         r._resumenes()
+    for r in env['ir.sequence'].sudo().search(
+        [
+            ('sii_document_class_id', '!=', False),
+        ]):
+        r._qty_available()

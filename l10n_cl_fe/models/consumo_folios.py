@@ -217,7 +217,7 @@ class ConsumoFolios(models.Model):
                     "Encabezado": {
                         "IdDoc": {
                             "Folio": i,
-                            "FechaEmis": r.fecha_inicio,
+                            "FechaEmis": self.fecha_inicio,
                             "Anulado": True,
                         }
                     }
