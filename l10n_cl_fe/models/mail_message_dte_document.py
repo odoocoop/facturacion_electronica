@@ -252,10 +252,10 @@ class ProcessMailsDocument(models.Model):
                     'document_ids': [(6, 0, r.ids)],
                     'estado_dte': '2',
                     'action': 'validate',
+                    'claim': 'RCD',
                 }
                 val = self.env['sii.dte.validar.wizard'].sudo().create(vals)
                 resp = val.confirm()
-            r.set_dte_claim(claim='RCD')
             if r.claim in ['RCD']:
                 r.state = 'rejected'
 
