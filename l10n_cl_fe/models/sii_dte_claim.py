@@ -220,23 +220,27 @@ class DTEClaim(models.Model):
         ''' @TODO separar estos dos'''
         dte['CodEnvio'] = IdRespuesta
         datos['filename'] = 'validacion_comercial_%s.xml' % str(IdRespuesta)
+        receptor = doc._receptor()
         datos["ValidacionCom"] = {
             'IdRespuesta': IdRespuesta,
             'NroDetalles': NroDetalles,
             "RutResponde": doc.company_id.partner_id.rut(),
-            "RutRecibe": doc.partner_id.commercial_partner_id.document_number,
+            "RutRecibe": receptor['RUTRecep'],
             'NmbContacto': self.env.user.partner_id.name,
             'FonoContacto': self.env.user.partner_id.phone,
             'MailContacto': self.env.user.partner_id.email,
             'EstadoDTE': self.estado_dte,
             'EstadoDTEGlosa': self.claim_description,
             "Receptor": {
-            	    "RUTRecep": doc.partner_id.commercial_partner_id.document_number,
+            	    "RUTRecep": receptor['RUTRecep'],
             },
             "DTEs": [dte],
         }
 
-        if self.estado_dte != '0':
+        if self.estado_dte in ['2']:
+            datos['filename'] = 'validacion_comercial_%s.xml' % str(IdRespuesta)
+            datos['ValidacionCom']['CodRchDsc'] = -1
+        elif self.estado_dte != '0':
             datos["ValidacionCom"]['CodRchDsc'] = -2
         resp = fe.validacion_comercial(datos)
         doc.sii_message = resp['respuesta_xml']
@@ -282,17 +286,18 @@ class DTEClaim(models.Model):
             return
         if self.claim == 'ERM':
             datos = doc._get_datos_empresa(doc.company_id) if self.invoice_id else self._get_datos_empresa(doc.company_id)
+            receptor = doc._receptor()
             datos["RecepcionMer"] = {
                 'EstadoRecepDTE': self.estado_dte,
                 'RecepDTEGlosa': self.claim_description,
                 "RutResponde": doc.company_id.partner_id.rut(),
-                "RutRecibe": doc.partner_id.commercial_partner_id.document_number,
+                "RutRecibe": receptor['RUTRecep'],
                 'Recinto': doc.company_id.street,
                 'NmbContacto': self.env.user.partner_id.name,
                 'FonoContacto': self.env.user.partner_id.phone,
                 'MailContacto': self.env.user.partner_id.email,
                 "Receptor": {
-                	    "RUTRecep": doc.partner_id.commercial_partner_id.document_number,
+                	    "RUTRecep": receptor['RUTRecep'],
                 },
                 "DTEs": [doc._dte()],
             }

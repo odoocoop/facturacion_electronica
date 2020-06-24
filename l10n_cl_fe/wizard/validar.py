@@ -125,10 +125,6 @@ class ValidarDTEWizard(models.TransientModel):
             else:
                 datos['document_id'] = doc.id
             claim = self.env['sii.dte.claim'].sudo().create(datos)
-            if self.tipo == 'account.invoice':
-                claim.invoice_id = doc.id
-            else:
-                claim.document_id = doc.id
             claim.do_reject(doc)
 
     def do_validar_comercial(self):
@@ -148,10 +144,6 @@ class ValidarDTEWizard(models.TransientModel):
             else:
                 datos['document_id'] = doc.id
             claim = self.env['sii.dte.claim'].sudo().create(datos)
-            if self.tipo == 'account.invoice':
-                claim.invoice_id = doc.id
-            else:
-                claim.document_id = doc.id
             claim.do_validar_comercial()
 
     @api.multi

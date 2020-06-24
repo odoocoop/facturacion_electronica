@@ -251,7 +251,7 @@ class ProcessMailsDocument(models.Model):
                 vals = {
                     'document_ids': [(6, 0, r.ids)],
                     'estado_dte': '2',
-                    'action': 'ambas',
+                    'action': 'validate',
                 }
                 val = self.env['sii.dte.validar.wizard'].sudo().create(vals)
                 resp = val.confirm()
