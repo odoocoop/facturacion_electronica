@@ -157,13 +157,18 @@ class ProcessMailsDocument(models.Model):
 
     def _receptor(self):
         Receptor = {}
-        commercial_partner_id = self.partner_id.commercial_partner_id
-        if not commercial_partner_id.vat and not self._es_boleta() and not self._nc_boleta():
-            raise UserError("Debe Ingresar RUT Receptor")
-        #if self._es_boleta():
-        #    Receptor['CdgIntRecep']
-        Receptor['RUTRecep'] = commercial_partner_id.rut()
-        Receptor['RznSocRecep'] = self._acortar_str( commercial_partner_id.name, 100)
+        if self.new_partner:
+            p = self.new_partner.split(' ')
+            Receptor['RUTRecep'] = p[0]
+            Receptor['RznSocRecep'] = ' '
+            for s in p[1:]:
+                Receptor['RznSocRecep'] += s
+        else:
+            commercial_partner_id = self.partner_id.commercial_partner_id or self.partner_id
+            if not commercial_partner_id.vat:
+                raise UserError("Debe Ingresar RUT Receptor")
+            Receptor['RUTRecep'] = commercial_partner_id.rut()
+            Receptor['RznSocRecep'] = commercial_partner_id.name
         return Receptor
 
     def _totales(self):
