@@ -325,7 +325,7 @@ class UploadXMLWizard(models.TransientModel):
             ('company_id', '=', company_id.id)
         ]
         if IndExe is not None:
-            query.exxtend([
+            query.extend([
                     ('sii_type', '=', False),
             ])
         elif sii_type:
