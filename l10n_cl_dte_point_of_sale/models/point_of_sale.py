@@ -979,7 +979,7 @@ class POS(models.Model):
                     'tax_ids': [(6, 0, base_line_tax_ids.ids)],
                     'partner_id': partner_id
                 }
-                total += (amount_subtotal if (amount_subtotal > 0) else -amount_subtotal)
+                total += amount_subtotal
                 if cur != cur_company:
                     data['currency_id'] = cur.id
                     data['amount_currency'] = -abs(line.price_subtotal) if data.get('credit') else abs(line.price_subtotal)
@@ -1011,7 +1011,7 @@ class POS(models.Model):
                         'order_id': order.id
                     }
                     all_tax.setdefault(tax['name'], 0)
-                    all_tax[tax['name']] += (amount_tax if amount_tax > 0 else -amount_tax)
+                    all_tax[tax['name']] += amount_tax
                     if cur != cur_company:
                         data['currency_id'] = cur.id
                         data['amount_currency'] = -abs(tax['amount']) if data.get('credit') else abs(tax['amount'])
@@ -1030,8 +1030,8 @@ class POS(models.Model):
                                 if l['credit'] > 0:
                                     l['credit'] += dif
                                 else:
-                                    l['debit'] += dif
-                                dif += 1
+                                    l['debit'] -= dif
+                                dif = 0
                     if group_key[0] == 'tax':
                         for l in group_value:
                             l['credit'] = cur_company.round(l['credit'])

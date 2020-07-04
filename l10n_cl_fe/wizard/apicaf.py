@@ -96,17 +96,17 @@ class APICAF(models.TransientModel):
         resp = pool.request('POST', url, body=json.dumps(params))
         if resp.status != 200:
             _logger.warning("Error en conexión con api apicaf %s" % resp.data)
-            message = ''
+            self.message = ''
             if resp.status == 403:
                 data = json.loads(resp.data.decode('ISO-8859-1'))
-                message = data['message']
+                self.message = data['message']
             else:
-                message = str(resp.data)
+                self.message = str(resp.data)
             self.env['bus.bus'].sendone((
                 self._cr.dbname, 'dte.caf.apicaf',
                 self.env.user.partner_id.id), {
                         'title': "Error en conexión con apicaf",
-                        'message': message,
+                        'message': self.message,
                         'url': {
                             'name': 'ir a apicaf.cl',
                             'uri': 'https://apicaf.cl'
@@ -252,6 +252,9 @@ class APICAF(models.TransientModel):
     motivo = fields.Char(
         string="Motivo de anulación",
     )
+    message = fields.Text(
+        string="Mensaje de respuesta"
+    )
 
     @api.onchange('lineas_disponibles')
     def selected_caf(self):
@@ -299,19 +302,19 @@ class APICAF(models.TransientModel):
         resp = pool.request('POST', url, body=json.dumps(params))
         if resp.status != 200:
             _logger.warning("Error en conexión con api apicaf %s" % resp.data)
-            message = ''
+            self.message = ''
             if resp.status == 403:
                 data = json.loads(resp.data.decode('ISO-8859-1'))
-                message = data['message']
-                _logger.warning(message)
+                self.message = data['message']
+                _logger.warning(self.message)
             else:
-                message = str(resp.data)
+                self.message = str(resp.data)
             self.env['bus.bus'].sendone((
                 self._cr.dbname, 'dte.caf.apicaf',
                 self.env.user.partner_id.id),
                 {
                     'title': "Error en conexión con apicaf",
-                    'message': message,
+                    'message': self.message,
                     'url': {'name': 'ir a apicaf.cl',
                             'uri': 'https://apicaf.cl'},
                     'type': 'dte_notif',
@@ -343,19 +346,19 @@ class APICAF(models.TransientModel):
         resp = pool.request('POST', url, body=json.dumps(params))
         if resp.status != 200:
             _logger.warning("Error en conexión con api apicaf %s" % resp.data)
-            message = ''
+            self.message = ''
             if resp.status == 403:
                 data = json.loads(resp.data.decode('ISO-8859-1'))
-                message = data['message']
-                _logger.warning(message)
+                self.message = data['message']
+                _logger.warning(self.message)
             else:
-                message = str(resp.data)
+                self.message = str(resp.data)
             self.env['bus.bus'].sendone((
                 self._cr.dbname, 'dte.caf.apicaf',
                 self.env.user.partner_id.id),
                 {
                     'title': "Error en conexión con apicaf",
-                    'message': message,
+                    'message': self.message,
                     'url': {'name': 'ir a apicaf.cl',
                             'uri': 'https://apicaf.cl'},
                     'type': 'dte_notif',
@@ -428,19 +431,19 @@ class APICAF(models.TransientModel):
         resp = pool.request('POST', url, body=json.dumps(peticion))
         if resp.status != 200:
             _logger.warning("Error en conexión con api apicaf %s" % resp.data)
-            message = ''
+            self.message = ''
             if resp.status == 403:
                 data = json.loads(resp.data.decode('ISO-8859-1'))
-                message = data['message']
-                _logger.warning(message)
+                self.message = data['message']
+                _logger.warning(self.message)
             else:
-                message = str(resp.data)
+                self.message = str(resp.data)
             self.env['bus.bus'].sendone((
                 self._cr.dbname, 'dte.caf.apicaf',
                 self.env.user.partner_id.id),
                 {
                     'title': "Error en conexión con apicaf",
-                    'message': message,
+                    'message': self.message,
                     'url': {
                                 'name': 'ir a apicaf.cl',
                                 'uri': 'https://apicaf.cl'
@@ -485,18 +488,18 @@ class APICAF(models.TransientModel):
         resp = pool.request('POST', url, body=json.dumps(peticion))
         if resp.status != 200:
             _logger.warning("Error en conexión con api apicaf %s" % resp.data)
-            message = ''
+            self.message = ''
             if resp.status == 403:
                 data = json.loads(resp.data.decode('ISO-8859-1'))
-                message = data['message']
-                _logger.warning(message)
+                self.message = data['message']
+                _logger.warning(self.message)
             else:
-                message = str(resp.data)
+                self.message = str(resp.data)
             self.env['bus.bus'].sendone((
                 self._cr.dbname, 'dte.caf.apicaf', self.env.user.partner_id.id),
                 {
                     'title': "Error en conexión con apicaf",
-                    'message': message,
+                    'message': self.message,
                     'url': {
                                 'name': 'ir a apicaf.cl',
                                 'uri': 'https://apicaf.cl'
@@ -524,25 +527,24 @@ class APICAF(models.TransientModel):
         resp = pool.request('POST', url, body=json.dumps(peticion2))
         if resp.status != 200:
             _logger.warning("Error en conexión con api apicaf %s" % resp.data)
-            message = ''
+            self.message = ''
             if resp.status == 403:
                 data = json.loads(resp.data.decode('ISO-8859-1'))
-                message = data['message']
-                _logger.warning(message)
+                self.message = data['message']
+                _logger.warning(self.message)
             else:
-                message = str(resp.data)
+                self.message = str(resp.data)
             self.env['bus.bus'].sendone((
                 self._cr.dbname, 'dte.caf.apicaf', self.env.user.partner_id.id),
                 {
                     'title': "Error en conexión con apicaf",
-                    'message': message,
+                    'message': self.message,
                     'url': {
                                 'name': 'ir a apicaf.cl',
                                 'uri': 'https://apicaf.cl'
                            },
                     'type': 'dte_notif',
             })
-            return
 
         data = json.loads(resp.data.decode('ISO-8859-1'))
         caf = self.env['dte.caf'].create({
@@ -552,3 +554,35 @@ class APICAF(models.TransientModel):
                 'filename': nombre,
             })
         caf._compute_data()
+
+    @api.multi
+    def delist(self):
+        ICPSudo = self.env['ir.config_parameter'].sudo()
+        url = ICPSudo.get_param('dte.url_apicaf').replace('company_info', 'delist')
+        token = ICPSudo.get_param('dte.token_apicaf')
+        peticion = {
+                'token': token,
+        }
+        resp = pool.request('POST', url, body=json.dumps(peticion))
+        if resp.status != 200:
+            _logger.warning("Error en conexión con api apicaf delist %s" % resp.data)
+            self.message = ''
+            if resp.status == 403:
+                data = json.loads(resp.data.decode('ISO-8859-1'))
+                self.message = data['message']
+                _logger.warning(self.message)
+            else:
+                self.message = str(resp.data)
+            self.env['bus.bus'].sendone((
+                self._cr.dbname, 'dte.caf.apicaf', self.env.user.partner_id.id),
+                {
+                    'title': "Error en conexión con apicaf",
+                    'message': self.message,
+                    'url': {
+                                'name': 'ir a apicaf.cl',
+                                'uri': 'https://apicaf.cl'
+                           },
+                    'type': 'dte_notif',
+            })
+        if self.etapa == 'conectar':
+            self.conectar_api()

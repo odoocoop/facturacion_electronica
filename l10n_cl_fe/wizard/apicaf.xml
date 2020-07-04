@@ -75,6 +75,11 @@
                         <field name="folio_fin" />
                         <field name="motivo" />
                     </group>
+                    <group attrs="{'invisible': [('message', '=', False)]}">
+                      <field name="message" readonly="1"/>
+                      <button name="delist" type="object" string="Remover Bloqueo (Ban)"
+                        attrs="{'invisible': [('message', '!=', 'Usuario Baneado temporalmente')]}"/>
+                    </group>
                     <footer>
                         <button string='Obtener CAF' name="obtener_caf"
                                 type="object" class="btn-primary"

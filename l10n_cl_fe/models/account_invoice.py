@@ -361,6 +361,7 @@ class AccountInvoice(models.Model):
             ('ERM', ' Otorga  Recibo  de  Mercaderías  o Servicios'),
             ('RFP', 'Reclamo por Falta Parcial de Mercaderías'),
             ('RFT', 'Reclamo por Falta Total de Mercaderías'),
+            ('PAG', 'DTE Pagado al Contado'),
         ],
         string="Reclamo",
         copy=False,
@@ -1412,7 +1413,7 @@ a VAT."))
         return Totales
 
     def _es_exento(self):
-        return self.document_class_id.sii_code in [34, 41, 110, 111, 112] or (self.referencias and self.referencias[0].sii_referencia_TpoDocRef.sii_code in [ 34, 41])
+        return self.document_class_id.sii_code in [32, 34, 41, 110, 111, 112] or (self.referencias and self.referencias[0].sii_referencia_TpoDocRef.sii_code in [32, 34, 41])
 
     def _totales(self, MntExe=0, no_product=False, taxInclude=False):
         MntNeto = 0
