@@ -315,7 +315,7 @@ class UploadXMLWizard(models.TransientModel):
         return res
 
     def _buscar_impuesto(self, name="Impuesto", amount=0, sii_code=0,
-                         sii_type=False, IndExe=False, company_id=False):
+                         sii_type=False, IndExe=None, company_id=False):
         query = [
             ('amount', '=', amount),
             ('sii_code', '=', sii_code),
@@ -323,11 +323,11 @@ class UploadXMLWizard(models.TransientModel):
             ('activo_fijo', '=', False),
             ('company_id', '=', company_id.id)
         ]
-        if IndExe:
+        if IndExe is not None:
             query.append(
                     ('sii_type', '=', False)
             )
-        if amount == 0 and sii_code == 0 and not IndExe:
+        if amount == 0 and sii_code == 0 and IndExe is None:
             query.append(
                     ('name', '=', name)
             )
@@ -347,15 +347,17 @@ class UploadXMLWizard(models.TransientModel):
             })
         return imp
 
-    def get_product_values(self, line, company_id, price_included=False):
+    def get_product_values(self, line, company_id, price_included=False, exenta=False):
         IndExe = line.find("IndExe")
         amount = 0
         sii_code = 0
         sii_type = False
-        if not IndExe:
+        if IndExe is None and not exenta:
             amount = 19
             sii_code = 14
             sii_type = False
+        else:
+            IndExe = True
         imp = self._buscar_impuesto(amount=amount,
                                     sii_code=sii_code,
                                     sii_type=sii_type,
@@ -382,13 +384,14 @@ class UploadXMLWizard(models.TransientModel):
                 values['default_code'] = VlrCodigo
         return values
 
-    def _create_prod(self, data, company_id, price_included=False):
+    def _create_prod(self, data, company_id, price_included=False, exenta=False):
         product_id = self.env['product.product'].create(
-                    self.get_product_values(data, company_id, price_included))
+                    self.get_product_values(data, company_id, price_included,
+                                            exenta))
         return product_id
 
     def _buscar_producto(self, document_id, line, company_id,
-                         price_included=False):
+                         price_included=False, exenta=False):
         default_code = False
         CdgItem = line.find("CdgItem")
         NmbItem = line.find("NmbItem").text
@@ -437,7 +440,8 @@ class UploadXMLWizard(models.TransientModel):
                 if not self.pre_process:
                     product_id = self._create_prod(line,
                                                    company_id,
-                                                   price_included)
+                                                   price_included,
+                                                   exenta)
                 else:
                     code = ''
                     coma = ''
@@ -448,7 +452,8 @@ class UploadXMLWizard(models.TransientModel):
         elif self.type == 'ventas' and not product_id:
             product_id = self._create_prod(line,
                                            company_id,
-                                           price_included)
+                                           price_included,
+                                           exenta)
         if not product_supplier and document_id.partner_id and self.type == 'compras':
             price = float(line.find("PrcItem").text if line.find("PrcItem") is not None else line.find("MontoItem").text)
             if price_included:
@@ -467,10 +472,10 @@ class UploadXMLWizard(models.TransientModel):
         return product_id.id
 
     def _prepare_line(self, line, document_id, type, company_id, fpos_id,
-                      price_included=False):
+                      price_included=False, exenta=False):
         data = {}
         product_id = self._buscar_producto(document_id, line, company_id,
-                                           price_included)
+                                           price_included, exenta)
         if isinstance(product_id, int):
             data.update(
                 {
@@ -479,10 +484,7 @@ class UploadXMLWizard(models.TransientModel):
             )
         elif not product_id:
             return False
-        if line.find("MntExe") is not None:
-            price_subtotal = float(line.find("MntExe").text)
-        else:
-            price_subtotal = float(line.find("MontoItem").text)
+        price_subtotal = float(line.find("MontoItem").text)
         discount = 0
         if line.find("DescuentoPct") is not None:
             discount = float(line.find("DescuentoPct").text)
@@ -505,10 +507,29 @@ class UploadXMLWizard(models.TransientModel):
             product_id = self.env['product.product'].browse(product_id)
             fpos = self.env['account.fiscal.position'].browse(fpos_id)
             account = self.env['account.invoice.line'].get_invoice_line_account(type, product_id, fpos, company_id)
-            tax_ids = product_id.supplier_taxes_id
-            if self.type == "ventas":
-                tax_ids = product_id.taxes_id
-            if line.find('IndExe') is None:
+            IndExe = line.find("IndExe")
+            amount = 0
+            sii_code = 0
+            sii_type = False
+            tax_ids = self.env['account.tax']
+            if IndExe is None and not exenta:
+                amount = 19
+                sii_code = 14
+                sii_type = False
+            else:
+                IndExe = True
+            tax_ids += self._buscar_impuesto(
+                    amount=amount, sii_code=sii_code, sii_type=sii_type,
+                    IndExe=IndExe, company_id=company_id
+                )
+            if line.find("CodImpAdic") is not None:
+                amount = 19
+                sii_type = False
+                tax_ids += self._buscar_impuesto(
+                        amount=amount, sii_code=line.find("CodImpAdic").text,
+                        sii_type=sii_type, IndExe=IndExe, company_id=company_id
+                    )
+            if IndExe is None:
                 tax_include = False
                 for t in tax_ids:
                     if not tax_include:
@@ -539,20 +560,6 @@ class UploadXMLWizard(models.TransientModel):
                 'price_unit': price,
                 'price_subtotal': price_subtotal,
                 })
-            if not product_id:
-                IndExe = line.find("IndExe")
-                amount = 0
-                sii_code = 0
-                sii_type = False
-                if not IndExe:
-                    amount = 19
-                    sii_code = 14
-                    sii_type = False
-                imp = self._buscar_impuesto(amount=amount, sii_code=sii_code,
-                                            sii_type=sii_type, IndExe=IndExe,
-                                            company_id=company_id)
-                if imp:
-                    data['invoice_line_tax_ids'] = [(6, 0, imp.ids)]
         return [0, 0, data]
 
     def _create_tpo_doc(self, TpoDocRef, RazonRef=None):
@@ -726,10 +733,12 @@ class UploadXMLWizard(models.TransientModel):
 
     def _get_invoice_lines(self, documento, document_id, invoice_type, fpos,
                            price_included, company_id):
+        exenta = documento.find("Encabezado/IdDoc/TipoDTE").text in ['34', '41']
         lines = []
         for line in documento.findall("Detalle"):
             new_line = self._prepare_line(line, document_id, invoice_type,
-                                          company_id, fpos, price_included)
+                                          company_id, fpos, price_included,
+                                          exenta)
             if new_line:
                 lines.append(new_line)
         return lines
@@ -991,17 +1000,14 @@ class UploadXMLWizard(models.TransientModel):
         return created
 
     def prepare_purchase_line(self, line, document_id, date_planned,
-                              company_id, price_included=False):
+                              company_id, price_included=False, exenta=False):
         product = self._buscar_producto(document_id, line, company_id,
-                                        price_included)
+                                        price_included, exenta)
         if not product:
             return False
         if isinstance(product, int):
             product = self.env['product.product'].browse(product)
-        if line.find("MntExe") is not None:
-            price_subtotal = float(line.find("MntExe").text)
-        else:
-            price_subtotal = float(line.find("MontoItem").text)
+        price_subtotal = float(line.find("MontoItem").text)
         discount = 0
         if line.find("DescuentoPct") is not None:
             discount = float(line.find("DescuentoPct").text)
@@ -1062,11 +1068,13 @@ class UploadXMLWizard(models.TransientModel):
         self._purchase_exist(purchase_vals, partner)
         document_id = self._dte_exist(documento)
         lines = [(5,)]
+        exenta = documento.find("Encabezado/IdDoc/TipoDTE").text in ['34', '41']
         for line in documento.findall("Detalle"):
             new_line = self.prepare_purchase_line(line, document_id,
                                                   purchase_vals['date_order'],
                                                   company,
-                                                  price_included)
+                                                  price_included,
+                                                  exenta)
             if new_line:
                 lines.append(new_line)
         if not lines:

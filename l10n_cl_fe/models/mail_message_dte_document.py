@@ -100,6 +100,7 @@ class ProcessMailsDocument(models.Model):
             ('ERM', ' Otorga  Recibo  de  Mercaderías  o Servicios'),
             ('RFP', 'Reclamo por Falta Parcial de Mercaderías'),
             ('RFT', 'Reclamo por Falta Total de Mercaderías'),
+            ('PAG', 'DTE Pagado al Contado'),
         ],
         string="Reclamo",
         copy=False,
@@ -194,7 +195,7 @@ class ProcessMailsDocument(models.Model):
             r.invoice_id = self.invoice_id.id
 
     @api.model
-    def auto_accept_documents(self):
+    def auto_accept_documents(self, limit=50):
         self.env.cr.execute(
             """
             select
@@ -205,16 +206,25 @@ class ProcessMailsDocument(models.Model):
                 create_date + interval '8 days' < now()
                 and
                 state = 'draft'
-            """
+            limit {0}
+            """.format(limit)
         )
-        for d in self.browse([line.get('id') for line in \
-                              self.env.cr.dictfetchall()]):
-            d.accept_document()
+        self.browse([line.get('id') for line in \
+                              self.env.cr.dictfetchall()]).accept_document()
 
     @api.multi
     def accept_document(self):
         created = []
         for r in self:
+            try:
+                r.get_dte_claim()
+            except Exception as e:
+                _logger.warning("Problema al obtener claim desde accept %s" %str(e))
+                _logger.warning("encolar")
+                if r.company_id.dte_service_provider != 'SIICERT':
+                    continue
+            if r.invoice_id and r.state != 'draft':
+                continue
             vals = {
                 'xml_file': r.xml.encode('ISO-8859-1'),
                 'filename': r.dte_id.name,
@@ -225,16 +235,11 @@ class ProcessMailsDocument(models.Model):
             val = self.env['sii.dte.upload_xml.wizard'].sudo().create(vals)
             resp = val.confirm(ret=True)
             created.extend(resp)
-            try:
-                r.get_dte_claim()
-            except Exception as e:
-                _logger.warning("Problema al obtener claim desde accept %s" %str(e))
-                _logger.warning("encolar")
             if r.company_id.dte_service_provider == 'SIICERT':
                 r.state = 'accepted'
                 continue
             for i in self.env['account.invoice'].browse(resp):
-                if i.claim in ['ACD', 'ERM']:
+                if i.claim in ['ACD', 'ERM', 'PAG']:
                     r.state = 'accepted'
         xml_id = 'account.action_invoice_tree2'
         result = self.env.ref('%s' % (xml_id)).read()[0]
@@ -320,7 +325,7 @@ class ProcessMailsDocument(models.Model):
                     if self.claim != "ACD":
                         if self.claim != 'ERM':
                             self.claim = res.codEvento
-            if self.claim in ["ACD", "ERM"]:
+            if self.claim in ["ACD", "ERM", 'PAG']:
                 self.state = 'accepted'
         except Exception as e:
             _logger.warning("Error al obtener aceptación %s" %(str(e)))

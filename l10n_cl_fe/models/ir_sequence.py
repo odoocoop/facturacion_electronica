@@ -58,6 +58,7 @@ class IRSequence(models.Model):
                                     'firma': firma.id,
                                 })
         wiz_caf.conectar_api()
+        alert_msg = False
         if not wiz_caf.id_peticion:
             alert_msg = "Problema al conectar con apicaf.cl"
         else:
@@ -181,7 +182,8 @@ www.sii.cl'''.format(folio)
         menor = False
         cafs = self.get_caf_files(folio)
         if not cafs:
-            raise UserError(_('No quedan CAFs para %s disponibles') % self.name)
+            _logger.warning('No quedan CAFs para %s disponibles' % self.name)
+            return
         for c in cafs:
             if not menor or c.start_nm < menor.start_nm:
                 menor = c

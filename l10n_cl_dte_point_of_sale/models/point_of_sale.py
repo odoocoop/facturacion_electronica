@@ -1010,7 +1010,7 @@ class POS(models.Model):
                                 if l['credit'] > 0:
                                     l['credit'] += dif
                                 else:
-                                    l['debit'] += dif
+                                    l['debit'] -= dif
                                 dif = 0
                     if group_key[0] == 'tax':
                         for l in group_value:

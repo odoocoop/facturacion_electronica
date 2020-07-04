@@ -59,6 +59,7 @@ class ValidarDTEWizard(models.TransientModel):
             ('ERM', 'Otorga  Recibo  de  Mercaderías  o Servicios'),
             ('RFP', 'Reclamo por Falta Parcial de Mercaderías'),
             ('RFT', 'Reclamo por Falta Total de Mercaderías'),
+            ('PAG', 'DTE Pagado al Contado'),
         ],
         string="Reclamo",
         required=True,

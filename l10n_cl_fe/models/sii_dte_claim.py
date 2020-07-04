@@ -47,6 +47,7 @@ class DTEClaim(models.Model):
             ('ERM', 'Otorga  Recibo  de  Mercaderías  o Servicios'),
             ('RFP', 'Reclamo por Falta Parcial de Mercaderías'),
             ('RFT', 'Reclamo por Falta Total de Mercaderías'),
+            ('PAG', 'DTE Pagado al Contado'),
         ],
         string="Reclamo",
         copy=False,
