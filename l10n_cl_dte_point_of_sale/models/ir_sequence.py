@@ -14,6 +14,8 @@ class IRSequence(models.Model):
         if self.is_dte and self.sii_document_class_id.sii_code in [39, 41]:
             context = dict(self._context or {})
             id = context.get('default_sequence_id') #Al parecer se complica el contexto y se pierde la referencia id
+            if not id:
+                return
             query = [
                 ('rescue', '=', False),
                 ('state', 'not in', ['closed']),
@@ -21,7 +23,7 @@ class IRSequence(models.Model):
                 ('config_id.secuencia_boleta', '=', id),
                 ('config_id.secuencia_boleta_exenta', '=', id),
                 ]
-            if self.env['pos.session'].search(query):
+            if self.env['pos.session'].sudo().search(query):
                 raise UserError("No puede Editar CAF de Una sesión de Punto de Ventas abierto. Cierre y contabiliza el punto de ventas primero")
 
     def solicitar_caf(self):

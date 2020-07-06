@@ -37,7 +37,7 @@ class IRSequence(models.Model):
                 elif folio < final:
                     available += (final - c.start_nm)
         if available <= self.nivel_minimo:
-            alert_msg = 'Nivel bajo de CAF para %s, quedan %s foliosself. Recuerde verificar su token apicaf.cl' % (self.sii_document_class_id.name, available)
+            alert_msg = 'Nivel bajo de CAF para %s, quedan %s folios. Recuerde verificar su token apicaf.cl' % (self.sii_document_class_id.name, available)
             self.env['bus.bus'].sendone((
                 self._cr.dbname,
                 'ir.sequence',
@@ -87,10 +87,10 @@ class IRSequence(models.Model):
         wiz_caf.cant_doctos = cantidad
         wiz_caf.obtener_caf()
 
+    @api.depends('dte_caf_ids', 'number_next_actual')
     def _set_qty_available(self):
         self.qty_available = self.get_qty_available()
 
-    @api.depends('dte_caf_ids', 'number_next_actual')
     def _qty_available(self):
         for i in self.sudo():
             if i.is_dte and i.sii_document_class_id:

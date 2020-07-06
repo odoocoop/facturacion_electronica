@@ -6,7 +6,7 @@ from odoo.addons import decimal_precision as dp
 
 def float_round_custom(value, precision_digits=None, precision_rounding=None, rounding_method='HALF-UP'):
 	result = float_round(value, precision_digits, precision_rounding, rounding_method)
-	if precision_rounding == 1:
+	if precision_rounding == 1 or (precision_digits is not None and precision_digits == 0):
 		return int(result)
 	return result
 
