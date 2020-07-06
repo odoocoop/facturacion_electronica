@@ -87,10 +87,10 @@ class IRSequence(models.Model):
         wiz_caf.cant_doctos = cantidad
         wiz_caf.obtener_caf()
 
+    @api.depends('dte_caf_ids', 'number_next_actual')
     def _set_qty_available(self):
         self.qty_available = self.get_qty_available()
 
-    @api.depends('dte_caf_ids', 'number_next_actual')
     def _qty_available(self):
         for i in self.sudo():
             if i.is_dte and i.sii_document_class_id:

@@ -2,6 +2,7 @@
 from odoo import api, models, fields
 from odoo.tools.translate import _
 from odoo.tools import DEFAULT_SERVER_DATETIME_FORMAT as DTF
+from .currency import float_round_custom
 from datetime import datetime
 import dateutil.relativedelta as relativedelta
 import pytz
@@ -33,6 +34,7 @@ class SiiTax(models.Model):
             We consider the sequence of the parent for group of taxes.
                 Eg. considering letters as taxes and alphabetic order as sequence :
                 [G, B([A, D, F]), E, C] will be computed as [A, D, F, C, E, G]
+
         RETURN: {
             'total_excluded': 0.0,    # Total without taxes
             'total_included': 0.0,    # Total with taxes
@@ -63,17 +65,31 @@ class SiiTax(models.Model):
         # the 'Account' decimal precision + 5), and that way it's like
         # rounding after the sum of the tax amounts of each line
         prec = currency.decimal_places
-        base = round(price_unit * quantity, prec+2)
-        base = round(base, prec)
-        disc = (base * ((discount or 0.0) /100.0))
-        decimal.getcontext().rounding = decimal.ROUND_HALF_UP
-        tot_discount = int(decimal.Decimal(disc).to_integral_value())
-        base -= tot_discount
-        total_excluded = base
-        total_included = base
 
-        if company_id.tax_calculation_rounding_method == 'round_globally' or not bool(self.env.context.get("round", True)):
+        # In some cases, it is necessary to force/prevent the rounding of the tax and the total
+        # amounts. For example, in SO/PO line, we don't want to round the price unit at the
+        # precision of the currency.
+        # The context key 'round' allows to force the standard behavior.
+        round_tax = False if company_id.tax_calculation_rounding_method == 'round_globally' else True
+        round_total = True
+        if 'round' in self.env.context:
+            round_tax = bool(self.env.context['round'])
+            round_total = bool(self.env.context['round'])
+
+        if not round_tax:
             prec += 5
+
+        base_values = self.env.context.get('base_values')
+        if not base_values:
+            base = float_round_custom(price_unit * quantity, precision_digits=prec+2)
+            base = float_round_custom(base, precision_digits=prec)
+            disc = (base * ((discount or 0.0) /100.0))
+            tot_discount = float_round_custom(disc, precision_digits=0)
+            base -= tot_discount
+            total_excluded = base
+            total_included = base
+        else:
+            total_excluded, total_included, base = base_values
 
         # Sorting key is mandatory in this case. When no key is provided, sorted() will perform a
         # search. However, the search method is overridden in account.tax in order to add a domain
@@ -81,9 +97,10 @@ class SiiTax(models.Model):
         # case of group taxes.
         for tax in self.sorted(key=lambda r: r.sequence):
             if tax.amount_type == 'group':
-                ret = tax.children_tax_ids.compute_all(price_unit, currency, quantity, product, partner, discount, uom_id)
+                children = tax.children_tax_ids.with_context(base_values=(total_excluded, total_included, base))
+                ret = children.compute_all(price_unit, currency, quantity, product, partner, discount, uom_id)
                 total_excluded = ret['total_excluded']
-                base = ret['base']
+                base = ret['base'] if tax.include_base_amount else base
                 total_included = ret['total_included']
                 tax_amount_retencion = ret['retencion']
                 tax_amount = total_included - total_excluded + tax_amount_retencion
@@ -91,7 +108,7 @@ class SiiTax(models.Model):
                 continue
 
             tax_amount = tax._compute_amount(base, price_unit, quantity, product, partner, uom_id)
-            if company_id.tax_calculation_rounding_method == 'round_globally' or not bool(self.env.context.get("round", True)):
+            if not round_tax:
                 tax_amount = round(tax_amount, prec)
             else:
                 tax_amount = currency.round(tax_amount)
@@ -128,11 +145,13 @@ class SiiTax(models.Model):
                 'account_id': tax.account_id.id,
                 'refund_account_id': tax.refund_account_id.id,
                 'analytic': tax.analytic,
+                'price_include': tax.price_include,
+                'tax_exigibility': tax.tax_exigibility,
             })
         return {
             'taxes': sorted(taxes, key=lambda k: k['sequence']),
-            'total_excluded': currency.round(total_excluded) if bool(self.env.context.get("round", True)) else total_excluded,
-            'total_included': currency.round(total_included) if bool(self.env.context.get("round", True)) else total_included,
+            'total_excluded': currency.round(total_excluded) if round_total else total_excluded,
+            'total_included': currency.round(total_included) if round_total else total_included,
             'base': base,
             }
 
