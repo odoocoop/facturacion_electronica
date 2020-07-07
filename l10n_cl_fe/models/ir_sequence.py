@@ -87,7 +87,7 @@ class IRSequence(models.Model):
         wiz_caf.cant_doctos = cantidad
         wiz_caf.obtener_caf()
 
-    @api.depends('dte_caf_ids', 'number_next_actual')
+    @api.onchange('dte_caf_ids', 'number_next_actual')
     def _set_qty_available(self):
         self.qty_available = self.get_qty_available()
 
@@ -111,8 +111,6 @@ class IRSequence(models.Model):
         )
     qty_available = fields.Integer(
             string="Quantity Available",
-            compute="_qty_available",
-            store=True,
         )
     forced_by_caf = fields.Boolean(
             string="Forced By CAF",
@@ -161,7 +159,8 @@ www.sii.cl'''.format(folio)
         '''
         folio = folio or self._get_folio()
         if not self.dte_caf_ids:
-            raise UserError(_('''No hay CAFs disponibles para la secuencia de %s. Por favor suba un CAF o solicite uno en el SII.''' % (self.name)))
+            _logger.warning('''No hay CAFs disponibles para la secuencia de %s. Por favor suba un CAF o solicite uno en el SII.''' % (self.name))
+            return False
         cafs = self.dte_caf_ids
         cafs = sorted(cafs, key=lambda e: e.start_nm)
         result = []
