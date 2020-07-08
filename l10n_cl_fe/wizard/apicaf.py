@@ -554,6 +554,7 @@ class APICAF(models.TransientModel):
                 'filename': nombre,
             })
         caf._compute_data()
+        self.sequence_id._qty_available()
 
     @api.multi
     def delist(self):
