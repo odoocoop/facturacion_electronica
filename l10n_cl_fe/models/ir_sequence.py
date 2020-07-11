@@ -205,6 +205,6 @@ www.sii.cl'''.format(folio)
                     self._cr.execute("SELECT number_next FROM %s WHERE id=%s FOR UPDATE NOWAIT" % (self._table, self.id))
                     self._cr.execute("UPDATE %s SET number_next=%s WHERE id=%s " % (self._table, number_next, self.id))
                     self.invalidate_cache(['number_next'], [self.id])
-            folio = self.get_next_char(number_next)
+                folio = self.get_next_char(number_next)
         self._qty_available()
         return folio
