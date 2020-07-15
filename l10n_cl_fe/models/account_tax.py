@@ -176,8 +176,11 @@ class SiiTax(models.Model):
         target = 'a href="index.php[?]%s&edition=([0-9]*)&v=1"' % t_date
         url2 = re.findall(target, resp.data.decode('utf-8'))
         resp2 = pool.request('GET', "%sindex.php?%s&edition=%s" %(url, t_date, url2[0]))
-        target = 'Determina el componente variable para el cálculo del impuesto específico establecido en la ley N° 18.502 [a-zA-Z \r\n</>="_0-9]* href="([a-zA-Z 0-9/.:]*)"'
+        #target = 'Determina el componente variable para el cálculo del impuesto específico establecido en la ley N° 18.502 [a-zA-Z \r\n</>="_0-9]* href="([a-zA-Z 0-9/.:]*)"'
+        target = '18.502 [a-zA-Z \r\n</>="_0-9]* href="([a-zA-Z 0-9/.:]*)"'
         url3 = re.findall(target, resp2.data.decode('utf-8'))
+        if not url3:
+            return {}
         return {date: url3[0].replace('http', 'https')}
 
     def _get_from_diario(self, url):
@@ -236,11 +239,11 @@ class SiiTax(models.Model):
                 target = (k, v)
                 break
             ant = k
-        if target[0] > date:
+        if not rangos or target[0] > date:
             return self.prepare_mepco((date - relativedelta.relativedelta(days=1)), currency_id)
         val = self._get_from_diario(target[1])
         utm = self.env['res.currency'].sudo().search([('name', '=', 'UTM')])
-        amount = utm._convert(float(val), currency_id, self.company_id, date)
+        amount = utm.compute(float(val), currency_id)
         return {
             'amount': amount,
             'date': target[0].strftime("%Y-%m-%d"),
@@ -280,7 +283,7 @@ class SiiTax(models.Model):
         ]
         mepco = self.env['account.tax.mepco'].sudo().search(query, limit=1)
         if mepco:
-            diff = (date.date() - datetime.strptime(mepco.date, "%Y-%m-%d"))
+            diff = (date.date() - datetime.strptime(mepco.date, "%Y-%m-%d").date())
             if diff.days > 6:
                 mepco = False
         if not mepco:
