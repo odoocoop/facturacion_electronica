@@ -41,12 +41,24 @@ screens.PaymentScreenWidget.include({
 				return false;
 		    };
 		};
+		if (order.is_to_invoice() || order.crear_guia() || order.es_boleta()) {
+			var ols = order.orderlines.models;
+			for(var i in ols){
+				if (ols[i].get_price_without_tax() < 0){
+						this.pos.gui.show_popup('error', {
+		        	'title': "Error de integridad",
+		        	'body': "No pueden ir valores negativos",
+		      	});
+						return false;
+				}
+			}
+		}
 		if ((order.is_to_invoice() || order.crear_guia()) && order.get_client()) {
 			var client = order.get_client();
 			if (!client.street){
 				this.gui.show_popup('error',{
 					'title': 'Datos de Cliente Incompletos',
-					'body':  'El Cliente seleccionado no tiene la direccion, por favor verifique',
+					'body':  'El Cliente seleccionado no tiene la dirección, por favor verifique',
 				});
 				return false;
 			}
@@ -96,7 +108,7 @@ screens.PaymentScreenWidget.include({
 				self.pos.gui.show_popup('error',{
 	        		'title': "Sin Folios disponibles",
 	                'body':  _.str.sprintf("No hay CAF para el folio de este documento: %(document_number)s " +
-	              		  "Solicite un nuevo CAF en el sitio www.sii.cl", {
+	              		  "Solicite un nuevo CAF en el sitio www.sii.cl o utilice el asistente apicaf desde la secuencia", {
 	                			document_number: next_number,
 	              		  })
 	            });
