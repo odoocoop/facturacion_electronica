@@ -623,13 +623,8 @@ get_total_without_tax: function() {
 		var ols = order.orderlines.models;
 		var ols2 = ols;
 		for (var p in ols){
-			if (order.sequence_id.sii_document_class_id.sii_code !== 61 && ols[p].get_price_without_tax() < 0){
-					this.pos.gui.show_popup('error',_t('No pueden ir valores negativos'));
-					return;
-			}
 			var es_menor = true;
 			for(var i in ols2){
-
 				if(ols[p].id !== ols2[i].id && ols[p].id > ols2[i].id){
 					es_menor = false;
 				}

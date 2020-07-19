@@ -45,8 +45,10 @@ class SignatureCert(models.Model):
     @api.onchange('subject_serial_number')
     def set_state(self):
         if self.subject_serial_number:
-            rut = self.subject_serial_number.replace('.', '').upper()
-            if not self.env.user.partner_id.check_vat_cl(rut.replace('-', '')):
+            check_rut = rut = self.subject_serial_number.replace('.', '').upper()
+            if len(rut) == 9:
+                check_rut = '0' + rut
+            if not '-' in check_rut or not self.env.user.partner_id.check_vat_cl(check_rut.replace('-', '')):
                 raise UserError(_('Not Valid Subject Serial Number'))
             self.subject_serial_number = rut
         elif self.file_content:
