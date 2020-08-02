@@ -177,7 +177,7 @@ class SiiTax(models.Model):
         url2 = re.findall(target, resp.data.decode('utf-8'))
         resp2 = pool.request('GET', "%sindex.php?%s&edition=%s" %(url, t_date, url2[0]))
         #target = 'Determina el componente variable para el cálculo del impuesto específico establecido en la ley N° 18.502 [a-zA-Z \r\n</>="_0-9]* href="([a-zA-Z 0-9/.:]*)"'
-        target = '18.502 [a-zA-Z \r\n</>="_0-9]* href="([a-zA-Z 0-9/.:]*)"'
+        target = '18.502[\W]* [a-zA-Z \r\n<\/>="_0-9]* href="([a-zA-Z 0-9\/.:]*)"'
         url3 = re.findall(target, resp2.data.decode('utf-8'))
         if not url3:
             return {}

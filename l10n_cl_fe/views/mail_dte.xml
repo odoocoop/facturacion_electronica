@@ -127,7 +127,7 @@
             </page>
             <page string="Registro de Reclamo">
               <header>
-                <button name="get_dte_claim" type="object" string="Obtener Información Reclamo"/>
+                <button name="get_claim" type="object" string="Obtener Información Reclamo"/>
                 <field name='claim' widget="statusbar"/>
               </header>
               <field name="claim_description" />
