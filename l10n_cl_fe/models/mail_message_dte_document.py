@@ -3,6 +3,8 @@ from odoo import fields, models, api
 from odoo.tools.safe_eval import safe_eval
 from odoo.tools.translate import _
 from odoo.exceptions import UserError
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
 import logging
 _logger = logging.getLogger(__name__)
 try:
@@ -221,19 +223,20 @@ class ProcessMailsDocument(models.Model):
             except Exception as e:
                 _logger.warning("Problema al obtener claim desde accept %s" %str(e))
                 _logger.warning("encolar")
-                if r.company_id.dte_service_provider != 'SIICERT':
-                    continue
             if r.invoice_id and r.state != 'draft':
                 continue
-            vals = {
-                'xml_file': r.xml.encode('ISO-8859-1'),
-                'filename': r.dte_id.name,
-                'pre_process': False,
-                'document_id': r.id,
-                'option': 'accept',
-            }
-            val = self.env['sii.dte.upload_xml.wizard'].sudo().create(vals)
-            resp = val.confirm(ret=True)
+            if self.invoice_id:
+                resp = [self.invoice_id.id]
+            else:
+                vals = {
+                    'xml_file': r.xml.encode('ISO-8859-1'),
+                    'filename': r.dte_id.name,
+                    'pre_process': False,
+                    'document_id': r.id,
+                    'option': 'accept',
+                }
+                val = self.env['sii.dte.upload_xml.wizard'].sudo().create(vals)
+                resp = val.confirm(ret=True)
             created.extend(resp)
             if r.company_id.dte_service_provider == 'SIICERT':
                 r.state = 'accepted'
@@ -298,7 +301,6 @@ class ProcessMailsDocument(models.Model):
         if respuesta.codResp in [0, 7]:
             self.claim = claim
 
-    @api.multi
     def get_dte_claim(self):
         if not self.partner_id:
             rut_emisor = self.new_partner.split(' ')[0]
@@ -325,13 +327,22 @@ class ProcessMailsDocument(models.Model):
                     if self.claim != "ACD":
                         if self.claim != 'ERM':
                             self.claim = res.codEvento
+            date_end = self.create_date + relativedelta(days=8)
             if self.claim in ["ACD", "ERM", 'PAG']:
+                self.state = 'accepted'
+            elif date_end <= datetime.now() and self.claim == "N/D" :
                 self.state = 'accepted'
         except Exception as e:
             _logger.warning("Error al obtener aceptación %s" %(str(e)))
             if self.company_id.dte_service_provider == 'SII':
                 raise UserError("Error al obtener aceptación: %s" % str(e))
 
+    @api.multi
+    def get_claim(self):
+        date_end = self.create_date + relativedelta(days=8)
+        if date_end <= datetime.now() and self.claim == "N/D" :
+            return self.accept_document()
+        self.get_dte_claim()
 
 class ProcessMailsDocumentLines(models.Model):
     _name = 'mail.message.dte.document.line'
