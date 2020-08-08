@@ -134,6 +134,16 @@ class PosConfig(models.Model):
             string="Folios restantes Boletas",
         )
 
+    @api.onchange('secuencia_boleta', 'secuencia_boleta_exenta')
+    def validacion_cambio_secuencia(self):
+        query = [
+            ('rescue', '=', False),
+            ('state', 'not in', ['closed']),
+            ('config_id', '=', self.id),
+        ]
+        if self.env['pos.session'].sudo().search(query):
+            raise UserError("No puede cambiar secuencia de boleta, estando abierta el punto de ventas")
+
     @api.onchange('iface_invoicing')
     def set_seq(self):
         for r in self.invoice_journal_id.journal_document_class_ids:
