@@ -854,20 +854,8 @@ class UploadXMLWizard(models.TransientModel):
         inv = self._inv_exist(documento)
         if inv:
             return inv
-        Totales = documento.find("Encabezado/Totales")
         data = self._get_data(documento, company_id)
         inv = self.env['account.invoice'].create(data)
-        monto_xml = float(Totales.find('MntTotal').text)
-        if inv.amount_total == monto_xml:
-            return inv
-        inv.amount_total = monto_xml
-        for t in inv.tax_line_ids:
-            if Totales.find('TasaIVA') is not None and t.tax_id.amount == float(Totales.find('TasaIVA').text):
-                t.amount = float(Totales.find('IVA').text)
-                t.amount_total = float(Totales.find('IVA').text)
-                t.base = float(Totales.find('MntNeto').text)
-            else:
-                t.base = float(Totales.find('MntExe').text)
         return inv
 
     def _dte_exist(self, documento):
@@ -983,6 +971,18 @@ class UploadXMLWizard(models.TransientModel):
                         inv.state = 'open'
                 if self.type == 'compras':
                     inv.set_reference()
+                Totales = documento.find("Encabezado/Totales")
+                monto_xml = float(Totales.find('MntTotal').text)
+                if inv.amount_total == monto_xml:
+                    return inv
+                inv.amount_total = monto_xml
+                for t in inv.tax_line_ids:
+                    if Totales.find('TasaIVA') is not None and t.tax_id.amount == float(Totales.find('TasaIVA').text):
+                        t.amount = float(Totales.find('IVA').text)
+                        t.amount_total = float(Totales.find('IVA').text)
+                        t.base = float(Totales.find('MntNeto').text)
+                    else:
+                        t.base = float(Totales.find('MntExe').text)
             except Exception as e:
                 _logger.warning('Error en crear 1 factura con error:  %s' % str(e))
         if created and self.option not in [False, 'upload'] and self.type == 'compras':

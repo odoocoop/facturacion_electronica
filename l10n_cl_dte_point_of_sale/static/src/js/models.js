@@ -305,7 +305,7 @@ models.Orderline = models.Orderline.extend({
 							return;
 					}
 					if (tax.amount_type === 'group'){
-							var ret = self.compute_all(tax.children_tax_ids, price_unit, quantity, currency_rounding, uom_id);
+							var ret = self.compute_all(tax.children_tax_ids, price_unit, quantity, currency_rounding, uom_id=uom_id);
 							total_excluded = ret.total_excluded;
 							base = ret.total_excluded;
 							total_included = ret.total_included;
@@ -361,7 +361,7 @@ models.Orderline = models.Orderline.extend({
 					}));
 			});
 
-			var all_taxes = this.compute_all(product_taxes, price_unit, this.get_quantity(), this.pos.currency.rounding, this.get_unit());
+			var all_taxes = this.compute_all(product_taxes, price_unit, this.get_quantity(), this.pos.currency.rounding, uom_id=this.get_unit());
 			_(all_taxes.taxes).each(function(tax) {
 					taxtotal += tax.amount;
 					taxdetail[tax.id] = tax.amount;
@@ -504,7 +504,7 @@ get_total_without_tax: function() {
 					})
 
 					if (mapped_included_taxes.length > 0) {
-							unit_price = line.compute_all(mapped_included_taxes, unit_price, 1, this.pos.currency.rounding, true, uom_id).total_excluded;
+							unit_price = line.compute_all(mapped_included_taxes, unit_price, 1, this.pos.currency.rounding, true, uom_id=uom_id).total_excluded;
 					}
 
 					line.set_unit_price(unit_price);

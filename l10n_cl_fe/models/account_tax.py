@@ -2,7 +2,7 @@
 from odoo import api, models, fields
 from odoo.tools.translate import _
 from odoo.tools import DEFAULT_SERVER_DATETIME_FORMAT as DTF
-from datetime import datetime
+from datetime import datetime, time
 import dateutil.relativedelta as relativedelta
 import pytz
 import logging
@@ -36,6 +36,29 @@ class SiiTax(models.Model):
             factor = self.uom_id._compute_quantity(1, uom_id)
             amount_tax = (amount_tax / factor)
         return amount_tax
+
+    def _fix_composed_included_tax(self, base, quantity, uom_id):
+        composed_tax = {}
+        price_included = False
+        percent = 0.0
+        rec = 0.0
+        for tax in self.sorted(key=lambda r: r.sequence):
+            if tax.price_include:
+                price_included = True
+            else:
+                continue
+            if tax.amount_type == 'percent':
+                percent += tax.amount
+            else:
+                amount_tax = tax.compute_factor(uom_id)
+                rec += (quantity * amount_tax)
+        if price_included:
+            _base = base - rec
+            common_base = (_base / (1 + percent / 100.0))
+            for tax in self.sorted(key=lambda r: r.sequence):
+                if tax.amount_type == 'percent':
+                    composed_tax[tax.id] = (common_base * (1 + tax.amount / 100))
+        return composed_tax
 
     @api.multi
     def compute_all(self, price_unit, currency=None, quantity=1.0, product=None, partner=None, discount=None, uom_id=None):
@@ -100,6 +123,9 @@ class SiiTax(models.Model):
         else:
             total_excluded, total_included, base = base_values
 
+        composed_tax = {}
+        if len(self) > 1:
+            composed_tax = self._fix_composed_included_tax(base, quantity, uom_id)
         # Sorting key is mandatory in this case. When no key is provided, sorted() will perform a
         # search. However, the search method is overridden in account.tax in order to add a domain
         # depending on the context. This domain might filter out some taxes from self, e.g. in the
@@ -119,26 +145,26 @@ class SiiTax(models.Model):
                 tax_amount = total_included - total_excluded + tax_amount_retencion
                 taxes += ret['taxes']
                 continue
-
-            tax_amount = tax._compute_amount(base, price_unit, quantity, product, partner, uom_id)
+            _base = composed_tax.get(tax.id, base)
+            tax_amount = tax._compute_amount(_base, price_unit, quantity, product, partner, uom_id)
             if not round_tax:
                 tax_amount = round(tax_amount, prec)
             else:
                 tax_amount = currency.round(tax_amount)
             tax_amount_retencion = 0
             if tax.sii_type in ['R']:
-                tax_amount_retencion = tax._compute_amount_ret(base, price_unit, quantity, product, partner, uom_id)
+                tax_amount_retencion = tax._compute_amount_ret(_base, price_unit, quantity, product, partner, uom_id)
                 if not round_tax:
                     tax_amount_retencion = round(tax_amount_retencion, prec)
             if price_include:
                 total_excluded -= (tax_amount - tax_amount_retencion)
                 total_included -= (tax_amount_retencion)
-                base -= (tax_amount - tax_amount_retencion)
+                _base -= (tax_amount - tax_amount_retencion)
             else:
                 total_included += (tax_amount - tax_amount_retencion)
 
             # Keep base amount used for the current tax
-            tax_base = base
+            tax_base = _base
 
             if tax.include_base_amount:
                 base += tax_amount
@@ -273,13 +299,11 @@ class SiiTax(models.Model):
             currency_id = self.env['res.currency'].sudo().search([('name', '=', self.env.get('currency', 'CLP'))])
         tz = pytz.timezone('America/Santiago')
         if date_target:
-            fields_model = self.env['ir.fields.converter']
-            ''' @TODO crearlo como utilidad python'''
-            user_zone = fields_model._input_tz()
+            user_zone = pytz.timezone(self._context.get('tz') or 'UTC')
             date = date_target
             if tz != user_zone:
-                if not date.tzinfo:
-                    date = user_zone.localize(date_target)
+                if not hasattr(date, 'tzinfo'):
+                    date = datetime.combine(date, time.min)
                 date = date.astimezone(tz)
         else:
             date = datetime.now(tz)

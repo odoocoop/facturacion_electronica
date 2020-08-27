@@ -567,11 +567,10 @@ class AccountInvoice(models.Model):
             amount_tax += tax.amount
             amount_retencion += tax.amount_retencion
         self.amount_retencion = amount_retencion
-        if included:
-            neto += self.tax_line_ids._getNeto(self.currency_id)
-            amount_retencion += amount_retencion
-        else:
-            neto += sum(line.price_subtotal for line in self.invoice_line_ids if line.account_id)
+        neto += sum((line.invoice_line_tax_ids.with_context(round=False).compute_all(
+            line.price_unit, self.currency_id, line.quantity,
+            line.product_id, self.partner_id, discount=line.discount,
+            uom_id=line.uom_id)['total_excluded']) for line in self.invoice_line_ids)
         self.amount_untaxed = neto
         self.amount_tax = amount_tax
         self.amount_total = self.amount_untaxed + self.amount_tax - amount_retencion
