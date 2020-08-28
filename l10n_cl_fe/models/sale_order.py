@@ -70,7 +70,7 @@ class SOL(models.Model):
                 line.price_unit, line.order_id.currency_id,
                 line.product_uom_qty, product=line.product_id,
                 partner=line.order_id.partner_shipping_id,
-                discount=line.discount, uom_id=line.uom_id)
+                discount=line.discount, uom_id=line.product_uom)
             line.update({
                 'price_tax': sum(t.get('amount', 0.0) for t in taxes.get('taxes', [])),
                 'price_total': taxes['total_included'],
