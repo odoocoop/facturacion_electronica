@@ -1533,7 +1533,7 @@ a VAT."))
                     lines['CodImpAdic'] = t.sii_code
                 taxInclude = t.price_include or ( (self._es_boleta() or self._nc_boleta()) and not t.sii_detailed )
                 if t.amount == 0 or t.sii_code in [0]:#@TODO mejor manera de identificar exento de afecto
-                    lines['IndExe'] = l.product_id.ind_exe or 1
+                    lines['IndExe'] = 1#line.product_id.ind_exe or 1
                     MntExe += currency_base.round(line.price_subtotal)
                 else:
                     amount = t.amount
