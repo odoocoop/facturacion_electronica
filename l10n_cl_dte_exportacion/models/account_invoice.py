@@ -1,8 +1,15 @@
 # -*- coding: utf-8 -*-
 from odoo import fields, models, api, _
 from odoo.exceptions import UserError
+from datetime import datetime
 import logging
 _logger = logging.getLogger(__name__)
+try:
+    from suds.client import Client
+except:
+    pass
+
+server_url = {'SIICERT': 'https://maullin.sii.cl/DTEWS/','SII':'https://palena.sii.cl/DTEWS/'}
 
 
 class Exportacion(models.Model):
@@ -395,9 +402,7 @@ class Exportacion(models.Model):
 
     def _get_dte_status(self):
         for r in self:
-            if r._es_boleta():
-                continue
-            if r.sii_xml_request and r.sii_xml_request.state not in ['Aceptado', 'Rechazado']:
+            if r.sii_xml_request.state not in ['Aceptado', 'Rechazado']:
                 continue
             rut_emisor = r.company_id.partner_id.rut()
             token = r.sii_xml_request.get_token(self.env.user, r.company_id)

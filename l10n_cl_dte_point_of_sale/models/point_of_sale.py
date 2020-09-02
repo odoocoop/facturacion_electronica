@@ -940,12 +940,14 @@ class POS(models.Model):
             date_order = (order.date_order or fields.Datetime.now())[:10]
             total = 0
             all_tax = {}
+            last = False
             for line in order.lines:
                 if cur != cur_company:
                     amount_subtotal = cur.with_context(date=date_order).compute(line.price_subtotal, cur_company)
                 else:
                     amount_subtotal = line.price_subtotal
-
+                if amount_subtotal != 0:
+                    last = line
                 # Search for the income account
                 if line.product_id.property_account_income_id.id:
                     income_account = line.product_id.property_account_income_id.id
@@ -1026,7 +1028,7 @@ class POS(models.Model):
                 for group_key, group_value in grouped_data.items():
                     if dif != 0 and group_key[0] == 'product':
                         for l in group_value:
-                            if line.product_id.id == l['product_id']:
+                            if last.product_id.id == l['product_id']:
                                 if l['credit'] > 0:
                                     l['credit'] += dif
                                 else:
