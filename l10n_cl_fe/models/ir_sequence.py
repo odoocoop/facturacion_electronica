@@ -171,11 +171,6 @@ www.sii.cl'''.format(folio)
         cafs = sorted(cafs, key=lambda e: e.start_nm)
         result = self.env['dte.caf']
         for caffile in cafs:
-            if caffile.start_nm == 0:
-                try:
-                    caffile.load_caf()
-                except Exception as e:
-                    _logger.warning("error en cargar caff %s" % str(e))
             if int(folio) <= caffile.final_nm:
                 result += caffile
         if result:
@@ -196,6 +191,12 @@ www.sii.cl'''.format(folio)
                 menor = c
         if menor and int(folio) < menor.start_nm:
             self.sudo(SUPERUSER_ID).write({'number_next': menor.start_nm})
+            if self.forced_by_caf and self.implementation == 'no_gap':
+                self._cr.execute("SELECT number_next FROM %s WHERE id=%s FOR UPDATE NOWAIT" % (
+                    self._table, self.id))
+                self._cr.execute("UPDATE %s SET number_next=%s WHERE id=%s " % (
+                    self._table, menor.start_nm, self.id))
+                self.invalidate_cache(['number_next'], [self.id])
 
     def _next_do(self):
         number_next = self.number_next
@@ -209,10 +210,6 @@ www.sii.cl'''.format(folio)
                 actual = self.number_next_actual
             if number_next +1 != actual: #Fue actualizado
                 number_next = actual
-                if self.implementation == 'no_gap':
-                    self._cr.execute("SELECT number_next FROM %s WHERE id=%s FOR UPDATE NOWAIT" % (self._table, self.id))
-                    self._cr.execute("UPDATE %s SET number_next=%s WHERE id=%s " % (self._table, number_next, self.id))
-                    self.invalidate_cache(['number_next'], [self.id])
                 folio = self.get_next_char(number_next)
         self._qty_available()
         return folio

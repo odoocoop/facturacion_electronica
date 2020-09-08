@@ -38,10 +38,10 @@ class PosSession(models.Model):
             default=0,
         )
     caf_files = fields.Char(
-            invisible=True,
+            compute='get_caf_string',
         )
     caf_files_exentas = fields.Char(
-            invisible=True,
+            compute='get_caf_string',
         )
 
     @api.model
@@ -54,23 +54,21 @@ class PosSession(models.Model):
             return super(PosSession, self).create(values)
         if config_id.secuencia_boleta:
             sequence = config_id.secuencia_boleta
-            start_number = sequence.number_next_actual
             sequence.update_next_by_caf()
-            start_number = start_number if sequence.number_next_actual == start_number else sequence.number_next_actual
+            start_number = sequence.number_next
+            if sequence.implementation == 'standard':
+                start_number = sequence.number_next_actual
             values.update({
                 'start_number': start_number,
-                'secuencia_boleta': config_id.secuencia_boleta.id,
-                'caf_files': self.get_caf_string(sequence),
             })
         if config_id.secuencia_boleta_exenta:
             sequence = config_id.secuencia_boleta_exenta
-            start_number = sequence.number_next_actual
             sequence.update_next_by_caf()
-            start_number = start_number if sequence.number_next_actual == start_number else sequence.number_next_actual
+            start_number = sequence.number_next
+            if sequence.implementation == 'standard':
+                start_number = sequence.number_next_actual
             values.update({
                 'start_number_exentas': start_number,
-                'secuencia_boleta_exenta': config_id.secuencia_boleta_exenta.id,
-                'caf_files_exentas': self.get_caf_string(sequence),
             })
         if self.env['product.template'].search([
                 ('available_in_pos', '=', True),
@@ -89,26 +87,31 @@ class PosSession(models.Model):
         return res
 
     @api.model
-    def get_caf_string(self, sequence=None):
-        if not sequence:
-            sequence = self.secuencia_boleta
-            if not sequence:
-                return
-        if not self.env.user.get_digital_signature(sequence.company_id):
-            raise UserError(_("No Tiene permisos para usar esta secuencia de folios. Solicitar a un usuario administrador que autorice el uso de la firma electrónica a este usuario"))
-        folio = sequence.number_next_actual
-        caffiles = sequence.get_caf_files()
-        if not caffiles:
-            return
-        caffs = []
-        existe_caf = False
-        for caffile in caffiles:
-            if int(folio) <= caffile.final_nm:
-                existe_caf = True
-            xml = caffile.decode_caf()
-            caffs += [{xml.tag: self.recursive_xml(xml)}]
-        if caffs and existe_caf:
-            return json.dumps(caffs, ensure_ascii=False)
-        msg = '''No hay CAF para el folio de este documento: {}.\
- Solicite un nuevo CAF en el sitio www.sii.cl o use el asistente en odoo apicaf para solicitar folios usando su token'''.format(folio)
-        raise UserError(_(msg))
+    def get_caf_string(self):
+        for r in self:
+            seq = r.config_id.secuencia_boleta
+            if seq:
+                caf_files = seq.get_caf_files(folio)
+                if caf_files:
+                    folio = self.start_number
+                    caffs = []
+                    for caffile in caf_files:
+                        if int(folio) <= caffile.final_nm:
+                            xml = caffile.decode_caf()
+                            caffs += [{xml.tag: self.recursive_xml(xml)}]
+                    if caffs:
+                        r.caf_files = json.dumps(
+                            caffs, ensure_ascii=False)
+            seq = r.config_id.secuencia_boleta_exenta
+            if seq:
+                folio = self.start_number_exentas
+                caf_files = seq.get_caf_files(folio)
+                if caf_files:
+                    caffs = []
+                    for caffile in caf_files:
+                        if int(folio) <= caffile.final_nm:
+                            xml = caffile.decode_caf()
+                            caffs += [{xml.tag: self.recursive_xml(xml)}]
+                    if caffs:
+                        r.caf_files_exentas = json.dumps(
+                            caffs, ensure_ascii=False)

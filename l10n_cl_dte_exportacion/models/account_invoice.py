@@ -429,13 +429,14 @@ class Exportacion(models.Model):
                     str(int(r.amount_total)),
                     token,
                 )
+                r.sii_message = respuesta
+                r.get_sii_result()
             except Exception as e:
                 msg = "Error al obtener Estado DTE"
                 _logger.warning("%s: %s" % (msg, str(e)))
                 if e.args[0][0] == 503:
                     raise UserError('%s: Conexión al SII caída/rechazada o el SII está temporalmente fuera de línea, reintente la acción' % (msg))
                 raise UserError(("%s: %s" % (msg, str(e))))
-            r.sii_message = respuesta
 
     @api.onchange('bultos')
     def tot_bultos(self):

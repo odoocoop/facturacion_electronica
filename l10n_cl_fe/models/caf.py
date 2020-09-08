@@ -33,13 +33,17 @@ class CAF(models.Model):
         )
     filename = fields.Char(
             string='File Name',
+            required=True
         )
     caf_file = fields.Binary(
             string='CAF XML File',
             filters='*.xml',
-            required=True,
             help='Upload the CAF XML File in this holder',
         )
+    caf_string = fields.Text(
+        string="Archivo CAF"
+
+    )
     issued_date = fields.Date(
             string='Issued Date',
             compute='_compute_data',
@@ -102,11 +106,16 @@ has been exhausted.''',
                 ('filename_unique', 'unique(filename)', 'Error! Filename Already Exist!'),
             ]
 
+    _order = 'start_nm DESC'
+
     @api.onchange("caf_file",)
     @api.multi
     def load_caf(self, flags=False):
-        if not self.caf_file or not self.sequence_id:
+        if not self.sequence_id or (not self.caf_file and not self.caf_string):
             return
+        if not self.caf_string and self.caf_file:
+            self.caf_string = base64.b64decode(
+                self.caf_file).decode('ISO-8859-1')
         result = self.decode_caf().find('CAF/DA')
         self.start_nm = result.find('RNG/D').text
         self.final_nm = result.find('RNG/H').text
@@ -149,5 +158,4 @@ to work properly!''') % (self.sii_document_class, self.sequence_id.sii_document_
             r._set_level()
 
     def decode_caf(self):
-        post = base64.b64decode(self.caf_file).decode('ISO-8859-1')
-        return etree.fromstring(post)
+        return etree.fromstring(self.caf_string)

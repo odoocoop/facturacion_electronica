@@ -28,6 +28,39 @@ meses = {1: 'Enero',2: 'Febrero', 3: 'Marzo', 4: 'Abril', 5: 'Mayo', 6: 'Junio',
 class SiiTax(models.Model):
     _inherit = 'account.tax'
 
+    def compute_factor(self, uom_id):
+        amount_tax = self.amount or 0.0
+        if self.uom_id and self.uom_id != uom_id:
+            if self.env.context.get('date'):
+                mepco = self._target_mepco(self.env.context.get('date'))
+                amount_tax = mepco.amount
+            factor = self.uom_id._compute_quantity(1, uom_id)
+            amount_tax = (amount_tax / factor)
+        return amount_tax
+
+    def _fix_composed_included_tax(self, base, quantity, uom_id):
+        composed_tax = {}
+        price_included = False
+        percent = 0.0
+        rec = 0.0
+        for tax in self.sorted(key=lambda r: r.sequence):
+            if tax.price_include:
+                price_included = True
+            else:
+                continue
+            if tax.amount_type == 'percent':
+                percent += tax.amount
+            else:
+                amount_tax = tax.compute_factor(uom_id)
+                rec += (quantity * amount_tax)
+        if price_included:
+            _base = base - rec
+            common_base = (_base / (1 + percent / 100.0))
+            for tax in self.sorted(key=lambda r: r.sequence):
+                if tax.amount_type == 'percent':
+                    composed_tax[tax.id] = (common_base * (1 + tax.amount / 100))
+        return composed_tax
+
     @api.multi
     def compute_all(self, price_unit, currency=None, quantity=1.0, product=None, partner=None, discount=None, uom_id=None):
         """ Returns all information required to apply taxes (in self + their children in case of a tax goup).
@@ -81,21 +114,29 @@ class SiiTax(models.Model):
 
         base_values = self.env.context.get('base_values')
         if not base_values:
-            base = float_round_custom(price_unit * quantity, precision_digits=prec+2)
-            base = float_round_custom(base, precision_digits=prec)
-            disc = (base * ((discount or 0.0) /100.0))
-            tot_discount = float_round_custom(disc, precision_digits=0)
-            base -= tot_discount
+            if prec == 0:
+                base = float_round_custom(price_unit * quantity, precision_digits=prec+2)
+                base = float_round_custom(base, precision_digits=prec)
+                disc = (base * ((discount or 0.0) /100.0))
+                tot_discount = float_round_custom(disc, precision_digits=0)
+                base -= tot_discount
+            else:
+                price_unit = price_unit * (1 - (discount or 0.0) / 100.0)
+                base = round(price_unit * quantity, prec)
             total_excluded = base
             total_included = base
         else:
             total_excluded, total_included, base = base_values
 
+        composed_tax = {}
+        if len(self) > 1:
+            composed_tax = self._fix_composed_included_tax(base, quantity, uom_id)
         # Sorting key is mandatory in this case. When no key is provided, sorted() will perform a
         # search. However, the search method is overridden in account.tax in order to add a domain
         # depending on the context. This domain might filter out some taxes from self, e.g. in the
         # case of group taxes.
         for tax in self.sorted(key=lambda r: r.sequence):
+            price_include = self._context.get('force_price_include', tax.price_include)
             if tax.amount_type == 'group':
                 children = tax.children_tax_ids.with_context(base_values=(total_excluded, total_included, base))
                 ret = children.compute_all(price_unit, currency, quantity, product, partner, discount, uom_id)
@@ -106,31 +147,31 @@ class SiiTax(models.Model):
                 tax_amount = total_included - total_excluded + tax_amount_retencion
                 taxes += ret['taxes']
                 continue
-
-            tax_amount = tax._compute_amount(base, price_unit, quantity, product, partner, uom_id)
+            _base = composed_tax.get(tax.id, base)
+            tax_amount = tax._compute_amount(_base, price_unit, quantity, product, partner, uom_id)
             if not round_tax:
                 tax_amount = round(tax_amount, prec)
             else:
                 tax_amount = currency.round(tax_amount)
             tax_amount_retencion = 0
             if tax.sii_type in ['R']:
-                tax_amount_retencion = tax._compute_amount_ret(base, price_unit, quantity, product, partner, uom_id)
+                tax_amount_retencion = tax._compute_amount_ret(_base, price_unit, quantity, product, partner, uom_id)
                 if company_id.tax_calculation_rounding_method == 'round_globally' or not bool(self.env.context.get("round", True)):
                     tax_amount_retencion = round(tax_amount_retencion, prec)
-                if tax.price_include:
+                if price_include:
                     total_excluded -= (tax_amount - tax_amount_retencion )
                     total_included -= (tax_amount_retencion)
-                    base -= (tax_amount - tax_amount_retencion )
+                    _base -= (tax_amount - tax_amount_retencion )
                 else:
                     total_included += (tax_amount - tax_amount_retencion)
             else:
-                if tax.price_include:
+                if price_include:
                     total_excluded -= tax_amount
-                    base -= tax_amount
+                    _base -= tax_amount
                 else:
                     total_included += tax_amount
             # Keep base amount used for the current tax
-            tax_base = base
+            tax_base = _base
 
             if tax.include_base_amount:
                 base += tax_amount

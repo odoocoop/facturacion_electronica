@@ -530,7 +530,7 @@ class UploadXMLWizard(models.TransientModel):
                     amount=amount, sii_code=sii_code, sii_type=sii_type,
                     IndExe=IndExe, company_id=company_id
                 )
-            if line.find("CodImpAdic") is None:
+            if line.find("CodImpAdic") is not None:
                 amount = 19
                 sii_type = False
                 tax_ids += self._buscar_impuesto(

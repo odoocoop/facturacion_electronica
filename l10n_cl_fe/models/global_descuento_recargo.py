@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from odoo import fields, models, api
 from odoo.exceptions import UserError
+from odoo.addons import decimal_precision as dp
 import logging
 _logger = logging.getLogger(__name__)
 
@@ -36,6 +37,7 @@ class GlobalDescuentoRecargo(models.Model):
             string="Descuento/Recargo Global",
             default=0.00,
             required=True,
+            digits=dp.get_precision('Global DR')
         )
     gdr_type = fields.Selection(
             [

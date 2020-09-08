@@ -467,7 +467,8 @@ class AccountInvoice(models.Model):
         amount_diff_currency = 0
         gdr, gdr_exe = self.porcentaje_dr()
         if self.currency_id != company_currency:
-            currency = self.currency_id.with_context(date=self.date_invoice or fields.Date.context_today(self))
+            currency = self.currency_id.with_context(
+                date=self.date_invoice or fields.Date.context_today(self))
             amount_diff = currency.compute(self.amount_total, company_currency)
             amount_diff_currency = self.amount_total
         for line in invoice_move_lines:
@@ -482,7 +483,8 @@ class AccountInvoice(models.Model):
                 elif line.get('tax_ids')[0][0] == 6:
                     tax_ids = line.get('tax_ids')[0][2]
                 if tax_ids:
-                    exento = self.env['account.tax'].search([('id', 'in', tax_ids), ('amount', '=', 0)])
+                    exento = self.env['account.tax'].search([
+                        ('id', 'in', tax_ids), ('amount', '=', 0)])
             if not line.get('tax_line_id') and not exento:
                 line['price'] *= gdr
             if line.get('amount_currency', False) and not line.get('tax_line_id'):
@@ -562,12 +564,11 @@ class AccountInvoice(models.Model):
             amount_tax += tax.amount
             amount_retencion += tax.amount_retencion
         self.amount_retencion = amount_retencion
-        if included:
-            neto += self.tax_line_ids._getNeto(self.currency_id)
-            amount_retencion += amount_retencion
-        else:
-            neto += sum(line.price_subtotal for line in self.invoice_line_ids)
-        self.amount_untaxed = neto
+        neto += sum((line.invoice_line_tax_ids.with_context(round=False).compute_all(
+            line.price_unit, self.currency_id, line.quantity,
+            line.product_id, self.partner_id, discount=line.discount,
+            uom_id=line.uom_id)['total_excluded']) for line in self.invoice_line_ids)
+        self.amount_untaxed = self.currency_id.round(neto)
         self.amount_tax = amount_tax
         self.amount_total = self.amount_untaxed + self.amount_tax - amount_retencion
         amount_total_company_signed = self.amount_total
@@ -1578,22 +1579,26 @@ a VAT."))
                 DescMonto = line.discount_amount
                 lines['DescuentoMonto'] = DescMonto
                 if currency_id:
-                    lines['OtrMnda']['DsctoOtrMnda'] = currency_id.compute(DescMonto, currency_base)
+                    lines['OtrMnda']['DsctoOtrMnda'] = currency_base.compute(
+                        DescMonto, currency_id)
             if line.discount < 0:
                 lines['RecargoPct'] = (line.discount *-1)
                 RecargoMonto = (line.discount_amount *-1)
                 lines['RecargoMonto'] = RecargoMonto
                 if currency_id:
-                    lines['OtrMnda']['RecargoOtrMnda'] = currency_id.compute(RecargoMonto, currency_base)
+                    lines['OtrMnda']['RecargoOtrMnda'] = currency_base.compute(
+                        RecargoMonto, currency_id)
             if not no_product and not taxInclude:
                 price_subtotal = line.price_subtotal
                 if currency_id:
-                    lines['OtrMnda']['MontoItemOtrMnda'] = currency_base.compute(price_subtotal, currency_id)
+                    lines['OtrMnda']['MontoItemOtrMnda'] = currency_base.compute(
+                        price_subtotal, currency_id)
                 lines['MontoItem'] = price_subtotal
             elif not no_product:
                 price_total = line.price_total
                 if currency_id:
-                    lines['OtrMnda']['MontoItemOtrMnda'] = currency_base.compute(price_total, currency_id)
+                    lines['OtrMnda']['MontoItemOtrMnda'] = currency_base.compute(
+                        price_total, currency_id)
                 lines['MontoItem'] = price_total
             if no_product:
                 lines['MontoItem'] = 0

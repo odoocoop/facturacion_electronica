@@ -8,6 +8,7 @@ from lxml.etree import Element, SubElement
 from odoo.tools import DEFAULT_SERVER_DATETIME_FORMAT as DTF
 import pytz
 import collections
+import math
 import logging
 
 _logger = logging.getLogger(__name__)
@@ -1065,7 +1066,16 @@ class POS(models.Model):
 
         if self and order.company_id.anglo_saxon_accounting:
             add_anglosaxon_lines(grouped_data)
-
+            dif = 0
+            for group_key, group_data in grouped_data.items():
+                if group_key[0] == 'counter_part':
+                    for value in group_data:
+                        if value['credit'] > 0:
+                            entera, decimal = math.modf(value['credit'])
+                            dif = cur_company.round(value['credit']) - entera
+                        elif dif > 0 and value['debit'] > 0:
+                            value['debit'] += 1
+                            dif = 0
         all_lines = []
         for group_key, group_data in grouped_data.items():
             for value in group_data:

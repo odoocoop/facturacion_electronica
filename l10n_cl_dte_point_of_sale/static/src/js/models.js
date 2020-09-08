@@ -305,14 +305,14 @@ models.Orderline = models.Orderline.extend({
 							return;
 					}
 					if (tax.amount_type === 'group'){
-							var ret = self.compute_all(tax.children_tax_ids, price_unit, quantity, currency_rounding, uom_id);
+							var ret = self.compute_all(tax.children_tax_ids, price_unit, quantity, currency_rounding, false, uom_id);
 							total_excluded = ret.total_excluded;
 							base = ret.total_excluded;
 							total_included = ret.total_included;
 							list_taxes = list_taxes.concat(ret.taxes);
 					}
 					else {
-							var tax_amount = self._compute_all(tax, base, quantity, uom_id);
+							var tax_amount = self._compute_all(tax, base, quantity, false, uom_id);
 							tax_amount = round_pr(tax_amount, currency_rounding);
 
 							if (tax_amount){
@@ -361,7 +361,7 @@ models.Orderline = models.Orderline.extend({
 					}));
 			});
 
-			var all_taxes = this.compute_all(product_taxes, price_unit, this.get_quantity(), this.pos.currency.rounding, this.get_unit());
+			var all_taxes = this.compute_all(product_taxes, price_unit, this.get_quantity(), this.pos.currency.rounding, false, this.get_unit());
 			_(all_taxes.taxes).each(function(tax) {
 					taxtotal += tax.amount;
 					taxdetail[tax.id] = tax.amount;
