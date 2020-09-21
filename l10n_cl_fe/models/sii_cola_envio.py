@@ -51,11 +51,6 @@ class ColaEnvio(models.Model):
     def enviar_email(self, doc):
         doc.send_exchange()
 
-    def es_boleta(self, doc):
-        if hasattr(doc, 'document_class_id'):
-            return doc.document_class_id.es_boleta()
-        return False
-
     def _es_doc(self, doc):
         if hasattr(doc, 'sii_message'):
             return doc.sii_message
@@ -106,7 +101,7 @@ class ColaEnvio(models.Model):
             if self.date_time and datetime.now() >= self.date_time:
                 try:
                     envio_id = docs.do_dte_send(self.n_atencion)
-                    if envio_id.sii_send_ident or (self.company_id.dte_service_provider == 'SIICERT' and self.es_boleta(docs[0])):
+                    if envio_id.sii_send_ident:
                         self.tipo_trabajo = 'consulta'
                 except Exception as e:
                     _logger.warning('Error en Envío automático')
@@ -116,9 +111,8 @@ class ColaEnvio(models.Model):
                 except Exception as e:
                     _logger.warning("Error temporal de conexión en consulta %s" % str(e))
             return
-        if (self._es_doc(docs[0]) or (self.es_boleta(docs[0]) and \
-                    docs[0].company_id.dte_service_provider == 'SII')) \
-            and docs[0].sii_result in ['Proceso', 'Reparo', 'Rechazado', 'Anulado']:
+        if self._es_doc(docs[0]) and docs[0].sii_result in [
+            'Proceso', 'Reparo', 'Rechazado', 'Anulado']:
             if self.send_email and docs[0].sii_result in ['Proceso', 'Reparo']:
                 for doc in docs:
                     if not doc.partner_id:
@@ -152,7 +146,7 @@ class ColaEnvio(models.Model):
                             user=self.user_id.id,
                             company_id=self.company_id.id).do_dte_send(
                                                             self.n_atencion)
-                if envio_id.sii_send_ident or (self.company_id.dte_service_provider == 'SIICERT' and self.es_boleta(docs[0])):
+                if envio_id.sii_send_ident:
                     self.tipo_trabajo = 'consulta'
             except Exception as e:
                 _logger.warning("Error en envío Cola")

@@ -14,6 +14,7 @@ from six import string_types
 
 try:
     from facturacion_electronica import facturacion_electronica as fe
+    from facturacion_electronica import clase_util as util
 except Exception as e:
     _logger.warning("Problema al cargar Facturación electrónica: %s" % str(e))
 try:
@@ -39,10 +40,6 @@ except:
     _logger.warning("no se ha cargado PIL")
 
 
-server_url = {
-    'SIICERT': 'https://maullin.sii.cl/DTEWS/',
-    'SII': 'https://palena.sii.cl/DTEWS/',
-}
 claim_url = {
     'SIICERT': 'https://ws2.sii.cl/WSREGISTRORECLAMODTECERT/registroreclamodteservice',
     'SII': 'https://ws1.sii.cl/WSREGISTRORECLAMODTE/registroreclamodteservice',
@@ -470,8 +467,10 @@ class AccountInvoice(models.Model):
         gdr, gdr_exe = self.porcentaje_dr()
         if self.currency_id != company_currency:
             currency = self.currency_id
-            date = self._get_currency_rate_date() or fields.Date.context_today(self)
-            amount_diff = currency._convert(self.amount_total, company_currency, self.company_id, date)
+            date = self._get_currency_rate_date() or fields.Date.context_today(
+                self)
+            amount_diff = currency._convert(
+                self.amount_total, company_currency, self.company_id, date)
             amount_diff_currency = self.amount_total
         for line in invoice_move_lines:
             #@TODO Posibilidad de GDR a exentos
@@ -485,7 +484,8 @@ class AccountInvoice(models.Model):
                 elif line.get('tax_ids')[0][0] == 6:
                     tax_ids = line.get('tax_ids')[0][2]
                 if tax_ids:
-                    exento = self.env['account.tax'].search([('id', 'in', tax_ids), ('amount', '=', 0)])
+                    exento = self.env['account.tax'].search([
+                        ('id', 'in', tax_ids), ('amount', '=', 0)])
             if not line.get('tax_line_id') and not exento:
                 line['price'] *= gdr
             if line.get('amount_currency', False) and not line.get('tax_line_id'):
@@ -497,7 +497,8 @@ class AccountInvoice(models.Model):
                 if not (line.get('currency_id') and line.get('amount_currency')):
                     line['currency_id'] = currency.id
                     line['amount_currency'] = currency.round(line['price'])
-                    line['price'] = currency._convert(line['price'], company_currency, self.company_id, date)
+                    line['price'] = currency._convert(
+                        line['price'], company_currency, self.company_id, date)
             else:
                 line['currency_id'] = False
                 line['amount_currency'] = False
@@ -578,8 +579,12 @@ class AccountInvoice(models.Model):
         amount_untaxed_signed = self.amount_untaxed
         if self.currency_id and self.company_id and self.currency_id != self.company_id.currency_id:
             currency_id = self.currency_id
-            amount_total_company_signed = currency_id._convert(self.amount_total, self.company_id.currency_id, self.company_id, self.date_invoice or fields.Date.today())
-            amount_untaxed_signed = currency_id._convert(self.amount_untaxed, self.company_id.currency_id, self.company_id, self.date_invoice or fields.Date.today())
+            amount_total_company_signed = currency_id._convert(
+                self.amount_total, self.company_id.currency_id,
+                self.company_id, self.date_invoice or fields.Date.today())
+            amount_untaxed_signed = currency_id._convert(
+                self.amount_untaxed, self.company_id.currency_id,
+                self.company_id, self.date_invoice or fields.Date.today())
         sign = self.type in ['in_refund', 'out_refund'] and -1 or 1
         self.amount_total_company_signed = amount_total_company_signed * sign
         self.amount_total_signed = self.amount_total * sign
@@ -604,7 +609,8 @@ class AccountInvoice(models.Model):
                 if tax.amount_type == "group":
                     for child_tax in tax.children_tax_ids:
                         done_taxes.append(child_tax.id)
-                analytic_tag_ids = [(4, analytic_tag.id, None) for analytic_tag in tax_line.analytic_tag_ids]
+                analytic_tag_ids = [
+                    (4, analytic_tag.id, None) for analytic_tag in tax_line.analytic_tag_ids]
                 done_taxes.append(tax.id)
                 if tax_line.amount_total > 0:
                     res.append({
@@ -694,14 +700,18 @@ class AccountInvoice(models.Model):
                     for t in line.invoice_line_tax_ids:
                         if t not in totales:
                             totales[t] = 0
-                        amount_line = (self.currency_id.round(line.price_unit *line.quantity))
+                        amount_line = (self.currency_id.round(
+                            line.price_unit *line.quantity))
                         totales[t] += (amount_line - line.discount_amount)
                 included = True
             else:
                 included = False
             if (totales and not included) or (included and not totales):
                 raise UserError('No se puede hacer timbrado mixto, todos los impuestos en este pedido deben ser uno de estos dos:  1.- precio incluído, 2.-  precio sin incluir')
-            taxes = line.invoice_line_tax_ids.compute_all(line.price_unit, self.currency_id, line.quantity, line.product_id, self.partner_id, discount=line.discount, uom_id=line.uom_id)['taxes']
+            taxes = line.invoice_line_tax_ids.compute_all(
+                line.price_unit, self.currency_id, line.quantity,
+                line.product_id, self.partner_id, discount=line.discount,
+                uom_id=line.uom_id)['taxes']
             tax_grouped = self._get_grouped_taxes(line, taxes, tax_grouped)
         #if totales:
         #    tax_grouped = {}
@@ -1057,7 +1067,10 @@ a VAT."""))
                     inv.sii_result = 'Proceso'
                 else:
                     inv._timbrar()
-                    tiempo_pasivo = (datetime.now() + timedelta(hours=int(self.env['ir.config_parameter'].sudo().get_param('account.auto_send_dte', default=12))))
+                    tiempo_pasivo = (datetime.now() + timedelta(
+                        hours=int(
+                            self.env['ir.config_parameter'].sudo().get_param(
+                                'account.auto_send_dte', default=1))))
                     self.env['sii.cola_envio'].create({
                                                 'company_id': inv.company_id.id,
                                                 'doc_ids': [inv.id],
@@ -1595,31 +1608,41 @@ a VAT."""))
                 lines['PrcItem'] = round(line.price_unit, 6)
                 if currency_id:
                     lines['OtrMnda'] = {}
-                    lines['OtrMnda']['PrcOtrMon'] = round(currency_base._convert(line.price_unit, currency_id, self.company_id, self.date_invoice, round=False), 6)
-                    lines['OtrMnda']['Moneda'] = self._acortar_str(currency_id.name, 3)
+                    lines['OtrMnda']['PrcOtrMon'] = round(currency_base._convert(
+                        line.price_unit, currency_id, self.company_id,
+                        self.date_invoice, round=False), 6)
+                    lines['OtrMnda']['Moneda'] = self._acortar_str(
+                        currency_id.name, 3)
                     lines['OtrMnda']['FctConv'] = round(currency_id.rate, 4)
             if line.discount > 0:
                 lines['DescuentoPct'] = line.discount
                 DescMonto = line.discount_amount
                 lines['DescuentoMonto'] = DescMonto
                 if currency_id:
-                    lines['DescuentoMonto'] = currency_id._convert(DescMonto, currency_base, self.company_id, self.date_invoice)
+                    lines['DescuentoMonto'] = currency_base._convert(
+                        DescMonto, currency_id, self.company_id, self.date_invoice)
                     lines['OtrMnda']['DctoOtrMnda'] = DescMonto
             if line.discount < 0:
                 lines['RecargoPct'] = (line.discount *-1)
                 RecargoMonto = (line.discount_amount *-1)
                 lines['RecargoMonto'] = RecargoMonto
                 if currency_id:
-                    lines['OtrMnda']['RecargoOtrMnda'] = currency_id._convert(RecargoMonto, currency_base, self.company_id, self.date_invoice)
+                    lines['OtrMnda']['RecargoOtrMnda'] = currency_base._convert(
+                        RecargoMonto, currency_id, self.company_id,
+                        self.date_invoice)
             if not no_product and not taxInclude:
                 price_subtotal = line.price_subtotal
                 if currency_id:
-                    lines['OtrMnda']['MontoItemOtrMnda'] = currency_base._convert(price_subtotal, currency_id, self.company_id, self.date_invoice)
+                    lines['OtrMnda']['MontoItemOtrMnda'] = currency_base._convert(
+                        price_subtotal, currency_id, self.company_id,
+                        self.date_invoice)
                 lines['MontoItem'] = price_subtotal
             elif not no_product:
                 price_total = line.price_total
                 if currency_id:
-                    lines['OtrMnda']['MontoItemOtrMnda'] = currency_base._convert(price_total, currency_id, self.company_id, self.date_invoice)
+                    lines['OtrMnda']['MontoItemOtrMnda'] = currency_base._convert(
+                        price_total, currency_id, self.company_id,
+                        self.date_invoice)
                 lines['MontoItem'] = price_total
             if no_product:
                 lines['MontoItem'] = 0
@@ -1724,7 +1747,6 @@ a VAT."""))
 
     def _timbrar(self, n_atencion=None):
         folio = self.get_folio()
-        dte = {}
         datos = self._get_datos_empresa(self.company_id)
         datos['Documento'] = [{
             'TipoDTE': self.document_class_id.sii_code,
@@ -1795,11 +1817,6 @@ a VAT."""))
                 'sii_xml_response': result.get('sii_xml_response'),
                 'state': result.get('sii_result'),
             }
-        if self[0].document_class_id.es_boleta() and self[0].company_id.dte_service_provider == 'SII':
-            envio.update({
-                'state': "Aceptado",
-                'sii_send_ident': 'BE'
-            })
         if not envio_id:
             envio_id = self.env['sii.xml.envio'].create(envio)
             for i in self:
@@ -1809,34 +1826,12 @@ a VAT."""))
             envio_id.write(envio)
         return envio_id
 
-    def process_response_xml(self, respuesta):
-        resp = etree.XML(
-            respuesta.replace('<?xml version="1.0" encoding="UTF-8"?>', '')\
-            .replace('SII:', '')\
-            .replace(' xmlns="http://www.sii.cl/XMLSchema"', '')
-            )
-        estado = resp.find('RESP_HDR/ESTADO')
-        if estado.text == '2':
-            status = {'warning':{'title':_("Error code: 2"), 'message': _(resp.find('RESP_HDR/GLOSA_ESTADO').text)}}
-            return "Enviado"
-        if estado.text in ["EPR", "MMC", "DOK", "TMC", "AND", "MMD", "ANC"]:
-            return "Proceso"
-        elif estado.text in ["DNK"]:
-            return "Reparo"
-        elif estado.text in ["FAU", "RCT", "FNA"]:
-            return "Rechazado"
-        elif estado.text in ["FAN"]:
-            return "Anulado"  #Desde El sii o por NC
-
     def get_sii_result(self):
         for r in self:
-            if r.company_id.dte_service_provider != 'SIICERT' and r.document_class_id.es_boleta():
-                r.sii_result = 'Proceso'
-                continue
             if r.sii_message:
                 receipt = r.sii_xml_request.object_receipt()
                 if receipt.find('RESP_BODY') is not None:
-                    r.sii_result = r.process_response_xml(r.sii_message)
+                    r.sii_result = util.process_response_xml(r.sii_message)
                     continue
                 elif receipt.find('RESP_HDR') is not None:
                     r.sii_xml_request.get_send_status(r.env.user)
@@ -1846,53 +1841,44 @@ a VAT."""))
             r.sii_result = r.sii_xml_request.state
 
     def _get_dte_status(self):
+        datos = self._get_datos_empresa(self.company_id)
+        datos['Documento'] = []
+        docs = {}
         for r in self:
             if r.sii_xml_request.state not in ['Aceptado', 'Rechazado']:
                 continue
-            token = r.sii_xml_request.get_token(self.env.user, r.company_id)
-            url = server_url[r.company_id.dte_service_provider] + 'QueryEstDte.jws?WSDL'
-            _server = Client(url)
-            receptor = r.commercial_partner_id.rut()
-            date_invoice = r.date_invoice.strftime("%d-%m-%Y")
-            signature_id = self.env.user.get_digital_signature(r.company_id)
-            rut = signature_id.subject_serial_number
-            try:
-                respuesta = _server.service.getEstDte(
-                    rut[:-2],
-                    str(rut[-1]),
-                    r.company_id.partner_id.rut()[:-2],
-                    r.company_id.partner_id.rut()[-1],
-                    receptor[:-2],
-                    receptor[-1],
-                    str(r.document_class_id.sii_code),
-                    str(r.sii_document_number),
-                    date_invoice,
-                    str(int(r.amount_total)),
-                    token,
-                )
-                r.sii_message = respuesta
-                r.get_sii_result()
-            except Exception as e:
-                msg = "Error al obtener Estado DTE"
-                _logger.warning("%s: %s" % (msg, str(e)))
-                if e.args[0][0] == 503:
-                    raise UserError('%s: Conexión al SII caída/rechazada o el SII está temporalmente fuera de línea, reintente la acción' % (msg))
-                raise UserError(("%s: %s" % (msg, str(e))))
+            docs.setdefault(self.document_class_id.sii_code, [])
+            docs[self.document_class_id.sii_code].append(r._dte())
+        if not docs:
+            _logger.warning("En get_get_dte_status, no docs")
+            return
+        for k, v in docs.items():
+            datos['Documento'].append ({
+                'TipoDTE': k,
+                'documentos': v
+            })
+        resultado = fe.consulta_estado_documento(datos)
+        if not resultado:
+            _logger.warning("En get_get_dte_status, no resultado")
+            return
+        for r in self:
+            id = "T{}F{}".format(r.document_class_id.sii_code,
+                                 r.sii_document_number)
+            r.sii_result = resultado[id]['status']
+            if resultado[id].get('xml_resp'):
+                r.sii_message = resultado[id].get('xml_resp')
 
     @api.multi
     def ask_for_dte_status(self):
         for r in self:
-            if r.document_class_id.es_boleta() and r.company_id.dte_service_provider != 'SIICERT':
-                continue
             if not r.sii_xml_request and not r.sii_xml_request.sii_send_ident:
                 raise UserError('No se ha enviado aún el documento, aún está en cola de envío interna en odoo')
             if r.sii_xml_request.state not in ['Aceptado', 'Rechazado']:
                 r.sii_xml_request.get_send_status(r.env.user)
-        if r.sii_xml_request.state in ['Aceptado', 'Rechazado']:
-            try:
-                self._get_dte_status()
-            except Exception as e:
-                _logger.warning("Error al obtener DTE Status: %s" % str(e))
+        try:
+            self._get_dte_status()
+        except Exception as e:
+            _logger.warning("Error al obtener DTE Status: %s" % str(e))
         for r in self:
             mess = False
             if r.sii_result == 'Rechazado':

@@ -244,7 +244,7 @@
                                </td>
                               </tr>
                               <t t-foreach="o.tax_line_ids" t-as="t">
-                                <tr t-if="not o._es_boleta() or t.tax_id.sii_detailed or t.tax_id.amount == 0" style="max-height:11px; font-size:12px !important;">
+                                <tr t-if="t.tax_id.amount == 0" style="max-height:11px; font-size:12px !important;">
                                  <td><span t-field="t.tax_id.description"/></td>
                                  <td class="text-right">
                                      <span t-esc="t.amount if t.amount &gt; 0 else t.base" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>

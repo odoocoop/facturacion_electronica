@@ -31,7 +31,7 @@ class SiiTax(models.Model):
         amount_tax = self.amount or 0.0
         if self.uom_id and self.uom_id != uom_id:
             if self.env.context.get('date'):
-                mepco = self._target_mepco(self.env.context.get('date'))
+                mepco = self._target_mepco(self.env.context.get('date')[:10])
                 amount_tax = mepco.amount
             factor = self.uom_id._compute_quantity(1, uom_id)
             amount_tax = (amount_tax / factor)
@@ -112,12 +112,15 @@ class SiiTax(models.Model):
 
         base_values = self.env.context.get('base_values')
         if not base_values:
-            base = round(price_unit * quantity, prec+2)
-            base = round(base, prec)
-            disc = currency.round(base * ((discount or 0.0) /100))
-            decimal.getcontext().rounding = decimal.ROUND_HALF_UP
-            tot_discount = int(decimal.Decimal(disc).to_integral_value())
-            base -= tot_discount
+            if prec == 0:
+                base = float_round_custom(price_unit * quantity, precision_digits=prec+2)
+                base = float_round_custom(base, precision_digits=prec)
+                disc = (base * ((discount or 0.0) /100.0))
+                tot_discount = float_round_custom(disc, precision_digits=0)
+                base -= tot_discount
+            else:
+                price_unit = price_unit * (1 - (discount or 0.0) / 100.0)
+                base = round(price_unit * quantity, prec)
             total_excluded = base
             total_included = base
         else:
@@ -230,7 +233,7 @@ class SiiTax(models.Model):
             target = 'Gas Licuado del Petróleo de Consumo[\n ]Vehicular[\n ]\(en UTM\/m[\w]\)'
         elif self.mepco == 'gas_natural':
             target = 'Gas Natural Comprimido de Consumo Vehicular'
-        val = re.findall('%s\n[0-9.,]*\n[0-9.,]*\n([0-9.,]*)' % target, doc.loadPage(1).getText())
+        val = re.findall('%s\n[0-9.,-]*\n[0-9.,-]*\n([0-9.,-]*)' % target, doc.loadPage(1).getText())
         return val[0].replace('.', '').replace(',', '.')
 
     def _connect_sii(self, year, month):

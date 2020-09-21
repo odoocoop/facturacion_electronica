@@ -72,6 +72,12 @@
                   </td>
               </tr>
               <tr>
+                  <td>Total IVA:</td>
+                  <td class="pos-right-align">
+                      <t t-esc="widget.format_currency(order.get_total_tax())"/>
+                  </td>
+              </tr>
+              <tr>
                   <td>Descuento:</td>
                   <td class="pos-right-align">
                       <t t-esc="widget.format_currency(order.get_total_discount())"/>
@@ -114,6 +120,7 @@
                   <br/>
                   Resolución <t t-esc='widget.pos.company.dte_resolution_number'/> de <t t-esc='widget.pos.company.dte_resolution_date.slice(0, 4)'/> Verifique documento en:
                   <br />
+                  www.sii.cl o en <br />
                   <t t-esc="widget.pos.company.website + '/boleta/' + order.sii_document_number"/>
                 </p>
             </div>
@@ -205,6 +212,13 @@
             <right>$ <value value-decimals='0'><t t-esc='receipt.exento' /></value></right>
           </line>
         </t>
+        <t t-if="receipt.total_tax !=0">
+          <line><right>--------</right></line>
+          <line class='total'>
+            <left><pre>        IVA</pre></left>
+            <right>$ <value value-decimals='0'><t t-esc='receipt.total_tax' /></value></right>
+          </line>
+        </t>
         <line><right>--------</right></line>
         <line class='total'>
           <left><pre>        TOTAL</pre></left>
@@ -227,6 +241,8 @@
               Timbre Electrónico SII
               <br/>
               Resolución <t t-esc='receipt.company.dte_resolution_number'/> de <t t-esc='receipt.company.dte_resolution_date.slice(0, 4)'/> Verifique documento en:
+              <br />
+              www.sii.cl o en
               <br />
               <t t-esc="receipt.company.website +'/boleta/' + receipt.sii_document_number " />
             </p>

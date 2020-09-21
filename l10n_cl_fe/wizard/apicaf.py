@@ -3,6 +3,7 @@ from odoo import models, fields, api
 from odoo.exceptions import UserError
 from odoo.tools.translate import _
 import json
+import base64
 import logging
 _logger = logging.getLogger(__name__)
 
@@ -550,6 +551,8 @@ class APICAF(models.TransientModel):
         data = json.loads(resp.data.decode('ISO-8859-1'))
         caf = self.env['dte.caf'].create({
                 'caf_file': data['archivo_caf'],
+                'caf_string': base64.b64decode(
+                    data['archivo_caf']).decode('ISO-8859-1'),
                 'sequence_id': self.sequence_id.id,
                 'company_id': self.company_id.id,
                 'filename': nombre,

@@ -19,6 +19,7 @@ class CAF(models.Model):
     _name = 'dte.caf'
     _description = 'Archivo CAF'
 
+    @api.onchange("caf_file")
     @api.depends('caf_file')
     def _compute_data(self):
         for caf in self:
@@ -32,13 +33,16 @@ class CAF(models.Model):
         )
     filename = fields.Char(
             string='File Name',
+            required=True,
         )
     caf_file = fields.Binary(
             string='CAF XML File',
             filters='*.xml',
-            required=True,
             help='Upload the CAF XML File in this holder',
         )
+    caf_string = fields.Text(
+        string="Archivo CAF"
+    )
     issued_date = fields.Date(
             string='Issued Date',
             compute='_compute_data',
@@ -100,19 +104,23 @@ has been exhausted.''',
     _sql_constraints = [
                 ('filename_unique', 'unique(filename)', 'Error! Filename Already Exist!'),
             ]
+    _order = 'start_nm DESC'
 
-    @api.onchange("caf_file",)
     def load_caf(self, flags=False):
-        if not self.caf_file or not self.sequence_id:
+        if not self.caf_file and not self.caf_string:
             return
+        if not self.caf_string and self.caf_file:
+            self.caf_string = base64.b64decode(
+                self.caf_file).decode('ISO-8859-1')
         result = self.decode_caf().find('CAF/DA')
         self.start_nm = result.find('RNG/D').text
         self.final_nm = result.find('RNG/H').text
         self.sii_document_class = result.find('TD').text
+        dc = self.env['sii.document_class'].search([
+            ('sii_code', '=', self.sii_document_class)])
         fa = result.find('FA').text
         self.issued_date = fa
-        if self.sequence_id.sii_document_class_id.sii_code not in [34, 52]\
-           and not self.sequence_id.sii_document_class_id.es_boleta():
+        if dc.sii_code not in [34, 52] and not dc.es_boleta():
             self.expiration_date = date(int(fa[:4]),
                                     int(fa[5:7]),
                                     int(fa[8:10])
@@ -121,7 +129,7 @@ has been exhausted.''',
         if self.rut_n != self.company_id.vat.replace('L0', 'L'):
             raise UserError(_(
                 'Company vat %s should be the same that assigned company\'s vat: %s!') % (self.rut_n, self.company_id.vat))
-        elif self.sii_document_class != self.sequence_id.sii_document_class_id.sii_code:
+        elif dc != self.sequence_id.sii_document_class_id:
             raise UserError(_(
                 '''SII Document Type for this CAF is %s and selected sequence
 associated document class is %s. This values should be equal for DTE Invoicing
@@ -138,7 +146,8 @@ to work properly!''') % (self.sii_document_class, self.sequence_id.sii_document_
             elif folio < self.start_nm:
                 self.use_level = 0
             else:
-                self.use_level = 100.0 * ((int(folio) - self.start_nm) / float(self.final_nm - self.start_nm + 1))
+                self.use_level = 100.0 * ((int(folio) - self.start_nm) / float(
+                    self.final_nm - self.start_nm + 1))
         except ZeroDivisionError:
             self.use_level = 0
 
@@ -147,6 +156,4 @@ to work properly!''') % (self.sii_document_class, self.sequence_id.sii_document_
             r._set_level()
 
     def decode_caf(self):
-        post = base64.b64decode(self.caf_file).decode('ISO-8859-1')
-        post = etree.fromstring(post)
-        return post
+        return etree.fromstring(self.caf_string)

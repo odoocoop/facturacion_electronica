@@ -214,34 +214,33 @@ entregados por parte del deudor de la factura {4}, RUT {5}, de acuerdo a lo esta
                                     'tipo_trabajo': 'cesion',
                                     })
 
-    def _get_cesion_dte_status(self, rut, token):
-        url = server_url[self.company_id.dte_service_provider] + 'services/wsRPETCConsulta?wsdl'
-        _server = Client(url)
-        respuesta = _server.service.getEstCesion(
-            token,
-            rut[:-2],
-            str(rut[-1]),
-            str(self.document_class_id.sii_code),
-            str(self.sii_document_number),
-        )
-        self.sii_cesion_message = respuesta
-        resp = etree.XML(respuesta.replace(
-                '<?xml version="1.0" encoding="UTF-8"?>', '')\
-            .replace('SII:', '')\
-            .replace(' xmlns="http://www.sii.cl/XMLSchema"', ''))
-        sii_result = 'Procesado'
-        status = False
-        if resp.find('RESP_HDR/ESTADO').text in ['-13']:
-            status = {'warning':{'title':_("Error code: 2"), 'message': _(resp.find('RESP_HDR/GLOSA').text)}}
-            sii_result = "Rechazado"
-        elif resp.find('RESP_HDR/ESTADO').text in ['2']:
-            sii_result = "Aceptado"
-        elif resp.find('RESP_HDR/ESTADO').text == "0":
-            sii_result = "Cedido"
-        elif resp.find('RESP_HDR/ESTADO').text == "FAU":
-            sii_result = "Rechazado"
-        self.sii_cesion_result = sii_result
-        return status
+    def _get_cesion_dte_status(self):
+        datos = self._get_datos_empresa(self.company_id)
+        datos['Documento'] = []
+        docs = {}
+        for r in self:
+            if r.sii_xml_request.state not in ['Aceptado', 'Rechazado']:
+                continue
+            docs.setdefault(self.document_class_id.sii_code, [])
+            docs[self.document_class_id.sii_code].append(r._dte())
+        if not docs:
+            _logger.warning("En get_get_dte_status, no docs")
+            return
+        for k, v in docs.items():
+            datos['Documento'].append ({
+                'TipoDTE': k,
+                'documentos': v
+            })
+        resultado = fe.consulta_estado_documento(datos)
+        if not resultado:
+            _logger.warning("En get_cesion_get_dte_status, no resultado")
+            return
+        for r in self:
+            id = "T{}F{}".format(r.document_class_id.sii_code,
+                                 r.sii_document_number)
+            r.sii_cesion_result = resultado[id]['status']
+            if resultado[id].get('xml_resp'):
+                r.sii_cesion_message = resultado[id].get('xml_resp')
 
     def _get_datos_cesion_dte(self, rut, token):
         url = server_url[self.company_id.dte_service_provider] + 'services/wsRPETCConsulta?wsdl'
@@ -277,8 +276,6 @@ entregados por parte del deudor de la factura {4}, RUT {5}, de acuerdo a lo esta
 
     @api.multi
     def ask_for_cesion_dte_status(self):
-        token = self.sii_cesion_request.get_token(self.env.user, self.company_id)
-        signature_id = self.env.user.get_digital_signature(self.company_id)
         if not self.sii_cesion_request.sii_send_ident:
             raise UserError('No se ha enviado aún el documento, aún está en cola de envío interna en odoo')
         #if self.sii_cesion_result == 'Cedido':
@@ -292,7 +289,7 @@ entregados por parte del deudor de la factura {4}, RUT {5}, de acuerdo a lo esta
                 return status
         self.sii_cesion_result = self.sii_cesion_request.state
         try:
-            return self._get_cesion_dte_status(signature_id.subject_serial_number, token)
+            return self._get_cesion_dte_status()
         except:
             pass
 

@@ -12,7 +12,7 @@ class ResConfigSettings(models.TransientModel):
 
     auto_send_dte = fields.Integer(
             string="Tiempo de Espera para Enviar DTE automático al SII (en horas)",
-            default=12,
+            default=1,
         )
     auto_send_email = fields.Boolean(
             string="Enviar Email automático al Auto Enviar DTE al SII",
@@ -64,7 +64,7 @@ class ResConfigSettings(models.TransientModel):
         res = super(ResConfigSettings, self).get_values()
         ICPSudo = self.env['ir.config_parameter'].sudo()
         account_auto_send_dte = int(ICPSudo.get_param(
-                    'account.auto_send_dte', default=12))
+                    'account.auto_send_dte', default=1))
         account_auto_send_email = ICPSudo.get_param(
                     'account.auto_send_email', default=True)
         account_auto_send_persistencia = int(ICPSudo.get_param(

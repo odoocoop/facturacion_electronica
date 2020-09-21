@@ -8,22 +8,20 @@ from lxml.etree import Element, SubElement
 from odoo.tools import DEFAULT_SERVER_DATETIME_FORMAT as DTF
 import pytz
 import collections
+import math
 import logging
 
 _logger = logging.getLogger(__name__)
 
 try:
     from facturacion_electronica import facturacion_electronica as fe
+    from facturacion_electronica import clase_util as util
 except Exception as e:
     _logger.warning("Problema al cargar Facturación Electrónica %s" % str(e))
 try:
     from io import BytesIO
 except:
     _logger.warning("no se ha cargado io")
-try:
-    from suds.client import Client
-except:
-    pass
 try:
     import pdf417gen
 except ImportError:
@@ -32,21 +30,6 @@ try:
     import base64
 except ImportError:
     _logger.info('Cannot import base64 library')
-
-server_url = {'SIICERT': 'https://maullin.sii.cl/DTEWS/','SII':'https://palena.sii.cl/DTEWS/'}
-
-connection_status = {
-    '0': 'Upload OK',
-    '1': 'El Sender no tiene permiso para enviar',
-    '2': 'Error en tamaño del archivo (muy grande o muy chico)',
-    '3': 'Archivo cortado (tamaño <> al parámetro size)',
-    '5': 'No está autenticado',
-    '6': 'Empresa no autorizada a enviar archivos',
-    '7': 'Esquema Invalido',
-    '8': 'Firma del Documento',
-    '9': 'Sistema Bloqueado',
-    'Otro': 'Error Interno.',
-}
 
 
 class POSL(models.Model):
@@ -621,7 +604,7 @@ class POS(models.Model):
                 if ref.sii_referencia_TpoDocRef:
                     ref_line['TpoDocRef'] = ref.sii_referencia_TpoDocRef.sii_code
                     ref_line['FolioRef'] = ref.origen
-                ref_line['FchRef'] = ref.fecha_documento or datetime.strftime(datetime.now(), '%Y-%m-%d')
+                ref_line['FchRef'] = ref.fecha_documento.strftime("%Y-%m-%d") or datetime.strftime(datetime.now(), '%Y-%m-%d')
             if ref.sii_referencia_CodRef not in ['', 'none', False]:
                 ref_line['CodRef'] = ref.sii_referencia_CodRef
             ref_line['RazonRef'] = ref.motivo
@@ -707,16 +690,11 @@ class POS(models.Model):
                 'sii_xml_response': result.get('sii_xml_response'),
                 'state': result.get('sii_result'),
             }
-        if self[0].document_class_id.es_boleta() and self[0].company_id.dte_service_provider == 'SII':
-            envio.update({
-                'state': "Aceptado",
-                'sii_send_ident': 'BE'
-            })
         if not envio_id:
             envio_id = self.env['sii.xml.envio'].create(envio)
             for i in self:
                 i.sii_xml_request = envio_id.id
-                i.sii_result = 'Enviado'
+                i.sii_result = envio_id.state
         else:
             envio_id.write(envio)
         return envio_id
@@ -724,60 +702,42 @@ class POS(models.Model):
     @api.onchange('sii_message')
     def get_sii_result(self):
         for r in self:
-            if r.company_id.dte_service_provider != 'SIICERT' and r.document_class_id.es_boleta():
-                r.sii_result = 'Proceso'
-                continue
-            if r.sii_message:
-                r.sii_result = self.env['account.invoice'].process_response_xml(r.sii_message)
-                continue
             if r.sii_xml_request.state == 'NoEnviado':
                 r.sii_result = 'EnCola'
                 continue
-            r.sii_result = r.sii_xml_request.state
+            if not r.sii_message:
+                r.sii_result = r.sii_xml_request.state
 
     def _get_dte_status(self):
+        datos = self._get_datos_empresa(self[0].company_id)
+        datos['Documento'] = []
+        docs = {}
         for r in self:
             if r.sii_xml_request.state not in ['Aceptado', 'Rechazado']:
                 continue
-            token = r.sii_xml_request.get_token(self.env.user, r.company_id)
-            url = server_url[r.company_id.dte_service_provider] + 'QueryEstDte.jws?WSDL'
-            _server = Client(url)
-            receptor = r.partner_id.commercial_partner_id.rut()
-            util_model = self.env['cl.utils']
-            fields_model = self.env['ir.fields.converter']
-            from_zone = pytz.UTC
-            to_zone = pytz.timezone('America/Santiago')
-            date_order = util_model._change_time_zone(r.date_order, from_zone, to_zone).strftime("%d-%m-%Y")
-            signature_id = self.env.user.get_digital_signature(r.company_id)
-            rut = signature_id.subject_serial_number
-            amount_total = r.amount_total if r.amount_total >= 0 else r.amount_total*-1
-            try:
-                respuesta = _server.service.getEstDte(
-                    rut[:-2],
-                    str(rut[-1]),
-                    r.company_id.partner_id.rut()[:-2],
-                    r.company_id.partner_id.rut()[-1],
-                    receptor[:-2],
-                    receptor[-1],
-                    str(r.document_class_id.sii_code),
-                    str(r.sii_document_number),
-                    date_order,
-                    str(int(amount_total)),
-                    token,
-                )
-                r.sii_message = respuesta
-            except Exception as e:
-                msg = "Error al obtener Estado DTE"
-                _logger.warning("%s: %s" % (msg, str(e)))
-                if e.args[0][0] == 503:
-                    raise UserError('%s: Conexión al SII caída/rechazada o el SII está temporalmente fuera de línea, reintente la acción' % (msg))
-                raise UserError(("%s: %s" % (msg, str(e))))
+            docs.setdefault(self.document_class_id.sii_code, [])
+            docs[self.document_class_id.sii_code].append(r._dte())
+        if not docs:
+            return
+        for k, v in docs.items():
+            datos['Documento'].append ({
+                'TipoDTE': k,
+                'documentos': v
+            })
+        resultado = fe.consulta_estado_documento(datos)
+        if not resultado:
+            _logger.warning("no resultado en pos")
+            return
+        for r in self:
+            id = "T{}F{}".format(r.document_class_id.sii_code,
+                                 r.sii_document_number)
+            r.sii_result = resultado[id]['status']
+            if resultado[id].get('xml_resp'):
+                r.sii_message = resultado[id].get('xml_resp')
 
     @api.multi
     def ask_for_dte_status(self):
         for r in self:
-            if r.document_class_id.es_boleta() and r.company_id.dte_service_provider != 'SIICERT':
-                continue
             if not r.sii_xml_request and not r.sii_xml_request.sii_send_ident:
                 raise UserError('No se ha enviado aún el documento, aún está en cola de envío interna en odoo')
             if r.sii_xml_request.state not in ['Aceptado', 'Rechazado']:
@@ -920,11 +880,14 @@ class POS(models.Model):
             date_order = order.date_order.date() if order.date_order else fields.Date.today()
             total = 0
             all_tax = {}
+            last = False
             for line in order.lines:
                 if cur != cur_company:
                     amount_subtotal = cur._convert(line.price_subtotal, cur_company, order.company_id, date_order)
                 else:
                     amount_subtotal = line.price_subtotal
+                if amount_subtotal != 0:
+                    last = line
                 # Search for the income account
                 if line.product_id.property_account_income_id.id:
                     income_account = line.product_id.property_account_income_id.id
@@ -1006,7 +969,7 @@ class POS(models.Model):
                 for group_key, group_value in grouped_data.items():
                     if dif != 0 and group_key[0] == 'product':
                         for l in group_value:
-                            if line.product_id.id == l['product_id']:
+                            if last.product_id.id == l['product_id']:
                                 if l['credit'] > 0:
                                     l['credit'] += dif
                                 else:
@@ -1043,6 +1006,16 @@ class POS(models.Model):
 
         if self and order.company_id.anglo_saxon_accounting:
             add_anglosaxon_lines(grouped_data)
+            dif = 0
+            for group_key, group_data in grouped_data.items():
+                if group_key[0] == 'counter_part':
+                    for value in group_data:
+                        if value['credit'] > 0:
+                            entera, decimal = math.modf(value['credit'])
+                            dif = cur_company.round(value['credit']) - entera
+                        elif dif > 0 and value['debit'] > 0:
+                            value['debit'] += 1
+                            dif = 0
         return {
             'grouped_data': grouped_data,
             'move': move,

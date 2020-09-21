@@ -65,6 +65,8 @@ models.load_models({
 		},
 		loaded: function(self, docs){
 			if(docs.length > 0){
+				self.pos_session.numero_ordenes --;
+				self.pos_session.numero_ordenes_exentas --;
 				docs.forEach(function(doc){
 					dcs.push(doc.sii_document_class_id[0]);
 					if (doc.id === self.config.secuencia_boleta[0]){
@@ -79,7 +81,15 @@ models.load_models({
 					else if (doc.id === self.config.secuencia_factura_exenta[0]){
 						self.config.secuencia_factura_exenta = doc;
 					}
-				})
+				});
+				var orders = self.db.get_orders();
+        for (var i = 0; i < orders.length; i++) {
+        	if(orders[i].data.sequence_id === self.config.secuencia_boleta.id){
+        		self.pos_session.numero_ordenes ++;
+        	}else if(orders[i].data.sequence_id === self.config.secuencia_boleta_exenta.id){
+        		self.pos_session.numero_ordenes_exentas ++;
+        	}
+        }
 			}
 		}
 });
@@ -206,8 +216,15 @@ models.PosModel = models.PosModel.extend({
 		return sii_document_number;
 	},
 	push_order: function(order, opts) {
-		if(order && order.es_boleta() && !this.finalized){
-			var orden_numero = order.orden_numero -1;
+		if(order && order.es_boleta()){
+			if(order.es_boleta_exenta()){
+				if (this.pos_session.numero_ordenes_exentas < order.orden_numero){
+					this.pos_session.numero_ordenes_exentas = order.orden_numero;
+				}
+			}else if (this.pos_session.numero_ordenes < order.orden_numero){
+				this.pos_session.numero_ordenes = order.orden_numero;
+			}
+			var orden_numero = order.orden_numero;
 			var caf_files = JSON.parse(order.sequence_id.caf_files);
 			var start_number = order.sequence_id.sii_document_class_id.sii_code == 41 ? this.pos_session.start_number_exentas : this.pos_session.start_number;
 
@@ -259,14 +276,18 @@ models.PosModel = models.PosModel.extend({
 
 var _super_order_line = models.Orderline.prototype;
 models.Orderline = models.Orderline.extend({
+	_compute_factor: function(tax, uom_id){
+		var tax_uom = this.pos.units_by_id[tax.uom_id[0]];
+		var amount_tax = tax.amount;
+		if (tax.uom_id !== uom_id){
+			var factor = (1 / tax_uom.factor);
+			amount_tax = (amount_tax / factor);
+		}
+		return amount_tax;
+	},
 	_compute_all: function(tax, base_amount, quantity, uom_id) {
 			if (tax.amount_type === 'fixed') {
-					var tax_uom = this.pos.units_by_id[tax.uom_id[0]];
-					var amount_tax = tax.amount;
-					if (tax.uom_id !== uom_id){
-						var factor = (1 / tax_uom.factor);
-						amount_tax = (amount_tax / factor);
-					}
+					var amount_tax = this._compute_factor(tax, uom_id);
 					var sign_base_amount = Math.sign(base_amount) || 1;
 					// Since base amount has been computed with quantity
 					// we take the abs of quantity
@@ -284,6 +305,34 @@ models.Orderline = models.Orderline.extend({
 			}
 			return false;
 	},
+	_fix_composed_included_tax: function(taxes, base, quantity, uom_id){
+        let composed_tax = {}
+        var price_included = false;
+        var percent = 0.0
+        var rec = 0.0
+        _(taxes).each(function(tax){
+            if (tax.price_include){
+                price_included = true;
+	            if (tax.amount_type == 'percent'){
+	                percent += tax.amount;
+								}
+	            else{
+	                var amount_tax = this._compute_factor(tax, uom_id);
+	                rec += (quantity * amount_tax)
+								}
+						}
+				});
+        if (price_included){
+            var _base = base - rec
+            var common_base = (_base / (1 + percent / 100.0))
+            _(taxes).each(function(tax){
+                if (tax.amount_type == 'percent'){
+                    composed_tax[tax.id] = (common_base * (1 + tax.amount / 100))
+									}
+								});
+				}
+        return composed_tax
+	},
 	compute_all: function(taxes, price_unit, quantity, currency_rounding, no_map_tax, uom_id) {
 			var self = this;
 			var list_taxes = [];
@@ -296,6 +345,10 @@ models.Orderline = models.Orderline.extend({
 			var total_included = total_excluded;
 			var base = total_excluded;
 			var included = false;
+			let composed_tax = {}
+      if (taxes.length > 1){
+          composed_tax = self._fix_composed_included_tax(taxes, total_included, quantity, uom_id)
+			}
 			_(taxes).each(function(tax) {
 					included = tax.price_include;
 					if (!no_map_tax){
@@ -305,20 +358,21 @@ models.Orderline = models.Orderline.extend({
 							return;
 					}
 					if (tax.amount_type === 'group'){
-							var ret = self.compute_all(tax.children_tax_ids, price_unit, quantity, currency_rounding, uom_id=uom_id);
+							var ret = self.compute_all(tax.children_tax_ids, price_unit, quantity, currency_rounding, false, uom_id);
 							total_excluded = ret.total_excluded;
 							base = ret.total_excluded;
 							total_included = ret.total_included;
 							list_taxes = list_taxes.concat(ret.taxes);
 					}
 					else {
-							var tax_amount = self._compute_all(tax, base, quantity, uom_id);
+							var _base = tax.id in composed_tax ? composed_tax[tax.id] : base;
+							var tax_amount = self._compute_all(tax, _base, quantity, uom_id);
 							tax_amount = round_pr(tax_amount, currency_rounding);
 
 							if (tax_amount){
 									if (tax.price_include) {
 											total_excluded -= tax_amount;
-											base -= tax_amount;
+											_base -= tax_amount;
 									}
 									else {
 											total_included += tax_amount;
@@ -361,7 +415,8 @@ models.Orderline = models.Orderline.extend({
 					}));
 			});
 
-			var all_taxes = this.compute_all(product_taxes, price_unit, this.get_quantity(), this.pos.currency.rounding, uom_id=this.get_unit());
+			var all_taxes = this.compute_all(product_taxes,
+				price_unit, this.get_quantity(), this.pos.currency.rounding, false, this.get_unit());
 			_(all_taxes.taxes).each(function(tax) {
 					taxtotal += tax.amount;
 					taxdetail[tax.id] = tax.amount;
@@ -504,7 +559,7 @@ get_total_without_tax: function() {
 					})
 
 					if (mapped_included_taxes.length > 0) {
-							unit_price = line.compute_all(mapped_included_taxes, unit_price, 1, this.pos.currency.rounding, true, uom_id=uom_id).total_excluded;
+							unit_price = line.compute_all(mapped_included_taxes, unit_price, 1, this.pos.currency.rounding, true, uom_id).total_excluded;
 					}
 
 					line.set_unit_price(unit_price);
