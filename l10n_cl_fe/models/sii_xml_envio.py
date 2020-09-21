@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from odoo import fields, models, api
 from odoo.tools.translate import _
-from .account_invoice import server_url
 from odoo.exceptions import UserError
 from lxml import etree
 import collections
