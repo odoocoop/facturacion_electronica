@@ -11,7 +11,7 @@ class IRSequence(models.Model):
 
     @api.onchange('dte_caf_ids')
     def verificar_pos(self):
-        if self.is_dte and self.sii_document_class_id.sii_code in [39, 41]:
+        if self.is_dte and self.sii_document_class_id.es_boleta():
             context = dict(self._context or {})
             id = context.get('default_sequence_id') #Al parecer se complica el contexto y se pierde la referencia id
             if not id:

@@ -12,26 +12,6 @@ try:
 except Exception as e:
     _logger.warning("Problema al cargar Facturación electrónica: %s" % str(e))
 
-try:
-    from suds.client import Client
-except:
-    pass
-
-server_url = {'SIICERT':'https://maullin.sii.cl/DTEWS/','SII':'https://palena.sii.cl/DTEWS/'}
-
-connection_status = {
-    '0': 'Upload OK',
-    '1': 'El Sender no tiene permiso para enviar',
-    '2': 'Error en tamaño del archivo (muy grande o muy chico)',
-    '3': 'Archivo cortado (tamaño <> al parámetro size)',
-    '5': 'No está autenticado',
-    '6': 'Empresa no autorizada a enviar archivos',
-    '7': 'Esquema Invalido',
-    '8': 'Firma del Documento',
-    '9': 'Sistema Bloqueado',
-    'Otro': 'Error Interno.',
-}
-
 
 class LibroGuia(models.Model):
     _name = "stock.picking.book"

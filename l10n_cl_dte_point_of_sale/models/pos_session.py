@@ -91,14 +91,13 @@ class PosSession(models.Model):
         for r in self:
             seq = r.config_id.secuencia_boleta
             if seq:
+                folio = r.start_number
                 caf_files = seq.get_caf_files(folio)
                 if caf_files:
-                    folio = self.start_number
                     caffs = []
                     for caffile in caf_files:
-                        if int(folio) <= caffile.final_nm:
-                            xml = caffile.decode_caf()
-                            caffs += [{xml.tag: self.recursive_xml(xml)}]
+                        xml = caffile.decode_caf()
+                        caffs += [{xml.tag: self.recursive_xml(xml)}]
                     if caffs:
                         r.caf_files = json.dumps(
                             caffs, ensure_ascii=False)
@@ -109,9 +108,8 @@ class PosSession(models.Model):
                 if caf_files:
                     caffs = []
                     for caffile in caf_files:
-                        if int(folio) <= caffile.final_nm:
-                            xml = caffile.decode_caf()
-                            caffs += [{xml.tag: self.recursive_xml(xml)}]
+                        xml = caffile.decode_caf()
+                        caffs += [{xml.tag: self.recursive_xml(xml)}]
                     if caffs:
                         r.caf_files_exentas = json.dumps(
                             caffs, ensure_ascii=False)

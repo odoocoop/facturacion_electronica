@@ -20,6 +20,7 @@ class CAF(models.Model):
     _name = 'dte.caf'
     _description = 'Archivo CAF'
 
+    @api.onchange("caf_file")
     @api.depends('caf_file')
     def _compute_data(self):
         for caf in self:
@@ -108,10 +109,9 @@ has been exhausted.''',
 
     _order = 'start_nm DESC'
 
-    @api.onchange("caf_file",)
     @api.multi
     def load_caf(self, flags=False):
-        if not self.sequence_id or (not self.caf_file and not self.caf_string):
+        if not self.caf_file and not self.caf_string:
             return
         if not self.caf_string and self.caf_file:
             self.caf_string = base64.b64decode(
@@ -120,10 +120,11 @@ has been exhausted.''',
         self.start_nm = result.find('RNG/D').text
         self.final_nm = result.find('RNG/H').text
         self.sii_document_class = result.find('TD').text
+        dc = self.env['sii.document_class'].search([
+            ('sii_code', '=', self.sii_document_class)])
         fa = result.find('FA').text
         self.issued_date = fa
-        if self.sequence_id.sii_document_class_id.sii_code not in [34, 52]\
-           and not self.sequence_id.sii_document_class_id.es_boleta():
+        if dc.sii_code not in [34, 52] and not dc.es_boleta():
             self.expiration_date = date(int(fa[:4]),
                                     int(fa[5:7]),
                                     int(fa[8:10])
@@ -132,11 +133,12 @@ has been exhausted.''',
         if self.rut_n != self.company_id.partner_id.rut():
             raise UserError(_(
                 'Company vat %s should be the same that assigned company\'s vat: %s!') % (self.rut_n, self.company_id.partner_id.rut()))
-        elif self.sii_document_class != self.sequence_id.sii_document_class_id.sii_code:
+        elif dc != self.sequence_id.sii_document_class_id:
             raise UserError(_(
                 '''SII Document Type for this CAF is %s and selected sequence
 associated document class is %s. This values should be equal for DTE Invoicing
-to work properly!''') % (self.sii_document_class, self.sequence_id.sii_document_class_id.sii_code))
+to work properly!''') % (dc.sii_code,
+                         self.sequence_id.sii_document_class_id.sii_code))
         if flags:
             return True
         self.status = 'in_use'

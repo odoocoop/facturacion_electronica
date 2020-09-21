@@ -32,7 +32,7 @@ class SiiTax(models.Model):
         amount_tax = self.amount or 0.0
         if self.uom_id and self.uom_id != uom_id:
             if self.env.context.get('date'):
-                mepco = self._target_mepco(self.env.context.get('date'))
+                mepco = self._target_mepco(self.env.context['date'][:10])
                 amount_tax = mepco.amount
             factor = self.uom_id._compute_quantity(1, uom_id)
             amount_tax = (amount_tax / factor)
@@ -231,12 +231,12 @@ class SiiTax(models.Model):
         if self.mepco == 'gasolina_97':
             target = 'Gasolina Automotriz de[\n ]97 octanos[\n ]\(en UTM\/m[\w]\)'
         elif self.mepco == 'diesel':
-            target = 'Petróleo Diésel[\n ]\(en UTM\/m[\w]\)'
+            target = 'Petr[\w]leo Di[\w]sel[\n ]\(en UTM\/m[\w]\)'
         elif self.mepco == 'gas_licuado':
             target = 'Gas Licuado del Petróleo de Consumo[\n ]Vehicular[\n ]\(en UTM\/m[\w]\)'
         elif self.mepco == 'gas_natural':
             target = 'Gas Natural Comprimido de Consumo Vehicular'
-        val = re.findall('%s\n[0-9.,]*\n[0-9.,]*\n([0-9.,]*)' % target, doc.loadPage(1).getText())
+        val = re.findall('%s\n[0-9.,-]*\n[0-9.,-]*\n([0-9.,-]*)' % target, doc.loadPage(1).getText())
         return val[0].replace('.', '').replace(',', '.')
 
     def _connect_sii(self, year, month):

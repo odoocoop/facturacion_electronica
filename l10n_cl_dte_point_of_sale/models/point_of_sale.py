@@ -15,8 +15,9 @@ _logger = logging.getLogger(__name__)
 
 try:
     from facturacion_electronica import facturacion_electronica as fe
+    from facturacion_electronica import clase_util as util
 except Exception as e:
-    _logger.warning("Problema al cargar Facturación Electrónica %s" % str(e))
+    _logger.warning("Problema al cargar Facturación electrónica: %s" % str(e))
 try:
     from io import BytesIO
 except:
@@ -733,60 +734,42 @@ class POS(models.Model):
     @api.onchange('sii_message')
     def get_sii_result(self):
         for r in self:
-            if r.company_id.dte_service_provider != 'SIICERT' and r.document_class_id.es_boleta():
-                r.sii_result = 'Proceso'
-                continue
-            if r.sii_message:
-                r.sii_result = self.env['account.invoice'].process_response_xml(r.sii_message)
-                continue
             if r.sii_xml_request.state == 'NoEnviado':
                 r.sii_result = 'EnCola'
                 continue
-            r.sii_result = r.sii_xml_request.state
+            if not r.sii_message:
+                r.sii_result = r.sii_xml_request.state
 
     def _get_dte_status(self):
+        datos = self._get_datos_empresa(self.company_id)
+        datos['Documento'] = []
+        docs = {}
         for r in self:
             if r.sii_xml_request.state not in ['Aceptado', 'Rechazado']:
                 continue
-            token = r.sii_xml_request.get_token(self.env.user, r.company_id)
-            url = server_url[r.company_id.dte_service_provider] + 'QueryEstDte.jws?WSDL'
-            _server = Client(url)
-            receptor = r.partner_id.commercial_partner_id.rut()
-            util_model = self.env['cl.utils']
-            fields_model = self.env['ir.fields.converter']
-            from_zone = pytz.UTC
-            to_zone = pytz.timezone('America/Santiago')
-            date_order = util_model._change_time_zone(datetime.strptime(r.date_order, DTF), from_zone, to_zone).strftime("%d-%m-%Y")
-            signature_id = self.env.user.get_digital_signature(r.company_id)
-            rut = signature_id.subject_serial_number
-            amount_total = r.amount_total if r.amount_total >= 0 else r.amount_total*-1
-            try:
-                respuesta = _server.service.getEstDte(
-                    rut[:-2],
-                    str(rut[-1]),
-                    r.company_id.partner_id.rut()[:-2],
-                    r.company_id.partner_id.rut()[-1],
-                    receptor[:-2],
-                    receptor[-1],
-                    str(r.document_class_id.sii_code),
-                    str(r.sii_document_number),
-                    date_order,
-                    str(int(amount_total)),
-                    token,
-                )
-                r.sii_message = respuesta
-            except Exception as e:
-                msg = "Error al obtener Estado DTE"
-                _logger.warning("%s: %s" % (msg, str(e)))
-                if e.args[0][0] == 503:
-                    raise UserError('%s: Conexión al SII caída/rechazada o el SII está temporalmente fuera de línea, reintente la acción' % (msg))
-                raise UserError(("%s: %s" % (msg, str(e))))
+            docs.setdefault(self.document_class_id.sii_code, [])
+            docs[self.document_class_id.sii_code].append(r._dte())
+        if not docs:
+            return
+        for k, v in docs.items():
+            datos['Documento'].append ({
+                'TipoDTE': k,
+                'documentos': v
+            })
+        resultado = fe.consulta_estado_documento(datos)
+        if not resultado:
+            _logger.warning("no resultado")
+            return
+        for r in self:
+            id = "T{}F{}".format(r.document_class_id.sii_code,
+                                 r.sii_document_number)
+            r.sii_result = resultado[id]['status']
+            if resultado[id].get('xml_resp'):
+                r.sii_message = resultado[id].get('xml_resp')
 
     @api.multi
     def ask_for_dte_status(self):
         for r in self:
-            if r.document_class_id.es_boleta() and r.company_id.dte_service_provider != 'SIICERT':
-                continue
             if not r.sii_xml_request and not r.sii_xml_request.sii_send_ident:
                 raise UserError('No se ha enviado aún el documento, aún está en cola de envío interna en odoo')
             if r.sii_xml_request.state not in ['Aceptado', 'Rechazado']:

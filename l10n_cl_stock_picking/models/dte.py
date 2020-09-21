@@ -19,10 +19,6 @@ try:
 except:
     _logger.warning("no se ha cargado io")
 try:
-    from suds.client import Client
-except:
-    pass
-try:
     import pdf417gen
 except ImportError:
     _logger.info('Cannot import pdf417gen library')
@@ -35,21 +31,6 @@ try:
 except:
     _logger.warning("no se ha cargado PIL")
 
-
-server_url = {'SIICERT':'https://maullin.sii.cl/DTEWS/','SII':'https://palena.sii.cl/DTEWS/'}
-
-connection_status = {
-    '0': 'Upload OK',
-    '1': 'El Sender no tiene permiso para enviar',
-    '2': 'Error en tamaño del archivo (muy grande o muy chico)',
-    '3': 'Archivo cortado (tamaño <> al parámetro size)',
-    '5': 'No está autenticado',
-    '6': 'Empresa no autorizada a enviar archivos',
-    '7': 'Esquema Invalido',
-    '8': 'Firma del Documento',
-    '9': 'Sistema Bloqueado',
-    'Otro': 'Error Interno.',
-}
 
 
 class stock_picking(models.Model):
@@ -207,7 +188,7 @@ class stock_picking(models.Model):
                                     })
     def _giros_emisor(self):
         giros_emisor = []
-        for turn in self.company_id.company_activities_ids:
+        for turn in self.company_id.company_activities_ids[:4]:
             giros_emisor.append(turn.code)
         return giros_emisor
 
@@ -531,43 +512,38 @@ class stock_picking(models.Model):
     @api.onchange('sii_message')
     def get_sii_result(self):
         for r in self:
-            if r.sii_message:
-                r.sii_result = self.env['account.invoice'].process_response_xml(r.sii_message)
-                continue
             if r.sii_xml_request.state == 'NoEnviado':
                 r.sii_result = 'EnCola'
                 continue
-            r.sii_result = r.sii_xml_request.state
+            if not r.sii_message:
+                r.sii_result = r.sii_xml_request.state
 
     def _get_dte_status(self):
+        datos = self._get_datos_empresa(self.company_id)
+        datos['Documento'] = []
+        docs = {}
         for r in self:
-            if not r.sii_xml_request or r.sii_xml_request.state not in ['Aceptado', 'Reparo', 'Rechazado']:
+            if r.sii_xml_request.state not in ['Aceptado', 'Rechazado']:
                 continue
-            partner_id = r.partner_id or r.company_id.partner_id
-            token = r.sii_xml_request.get_token(self.env.user, r.company_id)
-            signature_id = self.env.user.get_digital_signature(r.company_id)
-            url = server_url[r.company_id.dte_service_provider] + 'QueryEstDte.jws?WSDL'
-            _server = Client(url)
-            partner_id = r.partner_id.commercial_partner_id
-            receptor = partner_id.rut()
-            scheduled_date = fields.Datetime.context_timestamp(r.with_context(tz='America/Santiago'), fields.Datetime.from_string(r.scheduled_date)).strftime("%d-%m-%Y")
-            total = str(int(round(r.amount_total, 0)))
-            sii_code = str(r.document_class_id.sii_code)
-            rut = signature_id.subject_serial_number
-            respuesta = _server.service.getEstDte(
-                            rut[:-2],
-                            str(rut[-1]),
-                            r.company_id.partner_id.rut()[:-2],
-                            r.company_id.partner_id.rut()[-1],
-                            receptor[:-2],
-                            receptor[-1],
-                            sii_code,
-                            str(r.sii_document_number),
-                            scheduled_date,
-                            total,
-                            token
-                        )
-            r.sii_message = respuesta
+            docs.setdefault(self.document_class_id.sii_code, [])
+            docs[self.document_class_id.sii_code].append(r._dte())
+        if not docs:
+            return
+        for k, v in docs.items():
+            datos['Documento'].append ({
+                'TipoDTE': k,
+                'documentos': v
+            })
+        resultado = fe.consulta_estado_documento(datos)
+        if not resultado:
+            _logger.warning("no resultado en picking")
+            return
+        for r in self:
+            id = "T{}F{}".format(r.document_class_id.sii_code,
+                                 r.sii_document_number)
+            r.sii_result = resultado[id]['status']
+            if resultado[id].get('xml_resp'):
+                r.sii_message = resultado[id].get('xml_resp')
 
     @api.multi
     def ask_for_dte_status(self):

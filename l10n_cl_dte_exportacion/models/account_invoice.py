@@ -400,44 +400,6 @@ class Exportacion(models.Model):
                     })
                 seguro.valor = self.monto_seguro
 
-    def _get_dte_status(self):
-        for r in self:
-            if r.sii_xml_request.state not in ['Aceptado', 'Rechazado']:
-                continue
-            rut_emisor = r.company_id.partner_id.rut()
-            token = r.sii_xml_request.get_token(self.env.user, r.company_id)
-            url = server_url[r.company_id.dte_service_provider] + 'QueryEstDte.jws?WSDL'
-            _server = Client(url)
-            commercial_partner_id = r.commercial_partner_id or r.partner_id
-            receptor = commercial_partner_id.rut()
-            if r._es_exportacion():
-                receptor = '55555555-5'
-            date_invoice = datetime.strptime(r.date_invoice, "%Y-%m-%d").strftime("%d-%m-%Y")
-            signature_id = self.env.user.get_digital_signature(r.company_id)
-            rut = signature_id.subject_serial_number
-            try:
-                respuesta = _server.service.getEstDte(
-                    rut[:-2],
-                    str(rut[-1]),
-                    rut_emisor[:-2],
-                    rut_emisor[-1],
-                    receptor[:-2],
-                    receptor[-1],
-                    str(r.document_class_id.sii_code),
-                    str(r.sii_document_number),
-                    date_invoice,
-                    str(int(r.amount_total)),
-                    token,
-                )
-                r.sii_message = respuesta
-                r.get_sii_result()
-            except Exception as e:
-                msg = "Error al obtener Estado DTE"
-                _logger.warning("%s: %s" % (msg, str(e)))
-                if e.args[0][0] == 503:
-                    raise UserError('%s: Conexión al SII caída/rechazada o el SII está temporalmente fuera de línea, reintente la acción' % (msg))
-                raise UserError(("%s: %s" % (msg, str(e))))
-
     @api.onchange('bultos')
     def tot_bultos(self):
         tot_bultos = 0
