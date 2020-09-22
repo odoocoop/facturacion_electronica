@@ -210,7 +210,7 @@
                               <p style="text-align:center;color:red; font-size:8px;">
                                 Timbre Electrónico SII
                                 <br/>
-                                Resolución <t t-esc="o.company_id.dte_resolution_number"/> de <t t-esc="o.company_id.dte_resolution_date.year"/> Verifique documento en: <t t-if="not o._es_boleta()">www.sii.cl</t><t t-if="o._es_boleta()" t-esc="'%s/boleta/%s' % (o.company_id.website, o.sii_document_number)"/>
+                                Resolución <t t-esc="o.company_id.dte_resolution_number"/> de <t t-esc="o.company_id.dte_resolution_date.year"/> Verifique documento en: www.sii.cl <t t-if="not o._es_boleta()">o en </t><t t-if="o._es_boleta()" t-esc="'%s/boleta/%s' % (o.company_id.website, o.sii_document_number)"/>
                               </p>
                           </div>
                         </t>
@@ -244,7 +244,7 @@
                                </td>
                               </tr>
                               <t t-foreach="o.tax_line_ids" t-as="t">
-                                <tr t-if="t.tax_id.amount == 0" style="max-height:11px; font-size:12px !important;">
+                                <tr t-if="not o._es_boleta() or (o._es_boleta() and ( t.tax_id.amount == 0 or t.tax_id.sii_code in [14, 15, 17])) " style="max-height:11px; font-size:12px !important;">
                                  <td><span t-field="t.tax_id.description"/></td>
                                  <td class="text-right">
                                      <span t-esc="t.amount if t.amount &gt; 0 else t.base" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
@@ -451,8 +451,8 @@
                     <div class="col-xs-6 pull-right">
                         <table class="table table-condensed">
                           <t t-foreach="o.tax_line_ids" t-as="t">
-                              <tr class="border-black" t-if="t.amount == 0">
-                                <td>MONTO EXENTO</td>
+                            <tr class="border-black" t-if="not o._es_boleta() or (o._es_boleta() and ( t.tax_id.amount == 0 or t.tax_id.sii_code in [14, 15, 17]))">
+                                <td><t t-esc="t.tax_id.description" /></td>
                                 <td class="text-right">
                                   <span t-field="t.base" t-field-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
                                 </td>
@@ -462,7 +462,7 @@
                             <tr>
                                 <td><strong>MONTO TOTAL</strong></td>
                                 <td class="text-right">
-                                    <span t-field="o.amount_total" t-field-options="{'widget': 'monetary', 'display_currency':o.currency_id}"/>
+                                    <span t-esc="t.amount if t.amount > 0 else t.base" t-options='{"widget": "monetary", "display_currency": o.currency_id}'/>
                                 </td>
                             </tr>
                         </table>
@@ -502,7 +502,7 @@
                       <p style="text-align:center;color:red; font-size:8px;">
                         Timbre Electrónico SII
                         <br/>
-                        Resolución <t t-esc='o.company_id.dte_resolution_number'/> de <t t-esc='o.company_id.dte_resolution_date.year'/> Verifique documento en: <t t-if="not o._es_boleta()">www.sii.cl</t><t t-if="o._es_boleta()" t-esc="'%s/boleta/%s' % (o.company_id.website, o.sii_document_number)"/>
+                        Resolución <t t-esc='o.company_id.dte_resolution_number'/> de <t t-esc='o.company_id.dte_resolution_date.year'/> Verifique documento en: www.sii.cl <t t-if="not o._es_boleta()">o en </t><t t-if="o._es_boleta()" t-esc="'%s/boleta/%s' % (o.company_id.website, o.sii_document_number)"/>
                       </p>
                   </div>
                 </div>
@@ -613,10 +613,12 @@
                 <left><pre>        SubTotal</pre></left>
                 <right>$ <value value-decimals='0'><t t-esc='doc.amount_untaxed' /></value></right>
             </line>
-            <line t-if="doc.amount_untaxed and not doc._es_boleta()" class='total'>
+            <line class='total'>
               <left><pre>        Impuestos</pre></left>
               <t t-foreach="doc.tax_line_ids" t-as="tl">
-                <right><t t-esc="tl.tax_id.description" />: $ <value value-decimals='0'><t t-esc='tl.amount' /></value></right>
+                <t t-if="not doc._es_boleta() or (doc._es_boleta() and ( tl.tax_id.amount == 0 or tl.tax_id.sii_code in [14, 15, 17]))">
+                  <right><t t-esc="tl.tax_id.description" />: $ <value value-decimals='0'><t t-esc='tl.amount' /></value></right>
+               </t>
               </t>
             </line>
             <line t-if='doc.amount_total' class='total'>
@@ -630,7 +632,7 @@
                   <p style="text-align:center;color:red; font-size:8px;">
                     Timbre Electrónico SII
                     <br/>
-                    Resolución <t t-esc="doc.company_id.dte_resolution_number"/> de <t t-esc="doc.company_id.dte_resolution_date.year"/> Verifique documento en: <t t-if="not doc._es_boleta()">www.sii.cl</t><t t-if="doc._es_boleta()" t-esc="'%s/boleta/%s' % (doc.company_id.website, doc.sii_document_number)"/>
+                    Resolución <t t-esc="doc.company_id.dte_resolution_number"/> de <t t-esc="doc.company_id.dte_resolution_date.year"/> Verifique documento en: www.sii.cl <t t-if="not doc._es_boleta()">o en </t><t t-if="doc._es_boleta()" t-esc="'%s/boleta/%s' % (doc.company_id.website, doc.sii_document_number)"/>
                   </p>
                 </em>
             </div>
