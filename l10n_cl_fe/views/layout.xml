@@ -441,7 +441,7 @@
                         <table class="table table-condensed">
                           <t t-foreach="o.tax_line_ids" t-as="t">
                               <tr class="border-black" t-if="not o._es_boleta() or (o._es_boleta() and ( t.tax_id.amount == 0 or t.tax_id.sii_code in [14, 15, 17]))">
-                                <td><t-esc="t.tax_id.description" /></td>
+                                <td><t t-esc="t.tax_id.description" /></td>
                                 <td class="text-right">
                                   <span t-esc="t.amount if t.amount > 0 else t.base" t-options='{"widget": "monetary", "display_currency": o.currency_id}'/>
                                 </td>
