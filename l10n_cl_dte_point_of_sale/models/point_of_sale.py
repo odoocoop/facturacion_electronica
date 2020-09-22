@@ -140,6 +140,7 @@ class POS(models.Model):
     sii_result = fields.Selection(
             [
                     ('', 'n/a'),
+                    ('draft', 'Borrador'),
                     ('NoEnviado', 'No Enviado'),
                     ('EnCola', 'En cola de envío'),
                     ('Enviado', 'Enviado'),

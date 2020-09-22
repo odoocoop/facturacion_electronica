@@ -215,12 +215,19 @@ models.PosModel = models.PosModel.extend({
 	},
 	push_order: function(order, opts) {
 		if(order && order.es_boleta()){
-			var orden_numero = order.orden_numero;
+			if(order.es_boleta_exenta()){
+				var orden_numero = this.pos_session.numero_ordenes_exentas;
+				this.pos_session.numero_ordenes_exentas ++;
+			}else{
+				var orden_numero = this.pos_session.numero_ordenes;
+				this.pos_session.numero_ordenes ++;
+			}
+			order.orden_numero = orden_numero+1;
 			var caf_files = JSON.parse(order.sequence_id.caf_files);
 			var start_number = order.sequence_id.sii_document_class_id.sii_code == 41 ? this.pos_session.start_number_exentas : this.pos_session.start_number;
 
 			var sii_document_number = this.get_next_number(
-				parseInt(orden_numero) + parseInt(start_number),
+				orden_numero + parseInt(start_number),
 				caf_files, start_number);
 
 			order.sii_document_number = sii_document_number;
@@ -243,8 +250,9 @@ models.PosModel = models.PosModel.extend({
 		}
 		var caf_files = JSON.parse(seq.caf_files);
 		var start_number = seq.sii_document_class_id.sii_code == 41 ? this.pos_session.start_number_exentas : this.pos_session.start_number;
-		return this.get_next_number(parseInt(orden_numero) + parseInt(start_number)+1,
-					caf_files, start_number);;
+		return this.get_next_number(
+			parseInt(orden_numero) + parseInt(start_number),
+			caf_files, start_number);
 	},
 	get_sequence_left: function(seq){
 		if (!seq){
@@ -517,13 +525,6 @@ models.Order = models.Order.extend({
 	initialize_validation_date: function(){
 		_super_order.initialize_validation_date.apply(this,arguments);
 		if (!this.is_to_invoice() && this.es_boleta() && !this.finalized){
-			if(this.es_boleta_exenta()){
-				this.pos.pos_session.numero_ordenes_exentas ++;
-				this.orden_numero = this.pos.pos_session.numero_ordenes_exentas;
-			}else{
-				this.pos.pos_session.numero_ordenes ++;
-				this.orden_numero = this.pos.pos_session.numero_ordenes;
-			}
 			this.finalized = true;
 		}
 	},
