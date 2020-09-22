@@ -65,8 +65,6 @@ models.load_models({
 		},
 		loaded: function(self, docs){
 			if(docs.length > 0){
-				self.pos_session.numero_ordenes --;
-				self.pos_session.numero_ordenes_exentas --;
 				docs.forEach(function(doc){
 					dcs.push(doc.sii_document_class_id[0]);
 					if (doc.id === self.config.secuencia_boleta[0]){
@@ -217,18 +215,13 @@ models.PosModel = models.PosModel.extend({
 	},
 	push_order: function(order, opts) {
 		if(order && order.es_boleta()){
-			if(order.es_boleta_exenta()){
-				if (this.pos_session.numero_ordenes_exentas < order.orden_numero){
-					this.pos_session.numero_ordenes_exentas = order.orden_numero;
-				}
-			}else if (this.pos_session.numero_ordenes < order.orden_numero){
-				this.pos_session.numero_ordenes = order.orden_numero;
-			}
 			var orden_numero = order.orden_numero;
 			var caf_files = JSON.parse(order.sequence_id.caf_files);
 			var start_number = order.sequence_id.sii_document_class_id.sii_code == 41 ? this.pos_session.start_number_exentas : this.pos_session.start_number;
 
-			var sii_document_number = this.get_next_number(parseInt(orden_numero) + parseInt(start_number), caf_files, start_number);
+			var sii_document_number = this.get_next_number(
+				parseInt(orden_numero) + parseInt(start_number),
+				caf_files, start_number);
 
 			order.sii_document_number = sii_document_number;
 			var amount = Math.round(order.get_total_with_tax());
@@ -250,7 +243,8 @@ models.PosModel = models.PosModel.extend({
 		}
 		var caf_files = JSON.parse(seq.caf_files);
 		var start_number = seq.sii_document_class_id.sii_code == 41 ? this.pos_session.start_number_exentas : this.pos_session.start_number;
-		return this.get_next_number(parseInt(orden_numero) + parseInt(start_number), caf_files, start_number);;
+		return this.get_next_number(parseInt(orden_numero) + parseInt(start_number)+1,
+					caf_files, start_number);;
 	},
 	get_sequence_left: function(seq){
 		if (!seq){
@@ -260,7 +254,11 @@ models.PosModel = models.PosModel.extend({
 		var caf_files = JSON.parse(seq.caf_files);
 		var left = 0;
 		for (var x in caf_files){
-			var desde  = parseInt(caf_files[x].AUTORIZACION.CAF.DA.RNG.D);
+			if (sii_document_number > parseInt(caf_files[x].AUTORIZACION.CAF.DA.RNG.D)){
+				var desde = sii_document_number;
+			}else{
+					var desde  = parseInt(caf_files[x].AUTORIZACION.CAF.DA.RNG.D);
+			}
 			var hasta = parseInt(caf_files[x].AUTORIZACION.CAF.DA.RNG.H);
 			if(sii_document_number <= hasta){
 				var dif = 0;
