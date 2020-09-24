@@ -1771,7 +1771,7 @@ a VAT."))
                 'user_id': self.env.uid,
                 'sii_send_ident': result.get('sii_send_ident'),
                 'sii_xml_response': result.get('sii_xml_response'),
-                'state': result.get('sii_result'),
+                'state': result.get('status'),
             }
         if not envio_id:
             envio_id = self.env['sii.xml.envio'].create(envio)

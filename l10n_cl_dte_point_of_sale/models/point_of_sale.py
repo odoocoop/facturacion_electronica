@@ -690,6 +690,13 @@ class POS(models.Model):
                 'sii_xml_request': r.sii_xml_dte,
                 'Folio': r.get_folio(),
             })
+            if r.sii_result in ['Rechazado'] or (r.company_id.dte_service_provider == 'SIICERT' and r.sii_xml_request.state in ['', 'draft', 'NoEnviado']):
+                if r.sii_xml_request:
+                    if len(r.sii_xml_request.order_ids) == 1:
+                        r.sii_xml_request.unlink()
+                    else:
+                        r.sii_xml_request = False
+                r.sii_message = ''
         envio = self[0]._get_datos_empresa(self[0].company_id)
         envio.update({
             'RutReceptor': RUTRecep,
@@ -716,7 +723,7 @@ class POS(models.Model):
                 'user_id': self.env.uid,
                 'sii_send_ident': result.get('sii_send_ident'),
                 'sii_xml_response': result.get('sii_xml_response'),
-                'state': result.get('sii_result'),
+                'state': result.get('status'),
             }
         if self[0].document_class_id.es_boleta() and self[0].company_id.dte_service_provider == 'SII':
             envio.update({
