@@ -974,7 +974,7 @@ class UploadXMLWizard(models.TransientModel):
                 Totales = documento.find("Encabezado/Totales")
                 monto_xml = float(Totales.find('MntTotal').text)
                 if inv.amount_total == monto_xml:
-                    return inv
+                    continue
                 inv.amount_total = monto_xml
                 for t in inv.tax_line_ids:
                     if Totales.find('TasaIVA') is not None and t.tax_id.amount == float(Totales.find('TasaIVA').text):
