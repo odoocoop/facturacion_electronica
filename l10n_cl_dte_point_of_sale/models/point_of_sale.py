@@ -734,7 +734,7 @@ class POS(models.Model):
             envio_id = self.env['sii.xml.envio'].create(envio)
             for i in self:
                 i.sii_xml_request = envio_id.id
-                i.sii_result = result.get('sii_result')
+                i.sii_result = result.get('status')
         else:
             envio_id.write(envio)
         return envio_id
