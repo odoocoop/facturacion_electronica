@@ -498,7 +498,7 @@ class stock_picking(models.Model):
                 'user_id': self.env.uid,
                 'sii_send_ident': result['sii_send_ident'],
                 'sii_xml_response': result['sii_xml_response'],
-                'state': result['sii_result'],
+                'state': result['status'],
             }
         if not envio_id:
             envio_id = self.env['sii.xml.envio'].create(envio)
