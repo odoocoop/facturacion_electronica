@@ -1,9 +1,9 @@
-<?xml version="1.0"?>
+<?xml version="1.0" ?>
 <odoo>
-     <template id="l10n_cl_fe" name="l10n_cl_fe" inherit_id="web.assets_common">
-          <xpath expr="." position="inside">
-            <script src="/l10n_cl_fe/static/src/js/upgrade_fields.js"></script>
-            <script src="/l10n_cl_fe/static/src/js/notify_manager.js"></script>
-          </xpath>
-      </template>
+    <template id="l10n_cl_fe" name="l10n_cl_fe" inherit_id="web.assets_common">
+        <xpath expr="." position="inside">
+            <script src="/l10n_cl_fe/static/src/js/upgrade_fields.js" />
+            <script src="/l10n_cl_fe/static/src/js/notify_manager.js" />
+        </xpath>
+    </template>
 </odoo>

@@ -723,8 +723,8 @@ class POS(models.Model):
         for r in self:
             if r.sii_xml_request.state not in ['Aceptado', 'Rechazado']:
                 continue
-            docs.setdefault(self.document_class_id.sii_code, [])
-            docs[self.document_class_id.sii_code].append(r._dte())
+            docs.setdefault(r.document_class_id.sii_code, [])
+            docs[r.document_class_id.sii_code].append(r._dte())
         if not docs:
             return
         for k, v in docs.items():

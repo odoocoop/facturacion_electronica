@@ -1,121 +1,126 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8" ?>
 <odoo>
-        <record id="view_sii_firma_form" model="ir.ui.view">
-            <field name="name">sii.firma.form</field>
-            <field name="model">sii.firma</field>
-            <field name="arch" type="xml">
-                <form>
-                    <header>
-                        <button string="Validate Certificate" type="object" name="action_process"
-                                class="oe_highlight"
-                                attrs="{'invisible':['|', ('state', 'not in', ['unverified', 'incomplete'])]}"/>
-
-                        <field name="state" widget="statusbar"/>
-                    </header>
-                    <sheet>
-                        <div class="oe_button_box" name="button_box">
-                            <button name="toggle_active" type="object"
-                                    class="oe_stat_button" icon="fa-archive">
-                                <field name="active" widget="boolean_button"
-                                    options='{"terminology": "archive"}'/>
-                            </button>
-                        </div>
-                        <group attrs="{'invisible': [('state', '!=', 'unverified')]}">
-                            <field name="file_content" filename="name"/>
-                            <field name="name" attrs="{'invisible': [('name', '=', False)]}"/>
-                            <field name="password" password="True"
-                            attrs="{'invisible':[('state', '!=', 'unverified')]}"/>
-                        </group>
-
-                        <div attrs="{'invisible': [
+    <record id="view_sii_firma_form" model="ir.ui.view">
+        <field name="name">sii.firma.form</field>
+        <field name="model">sii.firma</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button
+                        string="Validate Certificate"
+                        type="object"
+                        name="action_process"
+                        class="oe_highlight"
+                        attrs="{'invisible':['|', ('state', 'not in', ['unverified', 'incomplete'])]}"
+                    />
+                    <field name="state" widget="statusbar" />
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="toggle_active" type="object" class="oe_stat_button" icon="fa-archive">
+                            <field name="active" widget="boolean_button" options='{"terminology": "archive"}' />
+                        </button>
+                    </div>
+                    <group attrs="{'invisible': [('state', '!=', 'unverified')]}">
+                        <field name="file_content" filename="name" />
+                        <field name="name" attrs="{'invisible': [('name', '=', False)]}" />
+                        <field name="password" password="True" attrs="{'invisible':[('state', '!=', 'unverified')]}" />
+                    </group>
+                    <div attrs="{'invisible': [
                                 ('state', '=', 'unverified')]}">
-                            <group col="4">
-                                <field name="emision_date"/>
-                                <field name="expire_date"/>
-                            </group>
-                            <group col="4" attrs="{'invisible':[('state','=','unverified')]}" >
-                                <field name="subject_title"/>
-                                <field name="subject_c"/>
-                                <field name="subject_serial_number" attrs="{'required':[('state', 'in', ['valid', 'incomplete'])]}"/>
-                                <field name="subject_common_name"/>
-                                <field name="subject_email_address"/>
-                                <field name="issuer_country"/>
-                                <field name="issuer_serial_number"/>
-                                <field name="issuer_common_name"/>
-                                <field name="issuer_email_address"/>
-                                <field name="issuer_organization"/>
-                                <field name="cert_serial_number"/>
-                                <field name="cert_signature_algor"/>
-                                <field name="cert_version"/>
-                                <field name="cert_hash"/>
-                                <field name="private_key_bits"/>
-                                <field name="private_key_check"/>
-                                <field name="private_key_type"/>
-                            </group>
-                            <notebook>
-                                <page string="Authorizations">
-                                    <group>
-                                        <field name="user_ids"
-                                            placeholder="Authorized Users for this Certificate" widget="many2many_tags"
-                                                options="{'no_create': True}"/>
-                                    </group>
-                                    <group>
-                                        <field name="company_ids"
-                                            placeholder="Authorized Users for this Certificate" widget="many2many_tags"
-                                            options="{'no_create': True}"/>
-                                    </group>
-                                </page>
-                                <page string="Certificate Key">
-                                    <group>
-                                        <field name="cert"/>
-                                    </group>
-                                </page>
-                            </notebook>
-                        </div>
-                    </sheet>
-                </form>
-            </field>
-        </record>
-
-        <record id="view_sii_firma_tree" model="ir.ui.view">
-            <field name="name">sii.firma</field>
-            <field name="model">sii.firma</field>
-            <field name="priority" eval="2"/>
-            <field name="arch" type="xml">
-                <tree string="Firmas Electrónicas">
-                    <field name="active" invisible="1"/>
-                    <field name="name"/>
-                    <field name="state"/>
-                    <field name="expire_date"/>
-                </tree>
-            </field>
-        </record>
-
-        <record id="view_sii_firma_search" model="ir.ui.view">
-            <field name="name">sii.firma.search</field>
-            <field name="model">sii.firma</field>
-            <field name="arch" type="xml">
-                <search string="Firmas">
-                    <field name="name" string="Nombre de archivo"/>
-                    <separator/>
-                    <filter string="Archived" name="inactive" domain="[('active','=',False)]"/>
-                </search>
-            </field>
-        </record>
-
-        <record id="action_sii_firma_form" model="ir.actions.act_window">
-            <field name="name">Firmas</field>
-            <field name="res_model">sii.firma</field>
-            <field name="type">ir.actions.act_window</field>
-            <field name="view_type">form</field>
-            <field name="view_id" ref="view_sii_firma_tree"/>
-            <field name="search_view_id" ref="view_sii_firma_search"/>
-            <field name="context">{}</field>
-            <field name="help" type="html">
-              <p class="oe_view_nocontent_create">
+                        <group col="4">
+                            <field name="emision_date" />
+                            <field name="expire_date" />
+                        </group>
+                        <group col="4" attrs="{'invisible':[('state','=','unverified')]}">
+                            <field name="subject_title" />
+                            <field name="subject_c" />
+                            <field
+                                name="subject_serial_number"
+                                attrs="{'required':[('state', 'in', ['valid', 'incomplete'])]}"
+                            />
+                            <field name="subject_common_name" />
+                            <field name="subject_email_address" />
+                            <field name="issuer_country" />
+                            <field name="issuer_serial_number" />
+                            <field name="issuer_common_name" />
+                            <field name="issuer_email_address" />
+                            <field name="issuer_organization" />
+                            <field name="cert_serial_number" />
+                            <field name="cert_signature_algor" />
+                            <field name="cert_version" />
+                            <field name="cert_hash" />
+                            <field name="private_key_bits" />
+                            <field name="private_key_check" />
+                            <field name="private_key_type" />
+                        </group>
+                        <notebook>
+                            <page string="Authorizations">
+                                <group>
+                                    <field
+                                        name="user_ids"
+                                        placeholder="Authorized Users for this Certificate"
+                                        widget="many2many_tags"
+                                        options="{'no_create': True}"
+                                    />
+                                </group>
+                                <group>
+                                    <field
+                                        name="company_ids"
+                                        placeholder="Authorized Users for this Certificate"
+                                        widget="many2many_tags"
+                                        options="{'no_create': True}"
+                                    />
+                                </group>
+                            </page>
+                            <page string="Certificate Key">
+                                <group>
+                                    <field name="cert" />
+                                </group>
+                            </page>
+                        </notebook>
+                    </div>
+                </sheet>
+            </form>
+        </field>
+    </record>
+    <record id="view_sii_firma_tree" model="ir.ui.view">
+        <field name="name">sii.firma</field>
+        <field name="model">sii.firma</field>
+        <field name="priority" eval="2" />
+        <field name="arch" type="xml">
+            <tree string="Firmas Electrónicas">
+                <field name="active" invisible="1" />
+                <field name="name" />
+                <field name="state" />
+                <field name="expire_date" />
+            </tree>
+        </field>
+    </record>
+    <record id="view_sii_firma_search" model="ir.ui.view">
+        <field name="name">sii.firma.search</field>
+        <field name="model">sii.firma</field>
+        <field name="arch" type="xml">
+            <search string="Firmas">
+                <field name="name" string="Nombre de archivo" />
+                <separator />
+                <filter string="Archived" name="inactive" domain="[('active','=',False)]" />
+            </search>
+        </field>
+    </record>
+    <record id="action_sii_firma_form" model="ir.actions.act_window">
+        <field name="name">Firmas</field>
+        <field name="res_model">sii.firma</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="view_type">form</field>
+        <field name="view_id" ref="view_sii_firma_tree" />
+        <field name="search_view_id" ref="view_sii_firma_search" />
+        <field name="context">{}</field>
+        <field name="help" type="html">
+            <p class="oe_view_nocontent_create">
                 Click to add a Signture Cert.
 
               </p>
-            </field>
-        </record>
+        </field>
+    </record>
 </odoo>

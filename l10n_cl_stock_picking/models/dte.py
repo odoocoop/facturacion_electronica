@@ -494,7 +494,7 @@ class stock_picking(models.Model):
                 'user_id': self.env.uid,
                 'sii_send_ident': result['sii_send_ident'],
                 'sii_xml_response': result['sii_xml_response'],
-                'state': result['sii_result'],
+                'state': result['status'],
             }
         if not envio_id:
             envio_id = self.env['sii.xml.envio'].create(envio)
@@ -514,14 +514,14 @@ class stock_picking(models.Model):
                 r.sii_result = r.sii_xml_request.state
 
     def _get_dte_status(self):
-        datos = self._get_datos_empresa(self.company_id)
+        datos = self._get_datos_empresa(self[0].company_id)
         datos['Documento'] = []
         docs = {}
         for r in self:
             if r.sii_xml_request.state not in ['Aceptado', 'Rechazado']:
                 continue
-            docs.setdefault(self.document_class_id.sii_code, [])
-            docs[self.document_class_id.sii_code].append(r._dte())
+            docs.setdefault(r.document_class_id.sii_code, [])
+            docs[r.document_class_id.sii_code].append(r._dte())
         if not docs:
             return
         for k, v in docs.items():

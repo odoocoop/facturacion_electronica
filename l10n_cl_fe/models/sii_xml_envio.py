@@ -1,116 +1,81 @@
-# -*- coding: utf-8 -*-
-from odoo import fields, models, api
-from odoo.tools.translate import _
-from odoo.exceptions import UserError
-from lxml import etree
-import collections
 import logging
+
+from lxml import etree
+
+from odoo import api, fields, models
+from odoo.exceptions import UserError
+from odoo.tools.translate import _
+
 _logger = logging.getLogger(__name__)
 
 try:
-    from facturacion_electronica import clase_util as util
     from facturacion_electronica import facturacion_electronica as fe
 except Exception as e:
-    _logger.warning("no se ha cargado FE %s" %str(e))
+    _logger.warning("no se ha cargado FE %s" % str(e))
 
 
 status_dte = [
-    ('no_revisado', 'No Revisado'),
-    ('0', 'Conforme'),
-    ('1', 'Error de Schema'),
-    ('2', 'Error de Firma'),
-    ('3', 'RUT Receptor No Corresponde'),
-    ('90', 'Archivo Repetido'),
-    ('91', 'Archivo Ilegible'),
-    ('99', 'Envio Rechazado - Otros')
+    ("no_revisado", "No Revisado"),
+    ("0", "Conforme"),
+    ("1", "Error de Schema"),
+    ("2", "Error de Firma"),
+    ("3", "RUT Receptor No Corresponde"),
+    ("90", "Archivo Repetido"),
+    ("91", "Archivo Ilegible"),
+    ("99", "Envio Rechazado - Otros"),
 ]
 
 
 class SIIXMLEnvio(models.Model):
-    _name = 'sii.xml.envio'
-    _description = 'XML de envío DTE'
+    _name = "sii.xml.envio"
+    _description = "XML de envío DTE"
 
-    name = fields.Char(
-            string='Nombre de envío',
-            required=True,
-            readonly=True,
-            states={'draft': [('readonly', False)]},
-        )
-    xml_envio = fields.Text(
-            string='XML Envío',
-            required=True,
-            readonly=True,
-            states={'draft': [('readonly', False)]},
-        )
+    name = fields.Char(string="Nombre de envío", required=True, readonly=True, states={"draft": [("readonly", False)]},)
+    xml_envio = fields.Text(string="XML Envío", required=True, readonly=True, states={"draft": [("readonly", False)]},)
     state = fields.Selection(
-            [
-                    ('draft', 'Borrador'),
-                    ('NoEnviado', 'No Enviado'),
-                    ('Enviado', 'Enviado'),
-                    ('Aceptado', 'Aceptado'),
-                    ('Rechazado', 'Rechazado'),
-            ],
-            default='draft',
-        )
+        [
+            ("draft", "Borrador"),
+            ("NoEnviado", "No Enviado"),
+            ("Enviado", "Enviado"),
+            ("Aceptado", "Aceptado"),
+            ("Rechazado", "Rechazado"),
+        ],
+        default="draft",
+    )
     company_id = fields.Many2one(
-            'res.company',
-            string='Compañia',
-            required=True,
-            default=lambda self: self.env.user.company_id.id,
-            readonly=True,
-            states={'draft': [('readonly', False)]},
-        )
+        "res.company",
+        string="Compañia",
+        required=True,
+        default=lambda self: self.env.user.company_id.id,
+        readonly=True,
+        states={"draft": [("readonly", False)]},
+    )
     sii_xml_response = fields.Text(
-            string='SII XML Response',
-            copy=False,
-            readonly=True,
-            states={'NoEnviado': [('readonly', False)]},
-        )
+        string="SII XML Response", copy=False, readonly=True, states={"NoEnviado": [("readonly", False)]},
+    )
     sii_send_ident = fields.Text(
-            string='SII Send Identification',
-            copy=False,
-            readonly=True,
-            states={'draft': [('readonly', False)]},
-        )
+        string="SII Send Identification", copy=False, readonly=True, states={"draft": [("readonly", False)]},
+    )
     sii_receipt = fields.Text(
-            string='SII Mensaje de recepción',
-            copy=False,
-            readonly=False,
-            states={'Aceptado': [('readonly', False)],
-                    'Rechazado': [('readonly', False)]},
-        )
+        string="SII Mensaje de recepción",
+        copy=False,
+        readonly=False,
+        states={"Aceptado": [("readonly", False)], "Rechazado": [("readonly", False)]},
+    )
     user_id = fields.Many2one(
-            'res.users',
-            string="Usuario",
-            helps='Usuario que envía el XML',
-            readonly=True,
-            states={'draft': [('readonly', False)]},
-        )
+        "res.users",
+        string="Usuario",
+        helps="Usuario que envía el XML",
+        readonly=True,
+        states={"draft": [("readonly", False)]},
+    )
     invoice_ids = fields.One2many(
-            'account.invoice',
-            'sii_xml_request',
-            string="Facturas",
-            readonly=True,
-            states={'draft': [('readonly', False)]},
-        )
-    attachment_id = fields.Many2one(
-            'ir.attachment',
-            string="XML Recepción",
-            readonly=True,
-        )
-    email_respuesta = fields.Text(
-            string="Email SII",
-            readonly=True,
-        )
-    email_estado = fields.Selection(
-            status_dte,
-            string="Respuesta Envío",
-            readonly=True,
-        )
-    email_glosa = fields.Text(
-            string="Glosa Recepción",
-            readonly=True,
-        )
+        "account.invoice", "sii_xml_request", string="Facturas", readonly=True, states={"draft": [("readonly", False)]},
+    )
+    attachment_id = fields.Many2one("ir.attachment", string="XML Recepción", readonly=True,)
+    email_respuesta = fields.Text(string="Email SII", readonly=True,)
+    email_estado = fields.Selection(status_dte, string="Respuesta Envío", readonly=True,)
+    email_glosa = fields.Text(string="Glosa Recepción", readonly=True,)
 
     @api.multi
     def name_get(self):
@@ -123,26 +88,28 @@ class SIIXMLEnvio(models.Model):
     @api.multi
     def unlink(self):
         for r in self:
-            if r.state in ['Aceptado', 'Enviado']:
-                raise UserError(
-                            _('You can not delete a valid document on SII'))
+            if r.state in ["Aceptado", "Enviado"]:
+                raise UserError(_("You can not delete a valid document on SII"))
         return super(SIIXMLEnvio, self).unlink()
 
     def _emisor(self):
         Emisor = {}
-        Emisor['RUTEmisor'] = self.company_id.partner_id.rut()
-        Emisor['RznSoc'] = self.company_id.name
-        Emisor["Modo"] = "produccion" if self.company_id.dte_service_provider == 'SII'\
-                  else 'certificacion'
+        Emisor["RUTEmisor"] = self.company_id.partner_id.rut()
+        Emisor["RznSoc"] = self.company_id.name
+        Emisor["Modo"] = "produccion" if self.company_id.dte_service_provider == "SII" else "certificacion"
         Emisor["NroResol"] = self.company_id.dte_resolution_number
-        Emisor["FchResol"] = self.company_id.dte_resolution_date.strftime('%Y-%m-%d')
+        Emisor["FchResol"] = self.company_id.dte_resolution_date.strftime("%Y-%m-%d")
         Emisor["ValorIva"] = 19
         return Emisor
 
     def _get_datos_empresa(self, company_id):
         signature_id = self.env.user.get_digital_signature(company_id)
         if not signature_id:
-            raise UserError(_('''There are not a Signature Cert Available for this user, please upload your signature or tell to someelse.'''))
+            raise UserError(
+                _(
+                    """There are not a Signature Cert Available for this user, please upload your signature or tell to someelse."""
+                )
+            )
         emisor = self._emisor()
         return {
             "Emisor": emisor,
@@ -154,17 +121,17 @@ class SIIXMLEnvio(models.Model):
             _logger.warning("XML %s ya enviado" % self.name)
             return
         datos = self._get_datos_empresa(self.company_id)
-        datos.update({
-            'sii_xml_request': self.xml_envio,
-            'filename': self.name,
-            'api': 'EnvioBOLETA' in self.xml_envio,
-        })
+        datos.update(
+            {"sii_xml_request": self.xml_envio, "filename": self.name, "api": "EnvioBOLETA" in self.xml_envio,}
+        )
         res = fe.enviar_xml(datos)
-        self.write({
-            'state': res.get('status', 'NoEnviado'),
-            'sii_send_ident': res.get('sii_send_ident', ''),
-            'sii_xml_response': res.get('sii_xml_response', ''),
-        })
+        self.write(
+            {
+                "state": res.get("status", "NoEnviado"),
+                "sii_send_ident": res.get("sii_send_ident", ""),
+                "sii_xml_response": res.get("sii_xml_response", ""),
+            }
+        )
 
     @api.multi
     def do_send_xml(self):
@@ -172,22 +139,20 @@ class SIIXMLEnvio(models.Model):
 
     def object_receipt(self):
         return etree.XML(
-            self.sii_receipt.replace('<?xml version="1.0" encoding="UTF-8"?>', '')\
-            .replace('SII:', '')\
-            .replace(' xmlns="http://www.sii.cl/XMLSchema"', '')
-            )
+            self.sii_receipt.replace('<?xml version="1.0" encoding="UTF-8"?>', "")
+            .replace("SII:", "")
+            .replace(' xmlns="http://www.sii.cl/XMLSchema"', "")
+        )
 
     def get_send_status(self, user_id=False):
         datos = self._get_datos_empresa(self.company_id)
-        datos.update({
-            'codigo_envio':self.sii_send_ident,
-            'api': 'EnvioBOLETA' in self.xml_envio,
-        })
+        datos.update(
+            {"codigo_envio": self.sii_send_ident, "api": "EnvioBOLETA" in self.xml_envio,}
+        )
         res = fe.consulta_estado_dte(datos)
-        self.write({
-            'state': res['status'],
-            'sii_receipt': res['xml_resp'],
-        })
+        self.write(
+            {"state": res["status"], "sii_receipt": res["xml_resp"],}
+        )
 
     @api.multi
     def ask_for(self):

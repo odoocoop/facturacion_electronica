@@ -1,45 +1,77 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8" ?>
 <odoo>
-        <record model="ir.ui.view" id="view_partner_activity_inherit_form">
-          <field name="name">res.partner.form.inherit</field>
-          <field name="inherit_id" ref="base.view_partner_form"/>
-          <field name="model">res.partner</field>
-          <field name="arch" type="xml">
+    <record model="ir.ui.view" id="view_partner_activity_inherit_form">
+        <field name="name">res.partner.form.inherit</field>
+        <field name="inherit_id" ref="base.view_partner_form" />
+        <field name="model">res.partner</field>
+        <field name="arch" type="xml">
             <field name="parent_id" position="before">
-                <field name="sync" invisible="1"/>
-              <field name="activity_description" placeholder="Glosa Descriptiva (Giro)" attrs="{'invisible': ('parent_id', '!=', False)}"/>
-              <field name="acteco_ids" placeholder="Actividades del partner" attrs="{'invisible': ('parent_id', '!=', False)}" widget="many2many_tags" options="{'no_create': True}"/>
+                <field name="sync" invisible="1" />
+                <field
+                    name="activity_description"
+                    placeholder="Glosa Descriptiva (Giro)"
+                    attrs="{'invisible': ('parent_id', '!=', False)}"
+                />
+                <field
+                    name="acteco_ids"
+                    placeholder="Actividades del partner"
+                    attrs="{'invisible': ('parent_id', '!=', False)}"
+                    widget="many2many_tags"
+                    options="{'no_create': True}"
+                />
             </field>
             <field name="street2" position="after">
-                <field name="city_id" placeholder="Comuna" style="width: 100%"
+                <field
+                    name="city_id"
+                    placeholder="Comuna"
+                    style="width: 100%"
                     attrs="{'readonly': [('type', '=', 'contact'),('parent_id', '!=', False)]}"
-                    options='{"no_open": True, "no_quick_create": True}' />
+                    options='{"no_open": True, "no_quick_create": True}'
+                />
             </field>
             <!-- agregar la comuna en vista de contactos -->
             <xpath expr="//field[@name='child_ids']/form//field[@name='street2']" position="after">
-                <field name="city_id" placeholder="Comuna" style="width: 100%"
-                    options='{"no_open": True, "no_quick_create": True}' />
+                <field
+                    name="city_id"
+                    placeholder="Comuna"
+                    style="width: 100%"
+                    options='{"no_open": True, "no_quick_create": True}'
+                />
             </xpath>
             <field name="vat" position="after">
-                <field name="document_type_id" attrs="{'invisible': [('parent_id', '!=', False)]}"/>
-                <field name="document_number" attrs="{'invisible': [('parent_id', '!=', False)]}"/>
-                <field name="responsability_id" widget="selection" attrs="{'invisible': [('parent_id', '!=', False)]}"/>
+                <field name="document_type_id" attrs="{'invisible': [('parent_id', '!=', False)]}" />
+                <field name="document_number" attrs="{'invisible': [('parent_id', '!=', False)]}" />
+                <field
+                    name="responsability_id"
+                    widget="selection"
+                    attrs="{'invisible': [('parent_id', '!=', False)]}"
+                />
             </field>
             <field name="vat" position="attributes">
-              <attribute name="invisible">1</attribute>
+                <attribute name="invisible">1</attribute>
             </field>
             <field name="website" position="before">
-                <field name="dte_email" widget="email" attrs="{'invisible': [('parent_id', '!=', False)], 'required': [('es_mipyme', '=', False), ('parent_id', '=', False)]}"/>
-                <field name="es_mipyme" attrs="{'invisible': [('parent_id', '!=', False)]}"/>
+                <field
+                    name="dte_email"
+                    widget="email"
+                    attrs="{'invisible': [('parent_id', '!=', False)], 'required': [('es_mipyme', '=', False), ('parent_id', '=', False)]}"
+                />
+                <field name="es_mipyme" attrs="{'invisible': [('parent_id', '!=', False)]}" />
             </field>
-            <xpath expr="//field[@name='child_ids']/kanban/templates/t/div/div[hasclass('o_kanban_image')]/t" position="inside">
-                <img t-if="record.type.raw_value === 'dte'" t-att-src='_s + "/base/static/src/img/money.png"'/>
+            <xpath
+                expr="//field[@name='child_ids']/kanban/templates/t/div/div[hasclass('o_kanban_image')]/t"
+                position="inside"
+            >
+                <img t-if="record.type.raw_value === 'dte'" t-att-src='_s + "/base/static/src/img/money.png"' />
             </xpath>
             <xpath expr="//field[@name='child_ids']/kanban" position="inside">
                 <field name="send_dte" />
                 <field name="principal" />
             </xpath>
-            <xpath expr="//field[@name='child_ids']/kanban/templates/t/div/div[hasclass('oe_kanban_details')]" position="inside">
+            <xpath
+                expr="//field[@name='child_ids']/kanban/templates/t/div/div[hasclass('oe_kanban_details')]"
+                position="inside"
+            >
                 <div attrs="{'invisible': [('type', '!=', 'dte')]}">
                     <h3>Opciones DTE</h3>
                     <field name="send_dte" />
@@ -55,72 +87,70 @@
             <xpath expr="//field[@name='child_ids']/form/sheet" position="inside">
                 <group attrs="{'invisible': [('type', '!=', 'dte')]}">
                     <group>
-                        <field name="name" string="Contact Name"/>
-                        <field name="email"/>
+                        <field name="name" string="Contact Name" />
+                        <field name="email" />
                         <h3>Opciones DTE</h3>
-                        <field name="send_dte" widget="checkbox"/>
-                        <field name="principal" widget="checkbox"/>
+                        <field name="send_dte" widget="checkbox" />
+                        <field name="principal" widget="checkbox" />
                     </group>
                 </group>
             </xpath>
-          </field>
-        </record>
-
-        <record model="ir.ui.view" id="view_res_partner_cl_tree_view">
-            <field name="name">Partners</field>
-            <field name="model">res.partner</field>
-            <field name="inherit_id" ref="base.view_partner_tree"/>
-            <field name="type">form</field>
-            <field name="arch" type="xml">
-                <field name="display_name" position="before">
-                   <field name="document_number"/>
-                </field>
+        </field>
+    </record>
+    <record model="ir.ui.view" id="view_res_partner_cl_tree_view">
+        <field name="name">Partners</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_tree" />
+        <field name="type">form</field>
+        <field name="arch" type="xml">
+            <field name="display_name" position="before">
+                <field name="document_number" />
             </field>
-        </record>
-
-        <record model="ir.ui.view" id="view_res_partner_cl_filter">
-            <field name="name">Partners</field>
-            <field name="model">res.partner</field>
-            <field name="inherit_id" ref="base.view_res_partner_filter"/>
-            <field name="type">search</field>
-            <field name="arch" type="xml">
-                <field name="name" position="after">
-                   <field name="document_number" filter_domain="['|','|',('document_number','ilike',self),('ref','=',self),('vat','ilike',self)]"/>
-                </field>
+        </field>
+    </record>
+    <record model="ir.ui.view" id="view_res_partner_cl_filter">
+        <field name="name">Partners</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_res_partner_filter" />
+        <field name="type">search</field>
+        <field name="arch" type="xml">
+            <field name="name" position="after">
+                <field
+                    name="document_number"
+                    filter_domain="['|','|',('document_number','ilike',self),('ref','=',self),('vat','ilike',self)]"
+                />
             </field>
-        </record>
-
-        <record id="base_vat_view_partner_form" model="ir.ui.view">
-            <field name="name">res.partner.vat.inherit</field>
-            <field name="model">res.partner</field>
-            <field name="inherit_id" ref="base.view_partner_short_form"/>
-            <field name="arch" type="xml">
-                <field name="vat" position="replace">
-                      <span />
-                </field>
+        </field>
+    </record>
+    <record id="base_vat_view_partner_form" model="ir.ui.view">
+        <field name="name">res.partner.vat.inherit</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_short_form" />
+        <field name="arch" type="xml">
+            <field name="vat" position="replace">
+                <span />
             </field>
-        </record>
-
-        <record model="ir.ui.view" id="view_partner_address_form_states_city_inherit">
-            <field name='name'>res.partner.address.form.states.city.inherit</field>
-            <field name='model'>res.partner</field>
-            <field name="inherit_id" ref="base.view_partner_address_form"/>
-            <field name='type'>form</field>
-            <field name='arch' type='xml'>
-                <field name="state_id" position="after">
-                    <field name="city_id" placeholder="Comuna" style="width: 100%" options='{"no_open": True}'/>
-                </field>
+        </field>
+    </record>
+    <record model="ir.ui.view" id="view_partner_address_form_states_city_inherit">
+        <field name='name'>res.partner.address.form.states.city.inherit</field>
+        <field name='model'>res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_address_form" />
+        <field name='type'>form</field>
+        <field name='arch' type='xml'>
+            <field name="state_id" position="after">
+                <field name="city_id" placeholder="Comuna" style="width: 100%" options='{"no_open": True}' />
             </field>
-        </record>
-
-        <record model="ir.ui.view" id="view_res_partner_private_form">
-            <field name="name">Partners</field>
-            <field name="model">res.partner</field>
-            <field name="inherit_id" ref="base.res_partner_view_form_private"/>
-            <field name="arch" type="xml">
-                <field name="type" position="after">
-                   <field name="parent_id" invisible="1" />
-                </field>
+        </field>
+    </record>
+    <record model="ir.ui.view" id="view_res_partner_private_form">
+        <field name="name">Partners</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.res_partner_view_form_private" />
+        <field name="arch" type="xml">
+            <field name="type" position="after">
+                <field name="parent_id" invisible="1" />
             </field>
-        </record>
+        </field>
+    </record>
 </odoo>

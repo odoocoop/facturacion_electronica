@@ -1,43 +1,41 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8" ?>
 <odoo>
-  <record id="view_account_tax_mepco_tree" model="ir.ui.view">
-      <field name="name">account.tax.mepco</field>
-      <field name="model">account.tax.mepco</field>
-      <field name="priority" eval="2"/>
-      <field name="arch" type="xml">
-          <tree string="Valores Mepco">
-              <field name="name"/>
-              <field name="date"/>
-              <field name="amount"/>
-              <field name="type"/>
-              <field name="factor"/>
-          </tree>
-      </field>
-  </record>
-
-  <record id="view_account_tax_mepco_search" model="ir.ui.view">
-      <field name="name">account.tax.mepco.search</field>
-      <field name="model">account.tax.mepco</field>
-      <field name="arch" type="xml">
-          <search string="Valores Mepco">
-              <field name="date" string="Fecha"/>
-              <field name="type" string="Tipo Mepco" />
-          </search>
-      </field>
-  </record>
-
-  <record id="action_mepco_form" model="ir.actions.act_window">
-      <field name="name">Valores Mepco</field>
-      <field name="res_model">account.tax.mepco</field>
-      <field name="type">ir.actions.act_window</field>
-      <field name="view_type">form</field>
-      <field name="view_id" ref="view_account_tax_mepco_tree"/>
-      <field name="search_view_id" ref="view_account_tax_mepco_search"/>
-      <field name="context">{}</field>
-      <field name="help" type="html">
-        <p class="oe_view_nocontent_create">
+    <record id="view_account_tax_mepco_tree" model="ir.ui.view">
+        <field name="name">account.tax.mepco</field>
+        <field name="model">account.tax.mepco</field>
+        <field name="priority" eval="2" />
+        <field name="arch" type="xml">
+            <tree string="Valores Mepco">
+                <field name="name" />
+                <field name="date" />
+                <field name="amount" />
+                <field name="type" />
+                <field name="factor" />
+            </tree>
+        </field>
+    </record>
+    <record id="view_account_tax_mepco_search" model="ir.ui.view">
+        <field name="name">account.tax.mepco.search</field>
+        <field name="model">account.tax.mepco</field>
+        <field name="arch" type="xml">
+            <search string="Valores Mepco">
+                <field name="date" string="Fecha" />
+                <field name="type" string="Tipo Mepco" />
+            </search>
+        </field>
+    </record>
+    <record id="action_mepco_form" model="ir.actions.act_window">
+        <field name="name">Valores Mepco</field>
+        <field name="res_model">account.tax.mepco</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="view_type">form</field>
+        <field name="view_id" ref="view_account_tax_mepco_tree" />
+        <field name="search_view_id" ref="view_account_tax_mepco_search" />
+        <field name="context">{}</field>
+        <field name="help" type="html">
+            <p class="oe_view_nocontent_create">
           Click para añadir valor Mepco.
         </p>
-      </field>
-  </record>
+        </field>
+    </record>
 </odoo>

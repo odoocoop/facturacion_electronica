@@ -1,198 +1,232 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8" ?>
 <odoo>
-  <record id="res_config_settings_view_form" model="ir.ui.view">
-    <field name="name">res.config.settings.view.form.inherit.sale</field>
-    <field name="model">res.config.settings</field>
-    <field name="priority" eval="101"/>
-    <field name="inherit_id" ref="base.res_config_settings_view_form"/>
-    <field name="arch" type="xml">
-      <xpath expr="//div[hasclass('settings')]" position="inside">
-        <div class="app_settings_block" data-string="Electronic Invoice" string="Facturación Electrónica" data-key="l10n_cl_fe" >
-          <div>
-            <h2 class="mt32">Versión de librería Facturación Electrónica</h2>
-            <div class="row mt16 o_settings_container">
-              <div class="col-xs-12 col-md-6 o_setting_box" id="fe_version_instalador">
-                <div class="o_setting_left_pane" />
-                <div class="o_setting_right_pane">
-                  <label for="fe_version"/>:
+    <record id="res_config_settings_view_form" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.inherit.sale</field>
+        <field name="model">res.config.settings</field>
+        <field name="priority" eval="101" />
+        <field name="inherit_id" ref="base.res_config_settings_view_form" />
+        <field name="arch" type="xml">
+            <xpath expr="//div[hasclass('settings')]" position="inside">
+                <div
+                    class="app_settings_block"
+                    data-string="Electronic Invoice"
+                    string="Facturación Electrónica"
+                    data-key="l10n_cl_fe"
+                >
+                    <div>
+                        <h2 class="mt32">Versión de librería Facturación Electrónica</h2>
+                        <div class="row mt16 o_settings_container">
+                            <div class="col-xs-12 col-md-6 o_setting_box" id="fe_version_instalador">
+                                <div class="o_setting_left_pane" />
+                                <div class="o_setting_right_pane">
+                  <label for="fe_version" />:
                   <field name="fe_version" />
                 </div>
-              </div>
-              <div class="col-xs-12 col-md-6 o_setting_box" id="fe_version">
-                <div class="o_setting_left_pane" />
-                <div class="o_setting_right_pane">
-                    <strong>Requerido:</strong><div class="text-muted">0.12.0</div>
-                    <div class="text-muted" attrs="{'invisible': [('fe_version', '>=', '0.12.0')]}" style="color:red !important">
+                            </div>
+                            <div class="col-xs-12 col-md-6 o_setting_box" id="fe_version">
+                                <div class="o_setting_left_pane" />
+                                <div class="o_setting_right_pane">
+                                    <strong>Requerido:</strong>
+                                    <div class="text-muted">0.12.0</div>
+                                    <div
+                                        class="text-muted"
+                                        attrs="{'invisible': [('fe_version', '>=', '0.12.0')]}"
+                                        style="color:red !important"
+                                    >
                         ¡Debe Actualizar o verificar su versión instalada!
                     </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div >
-            <h2 class="mt32">Firmas Electrónica (Certificados digitales)</h2>
-            <div class="row mt16 o_settings_container">
-              <div class="col-xs-12 col-md-6 o_setting_box" title="Configure firmas electrónicas y usuarios autorizados a usarlas." id="firmas">
-                  <div class="o_setting_left_pane" />
-                  <div class="o_setting_right_pane">
-                      <div class="content-group">
-                          <div class="mt16">
-                              <button name="%(l10n_cl_fe.action_sii_firma_form)d" icon="fa-arrow-right" type="action" string="Firmas Electrónica" class="btn-link"/>
-                          </div>
-                      </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <h2 class="mt32">Firmas Electrónica (Certificados digitales)</h2>
+                        <div class="row mt16 o_settings_container">
+                            <div
+                                class="col-xs-12 col-md-6 o_setting_box"
+                                title="Configure firmas electrónicas y usuarios autorizados a usarlas."
+                                id="firmas"
+                            >
+                                <div class="o_setting_left_pane" />
+                                <div class="o_setting_right_pane">
+                                    <div class="content-group">
+                                        <div class="mt16">
+                                            <button
+                                                name="%(l10n_cl_fe.action_sii_firma_form)d"
+                                                icon="fa-arrow-right"
+                                                type="action"
+                                                string="Firmas Electrónica"
+                                                class="btn-link"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-xs-12 col-md-6 o_setting_box" id="dte_email_id">
+                                <div class="o_setting_left_pane">
                   </div>
-              </div>
-              <div class="col-xs-12 col-md-6 o_setting_box" id="dte_email_id">
-                  <div class="o_setting_left_pane">
-                  </div>
-                  <div class="o_setting_right_pane">
-                      <label for="dte_email_id"/>
-                      <field name="dte_email_id" />
-                      <div class="text-muted">
+                                <div class="o_setting_right_pane">
+                                    <label for="dte_email_id" />
+                                    <field name="dte_email_id" />
+                                    <div class="text-muted">
                           Select an Alias where all vendor's exchange email dte will send and processed by odoo
                       </div>
-                  </div>
-              </div>
-            </div>
-            <h2>Envío Automático</h2>
-            <div class="row mt16 o_settings_container">
-              <div class="col-xs-12 col-md-6 o_setting_box" id="envio_dte">
-                <div class="o_setting_left_pane">
-                    <field name="auto_send_dte" />
-                </div>
-                <div class="o_setting_right_pane" name="envios_right_pane">
-                    <label string="Auto Enviar DTE" for="auto_send_dte"/>
-                    <div class="text-muted">
+                                </div>
+                            </div>
+                        </div>
+                        <h2>Envío Automático</h2>
+                        <div class="row mt16 o_settings_container">
+                            <div class="col-xs-12 col-md-6 o_setting_box" id="envio_dte">
+                                <div class="o_setting_left_pane">
+                                    <field name="auto_send_dte" />
+                                </div>
+                                <div class="o_setting_right_pane" name="envios_right_pane">
+                                    <label string="Auto Enviar DTE" for="auto_send_dte" />
+                                    <div class="text-muted">
                        Tiempo para Auto Enviar DTE Al SII (Horas)
                     </div>
-                </div>
-              </div>
-              <div class="col-xs-12 col-md-6 o_setting_box" id="envio_email">
-                <div class="o_setting_left_pane">
-                    <field name="auto_send_email" />
-                </div>
-                <div class="o_setting_right_pane" name="envios_right_pane">
-                    <label string="Auto Enviar Email" for="auto_send_email"/>
-                    <div class="text-muted">
+                                </div>
+                            </div>
+                            <div class="col-xs-12 col-md-6 o_setting_box" id="envio_email">
+                                <div class="o_setting_left_pane">
+                                    <field name="auto_send_email" />
+                                </div>
+                                <div class="o_setting_right_pane" name="envios_right_pane">
+                                    <label string="Auto Enviar Email" for="auto_send_email" />
+                                    <div class="text-muted">
                        Auto Enviar Email al enviar DTE al Cliente
                     </div>
-                </div>
-              </div>
-              <div class="col-xs-12 col-md-6 o_setting_box" id="envio_email_persistencia" attrs="{'invisible': [('auto_send_email', '=', False)]}">
-                <div class="o_setting_left_pane">
-                    <field name="auto_send_persistencia" />
-                </div>
-                <div class="o_setting_right_pane" name="envios_persistencia_right_pane">
-                    <label string="Auto Enviar Email Persistencia" for="auto_send_persistencia"/>
-                    <div class="text-muted">
+                                </div>
+                            </div>
+                            <div
+                                class="col-xs-12 col-md-6 o_setting_box"
+                                id="envio_email_persistencia"
+                                attrs="{'invisible': [('auto_send_email', '=', False)]}"
+                            >
+                                <div class="o_setting_left_pane">
+                                    <field name="auto_send_persistencia" />
+                                </div>
+                                <div class="o_setting_right_pane" name="envios_persistencia_right_pane">
+                                    <label string="Auto Enviar Email Persistencia" for="auto_send_persistencia" />
+                                    <div class="text-muted">
                        Auto Enviar Email DTE al Cliente hasta que acepte, Cada n Horas
                     </div>
-                </div>
-              </div>
-            </div>
-            <h2>Mantenedores</h2>
-            <div class="row mt16 o_settings_container">
-              <div class="col-xs-12 col-md-6 o_setting_box" id="caf_files">
-                <div class="o_setting_left_pane" />
-                <div class="o_setting_right_pane" name="caf_files_right_pane">
-                    <div class="text-muted">
+                                </div>
+                            </div>
+                        </div>
+                        <h2>Mantenedores</h2>
+                        <div class="row mt16 o_settings_container">
+                            <div class="col-xs-12 col-md-6 o_setting_box" id="caf_files">
+                                <div class="o_setting_left_pane" />
+                                <div class="o_setting_right_pane" name="caf_files_right_pane">
+                                    <div class="text-muted">
                        Listado de todos los archivos CAF Subidos (Modo avanzado)
                     </div>
-                    <button name="%(l10n_cl_fe.action_caf_files)d" icon="fa-arrow-right" type="action" string="Archivos CAF" class="btn-link"/>
-                </div>
-              </div>
-            </div>
-            <h2>Otras Opciones</h2>
-            <div class="row mt16 o_settings_container">
-              <div class="col-xs-12 col-md-6 o_setting_box" id="limit_dte_lines">
-                <div class="o_setting_left_pane">
-                    <field name="limit_dte_lines" widget="upgrade_odoocoop_boolean"/>
-                </div>
-                <div class="o_setting_right_pane" name="limit_dte_lines_right_pane">
-                    <label string="Limitar Líneas" for="limit_dte_lines"/>
-                    <div class="text-muted">
+                                    <button
+                                        name="%(l10n_cl_fe.action_caf_files)d"
+                                        icon="fa-arrow-right"
+                                        type="action"
+                                        string="Archivos CAF"
+                                        class="btn-link"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                        <h2>Otras Opciones</h2>
+                        <div class="row mt16 o_settings_container">
+                            <div class="col-xs-12 col-md-6 o_setting_box" id="limit_dte_lines">
+                                <div class="o_setting_left_pane">
+                                    <field name="limit_dte_lines" widget="upgrade_odoocoop_boolean" />
+                                </div>
+                                <div class="o_setting_right_pane" name="limit_dte_lines_right_pane">
+                                    <label string="Limitar Líneas" for="limit_dte_lines" />
+                                    <div class="text-muted">
                        Limitar la cantidad de líneas por documento (legalmente debe ser una por hoja)
                     </div>
-                </div>
-              </div>
-              <div class="col-xs-12 col-md-6 o_setting_box" id="cf_autosend">
-                <div class="o_setting_left_pane">
-                    <field name="cf_autosend" widget="upgrade_odoocoop_boolean"/>
-                </div>
-                <div class="o_setting_right_pane" name="cf_autosend_right_pane">
-                    <label string="Auto Enviar CF" for="cf_autosend"/>
-                    <div class="text-muted">
+                                </div>
+                            </div>
+                            <div class="col-xs-12 col-md-6 o_setting_box" id="cf_autosend">
+                                <div class="o_setting_left_pane">
+                                    <field name="cf_autosend" widget="upgrade_odoocoop_boolean" />
+                                </div>
+                                <div class="o_setting_right_pane" name="cf_autosend_right_pane">
+                                    <label string="Auto Enviar CF" for="cf_autosend" />
+                                    <div class="text-muted">
                        Auto Enviar Consumo de Folios a una hora definida
                     </div>
-                </div>
-              </div>
-              <div class="col-xs-12 col-md-6 o_setting_box" id="url_remote_partners">
-                <div class="o_setting_left_pane" />
-                <div class="o_setting_right_pane" name="partners_right_pane">
-                    <label string="Url Remote Partners" for="url_remote_partners"/>
-                    <field name="url_remote_partners" />
-                    <div class="text-muted">
+                                </div>
+                            </div>
+                            <div class="col-xs-12 col-md-6 o_setting_box" id="url_remote_partners">
+                                <div class="o_setting_left_pane" />
+                                <div class="o_setting_right_pane" name="partners_right_pane">
+                                    <label string="Url Remote Partners" for="url_remote_partners" />
+                                    <field name="url_remote_partners" />
+                                    <div class="text-muted">
                        Url de consulta de partners (autollenado)
                     </div>
-                </div>
-              </div>
-              <div class="col-xs-12 col-md-6 o_setting_box" id="token_remote_partners">
-                <div class="o_setting_left_pane" />
-                <div class="o_setting_right_pane" name="token_partners_right_pane">
-                    <label string="Token Remote Partners" for="token_remote_partners"/>
-                    <field name="token_remote_partners" />
-                    <div class="text-muted">
+                                </div>
+                            </div>
+                            <div class="col-xs-12 col-md-6 o_setting_box" id="token_remote_partners">
+                                <div class="o_setting_left_pane" />
+                                <div class="o_setting_right_pane" name="token_partners_right_pane">
+                                    <label string="Token Remote Partners" for="token_remote_partners" />
+                                    <field name="token_remote_partners" />
+                                    <div class="text-muted">
                        Token de consulta de partners (autollenado)
                     </div>
-                </div>
-              </div>
-              <div class="col-xs-12 col-md-6 o_setting_box" id="sync_remote_partners">
-                <div class="o_setting_left_pane">
-                    <field name="sync_remote_partners" />
-                </div>
-                <div class="o_setting_right_pane" name="sync_partners_right_pane">
-                    <label string="Sincronizar Partners Con Maestro" for="sync_remote_partners"/>
-                    <div class="text-muted">
+                                </div>
+                            </div>
+                            <div class="col-xs-12 col-md-6 o_setting_box" id="sync_remote_partners">
+                                <div class="o_setting_left_pane">
+                                    <field name="sync_remote_partners" />
+                                </div>
+                                <div class="o_setting_right_pane" name="sync_partners_right_pane">
+                                    <label string="Sincronizar Partners Con Maestro" for="sync_remote_partners" />
+                                    <div class="text-muted">
                        Sincronizar datos  de clientes/proveedores con la base de datos maestra
                     </div>
-                </div>
-              </div>
-              <div class="col-xs-12 col-md-6 o_setting_box" id="url_apicaf">
-                <div class="o_setting_left_pane" />
-                <div class="o_setting_right_pane" name="apicaf_right_pane">
-                    <label string="Url Api Emisión Folios" for="url_apicaf"/>
-                    <field name="url_apicaf" />
-                    <div class="text-muted">
+                                </div>
+                            </div>
+                            <div class="col-xs-12 col-md-6 o_setting_box" id="url_apicaf">
+                                <div class="o_setting_left_pane" />
+                                <div class="o_setting_right_pane" name="apicaf_right_pane">
+                                    <label string="Url Api Emisión Folios" for="url_apicaf" />
+                                    <field name="url_apicaf" />
+                                    <div class="text-muted">
                        Url API Emisión de Folios
                     </div>
-                </div>
-              </div>
-              <div class="col-xs-12 col-md-6 o_setting_box" id="token_apicaf">
-                <div class="o_setting_left_pane" />
-                <div class="o_setting_right_pane" name="token_apicaf_right_pane">
-                    <label string="Token Api Emisión de Folios" for="token_apicaf"/>
-                    <field name="token_apicaf" />
-                    <div class="text-muted">
+                                </div>
+                            </div>
+                            <div class="col-xs-12 col-md-6 o_setting_box" id="token_apicaf">
+                                <div class="o_setting_left_pane" />
+                                <div class="o_setting_right_pane" name="token_apicaf_right_pane">
+                                    <label string="Token Api Emisión de Folios" for="token_apicaf" />
+                                    <field name="token_apicaf" />
+                                    <div class="text-muted">
                        Token API Emisión de Folios
                     </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </xpath>
-    </field>
-  </record>
-
-  <record id="action_dte_config" model="ir.actions.act_window">
-      <field name="name">Configuraciones DTE</field>
-      <field name="type">ir.actions.act_window</field>
-      <field name="res_model">res.config.settings</field>
-      <field name="view_mode">form</field>
-      <field name="target">inline</field>
-      <field name="context">{'module' : 'l10n_cl_fe'}</field>
-  </record>
-
-  <menuitem id="menu_account_config" name="Configuraciones DTE" parent="account.menu_finance_configuration"
-      sequence="0" action="action_dte_config" groups="base.group_system"/>
+            </xpath>
+        </field>
+    </record>
+    <record id="action_dte_config" model="ir.actions.act_window">
+        <field name="name">Configuraciones DTE</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="res_model">res.config.settings</field>
+        <field name="view_mode">form</field>
+        <field name="target">inline</field>
+        <field name="context">{'module' : 'l10n_cl_fe'}</field>
+    </record>
+    <menuitem
+        id="menu_account_config"
+        name="Configuraciones DTE"
+        parent="account.menu_finance_configuration"
+        sequence="0"
+        action="action_dte_config"
+        groups="base.group_system"
+    />
 </odoo>

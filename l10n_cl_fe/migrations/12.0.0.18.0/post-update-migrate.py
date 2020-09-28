@@ -1,18 +1,15 @@
-# -*- coding: utf-8 -*-
-from odoo import api, SUPERUSER_ID
 import logging
+
+from odoo import SUPERUSER_ID, api
+
 _logger = logging.getLogger(__name__)
 
 
 def migrate(cr, installed_version):
-    _logger.warning('Post Migrating l10n_cl_fe from version %s to 12.0.0.18.0' % installed_version)
+    _logger.warning("Post Migrating l10n_cl_fe from version %s to 12.0.0.18.0" % installed_version)
 
     env = api.Environment(cr, SUPERUSER_ID, {})
-    for r in env['ir.sequence'].sudo().search(
-        [
-            ('is_dte', '=', True),
-            ('sii_document_class_id', '!=', False)
-        ]):
+    for r in env["ir.sequence"].sudo().search([("is_dte", "=", True), ("sii_document_class_id", "!=", False)]):
         r.autoreponer_caf = True
         r.autoreponer_cantidad = 10
         r.nivel_minimo = 5
