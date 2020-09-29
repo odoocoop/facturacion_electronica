@@ -1797,14 +1797,14 @@ a VAT."))
             r.sii_result = r.sii_xml_request.state
 
     def _get_dte_status(self):
-        datos = self._get_datos_empresa(self.company_id)
+        datos = self._get_datos_empresa(self[0].company_id)
         datos['Documento'] = []
         docs = {}
         for r in self:
             if r.sii_xml_request.state not in ['Aceptado', 'Rechazado']:
                 continue
-            docs.setdefault(self.document_class_id.sii_code, [])
-            docs[self.document_class_id.sii_code].append(r._dte())
+            docs.setdefault(r.document_class_id.sii_code, [])
+            docs[r.document_class_id.sii_code].append(r._dte())
         if not docs:
             _logger.warning("En get_get_dte_status, no docs")
             return

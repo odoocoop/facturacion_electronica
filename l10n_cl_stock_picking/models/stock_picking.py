@@ -12,18 +12,19 @@ class StockPicking(models.Model):
     _inherit = "stock.picking"
 
     @api.onchange('currency_id', 'move_lines.subtotal', 'move_reason')
+    @api.depends('currency_id', 'move_lines.subtotal', 'move_reason')
     def _compute_amount(self):
         for rec in self:
             amount_untaxed = 0
-            amount_total = 0
+            amount_tax = 0
             if rec.move_reason not in ['5']:
-                taxes = {}
-                for move in rec.move_lines:
-                    amount_untaxed += move.price_untaxed
-                    amount_total += move.subtotal
-                rec.amount_tax = (amount_total -amount_untaxed)
+                taxes = rec.get_taxes_values()
+                for k, v in taxes.items():
+                    amount_untaxed += v['base']
+                    amount_tax += v['amount']
+                rec.amount_tax = rec.currency_id.round(amount_tax)
                 rec.amount_untaxed = amount_untaxed
-            rec.amount_total = amount_untaxed + rec.amount_tax
+            rec.amount_total = amount_untaxed + rec.currency_id.round(amount_tax)
 
     def _prepare_tax_line_vals(self, line, tax):
         """ Prepare values to create an account.invoice.tax line
@@ -36,7 +37,7 @@ class StockPicking(models.Model):
             'picking_id': self.id,
             'description': t.with_context(**{'lang': self.partner_id.lang} if self.partner_id else {}).description,
             'tax_id': tax['id'],
-            'amount': self.currency_id.round(tax['amount'] if tax['amount'] > 0 else (tax['amount'] * -1)),
+            'amount': tax['amount'] if tax['amount'] > 0 else (tax['amount'] * -1),
             'base': tax['base'],
             'manual': False,
             'sequence': tax['sequence'],
@@ -53,10 +54,11 @@ class StockPicking(models.Model):
             key = self.get_grouping_key(val)
             if key not in tax_grouped:
                 tax_grouped[key] = val
+                tax_grouped[key]['base'] = self.currency_id.round(val['base'])
             else:
                 tax_grouped[key]['amount'] += val['amount']
                 tax_grouped[key]['amount_retencion'] += val['amount_retencion']
-                tax_grouped[key]['base'] += val['base']
+                tax_grouped[key]['base'] += self.currency_id.round(val['base'])
         return tax_grouped
 
     @api.multi

@@ -190,7 +190,7 @@ entregados por parte del deudor de la factura {4}, RUT {5}, de acuerdo a lo esta
                 'user_id': self.env.uid,
                 'sii_send_ident': result['sii_send_ident'],
                 'sii_xml_response': result['sii_xml_response'],
-                'state': result['status],
+                'state': result['status'],
             }
             envio_id = self.env['sii.xml.envio'].create(envio)
             for r in self:
