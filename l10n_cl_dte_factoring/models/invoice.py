@@ -188,12 +188,12 @@ entregados por parte del deudor de la factura {4}, RUT {5}, de acuerdo a lo esta
                 'user_id': self.env.uid,
                 'sii_send_ident': result['sii_send_ident'],
                 'sii_xml_response': result['sii_xml_response'],
-                'state': result['sii_result'],
+                'state': result['status'],
             }
             envio_id = self.env['sii.xml.envio'].create(envio)
             for r in self:
                 r.sii_cesion_request = envio_id.id
-                r.sii_cesion_result = result['sii_result']
+                r.sii_cesion_result = result['status']
         return self[0].sii_cesion_request
 
     @api.multi
@@ -215,14 +215,14 @@ entregados por parte del deudor de la factura {4}, RUT {5}, de acuerdo a lo esta
                                     })
 
     def _get_cesion_dte_status(self):
-        datos = self._get_datos_empresa(self.company_id)
+        datos = self._get_datos_empresa(self[0].company_id)
         datos['Documento'] = []
         docs = {}
         for r in self:
             if r.sii_xml_request.state not in ['Aceptado', 'Rechazado']:
                 continue
-            docs.setdefault(self.document_class_id.sii_code, [])
-            docs[self.document_class_id.sii_code].append(r._dte())
+            docs.setdefault(r.document_class_id.sii_code, [])
+            docs[r.document_class_id.sii_code].append(r._dte())
         if not docs:
             _logger.warning("En get_get_dte_status, no docs")
             return
@@ -252,7 +252,7 @@ entregados por parte del deudor de la factura {4}, RUT {5}, de acuerdo a lo esta
             str(rut[-1]),
             str(self.document_class_id.sii_code),
             str(self.sii_document_number),
-            tenedor_rut[2:-1],
+            tenedor_rut[:-2],
             tenedor_rut[-1],
         )
         #self.sii_message = respuesta

@@ -12,7 +12,7 @@ try:
 
     urllib3.disable_warnings()
     pool = urllib3.PoolManager()
-except:
+except ImportError:
     _logger.warning("Problemas con urllib3")
 
 
@@ -160,7 +160,9 @@ class APICAF(models.TransientModel):
     folios_disp = fields.Integer(
         string="Folios Emitidos SIN USAR",
         compute="_details",
-        help="Debe Revisar si ha tenido algún salto de folios, si piensa que ya no debiera tener folios disponibles o puede que no se hayan enviado al SII o estén recahzados, por loque debe revisar el estado de facturas lo antes posible",
+        help="Debe Revisar si ha tenido algún salto de folios, "
+        "si piensa que ya no debiera tener folios disponibles o puede que no se hayan enviado al SII "
+        "o estén recahzados, por loque debe revisar el estado de facturas lo antes posible",
     )
     api_folios_disp = fields.Integer(string="Folios Emitidos SIN USAR", default=0,)
     max_autor = fields.Integer(string="Cantidad Máxima Autorizada para el Documento", compute="_details")

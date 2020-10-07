@@ -16,7 +16,7 @@ try:
 
     urllib3.disable_warnings()
     pool = urllib3.PoolManager()
-except:
+except ImportError:
     _logger.warning("no se ha cargado urllib3")
 try:
     import fitz
@@ -157,7 +157,7 @@ class SiiTax(models.Model):
 
             if tax.amount_type == "group":
                 children = tax.children_tax_ids.with_context(base_values=(total_excluded, total_included, base))
-                ret = children.compute_all(price_unit, currency, quantity, product, partner, discount, uon_id)
+                ret = children.compute_all(price_unit, currency, quantity, product, partner, discount, uom_id)
                 total_excluded = ret["total_excluded"]
                 base = ret["base"] if tax.include_base_amount else base
                 total_included = ret["total_included"]

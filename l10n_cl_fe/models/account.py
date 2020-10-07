@@ -46,7 +46,7 @@ class account_move(models.Model):
         for l in self.line_ids:
             if l.tax_line_id:
                 if l.tax_line_id:
-                    if not l.tax_line_id.id in imps:
+                    if l.tax_line_id.id not in imps:
                         imps[l.tax_line_id.id] = {
                             "tax_id": l.tax_line_id.id,
                             "credit": 0,
@@ -55,8 +55,6 @@ class account_move(models.Model):
                         }
                     imps[l.tax_line_id.id]["credit"] += l.credit
                     imps[l.tax_line_id.id]["debit"] += l.debit
-                    if l.tax_line_id.activo_fijo:
-                        ActivoFijo[1] += l.credit
             elif l.tax_ids and l.tax_ids[0].amount == 0:  # caso monto exento
                 if not l.tax_ids[0].id in imps:
                     imps[l.tax_ids[0].id] = {
@@ -76,7 +74,7 @@ class account_move(models.Model):
             "exento": 0,
             "otros_imps": 0,
         }
-        for key, i in move_imps.items():
+        for _key, i in move_imps.items():
             if i["code"] in [14]:
                 imps["iva"] += i["credit"] or i["debit"]
             elif i["code"] == 0:

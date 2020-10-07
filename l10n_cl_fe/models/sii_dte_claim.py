@@ -2,6 +2,7 @@ import base64
 import logging
 
 from odoo import api, fields, models
+from odoo.exceptions import UserError
 from odoo.tools.translate import _
 
 _logger = logging.getLogger(__name__)
@@ -11,7 +12,7 @@ except Exception as e:
     _logger.warning("Problemas al cargar suds %s" % str(e))
 try:
     from facturacion_electronica import facturacion_electronica as fe
-except:
+except ImportError:
     _logger.warning("No se ha podido cargar fe")
 
 
@@ -121,7 +122,6 @@ class DTEClaim(models.Model):
         return att
 
     def do_reject(self):
-        inv_obj = self.env["account.invoice"]
         id_seq = self.env.ref("l10n_cl_fe.response_sequence")
         IdRespuesta = id_seq.next_by_id()
         NroDetalles = 1
@@ -147,7 +147,6 @@ class DTEClaim(models.Model):
         }
         resp = fe.validacion_comercial(datos)
         att = self._create_attachment(resp["respuesta_xml"], resp["nombre_xml"], doc.id, tipo)
-        partners = doc.partner_id.ids
         dte_email_id = doc.company_id.dte_email_id or self.env.user.company_id.dte_email_id
         values = {
             "res_id": doc.id,
@@ -228,7 +227,7 @@ class DTEClaim(models.Model):
             _logger.warning("Error al setear Reclamo %s" % str(e))
         try:
             doc.get_dte_claim()
-        except:
+        except Exception:
             _logger.warning("@TODO crear código que encole la respuesta")
 
     @api.multi
@@ -282,5 +281,5 @@ class DTEClaim(models.Model):
             _logger.warning("Error al setear Reclamo  Recep Mercadería %s" % str(e))
         try:
             doc.get_dte_claim()
-        except:
+        except Exception:
             _logger.warning("@TODO crear código que encole la respuesta")

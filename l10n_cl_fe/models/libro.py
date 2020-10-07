@@ -357,7 +357,7 @@ class Libro(models.Model):
         for move in self.move_ids:
             move_imps = move._get_move_imps()
             for key, i in move_imps.items():
-                if not key in imp:
+                if key not in imp:
                     imp[key] = i
                 else:
                     imp[key]["credit"] += i["credit"]
@@ -390,7 +390,7 @@ class Libro(models.Model):
             lines = [
                 [5,],
             ]
-            for key, i in imp.items():
+            for _key, i in imp.items():
                 i["currency_id"] = self.env.user.company_id.currency_id.id
                 lines.append([0, 0, i])
             self.impuestos = lines

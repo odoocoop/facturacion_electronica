@@ -4,7 +4,7 @@ from datetime import datetime
 
 import pytz
 
-from odoo import SUPERUSER_ID, api, fields, models
+from odoo import SUPERUSER_ID, api, fields, models, tools
 from odoo.exceptions import UserError
 from odoo.tools.translate import _
 
@@ -29,7 +29,8 @@ class IRSequence(models.Model):
         folio = folio or self._get_folio()
         try:
             cafs = self.get_caf_files(folio)
-        except:
+        except Exception as ex:
+            _logger.error(tools.ustr(ex))
             cafs = False
         available = 0
         folio = int(folio)

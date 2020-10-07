@@ -3,7 +3,7 @@ from odoo.exceptions import UserError
 
 try:
     from facturacion_electronica import __version__
-except:
+except ImportError:
     __version__ = "0.0.0"
 
 

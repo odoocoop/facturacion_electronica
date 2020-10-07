@@ -35,9 +35,6 @@ class AccountInvoiceRefund(models.TransientModel):
     @api.multi
     def compute_refund(self, mode="1"):
         inv_obj = self.env["account.invoice"]
-        inv_tax_obj = self.env["account.invoice.tax"]
-        inv_line_obj = self.env["account.invoice.line"]
-        inv_reference_obj = self.env["account.invoice.referencias"]
         context = dict(self._context or {})
         xml_id = False
         for form in self:

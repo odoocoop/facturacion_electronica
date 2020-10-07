@@ -135,7 +135,6 @@ class ValidarDTEWizard(models.TransientModel):
 
     @api.multi
     def do_receipt(self):
-        message = ""
         docs = self.invoice_ids or self.document_ids
         for doc in docs:
             claims = 1

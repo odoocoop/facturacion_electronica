@@ -76,7 +76,7 @@ class Honorarios(models.Model):
             for l in move.line_ids:
                 if l.tax_line_id:
                     if l.tax_line_id:
-                        if not l.tax_line_id.id in imp:
+                        if l.tax_line_id.id not in imp:
                             imp[l.tax_line_id.id] = {
                                 "tax_id": l.tax_line_id.id,
                                 "credit": 0,
@@ -84,8 +84,6 @@ class Honorarios(models.Model):
                             }
                         imp[l.tax_line_id.id]["credit"] += l.credit
                         imp[l.tax_line_id.id]["debit"] += l.debit
-                        if l.tax_line_id.activo_fijo:
-                            ActivoFijo[1] += l.credit
                 elif l.tax_ids and l.tax_ids[0].amount == 0:  # caso monto exento
                     if not l.tax_ids[0].id in imp:
                         imp[l.tax_ids[0].id] = {
@@ -101,7 +99,7 @@ class Honorarios(models.Model):
         lines = [
             [5,],
         ]
-        for key, i in imp.items():
+        for _key, i in imp.items():
             i["currency_id"] = self.env.user.company_id.currency_id.id
             lines.append([0, 0, i])
         self.impuestos = lines

@@ -5,7 +5,7 @@ from datetime import date, datetime, timedelta
 import pytz
 from six import string_types
 
-from odoo import api, fields, models
+from odoo import api, fields, models, tools
 from odoo.exceptions import UserError
 from odoo.tools.translate import _
 
@@ -21,12 +21,12 @@ except Exception as e:
     _logger.warning("Problema al cargar Facturación electrónica: %s" % str(e))
 try:
     from io import BytesIO
-except:
+except ImportError:
     _logger.warning("no se ha cargado io")
 
 try:
     from suds.client import Client
-except:
+except ImportError:
     pass
 try:
     import pdf417gen
@@ -38,7 +38,7 @@ except ImportError:
     _logger.warning("Cannot import base64 library")
 try:
     from PIL import Image, ImageDraw, ImageFont
-except:
+except ImportError:
     _logger.warning("no se ha cargado PIL")
 
 
@@ -413,7 +413,7 @@ class AccountInvoice(models.Model):
                 line["currency_id"] = False
                 line["amount_currency"] = False
                 line["price"] = self.currency_id.round(line["price"])
-            ##para chequeo diferencia
+            # para chequeo diferencia
             amount_diff -= line["price"]
             if line.get("amount_currency", False):
                 amount_diff_currency -= line["amount_currency"]
@@ -610,7 +610,9 @@ class AccountInvoice(models.Model):
             gdr_exe = 1 + (porcentaje / 100.0)
         return gdr, gdr_exe
 
-    def _get_grouped_taxes(self, line, taxes, tax_grouped={}):
+    def _get_grouped_taxes(self, line, taxes, tax_grouped=None):
+        if tax_grouped is None:
+            tax_grouped = {}
         for tax in taxes:
             val = self._prepare_tax_line_vals(line, tax)
             # If the taxes generate moves on the same financial account as the invoice line,
@@ -1413,7 +1415,6 @@ a VAT."""))
     def _totales(self, MntExe=0, no_product=False, taxInclude=False):
         MntNeto = 0
         IVA = False
-        ImptoReten = False
         TasaIVA = False
         MntIVA = 0
         MntBase = 0
@@ -1734,8 +1735,11 @@ a VAT."""))
         batch = 0
         for r in self:
             batch += 1
+            # si viene una guía/nota referenciando una factura,
+            # que por numeración viene a continuación de la guia/nota,
+            # será recahazada la guía porque debe estar declarada la factura primero
             if not r.sii_batch_number or r.sii_batch_number == 0:
-                r.sii_batch_number = batch  # si viene una guía/nota regferenciando una factura, que por numeración viene a continuación de la guia/nota, será recahazada laguía porque debe estar declarada la factura primero
+                r.sii_batch_number = batch
             if r.sii_batch_number != 0 and r._es_boleta():
                 for i in grupos.keys():
                     if i not in [39, 41]:
@@ -1851,7 +1855,7 @@ a VAT."""))
                 r.canceled = True
                 try:
                     r.action_invoice_cancel()
-                except:
+                except Exception:
                     _logger.warning("Error al cancelar Documento")
                 mess = {
                     "title": "Documento Anulado",
@@ -1907,9 +1911,9 @@ a VAT."""))
             if e.args[0][0] == 503:
                 raise UserError(
                     "%s: Conexión al SII caída/rechazada o el SII está temporalmente fuera de línea, reintente la acción"
-                    % (msg)
+                    % (tools.ustr(e))
                 )
-            raise UserError("{}: {}".format(msg, str(e)))
+            raise UserError(tools.ustr(e))
 
     @api.multi
     def wizard_upload(self):
@@ -2021,7 +2025,7 @@ a VAT."""))
 
         d = ImageDraw.Draw(img)
         w, h = (0, 0)
-        for i in range(10):
+        for _i in range(10):
             d.rectangle(((w, h), (550 + w, 220 + h)), outline="black")
             w += 1
             h += 1

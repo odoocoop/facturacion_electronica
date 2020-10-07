@@ -2,7 +2,7 @@ import json
 import logging
 import re
 
-from odoo import api, fields, models
+from odoo import api, fields, models, tools
 from odoo.exceptions import UserError
 from odoo.tools.translate import _
 
@@ -12,7 +12,7 @@ try:
 
     urllib3.disable_warnings()
     pool = urllib3.PoolManager()
-except:
+except ImportError:
     _logger.warning("no se ha cargado urllib3")
 
 
@@ -22,13 +22,15 @@ class ResPartner(models.Model):
     def _get_default_tp_type(self):
         try:
             return self.env.ref("l10n_cl_fe.res_IVARI")
-        except:
+        except Exception as ex:
+            _logger.error(tools.ustr(ex))
             return self.env["sii.responsability"]
 
     def _get_default_doc_type(self):
         try:
             return self.env.ref("l10n_cl_fe.dt_RUT")
-        except:
+        except Exception as ex:
+            _logger.error(tools.ustr(ex))
             return self.env["sii.document_type"]
 
     @api.model
@@ -249,7 +251,9 @@ class ResPartner(models.Model):
         except IndexError:
             return False
 
-    def _process_data(self, data={}):
+    def _process_data(self, data=None):
+        if data is None:
+            data = {}
         self.es_mipyme = data.get("es_mipyme", False)
         if data.get("razon_social"):
             self.name = data["razon_social"]
@@ -304,7 +308,7 @@ class ResPartner(models.Model):
                         "dte_email": self.dte_email,
                         "email": self.email,
                         "direccion": self.street,
-                        #'comuna': self.
+                        # 'comuna': self.
                         "telefono": self.phone,
                         "actectos": [ac.code for ac in self.acteco_ids],
                         "url": self.website,
@@ -333,8 +337,8 @@ class ResPartner(models.Model):
                 )
                 return
             data = json.loads(resp.data.decode("ISO-8859-1"))
-        except:
-            pass
+        except Exception as ex:
+            _logger.error(tools.ustr(ex))
 
     def get_remote_user_data(self, to_check, process_data=True):
         ICPSudo = self.env["ir.config_parameter"].sudo()
@@ -376,8 +380,8 @@ class ResPartner(models.Model):
                 self.sync = False
                 return
             self._process_data(data)
-        except:
-            pass
+        except Exception as ex:
+            _logger.error(tools.ustr(ex))
 
     @api.onchange("name")
     def fill_partner(self):
@@ -424,5 +428,5 @@ class ResPartner(models.Model):
                 if data.get("result", False):
                     r.sync = False
                     r.fill_partner()
-            except:
-                pass
+            except Exception as ex:
+                _logger.error(tools.ustr(ex))

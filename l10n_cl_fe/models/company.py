@@ -10,13 +10,13 @@ class DTECompany(models.Model):
     def _get_default_tp_type(self):
         try:
             return self.env.ref("l10n_cl_fe.res_IVARI")
-        except:
+        except Exception:
             return self.env["sii.responsability"]
 
     def _get_default_doc_type(self):
         try:
             return self.env.ref("l10n_cl_fe.dt_RUT")
-        except:
+        except Exception:
             return self.env["sii.document_type"]
 
     dte_email_id = fields.Many2one(

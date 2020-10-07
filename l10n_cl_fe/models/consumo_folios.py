@@ -249,7 +249,7 @@ class ConsumoFolios(models.Model):
         lines = [
             [5,],
         ]
-        for key, i in docs.items():
+        for _key, i in docs.items():
             i["currency_id"] = self.env.user.company_id.currency_id.id
             lines.append([0, 0, i])
         self.impuestos = lines

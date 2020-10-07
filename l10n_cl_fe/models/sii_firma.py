@@ -17,7 +17,7 @@ except ImportError:
     _logger.warning("Error en cargar crypto")
 try:
     from facturacion_electronica.firma import Firma
-except:
+except ImportError:
     _logger.warning("Problema a cargar facturacion_electronica")
 
 
@@ -47,7 +47,7 @@ class SignatureCert(models.Model):
             check_rut = rut = self.subject_serial_number.replace(".", "").upper()
             if len(rut) == 9:
                 check_rut = "0" + rut
-            if not "-" in check_rut or not self.env.user.partner_id.check_vat_cl(check_rut.replace("-", "")):
+            if "-" not in check_rut or not self.env.user.partner_id.check_vat_cl(check_rut.replace("-", "")):
                 raise UserError(_("Not Valid Subject Serial Number"))
             self.subject_serial_number = rut
         elif self.file_content:
@@ -111,7 +111,7 @@ class SignatureCert(models.Model):
         filecontent = base64.b64decode(self.file_content)
         try:
             p12 = crypto.load_pkcs12(filecontent, self.password)
-        except:
+        except Exception:
             raise UserError(
                 "Error al abrir la firma, posiblmente ha ingresado\
  mal la clave de la firma o el archivo no es compatible."
