@@ -180,7 +180,7 @@ www.sii.cl'''.format(folio)
             return result
         return False
 
-    def update_next_by_caf(self, folio=None):
+    def update_next_by_caf(self, folio=None, increment=True):
         if self.sii_document_class_id:
             return
         folio = folio or self.get_folio()
@@ -194,12 +194,14 @@ www.sii.cl'''.format(folio)
                 menor = c
         if menor and int(folio) < menor.start_nm:
             folio = menor.start_nm
-            self.sudo(SUPERUSER_ID).write({'number_next': menor.start_nm})
+            if increment:
+                folio += 1
+            self.sudo(SUPERUSER_ID).write({'number_next': folio})
             if self.forced_by_caf and self.implementation == 'no_gap':
                 self._cr.execute("SELECT number_next FROM %s WHERE id=%s FOR UPDATE NOWAIT" % (
                     self._table, self.id))
                 self._cr.execute("UPDATE %s SET number_next=%s WHERE id=%s " % (
-                    self._table, (menor.start_nm+1), self.id))
+                    self._table, folio, self.id))
                 self.invalidate_cache(['number_next'], [self.id])
                 return True
         return False

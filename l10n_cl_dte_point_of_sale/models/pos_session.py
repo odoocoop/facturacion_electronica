@@ -54,7 +54,7 @@ class PosSession(models.Model):
             return super(PosSession, self).create(values)
         if config_id.secuencia_boleta:
             sequence = config_id.secuencia_boleta
-            sequence.update_next_by_caf()
+            sequence.update_next_by_caf(increment=False)
             start_number = sequence.get_folio()
             values.update({
                 'secuencia_boleta': sequence.id,
@@ -62,7 +62,7 @@ class PosSession(models.Model):
             })
         if config_id.secuencia_boleta_exenta:
             sequence = config_id.secuencia_boleta_exenta
-            sequence.update_next_by_caf()
+            sequence.update_next_by_caf(increment=False)
             start_number = sequence.get_folio()
             values.update({
                 'secuencia_boleta_exenta': sequence.id,
