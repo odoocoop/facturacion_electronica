@@ -127,7 +127,7 @@ class IRSequence(models.Model):
     )
 
     def get_folio(self):
-        if sequence.implementation == 'standard':
+        if self.implementation == 'standard':
             return self.number_next_actual
         return self.number_next
 
