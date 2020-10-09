@@ -18,10 +18,15 @@ class PosConfig(models.Model):
             if rec.dte_picking_sequence:
                 rec.left_number_guia = rec.dte_picking_sequence.get_qty_available()
 
-    def get_sequence_picking(self):
+    def _get_sequence_picking(self):
         for rec in self:
             if 'sequence_id' in rec.picking_type_id.default_location_src_id:
                 rec.dte_picking_sequence = rec.picking_type_id.default_location_src_id.sequence_id.id
+
+    def _sii_sucursal(self):
+        for rec in self:
+            if 'sucursal_id' in rec.picking_type_id.default_location_src_id:
+                rec.sucursal_id = rec.picking_type_id.default_location_src_id.sucursal_id.id
 
     secuencia_boleta = fields.Many2one(
             'ir.sequence',
@@ -115,7 +120,7 @@ class PosConfig(models.Model):
     dte_picking_sequence = fields.Many2one(
             'ir.sequence',
             string='Secuencia Boleta',
-            compute='get_sequence_picking'
+            compute='_get_sequence_picking'
         )
     dte_picking_option = fields.Selection(
             [
@@ -133,6 +138,11 @@ class PosConfig(models.Model):
             compute="get_left_numbers",
             string="Folios restantes Boletas",
         )
+    sucursal_id = fields.Many2one(
+        'sii.sucursal',
+        string='Código Sucursal SII',
+        compute='_sii_sucursal',
+    )
 
     @api.onchange('secuencia_boleta', 'secuencia_boleta_exenta')
     def validacion_cambio_secuencia(self):

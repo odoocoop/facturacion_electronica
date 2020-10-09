@@ -91,6 +91,11 @@ stamp to be legally valid.""",
         required=True,
         readonly=False,
     )
+    sucursal_ids = fields.One2many(
+        'sii.sucursal',
+        'company_id',
+        string="Sucursales de la compañia",
+    )
 
     @api.onchange("document_number", "document_type_id")
     def onchange_document(self):

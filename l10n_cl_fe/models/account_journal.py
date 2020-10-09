@@ -10,7 +10,7 @@ class AccountJournal(models.Model):
     _inherit = "account.journal"
 
     sucursal_id = fields.Many2one("sii.sucursal", string="Sucursal",)
-    sii_code = fields.Char(related="sucursal_id.name", string="Código SII Sucursal", readonly=True,)
+    sii_code = fields.Char(related="sucursal_id.sii_code", string="Código SII Sucursal", readonly=True,)
     journal_document_class_ids = fields.One2many("account.journal.sii_document_class", "journal_id", "Documents Class",)
     document_class_ids = fields.Many2many("sii.document_class", string="Document Class IDs")
     use_documents = fields.Boolean(string="Use Documents?", default="_get_default_doc",)

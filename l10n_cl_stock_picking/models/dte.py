@@ -216,11 +216,14 @@ class stock_picking(models.Model):
         Emisor['Telefono'] = self.company_id.phone or ''
         Emisor['CorreoEmisor'] = self.company_id.dte_email_id.name_get()[0][1]
         Emisor['Actecos'] = self._giros_emisor()
+        dir_origen = self.company_id
         if self.location_id.sii_code:
+            Emisor['Sucursal'] = self.location_id.sucursal_id.name
             Emisor['CdgSIISucur'] = self.location_id.sii_code
-        Emisor['DirOrigen'] = self.company_id.street + ' ' +(self.company_id.street2 or '')
-        Emisor['CmnaOrigen'] = self.company_id.city_id.name or ''
-        Emisor['CiudadOrigen'] = self.company_id.city or ''
+            dir_origen = self.location_id.sucursal_id.partner_id
+        Emisor['DirOrigen'] = dir_origen.street + ' ' +(dir_origen.street2 or '')
+        Emisor['CmnaOrigen'] = dir_origen.city_id.name or ''
+        Emisor['CiudadOrigen'] = dir_origen.city or ''
         Emisor["Modo"] = "produccion" if self.company_id.dte_service_provider == 'SII'\
                   else 'certificacion'
         Emisor["NroResol"] = self.company_id.dte_resolution_number

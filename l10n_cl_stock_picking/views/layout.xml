@@ -34,7 +34,13 @@
                                     <span t-field="o.company_id.activity_description.name" style="color:black;"/><br />
                                   </t>
                                     <!-- domicilios -->
-                                    <span t-field="o.company_id.partner_id.street"/>, <span t-field="o.company_id.partner_id.city_id.name"/>, <span t-field="o.company_id.partner_id.city"/><br />
+                                    <span>Casa Matriz: </span><span t-field="o.company_id.partner_id.street"/>, <span t-field="o.company_id.partner_id.city_id.name"/>, <span t-field="o.company_id.partner_id.city"/><br />
+                                    <t t-if="o.company_id.sucursal_ids and o.type in ['out_invoice', 'out_refund']">
+                                      <t t-foreach="o.company_ids" t-as="sucursal">
+                                        <span>Sucursal: </span><span t-field="sucursal.partner_id.street"/>, <span t-field="sucursal.partner_id.city_id.name"/>, <span t-field="sucursal.partner_id.city"/><br />
+                                      </t>
+                                    </t>
+                                  <span>Teléfono: <span t-field="o.company_id.partner_id.phone"/></span><br/>
                                     <!-- domicilios -->
                                     <span> Teléfono: <span t-field="o.company_id.partner_id.phone"/></span><br/>
                                     <span>E-Mail: <span t-field="o.company_id.partner_id.email"/></span><br/>
@@ -322,7 +328,12 @@
         </div>
         <line><left font='b'>Fecha: </left><right><t t-esc="doc.scheduled_date"/></right></line>
         <line><left font='b'>Teléfono: </left><right><t t-esc="doc.company_id.phone"/></right></line>
-        <line><left font='b'>Dirección: </left><right><t t-esc="doc.company_id.street"/></right></line>
+        <line><left font='b'>  Casa Matriz: </left><right><t t-esc="doc.company_id.street"/></right></line>
+        <t t-if="doc.company_id.sucursal_ids">
+          <line t-foreach="doc.company_id.sucursal_ids" t-as="sucursal">
+            <left>  Sucursal: </left><right><t t-esc="sucursal.partner_id.street + ', ' + sucursal.partner_id.city_id.name+ ', ' + sucursal.partner_id.city"/></right>
+          </line>
+        </t>
         <t t-if="doc.partner_id">
           <line><right>--------</right></line>
           <line><left font='b'>Cliente: </left><right><span t-esc="doc.partner_id.name"/></right></line>

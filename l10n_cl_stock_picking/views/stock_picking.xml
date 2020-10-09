@@ -131,6 +131,7 @@
             <field name="arch" type="xml">
                 <field name="usage" position="after">
                     <field name="restore_mode" />
+                    <field name="sucursal_id"/>
                     <field name="sii_code"/>
                     <field name="sii_document_class_id" attrs="{'required': [('usage','=','internal')]}"/>
                     <field name="sequence_id" context="{'default_sii_document_class_id': sii_document_class_id}"/>

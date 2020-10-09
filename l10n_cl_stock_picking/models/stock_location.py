@@ -20,9 +20,14 @@ class StockLocation(models.Model):
             help="""This field contains the information related to the numbering \
             of the documents entries of this document type.""",
         )
+    sucursal_id = fields.Many2one(
+        'sii.sucursal',
+        string="Sucursal SII"
+    )
     sii_code = fields.Char(
-            string="Código de Sucursal SII",
-        )
+        related='sucursal_id.sii_code',
+        string="Código de Sucursal SII",
+    )
     restore_mode = fields.Boolean(
             string="Modo Restauración",
             default=False,

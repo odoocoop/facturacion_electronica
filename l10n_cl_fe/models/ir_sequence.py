@@ -26,7 +26,7 @@ class IRSequence(models.Model):
                 )
 
     def get_qty_available(self, folio=None):
-        folio = folio or self._get_folio()
+        folio = folio or self.get_folio()
         try:
             cafs = self.get_caf_files(folio)
         except Exception as ex:
@@ -98,15 +98,17 @@ class IRSequence(models.Model):
     autoreponer_caf = fields.Boolean(string="Reposición Automática de CAF", default=False)
     autoreponer_cantidad = fields.Integer(string="Cantidad de Folios a Reponer", default=2)
 
-    def _get_folio(self):
-        return self.number_next_actual
+    def get_folio(self):
+        if self.implementation == 'standard':
+            return self.number_next_actual
+        return self.number_next
 
     def time_stamp(self, formato="%Y-%m-%dT%H:%M:%S"):
         tz = pytz.timezone("America/Santiago")
         return datetime.now(tz).strftime(formato)
 
     def get_caf_file(self, folio=False, decoded=True):
-        folio = folio or self._get_folio()
+        folio = folio or self.get_folio()
         caffiles = self.get_caf_files(folio)
         msg = """No Hay caf para el documento: {}, está fuera de rango . Solicite un nuevo CAF en el sitio \
 www.sii.cl""".format(
@@ -134,7 +136,7 @@ www.sii.cl""".format(
         """
             Devuelvo caf actual y futuros
         """
-        folio = folio or self._get_folio()
+        folio = folio or self.get_folio()
         if not self.dte_caf_ids:
             _logger.warning(
                 """No hay CAFs disponibles para la secuencia de %s. Por favor suba un CAF o solicite uno en el SII."""
@@ -156,8 +158,10 @@ www.sii.cl""".format(
             return result
         return False
 
-    def update_next_by_caf(self, folio=None):
-        folio = folio or self._get_folio()
+    def update_next_by_caf(self, folio=None, increment=True):
+        if not self.sii_document_class_id:
+            return
+        folio = folio or self.get_folio()
         menor = False
         cafs = self.get_caf_files(folio)
         if not cafs:
@@ -168,13 +172,15 @@ www.sii.cl""".format(
                 menor = c
         if menor and int(folio) < menor.start_nm:
             folio = menor.start_nm
-            self.sudo(SUPERUSER_ID).write({"number_next": menor.start_nm})
+            if increment:
+                folio += 1
+            self.sudo(SUPERUSER_ID).write({"number_next": folio})
             if self.forced_by_caf and self.implementation == "no_gap":
                 self._cr.execute(
                     "SELECT number_next FROM {} WHERE id={} FOR UPDATE NOWAIT".format(self._table, self.id)
                 )
                 self._cr.execute(
-                    "UPDATE {} SET number_next={} WHERE id={} ".format(self._table, (menor.start_nm + 1), self.id)
+                    "UPDATE {} SET number_next={} WHERE id={} ".format(self._table, (folio), self.id)
                 )
                 self.invalidate_cache(["number_next"], [self.id])
                 return True
@@ -184,9 +190,7 @@ www.sii.cl""".format(
         folio = super(IRSequence, self)._next_do()
         if self.sii_document_class_id and self.forced_by_caf and self.dte_caf_ids:
             if self.update_next_by_caf(folio):
-                actual = self.number_next
-                if self.implementation == "standard":
-                    actual = self.number_next_actual
+                actual = self.get_folio()
                 folio = self.get_next_char(actual - 1)
         self._qty_available()
         return folio
