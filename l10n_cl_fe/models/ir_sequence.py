@@ -181,7 +181,7 @@ www.sii.cl'''.format(folio)
         return False
 
     def update_next_by_caf(self, folio=None, increment=True):
-        if self.sii_document_class_id:
+        if not self.sii_document_class_id:
             return
         folio = folio or self.get_folio()
         menor = False
