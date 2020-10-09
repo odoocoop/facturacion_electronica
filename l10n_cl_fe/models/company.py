@@ -108,7 +108,7 @@ stamp to be legally valid.''',
             default=lambda self: self._get_default_doc_type(),
             required=True,
         )
-    sucursal_ids = fields.Many2one(
+    sucursal_ids = fields.One2many(
         'sii.sucursal',
         'company_id',
         string="Sucursales de la compañia",
