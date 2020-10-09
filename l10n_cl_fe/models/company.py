@@ -108,6 +108,11 @@ stamp to be legally valid.''',
             default=lambda self: self._get_default_doc_type(),
             required=True,
         )
+    sucursal_ids = fields.Many2one(
+        'sii.sucursal',
+        'company_id',
+        string="Sucursales de la compañia",
+    )
 
     @api.onchange('document_number', 'document_type_id')
     def onchange_document(self):

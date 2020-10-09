@@ -8,7 +8,12 @@
           <h2><t t-esc="widget.pos.company.name"/></h2>
           <h4><t t-esc="widget.pos.company.document_number"/></h4>
           <t t-esc="widget.pos.company.activity_description[1]"/><br />
-          <t t-esc="widget.pos.company.street"/> <t t-esc="widget.pos.company.city"/><br />
+          Casa Matriz: <t t-esc="widget.pos.company.street"/> <t t-esc="widget.pos.company.city"/><br />
+          <t t-if="widget.pos.company.sucursal_ids">
+            <t t-foreach="widget.pos.company.sucursal_ids" t-as="sucursal">
+                Sucursal: <t t-esc="sucursal.partner_id.street + ', ' + sucursal.partner_id.city_id.name+ ', ' + sucursal.partner_id.city"/><br />
+            </t>
+          </t>
           <div class="pos-center-align"><t t-if="receipt.nombre_documento"><t t-esc="receipt.nombre_documento"/> N°:</t><t t-esc="order.sii_document_number or order.name"/></div>
         </div>
           <br />
@@ -151,7 +156,12 @@
           <h4><t t-esc="receipt.company.document_number"/></h4>
           <em>
             <t t-esc="receipt.company.activity_description"/><br />
-            <t t-esc="receipt.company.street"/> <t t-esc="receipt.company.city"/><br />
+            Casa Matriz: <t t-esc="receipt.company.street"/> <t t-esc="receipt.company.city"/><br />
+            <t t-if="receipt.company.sucursal_ids">
+              <t t-foreach="receipt.company.sucursal_ids" t-as="sucursal">
+                  Sucursal: <t t-esc="sucursal.partner_id.street + ', ' + sucursal.partner_id.city_id.name+ ', ' + sucursal.partner_id.city"/>
+              </t>
+            </t>
           </em>
           <div class="pos-center-align"><t t-if="receipt.nombre_documento"><t t-esc="receipt.nombre_documento"/> N°:</t><t t-esc="receipt.sii_document_number or receipt.name"/></div>
         </div>
@@ -273,7 +283,12 @@
       <div style="text-align:right;">
         <h2><t t-esc="widget.pos.company.name"/></h2>
         <t t-esc="widget.pos.company.activity_description[1]"/><br />
-        <t t-esc="widget.pos.company.street"/> <t t-esc="widget.pos.company.city"/><br />
+        Casa Matriz: <t t-esc="widget.pos.company.street"/> <t t-esc="widget.pos.company.city"/><br />
+        <t t-if="widget.pos.company.sucursal_ids">
+          <line t-foreach="widget.pos.company.sucursal_ids" t-as="sucursal">
+              Sucursal: <t t-esc="sucursal.partner_id.street + ', ' + sucursal.partner_id.city_id.name+ ', ' + sucursal.partner_id.city"/>
+          </line>
+        </t>
         Tienda: <t t-esc="widget.pos.shop.name"/><br /> Vendedor: <t t-esc="widget.pos.cashier ? widget.pos.cashier.name : widget.pos.user.name"/><br />
         Teléfono: <t t-esc="widget.pos.company.phone || ''"/><br />
       </div>

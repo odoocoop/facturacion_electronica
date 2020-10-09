@@ -1299,16 +1299,18 @@ a VAT."))
                 Emisor['Telefono'] = self._acortar_str(self.company_id.phone, 20)
             Emisor['CorreoEmisor'] = self.company_id.dte_email_id.name_get()[0][1]
             Emisor['Actecos'] = self._actecos_emisor()
+        dir_origen = self.company_id
         if self.journal_id.sucursal_id:
-            Emisor['Sucursal'] = self._acortar_str(self.journal_id.sucursal_id.name, 20)
+            Emisor['Sucursal'] = self._acortar_str(self.journal_id.sucursal_id.partner_id.name, 20)
             Emisor['CdgSIISucur'] = self._acortar_str(self.journal_id.sucursal_id.sii_code, 9)
-        Emisor['DirOrigen'] = self._acortar_str(self.company_id.street + ' ' + (self.company_id.street2 or ''), 70)
-        if not self.company_id.city_id:
+            dir_origen = self.journal_id.sucursal_id.partner_id
+        Emisor['DirOrigen'] = self._acortar_str(dir_origen.street + ' ' + (dir_origen.street2 or ''), 70)
+        if not dir_origen.city_id:
             raise UserError("Debe ingresar la Comuna de compañía emisora")
-        Emisor['CmnaOrigen'] = self.company_id.city_id.name
-        if not self.company_id.city:
+        Emisor['CmnaOrigen'] = dir_origen.city_id.name
+        if not dir_origen.city:
             raise UserError("Debe ingresar la Ciudad de compañía emisora")
-        Emisor['CiudadOrigen'] = self.company_id.city
+        Emisor['CiudadOrigen'] = dir_origen.city
         Emisor["Modo"] = "produccion" if self.company_id.dte_service_provider == 'SII'\
                   else 'certificacion'
         Emisor["NroResol"] = self.company_id.dte_resolution_number
@@ -1678,7 +1680,7 @@ a VAT."))
                     ref_line['CodRef'] = ref.sii_referencia_CodRef
                 ref_line['RazonRef'] = ref.motivo
                 if self._es_boleta():
-                    ref_line['CodVndor'] = self.seler_id.id
+                    ref_line['CodVndor'] = self.user_id.id
                     ref_lines['CodCaja'] = self.journal_id.point_of_sale_id.name
                 ref_lines.append(ref_line)
                 lin_ref += 1

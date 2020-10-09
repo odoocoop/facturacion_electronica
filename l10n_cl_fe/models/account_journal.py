@@ -14,7 +14,7 @@ class AccountJournal(models.Model):
             string="Sucursal",
         )
     sii_code = fields.Char(
-            related='sucursal_id.name',
+            related='sucursal_id.sii_code',
             string="Código SII Sucursal",
             readonly=True,
         )

@@ -55,19 +55,17 @@ class PosSession(models.Model):
         if config_id.secuencia_boleta:
             sequence = config_id.secuencia_boleta
             sequence.update_next_by_caf()
-            start_number = sequence.number_next
-            if sequence.implementation == 'standard':
-                start_number = sequence.number_next_actual
+            start_number = sequence.get_folio()
             values.update({
+                'secuencia_boleta': sequence.id,
                 'start_number': start_number,
             })
         if config_id.secuencia_boleta_exenta:
             sequence = config_id.secuencia_boleta_exenta
             sequence.update_next_by_caf()
-            start_number = sequence.number_next
-            if sequence.implementation == 'standard':
-                start_number = sequence.number_next_actual
+            start_number = sequence.get_folio()
             values.update({
+                'secuencia_boleta_exenta': sequence.id,
                 'start_number_exentas': start_number,
             })
         if self.env['product.template'].search([

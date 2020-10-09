@@ -23,7 +23,7 @@ class IRSequence(models.Model):
                 _logger.warning("Error al solictar folios a secuencia %s: %s" % (r.sii_document_class_id.name, str(e)))
 
     def get_qty_available(self, folio=None):
-        folio = folio or self._get_folio()
+        folio = folio or self.get_folio()
         cafs = self.get_caf_files(folio)
         available = 0
         folio = int(folio)
@@ -126,15 +126,17 @@ class IRSequence(models.Model):
             default=2
     )
 
-    def _get_folio(self):
-        return self.number_next_actual
+    def get_folio(self):
+        if sequence.implementation == 'standard':
+            return self.number_next_actual
+        return self.number_next
 
     def time_stamp(self, formato='%Y-%m-%dT%H:%M:%S'):
         tz = pytz.timezone('America/Santiago')
         return datetime.now(tz).strftime(formato)
 
     def get_caf_file(self, folio=False, decoded=True):
-        folio = folio or self._get_folio()
+        folio = folio or self.get_folio()
         caffiles = self.get_caf_files(folio)
         msg = '''No Hay caf para el documento: {}, está fuera de rango . Solicite un nuevo CAF en el sitio \
 www.sii.cl'''.format(folio)
@@ -164,7 +166,7 @@ www.sii.cl'''.format(folio)
         '''
             Devuelvo caf actual y futuros
         '''
-        folio = folio or self._get_folio()
+        folio = folio or self.get_folio()
         if not self.dte_caf_ids:
             _logger.warning('''No hay CAFs disponibles para la secuencia de %s. Por favor suba un CAF o solicite uno en el SII.''' % (self.name))
             return False
@@ -181,7 +183,7 @@ www.sii.cl'''.format(folio)
     def update_next_by_caf(self, folio=None):
         if self.sii_document_class_id:
             return
-        folio = folio or self._get_folio()
+        folio = folio or self.get_folio()
         menor = False
         cafs = self.get_caf_files(folio)
         if not cafs:
@@ -206,9 +208,7 @@ www.sii.cl'''.format(folio)
         folio = super(IRSequence, self)._next_do()
         if self.sii_document_class_id and self.forced_by_caf and self.dte_caf_ids:
             if self.update_next_by_caf(folio):
-	            actual = self.number_next
-	            if self.implementation == 'standard':
-	                actual = self.number_next_actual
+	            actual = self.get_folio()
 	            folio = self.get_next_char(actual-1)
         self._qty_available()
         return folio

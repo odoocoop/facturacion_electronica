@@ -21,6 +21,11 @@ class SIISucursal(models.Model):
         required=True,
         default=lambda self: self.env.user.company_id.id,
         )
+    partner_id = fields.Many2one(
+        'res.partner',
+        string="Dirección de la sucursal asociada",
+        required=True,
+    )
 
 
 class sii_document_letter(models.Model):

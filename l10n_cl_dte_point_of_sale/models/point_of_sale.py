@@ -447,12 +447,14 @@ class POS(models.Model):
             Emisor['Telefono'] = self.company_id.phone or ''
             Emisor['CorreoEmisor'] = self.company_id.dte_email_id.name_get()[0][1]
             Emisor['Actecos'] = self._giros_emisor()
-        if self.sale_journal.sucursal_id:
-            Emisor['Sucursal'] = self.sale_journal.sucursal_id.name
-            Emisor['CdgSIISucur'] = self.sale_journal.sucursal_id.sii_code
-        Emisor['DirOrigen'] = self.company_id.street + ' ' +(self.company_id.street2 or '')
-        Emisor['CmnaOrigen'] = self.company_id.city_id.name or ''
-        Emisor['CiudadOrigen'] = self.company_id.city or ''
+        dir_origen = self.company_id
+        if self.config_id.sucursal_id:
+            Emisor['Sucursal'] = self.config_id.sucursal_id.name
+            Emisor['CdgSIISucur'] = self.config_id.sucursal_id.sii_code
+            dir_origen = self.config_id.sucursal_id.partner_id
+        Emisor['DirOrigen'] = dir_origen.street + ' ' +(dir_origen.street2 or '')
+        Emisor['CmnaOrigen'] = dir_origen.city_id.name or ''
+        Emisor['CiudadOrigen'] = dir_origen.city or ''
         Emisor["Modo"] = "produccion" if self.company_id.dte_service_provider == 'SII'\
                   else 'certificacion'
         Emisor["NroResol"] = self.company_id.dte_resolution_number

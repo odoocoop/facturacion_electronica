@@ -14,7 +14,14 @@ var secuencias = {};
 for(var i=0; i<modules.length; i++){
 	var model=modules[i];
 	if(model.model === 'res.company'){
-		model.fields.push('activity_description','street','city', 'dte_resolution_date', 'dte_resolution_number');
+		model.fields.push(
+			'activity_description',
+			'street',
+			'city',
+			'dte_resolution_date',
+			'dte_resolution_number',
+			'sucursal_ids',
+		);
 	}
 	if(model.model === 'res.partner'){
 		model.fields.push('document_number','activity_description','document_type_id', 'state_id', 'city_id', 'dte_email', 'sync');
@@ -161,6 +168,24 @@ models.load_models({
       	loaded: function(self, rs){
       		self.responsabilities = rs;
       	},
+});
+
+
+models.load_models({
+	model: 'sii.sucursal',
+	fields: ['id', 'name', 'sii_code', 'partner_id'],
+	domain: function(self){ return [['company_id','=', self.company.id]]; },
+	loaded: function(self, sucursales){
+  		self.company.sucursal_ids = sucursales;
+			if(sucursales ){
+				_.each(sucursales, function(sucursal){
+						sucursal.partner_id = self.db.get_partner_by_id(sucursal.partner_id[0]);
+						if(self.config.sucursal_id  && sucursal.id === self.config.sucursal_id[0]){
+							self.config.sucursal_id = sucursal;
+						}
+				})
+			}
+	},
 });
 
 var PosModelSuper = models.PosModel.prototype;
