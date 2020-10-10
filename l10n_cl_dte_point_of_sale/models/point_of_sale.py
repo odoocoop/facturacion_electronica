@@ -808,6 +808,7 @@ class POS(models.Model):
         def add_anglosaxon_lines(grouped_data):
             Product = self.env['product.product']
             Analytic = self.env['account.analytic.account']
+            keys = []
             for product_key in list(grouped_data.keys()):
                 if product_key[0] == "product":
                     line = grouped_data[product_key][0]
@@ -822,23 +823,38 @@ class POS(models.Model):
                     if res:
                         line1, line2 = res
                         line1 = Product._convert_prepared_anglosaxon_line(line1, line['partner_id'])
-                        insert_data('counter_part', {
+                        values = {
                             'name': line1['name'],
                             'account_id': line1['account_id'],
                             'credit': line1['credit'] or 0.0,
                             'debit': line1['debit'] or 0.0,
                             'partner_id': line1['partner_id']
-
-                        })
+                        }
+                        keys.append(self._get_account_move_line_group_data_type_key('counter_part', values))
+                        insert_data('counter_part', values)
 
                         line2 = Product._convert_prepared_anglosaxon_line(line2, line['partner_id'])
-                        insert_data('counter_part', {
+                        values = {
                             'name': line2['name'],
                             'account_id': line2['account_id'],
                             'credit': line2['credit'] or 0.0,
                             'debit': line2['debit'] or 0.0,
                             'partner_id': line2['partner_id']
-                        })
+                        }
+                        keys.append(self._get_account_move_line_group_data_type_key('counter_part', values))
+                        insert_data('counter_part', values)
+            if not keys:
+                return
+            dif = 0
+            for group_key, group_data in grouped_data.items():
+                if group_key in keys:
+                    for value in group_data:
+                        if value['credit'] > 0:
+                            entera, decimal = math.modf(value['credit'])
+                            dif = cur_company.round(value['credit']) - entera
+                        elif dif > 0 and value['debit'] > 0:
+                            value['debit'] += 1
+                            dif = 0
 
         for order in self.filtered(lambda o: not o.account_move or o.state == 'paid'):
             current_company = order.sale_journal.company_id
@@ -1016,16 +1032,6 @@ class POS(models.Model):
 
         if self and order.company_id.anglo_saxon_accounting:
             add_anglosaxon_lines(grouped_data)
-            dif = 0
-            for group_key, group_data in grouped_data.items():
-                if group_key[0] == 'counter_part':
-                    for value in group_data:
-                        if value['credit'] > 0:
-                            entera, decimal = math.modf(value['credit'])
-                            dif = cur_company.round(value['credit']) - entera
-                        elif dif > 0 and value['debit'] > 0:
-                            value['debit'] += 1
-                            dif = 0
         return {
             'grouped_data': grouped_data,
             'move': move,

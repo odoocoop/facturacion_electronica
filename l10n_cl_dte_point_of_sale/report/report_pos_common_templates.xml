@@ -16,10 +16,18 @@
 			</div>
 			<div class="col-xs-12 text-center">
 				<h5>
+					Casa matriz:
 					<span t-esc="o.company_id.partner_id.street" />
 					<span t-esc="o.company_id.partner_id.city" />
 				</h5>
 			</div>
+			<t t-if="o.company_id.sucursal_ids">
+				<h5>
+					<span t-foreach="o.company_id.sucursal_ids" t-as="sucursal">
+							Sucursal: <t t-esc="sucursal.partner_id.street + ', ' + sucursal.partner_id.city_id.name+ ', ' + sucursal.partner_id.city"/><br />
+					</span>
+				</h5>
+			</t>
 			<div class="col-xs-12 text-center" t-if="o.document_class_id">
 				<h5>
 					<span t-field="o.document_class_id.name" />
@@ -60,9 +68,6 @@
 	<template id="report_boleta_partner_layout">
 		<div id="info">
 			<t t-if="o.document_class_id.sii_code in [61]">
-				<strong>Casa Matriz:</strong>
-				<t t-esc="o.company_id.street" />
-				<br />
 				<strong>Giro:</strong>
 				<t t-esc="o.company_id.activity_description.name" />
 				<br />
