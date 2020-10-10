@@ -509,7 +509,7 @@ class POS(models.Model):
                     Totales['MntNeto'] = currency.round(Neto)
             if MntExe > 0:
                 Totales['MntExe'] = currency.round(MntExe)
-            if IVA and not self.document_class_id.es_boleta() or self._context.get('tax_detail'):
+            if IVA and (not self.document_class_id.es_boleta() or self._context.get('tax_detail')):
                 Totales['TasaIVA'] = IVAAmount
                 iva = currency.round(self.amount_tax)
                 if iva < 0:
