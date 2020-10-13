@@ -11,14 +11,34 @@ class AccountInvoiceRefund(models.TransientModel):
 
     _inherit = "account.invoice.refund"
 
+    def _dominio_nc(self):
+        inv_obj = self.env['account.invoice']
+        context = dict(self._context or {})
+        docs = []
+        for doc in inv_obj.browse(context.get('active_ids')):
+            if doc.document_class_id.sii_code in [110]:
+                if doc.type in ['out_invoice', 'in_invoice']:
+                    docs.append(112)
+                docs.append(111)
+            else:
+                if doc.type in ['out_invoice', 'in_invoice']:
+                    docs += [60, 61]
+                docs += [55, 56]
+        return [
+            ('sii_code', 'in', docs),
+            ('dte', '=', True),
+        ]
+
+    def _default_nc(self):
+        return self.env['sii.document_class'].search(
+            self._dominio_nc())[-1].id
+
     tipo_nota = fields.Many2one(
             'sii.document_class',
             string="Tipo De nota",
             required=True,
-            domain=[
-                    ('document_type', 'in', ['debit_note', 'credit_note']),
-                    ('dte', '=', True),
-                ]
+            domain=lambda self: self._dominio_nc(),
+            default=lambda self: self._default_nc(),
         )
     filter_refund = fields.Selection(
             [
@@ -82,7 +102,8 @@ class AccountInvoiceRefund(models.TransientModel):
                         refund_type = 'in_refund'
                     else:
                         refund_type = 'in_invoice'
-                    account = inv.invoice_line_ids.get_invoice_line_account(inv.type, prod, inv.fiscal_position_id, inv.company_id)
+                    account = inv.invoice_line_ids.get_invoice_line_account(
+                        inv.type, prod, inv.fiscal_position_id, inv.company_id)
                     invoice_lines = [
                                     [
                                         0,
@@ -146,7 +167,10 @@ class AccountInvoiceRefund(models.TransientModel):
                     if refund.payment_term_id.id:
                         refund._onchange_payment_term_date_invoice()
                 if mode in ['1', '3']:
-                    refund = inv.refund(form.date_invoice, date, description, inv.journal_id.id, tipo_nota=self.tipo_nota.sii_code, mode=mode)
+                    refund = inv.refund(form.date_invoice, date, description,
+                                        inv.journal_id.id,
+                                        tipo_nota=self.tipo_nota.sii_code,
+                                        mode=mode)
                 created_inv.append(refund.id)
                 xml_id = refund.type == 'out_refund' and 'action_invoice_out_refund' or \
                          refund.type == 'out_invoice' and 'action_invoice_tree1' or \
