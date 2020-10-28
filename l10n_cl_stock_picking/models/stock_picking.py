@@ -18,7 +18,7 @@ class StockPicking(models.Model):
             amount_untaxed = 0
             amount_tax = 0
             if rec.move_reason not in ['5']:
-                taxes = self.get_taxes_values()
+                taxes = rec.get_taxes_values()
                 for k, v in taxes.items():
                     amount_untaxed += v['base']
                     amount_tax += v['amount']
