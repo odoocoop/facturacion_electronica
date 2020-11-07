@@ -102,6 +102,11 @@
 		</t>
 		<t t-jquery="div.client-details-right div:first-child" t-operation="after">
 			<div class='client-detail'>
+				<span class='label'>MiPyme</span>
+				<input class='detail client-es_mipyme' name='es_mipyme' type='checkbox'
+					t-att-value='partner.es_mipyme' t-att-checked="'checked' ? partner.es_mipyme : None"></input>
+			</div>
+			<div class='client-detail'>
 				<span class='label'>DTE Email</span>
 				<input class='detail client-dte_email' name='dte_email' type='email'
 					t-att-value='partner.dte_email || ""'></input>
@@ -130,6 +135,11 @@
 			</div>
 		</t>
 		<t t-jquery="t[t-if='!partner.email']" t-operation="after">
+			<div class='client-detail'>
+				<span class='label'>Es MiPyme</span>
+				<input class='detail client-es_mipyme' name='es_mipyme' type='checkbox'
+					t-att-value='partner.es_mipyme' t-att-checked="'checked' ? partner.es_mipyme : None" disabled="disabled" readonly="readonly"></input>
+			</div>
 			<div class='client-detail'>
 				<span class='label'>DTE Email</span>
 				<t t-if='partner.email'>

@@ -1,7 +1,7 @@
 import decimal
 import logging
 from datetime import date, datetime, timedelta
-
+import json
 import pytz
 from six import string_types
 
@@ -23,11 +23,6 @@ try:
     from io import BytesIO
 except ImportError:
     _logger.warning("no se ha cargado io")
-
-try:
-    from suds.client import Client
-except ImportError:
-    pass
 try:
     import pdf417gen
 except ImportError:
@@ -42,10 +37,6 @@ except ImportError:
     _logger.warning("no se ha cargado PIL")
 
 
-claim_url = {
-    "SIICERT": "https://ws2.sii.cl/WSREGISTRORECLAMODTECERT/registroreclamodteservice",
-    "SII": "https://ws1.sii.cl/WSREGISTRORECLAMODTE/registroreclamodteservice",
-}
 TYPE2JOURNAL = {
     "out_invoice": "sale",
     "in_invoice": "purchase",
@@ -1187,7 +1178,7 @@ a VAT."""))
         ids = []
         envio_boleta = False
         for inv in self.with_context(lang="es_CL"):
-            if inv.sii_result in ["", "NoEnviado", "Rechazado"] or inv.company_id.dte_service_provider == "SIICERT":
+            if inv.sii_result in ["", "NoEnviado", "Rechazado"]:
                 if inv.sii_result in ["Rechazado"]:
                     inv._timbrar()
                     if len(inv.sii_xml_request.invoice_ids) == 1:
@@ -1197,14 +1188,9 @@ a VAT."""))
                 inv.sii_result = "EnCola"
                 inv.sii_message = ""
                 ids.append(inv.id)
-                if not envio_boleta and (inv._es_boleta() or inv._nc_boleta()):
-                    envio_boleta = True
         if not isinstance(n_atencion, string_types):
             n_atencion = ""
         if ids:
-            if envio_boleta:
-                self.browse(ids).do_dte_send(n_atencion)
-                return
             self.env["sii.cola_envio"].create(
                 {
                     "company_id": self[0].company_id.id,
@@ -1213,6 +1199,7 @@ a VAT."""))
                     "user_id": self.env.user.id,
                     "tipo_trabajo": "envio",
                     "n_atencion": n_atencion,
+                    "set_pruebas": self._context.get("set_pruebas", False),
                     "send_email": False
                     if self[0].company_id.dte_service_provider == "SIICERT"
                     or not self.env["ir.config_parameter"].sudo().get_param("account.auto_send_email", default=True)
@@ -1427,7 +1414,7 @@ a VAT."""))
             if self.amount_tax > 0:
                 raise UserError("NO pueden ir productos afectos en documentos exentos")
         elif self.amount_untaxed and self.amount_untaxed != 0:
-            if not self._es_boleta() or not taxInclude or self._context.get("tax_detail"):
+            if self._es_boleta() or not taxInclude:
                 IVA = False
                 for t in self.tax_line_ids:
                     if t.tax_id.sii_code in [14, 15]:
@@ -1440,15 +1427,13 @@ a VAT."""))
             raise UserError("Debe ir almenos un producto afecto")
         if MntExe > 0:
             MntExe = MntExe
-        if not self._es_boleta() or not taxInclude or self._context.get("tax_detail"):
+        if self._es_boleta() or not taxInclude:
             if IVA:
-                if not self._es_boleta() or self._context.get("tax_detail"):
-                    TasaIVA = round(IVA.tax_id.amount, 2)
+                TasaIVA = round(IVA.tax_id.amount, 2)
                 MntIVA = IVA.amount
             if no_product:
                 MntNeto = 0
-                if not self._es_boleta() or self._context.get("tax_detail"):
-                    TasaIVA = 0
+                TasaIVA = 0
                 MntIVA = 0
         MntTotal = self.amount_total
         if no_product:
@@ -1650,15 +1635,14 @@ a VAT."""))
         dte = {}
         invoice_lines = self._invoice_lines()
         dte["Encabezado"] = self._encabezado(
-            invoice_lines["MntExe"], invoice_lines["no_product"], invoice_lines["tax_include"]
+            invoice_lines["MntExe"], invoice_lines["no_product"],
+            invoice_lines["tax_include"]
         )
         lin_ref = 1
         ref_lines = []
-        if self.company_id.dte_service_provider == "SIICERT" and (
-            (isinstance(n_atencion, string_types) and n_atencion != "") or self._es_boleta()
-        ):
+        if self._context.get("set_pruebas", False):
             RazonRef = "CASO"
-            if isinstance(n_atencion, string_types) and n_atencion != "":
+            if not self._es_boleta():
                 RazonRef += " " + n_atencion
             RazonRef += "-" + str(self.sii_batch_number)
             ref_line = {}
@@ -1735,6 +1719,7 @@ a VAT."""))
     def _crear_envio(self, n_atencion=None, RUTRecep="60803000-K"):
         grupos = {}
         batch = 0
+        api = False
         for r in self:
             batch += 1
             # si viene una guía/nota referenciando una factura,
@@ -1742,6 +1727,8 @@ a VAT."""))
             # será recahazada la guía porque debe estar declarada la factura primero
             if not r.sii_batch_number or r.sii_batch_number == 0:
                 r.sii_batch_number = batch
+            if r._es_boleta():
+                api = True
             if r.sii_batch_number != 0 and r._es_boleta():
                 for i in grupos.keys():
                     if i not in [39, 41]:
@@ -1749,7 +1736,7 @@ a VAT."""))
                             "No se puede hacer envío masivo con contenido mixto, para este envío solamente boleta electrónica, boleta exenta electrónica o NC de Boleta ( o eliminar los casos descitos del set)"
                         )
             if (
-                r.company_id.dte_service_provider == "SIICERT" or r.sii_result == "Rechazado" or not r.sii_xml_dte
+                self._context.get("set_pruebas", False) or r.sii_result == "Rechazado" or not r.sii_xml_dte
             ):  # Retimbrar con número de atención y envío
                 r._timbrar(n_atencion)
             grupos.setdefault(r.document_class_id.sii_code, [])
@@ -1757,7 +1744,7 @@ a VAT."""))
                 {"NroDTE": r.sii_batch_number, "sii_xml_request": r.sii_xml_dte, "Folio": r.get_folio(),}
             )
             if r.sii_result in ["Rechazado"] or (
-                r.company_id.dte_service_provider == "SIICERT" and r.sii_xml_request.state in ["", "draft", "NoEnviado"]
+                self._context.get("set_pruebas", False) and r.sii_xml_request.state in ["", "draft", "NoEnviado"]
             ):
                 if r.sii_xml_request:
                     if len(r.sii_xml_request.invoice_ids) == 1:
@@ -1766,7 +1753,11 @@ a VAT."""))
                         r.sii_xml_request = False
                 r.sii_message = ""
         datos = self[0]._get_datos_empresa(self[0].company_id)
-        datos.update({"RutReceptor": RUTRecep, "Documento": []})
+        if self._context.get("set_pruebas", False):
+            api = False
+        datos.update({
+            "api": api,
+            "RutReceptor": RUTRecep, "Documento": []})
         for k, v in grupos.items():
             datos["Documento"].append(
                 {"TipoDTE": k, "documentos": v,}
@@ -1776,8 +1767,15 @@ a VAT."""))
     @api.multi
     def do_dte_send(self, n_atencion=None):
         datos = self._crear_envio(n_atencion)
-        result = fe.timbrar_y_enviar(datos)
         envio_id = self[0].sii_xml_request
+        if not envio_id:
+            envio_id = self.env["sii.xml.envio"].create({
+                'name': 'temporal',
+                'xml_envio': 'temporal',
+                'invoice_ids': [[6,0, self.ids]],
+            })
+        datos["ID"] = "Env%s" %envio_id.id
+        result = fe.timbrar_y_enviar(datos)
         envio = {
             "xml_envio": result["sii_xml_request"],
             "name": result["sii_send_filename"],
@@ -1786,32 +1784,13 @@ a VAT."""))
             "sii_send_ident": result.get("sii_send_ident"),
             "sii_xml_response": result.get("sii_xml_response"),
             "state": result.get("status"),
+
         }
-        if not envio_id:
-            envio_id = self.env["sii.xml.envio"].create(envio)
-            for i in self:
-                i.sii_xml_request = envio_id.id
-                i.sii_result = "Enviado"
-        else:
-            envio_id.write(envio)
+        envio_id.write(envio)
         return envio_id
 
-    def get_sii_result(self):
-        for r in self:
-            if r.sii_message:
-                receipt = r.sii_xml_request.object_receipt()
-                if receipt.find("RESP_BODY") is not None:
-                    r.sii_result = util.process_response_xml(r.sii_message)
-                    continue
-                elif receipt.find("RESP_HDR") is not None:
-                    r.sii_xml_request.get_send_status(r.env.user)
-            if r.sii_xml_request.state == "NoEnviado":
-                r.sii_result = "EnCola"
-                continue
-            r.sii_result = r.sii_xml_request.state
-
     def _get_dte_status(self):
-        datos = self._get_datos_empresa(self[0].company_id)
+        datos = self[0]._get_datos_empresa(self[0].company_id)
         datos["Documento"] = []
         docs = {}
         for r in self:
@@ -1820,13 +1799,13 @@ a VAT."""))
             docs.setdefault(r.document_class_id.sii_code, [])
             docs[r.document_class_id.sii_code].append(r._dte())
         if not docs:
-            _logger.warning("En get_get_dte_status, no docs")
+            _logger.warning("En get_dte_status, no docs")
             return
         for k, v in docs.items():
             datos["Documento"].append({"TipoDTE": k, "documentos": v})
         resultado = fe.consulta_estado_documento(datos)
         if not resultado:
-            _logger.warning("En get_get_dte_status, no resultado")
+            _logger.warning("En get_dte_status, no resultado")
             return
         for r in self:
             id = "T{}F{}".format(r.document_class_id.sii_code, r.sii_document_number)
@@ -1840,7 +1819,8 @@ a VAT."""))
             if not r.sii_xml_request and not r.sii_xml_request.sii_send_ident:
                 raise UserError("No se ha enviado aún el documento, aún está en cola de envío interna en odoo")
             if r.sii_xml_request.state not in ["Aceptado", "Rechazado"]:
-                r.sii_xml_request.get_send_status(r.env.user)
+                r.sii_xml_request.with_context(
+                    set_pruebas=True).get_send_status(r.env.user)
         try:
             self._get_dte_status()
         except Exception as e:
@@ -1871,18 +1851,22 @@ a VAT."""))
         if self.document_class_id.sii_code not in [33, 34, 43]:
             self.claim = claim
             return
-        rut_emisor = self.partner_id.commercial_partner_id.rut()
-        token = self.sii_xml_request.get_token(self.env.user, self.company_id)
-        url = claim_url[self.company_id.dte_service_provider] + "?wsdl"
-        _server = Client(url, headers={"Cookie": "TOKEN=" + token,},)
+        tipo_dte = self.document_class_id.sii_code
+        datos = self._get_datos_empresa(doc.company_id)
+        rut_emisor = self.company_id.partner_id.rut()
+        datos["DTEClaim"] = [
+            {
+                "RUTEmisor": rut_emisor,
+                "TipoDTE": tipo_dte,
+                "Folio": str(self.sii_document_number),
+                "Claim": claim,
+            }
+        ]
         try:
-            respuesta = _server.service.ingresarAceptacionReclamoDoc(
-                rut_emisor[:-2],
-                rut_emisor[-1],
-                str(self.document_class_id.sii_code),
-                str(self.sii_document_number),
-                claim,
-            )
+            respuesta = fe.ingresar_reclamo_documento(datos)
+            key = "RUT%sT%sF%s" %(rut_emisor,
+                                  tipo_dte, str(self.sii_document_number))
+            self.claim_description = respuesta[key]
         except Exception as e:
             msg = "Error al ingresar Reclamo DTE"
             _logger.warning("{}: {}".format(msg, str(e)))
@@ -1898,17 +1882,23 @@ a VAT."""))
 
     @api.multi
     def get_dte_claim(self):
-        token = self.sii_xml_request.get_token(self.env.user, self.company_id)
-        url = claim_url[self.company_id.dte_service_provider] + "?wsdl"
-        _server = Client(url, headers={"Cookie": "TOKEN=" + token,},)
+        tipo_dte = self.document_class_id.sii_code
+        datos = self._get_datos_empresa(self.company_id)
+        rut_emisor = self.company_id.partner_id.rut()
+        if self.type in ["in_invoice", "in_refund"]:
+            rut_emisor = self.partner_id.commercial_partner_id.rut()
+        datos["DTEClaim"] = [
+            {
+                "RUTEmisor": rut_emisor,
+                "TipoDTE": tipo_dte,
+                "Folio": str(self.sii_document_number),
+            }
+        ]
         try:
-            rut_emisor = self.company_id.partner_id.rut()
-            if self.type in ["in_invoice", "in_refund"]:
-                rut_emisor = self.partner_id.commercial_partner_id.rut()
-            respuesta = _server.service.listarEventosHistDoc(
-                rut_emisor[:-2], rut_emisor[-1], str(self.document_class_id.sii_code), str(self.sii_document_number),
-            )
-            self.claim_description = respuesta
+            respuesta = fe.consulta_reclamo_documento(datos)
+            key = "RUT%sT%sF%s" %(rut_emisor,
+                                  tipo_dte, str(self.sii_document_number))
+            self.claim_description = respuesta[key]
         except Exception as e:
             if e.args[0][0] == 503:
                 raise UserError(

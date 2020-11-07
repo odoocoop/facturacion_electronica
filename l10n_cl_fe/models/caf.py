@@ -71,11 +71,11 @@ has been exhausted.""",
         self.issued_date = fa
         if dc.sii_code not in [34, 52] and not dc.es_boleta():
             self.expiration_date = date(int(fa[:4]), int(fa[5:7]), int(fa[8:10])) + relativedelta(months=6)
-        self.rut_n = "CL" + result.find("RE").text.replace("-", "")
-        if self.rut_n != self.company_id.vat.replace("L0", "L"):
+        self.rut_n = result.find("RE").text
+        if self.rut_n != self.company_id.partner_id.rut():
             raise UserError(
                 _("Company vat %s should be the same that assigned company's vat: %s!")
-                % (self.rut_n, self.company_id.vat)
+                % (self.rut_n, self.company_id.partner_id.rut())
             )
         elif dc != self.sequence_id.sii_document_class_id:
             raise UserError(
@@ -91,7 +91,7 @@ to work properly!"""
         self.status = "in_use"
 
     def _set_level(self):
-        folio = self.sequence_id.number_next_actual
+        folio = self.sequence_id.get_folio()
         try:
             if folio > self.final_nm:
                 self.use_level = 100

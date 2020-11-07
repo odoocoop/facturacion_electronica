@@ -227,6 +227,10 @@ screens.ClientListScreenWidget.include({
 			this.gui.show_popup('error',_t('Ingrese la direccion(calle)'));
 			return;
 		}
+		if (!fields.es_mipyme && !fields.dte_email) {
+			this.gui.show_popup('error',_t('Para empresa que no es MiPyme, debe ingrear el correo dte para intercambio'));
+			return;
+		}
 		if (this.uploaded_picture) {
 			fields.image = this.uploaded_picture;
 		}
@@ -254,19 +258,17 @@ screens.ClientListScreenWidget.include({
                 	method: 'create_from_ui',
                 	args: [fields]
                 }).then(function(partner_id){
-                      	self.saved_client_details(partner_id);
-                }, function(err_type, err){
-                	if (err.data.message) {
-                		self.gui.show_popup('error',{
-                			'title': _t('Error: Could not Save Changes partner'),
-                			'body': err.data.message,
-                		});
-                	}else{
-                		self.gui.show_popup('error',{
-                			'title': _t('Error: Could not Save Changes'),
-                			'body': _t('Your Internet connection is probably down.'),
-                		});
-                	}
+                  	self.saved_client_details(partner_id);
+								}, function(err, ev){
+									var error_body = _t('Your Internet connection is probably down.');
+	                if (err.data) {
+	                    var except = err.data;
+	                    error_body = except.arguments && except.arguments[0] || except.message || error_body;
+	                }
+              		self.gui.show_popup('error',{
+              			'title': _t('Error: Could not Save Changes partner'),
+              			'body': err_body
+              		});
                 });
             }, function(err_type, err){
             	if (err.data.message) {
@@ -314,7 +316,12 @@ screens.ClientListScreenWidget.include({
       then(function(resp){
           if (resp){
               self.$(".client-name").val(resp.razon_social);
-              self.$(".client-dte_email").val(resp.dte_email);
+							if (resp.es_mipyme){
+								self.$(".client-es_mipyme").attr('checked','checked');
+							}else{
+								self.$(".client-dte_email").val(resp.dte_email);
+								self.$(".client-es_mipyme").attr('checked', None);
+							}
 
           }
       });

@@ -14,6 +14,7 @@
                             <field name="amount_total" />
                           </tree>
                         </field>
+                        <field name="set_pruebas" />
                     </group>
                     <footer>
                         <button string="Confirm" name="confirm" type="object" class="oe_highlight" />

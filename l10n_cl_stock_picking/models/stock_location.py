@@ -32,7 +32,8 @@ class StockLocation(models.Model):
             string="Modo Restauración",
             default=False,
         )
-    actecos = fields.Many2many(
+    company_activity_ids = fields.Many2many("partner.activities", related="company_id.company_activities_ids")
+    acteco_ids = fields.Many2many(
             'partner.activities',
             string="Código de Actividades",
         )

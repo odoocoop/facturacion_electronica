@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <record id="view_stock_location_form_electronic_stock_picking_class" model="ir.ui.view">
+      <field name="name">l10n_cl.stock.location.tree</field>
+      <field name="model">stock.location</field>
+      <field name="inherit_id" ref="stock.view_location_form"/>
+      <field name="arch" type="xml">
+          <field name="usage" position="after">
+              <field name="restore_mode" />
+              <field name="sucursal_id"/>
+              <field name="sii_code"/>
+              <field name="sii_document_class_id" attrs="{'required': [('usage','=','internal')]}"/>
+              <field name="sequence_id" context="{'default_sii_document_class_id': sii_document_class_id}"/>
+              <field name="company_activity_ids" widget="many2many_tags" invisible="1"/>
+              <field name="acteco_ids"
+                widget="many2many_tags"
+                options="{'no_create': True}"
+                domain="[('id', 'in', company_activity_ids)]"
+                placeholder="Giros de la Ubicación"/>
+          </field>
+      </field>
+  </record>
+</odoo>

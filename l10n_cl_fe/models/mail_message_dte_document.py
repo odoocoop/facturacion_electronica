@@ -10,14 +10,9 @@ from odoo.tools.translate import _
 
 _logger = logging.getLogger(__name__)
 try:
-    from suds.client import Client
-except Exception as e:
-    _logger.warning("Problemas al cargar suds %s" % str(e))
-
-claim_url = {
-    "SIICERT": "https://ws2.sii.cl/WSREGISTRORECLAMODTECERT/registroreclamodteservice",
-    "SII": "https://ws1.sii.cl/WSREGISTRORECLAMODTE/registroreclamodteservice",
-}
+    from facturacion_electronica import facturacion_electronica as fe
+except ImportError:
+    _logger.warning("No se ha podido cargar fe")
 
 
 class ProcessMailsDocument(models.Model):
@@ -108,20 +103,23 @@ class ProcessMailsDocument(models.Model):
         IdDoc["FchEmis"] = self.date.strftime("%Y-%m-%d")
         return IdDoc
 
-    def _receptor(self):
-        Receptor = {}
+    def get_doc_rut(self):
         if self.new_partner:
-            p = self.new_partner.split(" ")
-            Receptor["RUTRecep"] = p[0]
-            Receptor["RznSocRecep"] = " "
+            p = self.new_partner.split(' ')
+            return p[0]
+        commercial_partner_id = self.partner_id.commercial_partner_id or self.partner_id
+        return commercial_partner_id.rut()
+
+    def _receptor(self):
+        Receptor = {'RUTRecep': self.get_doc_rut()}
+        if self.new_partner:
+            p = self.new_partner.split(' ')
+            Receptor['RznSocRecep'] = ' '
             for s in p[1:]:
-                Receptor["RznSocRecep"] += s
+                Receptor['RznSocRecep'] += s
         else:
             commercial_partner_id = self.partner_id.commercial_partner_id or self.partner_id
-            if not commercial_partner_id.vat:
-                raise UserError("Debe Ingresar RUT Receptor")
-            Receptor["RUTRecep"] = commercial_partner_id.rut()
-            Receptor["RznSocRecep"] = commercial_partner_id.name
+            Receptor['RznSocRecep'] = commercial_partner_id.name
         return Receptor
 
     def _totales(self):
@@ -222,17 +220,21 @@ class ProcessMailsDocument(models.Model):
         if self.document_class_id.sii_code not in [33, 34, 43]:
             self.claim = claim
             return
-        if not self.partner_id:
-            rut_emisor = self.new_partner.split(" ")[0]
-        else:
-            rut_emisor = self.partner_id.rut()
-        token = self.env["sii.xml.envio"].get_token(self.env.user, self.company_id)
-        url = claim_url[self.company_id.dte_service_provider] + "?wsdl"
-        _server = Client(url, headers={"Cookie": "TOKEN=" + token,},)
+        folio = self.number
+        tipo_dte = self.document_class_id.sii_code
+        datos = self._get_datos_empresa(self.company_id)
+        rut_emisor = self.get_doc_rut()
+        datos["DTEClaim"] = [
+            {
+                "RUTEmisor": rut_emisor,
+                "TipoDTE": tipo_dte,
+                "Folio": folio,
+                "Claim": claim
+            }
+        ]
         try:
-            respuesta = _server.service.ingresarAceptacionReclamoDoc(
-                rut_emisor[:-2], rut_emisor[-1], str(self.document_class_id.sii_code), str(self.number), claim,
-            )
+            key = "RUT%sT%sF%s" % (rut_emisor, tipo_dte, folio)
+            respuesta = fe.ingreso_reclamo_documento(datos)[key]
         except Exception as e:
             msg = "Error al ingresar Reclamo DTE"
             _logger.warning("{}: {}".format(msg, str(e)))
@@ -247,17 +249,20 @@ class ProcessMailsDocument(models.Model):
             self.claim = claim
 
     def get_dte_claim(self):
-        if not self.partner_id:
-            rut_emisor = self.new_partner.split(" ")[0]
-        else:
-            rut_emisor = self.partner_id.rut()
-        token = self.env["sii.xml.envio"].get_token(self.env.user, self.company_id)
-        url = claim_url[self.company_id.dte_service_provider] + "?wsdl"
-        _server = Client(url, headers={"Cookie": "TOKEN=" + token,},)
+        folio = self.number
+        tipo_dte = self.document_class_id.sii_code
+        datos = self._get_datos_empresa(self.company_id)
+        rut_emisor = self.get_doc_rut()
+        datos["DTEClaim"] = [
+            {
+                "RUTEmisor": rut_emisor,
+                "TipoDTE": tipo_dte,
+                "Folio": folio,
+            }
+        ]
         try:
-            respuesta = _server.service.listarEventosHistDoc(
-                rut_emisor[:-2], rut_emisor[-1], str(self.document_class_id.sii_code), str(self.number),
-            )
+            key = "RUT%sT%sF%s" % (rut_emisor, tipo_dte, folio)
+            respuesta = fe.consulta_reclamo_documento(datos)[key]
             self.claim_description = respuesta
             if respuesta.codResp in [15]:
                 for res in respuesta.listaEventosDoc:

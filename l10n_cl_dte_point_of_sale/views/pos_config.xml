@@ -55,6 +55,15 @@
                               <label string="Marcar por defecto" for="marcar" class="col-md-3 o_light_label"/>
                               <field name="marcar" widget="radio" />
                           </div>
+                          <div class="row mt16">
+                            <field name="company_activity_ids" widget="many2many_tags" invisible="1"/>
+                            <label string="Actecos del PdV" for="acteco_ids" />
+                            <field name="acteco_ids"
+                              widget="many2many_tags"
+                              options="{'no_create': True}"
+                              domain="[('id', 'in', company_activity_ids)]"
+                              placeholder="Giros del PdV"/>
+                          </div>
                       </div>
                   </div>
               </div>

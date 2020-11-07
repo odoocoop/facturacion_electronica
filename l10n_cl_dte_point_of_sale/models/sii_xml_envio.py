@@ -13,3 +13,9 @@ class SIIXMLEnvio(models.Model):
             readonly=True,
             states={'draft': [('readonly', False)]},
         )
+
+    def set_childs(self, state):
+        result = super(SIIXMLEnvio, self).set_childs(state)
+        for r in self.order_ids:
+            r.sii_result = state
+        return result

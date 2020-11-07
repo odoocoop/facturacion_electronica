@@ -27,10 +27,10 @@
                                 <div class="o_setting_left_pane" />
                                 <div class="o_setting_right_pane">
                                     <strong>Requerido:</strong>
-                                    <div class="text-muted">0.12.0</div>
+                                    <div class="text-muted">0.13.0</div>
                                     <div
                                         class="text-muted"
-                                        attrs="{'invisible': [('fe_version', '>=', '0.12.0')]}"
+                                        attrs="{'invisible': [('fe_version', '>=', '0.13.0')]}"
                                         style="color:red !important"
                                     >
                         ¡Debe Actualizar o verificar su versión instalada!

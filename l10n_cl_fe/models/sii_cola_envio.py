@@ -24,7 +24,8 @@ class ColaEnvio(models.Model):
         string="Tipo de trabajo",
     )
     active = fields.Boolean(string="Active", default=True,)
-    n_atencion = fields.Char(string="Número atención",)
+    n_atencion = fields.Char(string="Número de Atención",)
+    set_pruebas = fields.Char(string="Set de pruebas", default=False)
     date_time = fields.Datetime(string="Auto Envío al SII",)
     send_email = fields.Boolean(string="Auto Enviar Email", default=False,)
     company_id = fields.Many2one("res.company", string="Company")
@@ -46,7 +47,8 @@ class ColaEnvio(models.Model):
             return
         docs = (
             self.env[self.model]
-            .with_context(user=self.user_id.id, company_id=self.company_id.id)
+            .with_context(user=self.user_id.id, company_id=self.company_id.id,
+                          set_pruebas=self.set_pruebas)
             .browse(ast.literal_eval(self.doc_ids))
         )
         if self.tipo_trabajo == "persistencia":
@@ -93,10 +95,6 @@ class ColaEnvio(models.Model):
                 except Exception as e:
                     _logger.warning("Error en Envío automático")
                     _logger.warning(str(e))
-                try:
-                    docs.get_sii_result()
-                except Exception as e:
-                    _logger.warning("Error temporal de conexión en consulta %s" % str(e))
             return
         if self._es_doc(docs[0]) and docs[0].sii_result in ["Proceso", "Reparo", "Rechazado", "Anulado"]:
             if self.send_email and docs[0].sii_result in ["Proceso", "Reparo"]:
@@ -137,11 +135,6 @@ class ColaEnvio(models.Model):
             except Exception as e:
                 _logger.warning("Error en envío Cola")
                 _logger.warning(str(e))
-            if envio_id:
-                try:
-                    docs.get_sii_result()
-                except Exception as e:
-                    _logger.warning("Error temporal de conexión en consulta %s" % str(e))
         elif (
             self.tipo_trabajo == "envio"
             and docs[0].sii_xml_request

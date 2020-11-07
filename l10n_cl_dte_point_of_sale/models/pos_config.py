@@ -143,6 +143,11 @@ class PosConfig(models.Model):
         string='Código Sucursal SII',
         compute='_sii_sucursal',
     )
+    company_activity_ids = fields.Many2many("partner.activities", related="company_id.company_activities_ids")
+    acteco_ids = fields.Many2many(
+            'partner.activities',
+            string="Código de Actividades",
+        )
 
     @api.onchange('secuencia_boleta', 'secuencia_boleta_exenta')
     def validacion_cambio_secuencia(self):

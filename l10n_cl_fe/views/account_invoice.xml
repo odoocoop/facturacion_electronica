@@ -200,7 +200,7 @@
                         name="electronic_invoice"
                         attrs="{'invisible': [('use_documents', '=', False)]}"
                     >
-                        <header attrs="{'invisible': [('sii_code','=',39)]}">
+                        <header>
                             <button
                                 string="Download XML"
                                 type="object"
