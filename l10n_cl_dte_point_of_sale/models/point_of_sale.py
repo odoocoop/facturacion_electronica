@@ -23,10 +23,6 @@ try:
 except:
     _logger.warning("no se ha cargado io")
 try:
-    from suds.client import Client
-except:
-    pass
-try:
     import pdf417gen
 except ImportError:
     _logger.info('Cannot import pdf417gen library')
@@ -35,20 +31,6 @@ try:
 except ImportError:
     _logger.info('Cannot import base64 library')
 
-server_url = {'SIICERT': 'https://maullin.sii.cl/DTEWS/','SII':'https://palena.sii.cl/DTEWS/'}
-
-connection_status = {
-    '0': 'Upload OK',
-    '1': 'El Sender no tiene permiso para enviar',
-    '2': 'Error en tamaño del archivo (muy grande o muy chico)',
-    '3': 'Archivo cortado (tamaño <> al parámetro size)',
-    '5': 'No está autenticado',
-    '6': 'Empresa no autorizada a enviar archivos',
-    '7': 'Esquema Invalido',
-    '8': 'Firma del Documento',
-    '9': 'Sistema Bloqueado',
-    'Otro': 'Error Interno.',
-}
 
 
 class POSL(models.Model):
@@ -221,7 +203,7 @@ class POS(models.Model):
         string="TimeStamp Timbre",
         states={'draft': [('readonly', False)]},
         readonly=True,
-        copy=True,
+        copy=False,
     )
 
     @api.model
@@ -379,6 +361,7 @@ class POS(models.Model):
                 'tipo_trabajo': 'pasivo',
                 'date_time': tiempo_pasivo,
                 'send_email': False if self[0].company_id.dte_service_provider=='SIICERT' or not self.env['ir.config_parameter'].sudo().get_param('account.auto_send_email', default=True) else True,
+                "set_pruebas": self._context.get("set_pruebas", False),
             })
 
     @api.multi
@@ -388,6 +371,7 @@ class POS(models.Model):
             if not order.invoice_id and order.document_class_id.sii_code in [61, 39, 41]:
                 if order.sii_result not in [False, '', 'NoEnviado', 'Rechazado']:
                     raise UserError("El documento %s ya ha sido enviado o está en cola de envío" % order.sii_document_number)
+                order.sii_result = 'EnCola'
                 ids.append(order.id)
         if ids:
             self.env['sii.cola_envio'].sudo().create({
@@ -401,11 +385,8 @@ class POS(models.Model):
 
     def _giros_emisor(self):
         giros_emisor = []
-        i=0
-        for turn in self.company_id.company_activities_ids:
-            if i < 4:
-                giros_emisor.append(turn.code)
-            i += 1
+        for ac in self.session_id.config_id.acteco_ids:
+            giros_emisor.append(ac.code)
         return giros_emisor
 
     def _id_doc(self, taxInclude=False, MntExe=0):
@@ -499,7 +480,7 @@ class POS(models.Model):
                 raise UserError("Debe ir almenos un Producto Afecto")
             Neto = amount_untaxed - MntExe
             IVA = False
-            if Neto > 0 and (not self.document_class_id.es_boleta() or self._context.get('tax_detail')):
+            if Neto > 0:
                 for l in self.lines:
                     for t in l.tax_ids:
                         if t.sii_code in [14, 15]:
@@ -509,7 +490,7 @@ class POS(models.Model):
                     Totales['MntNeto'] = currency.round(Neto)
             if MntExe > 0:
                 Totales['MntExe'] = currency.round(MntExe)
-            if IVA and (not self.document_class_id.es_boleta() or self._context.get('tax_detail')):
+            if IVA:
                 Totales['TasaIVA'] = IVAAmount
                 iva = currency.round(self.amount_tax)
                 if iva < 0:
@@ -616,7 +597,7 @@ class POS(models.Model):
         )
         lin_ref = 1
         ref_lines = []
-        if self.company_id.dte_service_provider == 'SIICERT' and self.document_class_id.es_boleta():
+        if self._context.get("set_pruebas", False):
             RazonRef = "CASO-" + str(self.sii_batch_number)
             ref_line = {}
             ref_line['NroLinRef'] = lin_ref
@@ -674,16 +655,23 @@ class POS(models.Model):
             'sii_xml_dte': result[0]['sii_xml_request'],
             'sii_barcode': result[0]['sii_barcode'],
         })
-        return
 
     def _crear_envio(self, RUTRecep="60803000-K"):
         grupos = {}
         batch = 0
+        api = False
         for r in self.with_context(lang='es_CL'):
             if not r.document_class_id or not r.sii_document_number:
                 continue
             batch += 1
-            if not r.sii_xml_dte or r.sii_result in ['Rechazado'] or r.company_id.dte_service_provider == 'SIICERT':
+            if not r.sii_batch_number or r.sii_batch_number == 0:
+                r.sii_batch_number = batch
+            if r._es_boleta():
+                api = True
+            if (
+                self._context.get("set_pruebas", False) or r.sii_result == "Rechazado" or not r.sii_xml_dte
+            ):
+                r.timestamp_timbre = False
                 r._timbrar()
             #@TODO Mejarorar esto en lo posible
             grupos.setdefault(r.document_class_id.sii_code, [])
@@ -692,7 +680,9 @@ class POS(models.Model):
                 'sii_xml_request': r.sii_xml_dte,
                 'Folio': r.get_folio(),
             })
-            if r.sii_result in ['Rechazado'] or (r.company_id.dte_service_provider == 'SIICERT' and r.sii_xml_request.state in ['', 'draft', 'NoEnviado']):
+            if r.sii_result in ["Rechazado"] or (
+                self._context.get("set_pruebas", False) and r.sii_xml_request.state in ["", "draft", "NoEnviado"]
+            ):
                 if r.sii_xml_request:
                     if len(r.sii_xml_request.order_ids) == 1:
                         r.sii_xml_request.unlink()
@@ -700,7 +690,10 @@ class POS(models.Model):
                         r.sii_xml_request = False
                 r.sii_message = ''
         envio = self[0]._get_datos_empresa(self[0].company_id)
+        if self._context.get("set_pruebas", False):
+            api = False
         envio.update({
+            'api': api,
             'RutReceptor': RUTRecep,
             'Documento': []
         })
@@ -716,8 +709,15 @@ class POS(models.Model):
     @api.multi
     def do_dte_send(self, n_atencion=None):
         datos = self._crear_envio()
-        result = fe.timbrar_y_enviar(datos)
         envio_id = self[0].sii_xml_request
+        if not envio_id:
+            envio_id = self.env["sii.xml.envio"].create({
+                'name': 'temporal',
+                'xml_envio': 'temporal',
+                'order_ids': [[6,0, self.ids]],
+            })
+        datos["ID"] = "Env%s" %envio_id.id
+        result = fe.timbrar_y_enviar(datos)
         envio = {
                 'xml_envio': result['sii_xml_request'],
                 'name': result['sii_send_filename'],
@@ -727,31 +727,11 @@ class POS(models.Model):
                 'sii_xml_response': result.get('sii_xml_response'),
                 'state': result.get('status'),
             }
-        if self[0].document_class_id.es_boleta() and self[0].company_id.dte_service_provider == 'SII':
-            envio.update({
-                'state': "Aceptado",
-                'sii_send_ident': 'BE'
-            })
-        if not envio_id:
-            envio_id = self.env['sii.xml.envio'].create(envio)
-            for i in self:
-                i.sii_xml_request = envio_id.id
-                i.sii_result = result.get('status')
-        else:
-            envio_id.write(envio)
+        envio_id.write(envio)
         return envio_id
 
-    @api.onchange('sii_message')
-    def get_sii_result(self):
-        for r in self:
-            if r.sii_xml_request.state == 'NoEnviado':
-                r.sii_result = 'EnCola'
-                continue
-            if not r.sii_message:
-                r.sii_result = r.sii_xml_request.state
-
     def _get_dte_status(self):
-        datos = self._get_datos_empresa(self[0].company_id)
+        datos = self[0]._get_datos_empresa(self[0].company_id)
         datos['Documento'] = []
         docs = {}
         for r in self:
@@ -783,7 +763,8 @@ class POS(models.Model):
             if not r.sii_xml_request and not r.sii_xml_request.sii_send_ident:
                 raise UserError('No se ha enviado aún el documento, aún está en cola de envío interna en odoo')
             if r.sii_xml_request.state not in ['Aceptado', 'Rechazado']:
-                r.sii_xml_request.get_send_status(r.env.user)
+                r.sii_xml_request.with_context(
+                    set_pruebas=True).get_send_status(r.env.user)
         try:
             self._get_dte_status()
         except Exception as e:

@@ -16,6 +16,7 @@
                           </tree>
                         </field>
                         <field name="numero_atencion" />
+                        <field name="set_pruebas" />
                     </group>
                     <footer>
                         <button string="Confirm" name="confirm" type="object" class="oe_highlight" />

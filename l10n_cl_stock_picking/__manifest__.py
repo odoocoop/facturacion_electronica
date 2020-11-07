@@ -24,12 +24,13 @@
     'data': [
         'security/ir.model.access.csv',
         'views/stock_picking.xml',
+        'views/stock_location.xml',
         'views/dte.xml',
         'views/layout.xml',
         'views/libro_guias.xml',
         "views/account_invoice.xml",
         'wizard/masive_send_dte.xml',
     ],
-    'version': '0.22.0',
+    'version': '0.23.0',
     'application': True,
 }

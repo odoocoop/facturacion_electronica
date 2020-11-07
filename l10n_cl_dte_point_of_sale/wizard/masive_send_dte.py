@@ -20,8 +20,11 @@ class masive_send_dte_wizard(models.TransientModel):
             string="Documentos",
             default=_getIDs,
         )
+    set_pruebas = fields.Boolean(string="Es set de pruebas",
+                              invisible=lambda self: self.env.user.company_id.dte_service_provider=='SIICERT',
+                              default=lambda self: self.env.user.company_id.dte_service_provider=='SIICERT')
 
     @api.multi
     def confirm(self):
-        self.documentos.do_dte_send_order()
-        return UserError("Enviado")
+        self.documentos.with_context(set_pruebas=self.set_pruebas)\
+            .do_dte_send_order()

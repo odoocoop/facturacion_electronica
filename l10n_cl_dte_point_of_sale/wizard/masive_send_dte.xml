@@ -15,6 +15,7 @@
                             <field name="sii_batch_number" readonly="False" />
                           </tree>
                         </field>
+                        <field name="set_pruebas" />
                     </group>
                     <footer>
                         <button string="Confirm" name="confirm" type="object" class="oe_highlight" />

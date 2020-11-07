@@ -144,7 +144,7 @@ to work properly!''') % (dc.sii_code,
         self.status = 'in_use'
 
     def _set_level(self):
-        folio = self.sequence_id.number_next_actual
+        folio = self.sequence_id.get_folio()
         try:
             if folio > self.final_nm:
                 self.use_level = 100

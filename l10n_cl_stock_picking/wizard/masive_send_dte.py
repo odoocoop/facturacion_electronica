@@ -18,8 +18,11 @@ class masive_send_dte_wizard(models.TransientModel):
     documentos = fields.Many2many('stock.picking',string="Movimientos", default=_getIDs)
 
     numero_atencion = fields.Char(string="Número de atención")
+    set_pruebas = fields.Boolean(string="Es set de pruebas",
+                              invisible=lambda self: self.env.user.company_id.dte_service_provider=='SIICERT',
+                              default=lambda self: self.env.user.company_id.dte_service_provider=='SIICERT')
 
     @api.multi
     def confirm(self):
-        self.documentos.do_dte_send_picking(self.numero_atencion)
-        return UserError("Enviado")
+        self.documentos.with_context(set_pruebas=self.set_pruebas)\
+            .do_dte_send_picking(self.numero_atencion)

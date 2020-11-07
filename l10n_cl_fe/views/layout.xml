@@ -191,7 +191,7 @@
                                  <td style="max-height:8px; line-height:10px !important;"><span t-field="l.product_id.default_code"/></td>
                                  <td style="max-height:8px; line-height:10px !important;"><span t-field="l.name"/></td>
                                  <td class="text-left" style="max-height:8px; line-height:10px !important;">
-                                     <span t-field="l.price_unit" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
+                                     <span t-esc="o.currency_format(l.price_unit, 'Product Price')"/>
                                  </td>
                                  <td t-if="display_discount" class="text-right" groups="sale.group_discount_per_so_line" style="max-height:8px;line-height:10px !important;">
                                      <span t-field="l.discount"/>

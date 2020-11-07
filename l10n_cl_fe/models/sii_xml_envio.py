@@ -3,7 +3,7 @@ from odoo import fields, models, api
 from odoo.tools.translate import _
 from odoo.exceptions import UserError
 from lxml import etree
-import collections
+import json
 import logging
 _logger = logging.getLogger(__name__)
 try:
@@ -18,7 +18,6 @@ try:
 except:
     _logger.warning("no se ha cargado suds")
 try:
-    from facturacion_electronica import clase_util as util
     from facturacion_electronica import facturacion_electronica as fe
 except Exception as e:
     _logger.warning("no se ha cargado FE %s" %str(e))
@@ -193,24 +192,46 @@ class SIIXMLEnvio(models.Model):
         self.send_xml()
 
     def object_receipt(self):
-        return etree.XML(
-            self.sii_receipt.replace('<?xml version="1.0" encoding="UTF-8"?>', '')\
-            .replace('SII:', '')\
-            .replace(' xmlns="http://www.sii.cl/XMLSchema"', '')
+        if '<?xml' in self.sii_receipt:
+            return etree.XML(
+                self.sii_receipt.replace('<?xml version="1.0" encoding="UTF-8"?>', "")
+                .replace("SII:", "")
+                .replace(' xmlns="http://www.sii.cl/XMLSchema"', "")
             )
+        return json.loads(self.sii_receipt)
 
     def get_send_status(self, user_id=False):
         datos = self._get_datos_empresa(self.company_id)
-        datos.update({
-            'codigo_envio':self.sii_send_ident,
-            'api': 'EnvioBOLETA' in self.xml_envio,
-        })
+        api = "EnvioBOLETA" in self.xml_envio
+        if self._context.get("set_pruebas", False):
+            api = False
+        datos.update(
+            {"codigo_envio": self.sii_send_ident, "api": api,}
+        )
         res = fe.consulta_estado_dte(datos)
         self.write({
             'state': res['status'],
             'sii_receipt': res['xml_resp'],
         })
+        self.set_states()
 
     @api.multi
     def ask_for(self):
         self.get_send_status(self.user_id)
+
+     def set_childs(self, state):
+        for r in self.invoice_ids:
+            r.sii_result = state
+
+    @api.onchange('state')
+    def set_states(self):
+        state = self.state
+        if state in ['draft', 'NoEnviado']:
+            return
+        receipt = self.object_receipt()
+        if type(receipt) is dict:
+            if not receipt.get('estadistica'):
+                state = 'Enviado'
+        elif receipt.find("RESP_HDR") is not None:
+            state = "Enviado"
+        self.set_childs(state)

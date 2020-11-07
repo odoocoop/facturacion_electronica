@@ -6,10 +6,6 @@ import base64
 import logging
 _logger = logging.getLogger(__name__)
 try:
-    from suds.client import Client
-except Exception as e:
-    _logger.warning("Problemas al cargar suds %s" %str(e))
-try:
     from facturacion_electronica import facturacion_electronica as fe
 except:
     _logger.warning('No se ha podido cargar fe')
@@ -27,11 +23,6 @@ class DTEClaim(models.Model):
     )
     invoice_id = fields.Many2one(
         'account.invoice',
-        string="Documento",
-        ondelete='cascade',
-    )
-    order_id = fields.Many2one(
-        'pos.order',
         string="Documento",
         ondelete='cascade',
     )
@@ -104,29 +95,31 @@ class DTEClaim(models.Model):
         }
 
     def send_claim(self):
-        token = self.env['sii.xml.envio'].get_token(self.env.user, self.company_id)
-        url = claim_url[self.company_id.dte_service_provider] + '?wsdl'
-        _server = Client(
-            url,
-            headers= {
-                'Cookie': 'TOKEN=' + token,
-                },
-        )
+        doc = self.invoice_id
+        if doc:
+            doc.set_dte_claim(self.claim)
+            return
+        doc = self.document_id
+        folio = doc.number
+        tipo_dte = doc.document_class_id.sii_code
+        datos = doc._get_datos_empresa(doc.company_id)
+        rut_emisor = doc.get_doc_rut()
+        datos["DTEClaim"] = [
+            {
+                "RUTEmisor": rut_emisor,
+                "TipoDTE": tipo_dte,
+                "Folio": folio,
+                "Claim": self.claim
+            }
+        ]
         try:
-            respuesta = _server.service.ingresarAceptacionReclamoDoc(
-                rut_emisor[:-2],
-                rut_emisor[-1],
-                str(self.document_class_id.sii_code),
-                str(self.number),
-                claim,
-            )
+            respuesta = fe.ingreso_reclamo_documento(datos)
         except Exception as e:
                 msg = "Error al ingresar Reclamo DTE"
                 _logger.warning("%s: %s" % (msg, str(e)))
                 if e.args[0][0] == 503:
                     raise UserError('%s: Conexión al SII caída/rechazada o el SII está temporalmente fuera de línea, reintente la acción' % (msg))
                 raise UserError(("%s: %s" % (msg, str(e))))
-
 
     def _create_attachment(self, xml, name, id=False, model='account.invoice'):
         data = base64.b64encode(xml.encode('ISO-8859-1'))

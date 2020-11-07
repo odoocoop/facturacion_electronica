@@ -157,13 +157,13 @@ class stock_picking(models.Model):
                 s.sii_result = 'NoEnviado'
                 s._timbrar()
                 self.env['sii.cola_envio'].create({
-                                            'company_id': s.company_id.id,
-                                            'doc_ids': [s.id],
-                                            'model': 'stock.picking',
-                                            'user_id': self.env.uid,
-                                            'tipo_trabajo': 'pasivo',
-                                            'date_time': (datetime.now() + timedelta(hours=12)),
-                                            })
+                            'company_id': s.company_id.id,
+                            'doc_ids': [s.id],
+                            'model': 'stock.picking',
+                            'user_id': self.env.uid,
+                            'tipo_trabajo': 'pasivo',
+                            'date_time': (datetime.now() + timedelta(hours=12)),
+                        })
         return res
 
     @api.multi
@@ -176,20 +176,27 @@ class stock_picking(models.Model):
             if rec.sii_result in ['', 'NoEnviado', 'Rechazado']:
                 if not rec.sii_xml_request or rec.sii_result in [ 'Rechazado' ]:
                     rec._timbrar(n_atencion)
+                    if len(rec.sii_xml_request.picking_ids) == 1:
+                        rec.sii_xml_request.unlink()
+                    else:
+                        rec.sii_xml_request = False
                 rec.sii_result = "EnCola"
+                rec.sii_message = ""
                 ids.append(rec.id)
         if ids:
             self.env['sii.cola_envio'].create({
-                                    'doc_ids': ids,
-                                    'model':'stock.picking',
-                                    'user_id':self.env.uid,
-                                    'tipo_trabajo':'envio',
-                                    'n_atencion': n_atencion
-                                    })
+                        'doc_ids': ids,
+                        'model':'stock.picking',
+                        'user_id':self.env.uid,
+                        'tipo_trabajo':'envio',
+                        'n_atencion': n_atencion,
+                        "set_pruebas": self._context.get("set_pruebas", False),
+                })
+
     def _giros_emisor(self):
         giros_emisor = []
-        for turn in self.company_id.company_activities_ids[:4]:
-            giros_emisor.append(turn.code)
+        for ac in self.location_id.acteco_ids:
+            giros_emisor.append(ac.code)
         return giros_emisor
 
     def _id_doc(self, taxInclude=False, MntExe=0):
@@ -396,7 +403,7 @@ class stock_picking(models.Model):
             picking_lines['tax_include'])
         lin_ref = 1
         ref_lines = []
-        if self.company_id.dte_service_provider == 'SIICERT' and isinstance(n_atencion, string_types):
+        if self._context.get("set_pruebas", False):
             ref_line = {}
             ref_line['NroLinRef'] = lin_ref
             ref_line['TpoDocRef'] = "SET"
@@ -460,7 +467,9 @@ class stock_picking(models.Model):
             batch += 1
             if not r.sii_batch_number or r.sii_batch_number == 0:
                 r.sii_batch_number = batch #si viene una guía/nota regferenciando una factura, que por numeración viene a continuación de la guia/nota, será recahazada laguía porque debe estar declarada la factura primero
-            if r.company_id.dte_service_provider == 'SIICERT' or r.sii_result == 'Rechazado' or not r.sii_xml_dte: #Retimbrar con número de atención y envío
+            if (
+                self._context.get("set_pruebas", False) or r.sii_result == "Rechazado" or not r.sii_xml_dte
+            ):
                 r._timbrar(n_atencion)
             grupos.setdefault(r.document_class_id.sii_code, [])
             grupos[r.document_class_id.sii_code].append({
@@ -468,7 +477,9 @@ class stock_picking(models.Model):
                         'sii_xml_request': r.sii_xml_dte,
                         'Folio': r.get_folio(),
                 })
-            if r.sii_result in ['Rechazado'] or (r.company_id.dte_service_provider == 'SIICERT' and r.sii_xml_request.state in ['', 'draft', 'NoEnviado']):
+            if r.sii_result in ["Rechazado"] or (
+                self._context.get("set_pruebas", False) and r.sii_xml_request.state in ["", "draft", "NoEnviado"]
+            ):
                 if r.sii_xml_request:
                     if len(r.sii_xml_request.picking_ids) == 1:
                         r.sii_xml_request.unlink()
@@ -477,6 +488,7 @@ class stock_picking(models.Model):
                 r.sii_message = ''
         datos = self[0]._get_datos_empresa(self[0].company_id)
         datos.update({
+            'api': False,
             'Documento': []
         })
         for k, v in grupos.items():
@@ -491,37 +503,29 @@ class stock_picking(models.Model):
     @api.multi
     def do_dte_send(self, n_atencion=False):
         datos = self._crear_envio(n_atencion)
-        result = fe.timbrar_y_enviar(datos)
         envio_id = self[0].sii_xml_request
+        if not envio_id:
+            envio_id = self.env["sii.xml.envio"].create({
+                'name': 'temporal',
+                'xml_envio': 'temporal',
+                'picking_ids': [[6,0, self.ids]],
+                })
+        datos["ID"] = "Env%s" %envio_id.id
+        result = fe.timbrar_y_enviar(datos)
         envio = {
                 'xml_envio': result['sii_xml_request'],
                 'name': result['sii_send_filename'],
                 'company_id': self[0].company_id.id,
                 'user_id': self.env.uid,
-                'sii_send_ident': result['sii_send_ident'],
-                'sii_xml_response': result['sii_xml_response'],
-                'state': result['status'],
+                'sii_send_ident': result.get('sii_send_ident'),
+                'sii_xml_response': result.get('sii_xml_response'),
+                'state': result.get('status'),
             }
-        if not envio_id:
-            envio_id = self.env['sii.xml.envio'].create(envio)
-            for i in self:
-                i.sii_xml_request = envio_id.id
-                i.sii_result = 'Enviado'
-        else:
-            envio_id.write(envio)
+        envio_id.write(envio)
         return envio_id
 
-    @api.onchange('sii_message')
-    def get_sii_result(self):
-        for r in self:
-            if r.sii_xml_request.state == 'NoEnviado':
-                r.sii_result = 'EnCola'
-                continue
-            if not r.sii_message:
-                r.sii_result = r.sii_xml_request.state
-
     def _get_dte_status(self):
-        datos = self._get_datos_empresa(self[0].company_id)
+        datos = self[0]._get_datos_empresa(self[0].company_id)
         datos['Documento'] = []
         docs = {}
         for r in self:
@@ -553,9 +557,12 @@ class stock_picking(models.Model):
             if not r.sii_xml_request and not r.sii_xml_request.sii_send_ident:
                 raise UserError('No se ha enviado aún el documento, aún está en cola de envío interna en odoo')
             if r.sii_xml_request.state not in ['Aceptado', 'Rechazado']:
-                r.sii_xml_request.get_send_status(r.env.user)
-        self._get_dte_status()
-        self.get_sii_result()
+                r.sii_xml_request.with_context(
+                    set_pruebas=True).get_send_status(r.env.user)
+        try:
+            self._get_dte_status()
+        except Exception as e:
+            _logger.warning("Error al obtener DTE Status Guía: %s" % str(e))
 
     @api.multi
     def _get_printed_report_name(self):

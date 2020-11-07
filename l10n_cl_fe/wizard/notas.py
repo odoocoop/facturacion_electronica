@@ -141,22 +141,28 @@ class AccountInvoiceRefund(models.TransientModel):
                             'motivo': description,
                             'fecha_documento': inv.date_invoice
                         }])
+                    global_descuentos_recargo = []
+                    for gdr in  inv.global_descuentos_recargos:
+                        n_gdr = gdr.copy()
+                        del n_gdr['invoice_id']
+                        global_descuentos_recargo.append([0,0, n_gdr])
                     invoice.update({
-                                'date_invoice': date,
-                                'state': 'draft',
-                                'number': False,
-                                'date': date,
-                                'name': description,
-                                'origin': inv.number,
-                                'fiscal_position_id': inv.fiscal_position_id.id,
-                                'type': refund_type,
-                                'journal_document_class_id': jdc.id,
-                                'document_class_id': jdc.sii_document_class_id.id,
-                                'referencias': referencias,
-                                'invoice_line_ids': invoice_lines,
-                                'tax_line_ids': False,
-                                'refund_invoice_id': inv.id,
-                            })
+                        'date_invoice': date,
+                        'state': 'draft',
+                        'number': False,
+                        'date': date,
+                        'name': description,
+                        'origin': inv.number,
+                        'fiscal_position_id': inv.fiscal_position_id.id,
+                        'type': refund_type,
+                        'journal_document_class_id': jdc.id,
+                        'document_class_id': jdc.sii_document_class_id.id,
+                        'referencias': referencias,
+                        'invoice_line_ids': invoice_lines,
+                        'tax_line_ids': False,
+                        'refund_invoice_id': inv.id,
+                        'global_descuentos_recargo': global_descuentos_recargo,
+                    })
 
                     for field in inv_obj._get_refund_common_fields():
                         if inv_obj._fields[field].type == 'many2one':
