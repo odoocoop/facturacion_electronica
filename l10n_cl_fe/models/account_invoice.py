@@ -1,7 +1,6 @@
 import decimal
 import logging
 from datetime import date, datetime, timedelta
-import json
 import pytz
 from six import string_types
 
@@ -1853,7 +1852,8 @@ a VAT."""))
             return
         tipo_dte = self.document_class_id.sii_code
         datos = self._get_datos_empresa(doc.company_id)
-        rut_emisor = self.company_id.partner_id.rut()
+        partner_id = self.commercial_partner_id or self.partner_id.commercial_partner_id
+        rut_emisor = partner_id.rut()
         datos["DTEClaim"] = [
             {
                 "RUTEmisor": rut_emisor,
@@ -1886,7 +1886,8 @@ a VAT."""))
         datos = self._get_datos_empresa(self.company_id)
         rut_emisor = self.company_id.partner_id.rut()
         if self.type in ["in_invoice", "in_refund"]:
-            rut_emisor = self.partner_id.commercial_partner_id.rut()
+            partner_id = self.commercial_partner_id or self.partner_id.commercial_partner_id
+            rut_emisor = partner_id.rut()
         datos["DTEClaim"] = [
             {
                 "RUTEmisor": rut_emisor,
@@ -2032,3 +2033,16 @@ a VAT."""))
         img.save(buffered, format="PNG")
         imm = base64.b64encode(buffered.getvalue()).decode()
         return imm
+
+    @api.multi
+    def currency_format(self, val, precision='Product Price'):
+        code = self._context.get('lang') or self.partner_id.lang
+        lang = self.env['res.lang'].search([('code', '=', code)])
+        res = lang.format('%.%sf' % str(dp.get_precision(precision)[1]), val
+                          ,grouping=True, monetary=True)
+        if self.currency_id.symbol:
+            if self.currency_id.position == 'after':
+                res = '%s %s' % (res, self.currency_id.symbol)
+            elif self.currency_id.position == 'before':
+                res = '%s %s' % (self.currency_id.symbol, res)
+        return res

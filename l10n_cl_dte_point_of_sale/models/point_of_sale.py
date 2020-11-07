@@ -652,8 +652,15 @@ class POS(models.Model):
     def _crear_envio(self, RUTRecep="60803000-K"):
         grupos = {}
         batch = 0
+        api = False
         for r in self.with_context(lang='es_CL'):
+            if not r.document_class_id or not r.sii_document_number:
+                continue
             batch += 1
+            if not r.sii_batch_number or r.sii_batch_number == 0:
+                r.sii_batch_number = batch
+            if r._es_boleta():
+                api = True
             if (
                 self._context.get("set_pruebas", False) or r.sii_result == "Rechazado" or not r.sii_xml_dte
             ):
@@ -676,7 +683,10 @@ class POS(models.Model):
                         r.sii_xml_request = False
                 r.sii_message = ''
         envio = self[0]._get_datos_empresa(self[0].company_id)
+        if self._context.get("set_pruebas", False):
+            api = False
         envio.update({
+            'api': api,
             'RutReceptor': RUTRecep,
             'Documento': []
         })
