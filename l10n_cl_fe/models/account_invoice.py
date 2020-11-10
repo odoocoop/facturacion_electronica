@@ -7,6 +7,7 @@ from six import string_types
 from odoo import api, fields, models, tools
 from odoo.exceptions import UserError
 from odoo.tools.translate import _
+from odoo.addons import decimal_precision as dp
 
 from .bigint import BigInt
 
@@ -2038,7 +2039,8 @@ a VAT."""))
     def currency_format(self, val, precision='Product Price'):
         code = self._context.get('lang') or self.partner_id.lang
         lang = self.env['res.lang'].search([('code', '=', code)])
-        res = lang.format('%.%sf' % str(dp.get_precision(precision)[1]), val
+        string_digits = '%.{}f'.format(dp.get_precision(precision)(self._cr)[1])
+        res = lang.format(string_digits, val
                           ,grouping=True, monetary=True)
         if self.currency_id.symbol:
             if self.currency_id.position == 'after':
