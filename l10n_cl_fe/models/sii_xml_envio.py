@@ -219,7 +219,7 @@ class SIIXMLEnvio(models.Model):
     def ask_for(self):
         self.get_send_status(self.user_id)
 
-     def set_childs(self, state):
+    def set_childs(self, state):
         for r in self.invoice_ids:
             r.sii_result = state
 
