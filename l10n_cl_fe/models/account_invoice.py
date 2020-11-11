@@ -1734,20 +1734,20 @@ a VAT."))
                     else:
                         r.sii_xml_request = False
                 r.sii_message = ''
-        envio = self[0]._get_datos_empresa(self[0].company_id)
+        datos = self[0]._get_datos_empresa(self[0].company_id)
         if self._context.get("set_pruebas", False):
             api = False
         datos.update({
             "api": api,
             "RutReceptor": RUTRecep, "Documento": []})
         for k, v in grupos.items():
-            envio['Documento'].append(
+            datos['Documento'].append(
                 {
                     'TipoDTE': k,
                     'documentos': v,
                 }
             )
-        return envio
+        return datos
 
     @api.multi
     def do_dte_send(self, n_atencion=None):
