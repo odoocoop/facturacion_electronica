@@ -147,7 +147,17 @@ class ColaEnvio(models.Model):
 
     @api.model
     def _cron_procesar_cola(self):
-        ids = self.search([("active", "=", True)])
+        ids = self.search([("active", "=", True), ('tipo_trabajo', 'in', ['envio', 'pasivo'])], limit=20)
         if ids:
             for c in ids:
-                c._procesar_tipo_trabajo()
+                try:
+                    c._procesar_tipo_trabajo()
+                except Exception as e:
+                    _logger.warning("error al procesartipo trabajo %s"%str(e))
+        ids = self.search([("active", "=", True), ('tipo_trabajo', 'not in', ['envio', 'pasivo'])], limit=20)
+        if ids:
+            for c in ids:
+                try:
+                    c._procesar_tipo_trabajo()
+                except Exception as e:
+                    _logger.warning("error al procesartipo trabajo %s"%str(e))

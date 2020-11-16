@@ -1414,27 +1414,25 @@ a VAT."""))
             if self.amount_tax > 0:
                 raise UserError("NO pueden ir productos afectos en documentos exentos")
         elif self.amount_untaxed and self.amount_untaxed != 0:
-            if self._es_boleta() or not taxInclude:
-                IVA = False
-                for t in self.tax_line_ids:
-                    if t.tax_id.sii_code in [14, 15]:
-                        IVA = t
-                    if t.tax_id.sii_code in [14, 15]:
-                        MntNeto += t.base
-                    if t.tax_id.sii_code in [17]:
-                        MntBase += IVA.base  # @TODO Buscar forma de calcular la base para faenamiento
+            IVA = False
+            for t in self.tax_line_ids:
+                if t.tax_id.sii_code in [14, 15]:
+                    IVA = t
+                if t.tax_id.sii_code in [14, 15]:
+                    MntNeto += t.base
+                if t.tax_id.sii_code in [17]:
+                    MntBase += IVA.base  # @TODO Buscar forma de calcular la base para faenamiento
         if self.amount_tax == 0 and MntExe > 0 and not self._es_exento():
             raise UserError("Debe ir almenos un producto afecto")
         if MntExe > 0:
             MntExe = MntExe
-        if self._es_boleta() or not taxInclude:
-            if IVA:
-                TasaIVA = round(IVA.tax_id.amount, 2)
-                MntIVA = IVA.amount
-            if no_product:
-                MntNeto = 0
-                TasaIVA = 0
-                MntIVA = 0
+        if IVA:
+            TasaIVA = round(IVA.tax_id.amount, 2)
+            MntIVA = IVA.amount
+        if no_product:
+            MntNeto = 0
+            TasaIVA = 0
+            MntIVA = 0
         MntTotal = self.amount_total
         if no_product:
             MntTotal = 0
