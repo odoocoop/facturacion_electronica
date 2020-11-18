@@ -109,7 +109,7 @@ class ColaEnvio(models.Model):
                     _logger.warning('Error en Envío automático')
                     _logger.warning(str(e))
                 try:
-                    docs.get_sii_result()
+                    envio_id.get_send_status()
                 except Exception as e:
                     _logger.warning("error temporal en cola %s" % str(e))
             return
@@ -159,7 +159,7 @@ class ColaEnvio(models.Model):
                 _logger.warning(str(e))
             if envio_id:
                 try:
-                    docs.get_sii_result()
+                    envio_id.get_send_status()
                 except Exception as e:
                     _logger.warning(
                         "Error temporal de conexión en consulta %s" % str(e))

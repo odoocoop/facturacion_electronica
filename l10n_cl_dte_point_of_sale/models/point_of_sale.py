@@ -666,7 +666,7 @@ class POS(models.Model):
             batch += 1
             if not r.sii_batch_number or r.sii_batch_number == 0:
                 r.sii_batch_number = batch
-            if r._es_boleta():
+            if r.document_class_id.es_boleta():
                 api = True
             if (
                 self._context.get("set_pruebas", False) or r.sii_result == "Rechazado" or not r.sii_xml_dte
@@ -769,7 +769,6 @@ class POS(models.Model):
             self._get_dte_status()
         except Exception as e:
             _logger.warning("Error al obtener DTE Status: %s" %str(e))
-        self.get_sii_result()
 
     def send_exchange(self):
         att = self._create_attachment()
