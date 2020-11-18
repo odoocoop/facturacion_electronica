@@ -659,7 +659,7 @@ class POS(models.Model):
             batch += 1
             if not r.sii_batch_number or r.sii_batch_number == 0:
                 r.sii_batch_number = batch
-            if r._es_boleta():
+            if r.es_boleta():
                 api = True
             if (
                 self._context.get("set_pruebas", False) or r.sii_result == "Rechazado" or not r.sii_xml_dte
