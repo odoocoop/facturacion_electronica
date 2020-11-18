@@ -762,7 +762,6 @@ class POS(models.Model):
             self._get_dte_status()
         except Exception as e:
             _logger.warning("Error al obtener DTE Status: %s" %str(e))
-        self.get_sii_result()
 
     def send_exchange(self):
         att = self._create_attachment()
