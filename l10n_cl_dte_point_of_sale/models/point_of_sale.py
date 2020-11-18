@@ -764,7 +764,7 @@ class POS(models.Model):
                 raise UserError('No se ha enviado aún el documento, aún está en cola de envío interna en odoo')
             if r.sii_xml_request.state not in ['Aceptado', 'Rechazado']:
                 r.sii_xml_request.with_context(
-                    set_pruebas=True).get_send_status(r.env.user)
+                    set_pruebas=self._context.get("set_pruebas", False)).get_send_status(r.env.user)
         try:
             self._get_dte_status()
         except Exception as e:
