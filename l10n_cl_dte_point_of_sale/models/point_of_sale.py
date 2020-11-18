@@ -364,6 +364,13 @@ class POS(models.Model):
             if not order.invoice_id and order.document_class_id.sii_code in [61, 39, 41]:
                 if order.sii_result not in [False, '', 'NoEnviado', 'Rechazado']:
                     raise UserError("El documento %s ya ha sido enviado o está en cola de envío" % order.sii_document_number)
+                if order.sii_result in ["Rechazado"]:
+                    order._timbrar()
+                    if len(order.sii_xml_request.order_ids) == 1:
+                        order.sii_xml_request.unlink()
+                    else:
+                        order.sii_xml_request = False
+                    order.sii_message = ''
                 order.sii_result = 'EnCola'
                 ids.append(order.id)
         if ids:
