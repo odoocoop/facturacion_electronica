@@ -552,7 +552,7 @@ class AccountInvoice(models.Model):
             amount_tax += tax.amount
             amount_retencion += tax.amount_retencion
         self.amount_retencion = amount_retencion
-        neto += sum((line.invoice_line_tax_ids.with_context(round=False).compute_all(
+        neto += sum((line.invoice_line_tax_ids.compute_all(
             line.price_unit, self.currency_id, line.quantity,
             line.product_id, self.partner_id, discount=line.discount,
             uom_id=line.uom_id)['total_excluded']) for line in self.invoice_line_ids)
@@ -1762,8 +1762,8 @@ a VAT."))
         datos["ID"] = "Env%s" %envio_id.id
         result = fe.timbrar_y_enviar(datos)
         envio = {
-                'xml_envio': result['sii_xml_request'],
-                'name': result['sii_send_filename'],
+                'xml_envio': result.get('sii_xml_request', "temporal"),
+                'name': result.get("sii_send_filename", "temporal"),
                 'company_id': self[0].company_id.id,
                 'user_id': self.env.uid,
                 'sii_send_ident': result.get('sii_send_ident'),

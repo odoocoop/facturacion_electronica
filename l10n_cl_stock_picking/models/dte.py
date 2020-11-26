@@ -513,8 +513,8 @@ class stock_picking(models.Model):
         datos["ID"] = "Env%s" %envio_id.id
         result = fe.timbrar_y_enviar(datos)
         envio = {
-                'xml_envio': result['sii_xml_request'],
-                'name': result['sii_send_filename'],
+                'xml_envio': result.get('sii_xml_request', "temporal"),
+                'name': result.get("sii_send_filename", "temporal"),
                 'company_id': self[0].company_id.id,
                 'user_id': self.env.uid,
                 'sii_send_ident': result.get('sii_send_ident'),
@@ -558,7 +558,7 @@ class stock_picking(models.Model):
                 raise UserError('No se ha enviado aún el documento, aún está en cola de envío interna en odoo')
             if r.sii_xml_request.state not in ['Aceptado', 'Rechazado']:
                 r.sii_xml_request.with_context(
-                    set_pruebas=True).get_send_status(r.env.user)
+                    set_pruebas=self._context.get("set_pruebas", False)).get_send_status(r.env.user)
         try:
             self._get_dte_status()
         except Exception as e:

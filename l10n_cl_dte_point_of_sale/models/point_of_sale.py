@@ -371,6 +371,13 @@ class POS(models.Model):
             if not order.invoice_id and order.document_class_id.sii_code in [61, 39, 41]:
                 if order.sii_result not in [False, '', 'NoEnviado', 'Rechazado']:
                     raise UserError("El documento %s ya ha sido enviado o está en cola de envío" % order.sii_document_number)
+                if order.sii_result in ["Rechazado"]:
+                    order._timbrar()
+                    if len(order.sii_xml_request.order_ids) == 1:
+                        order.sii_xml_request.unlink()
+                    else:
+                        order.sii_xml_request = False
+                    order.sii_message = ''
                 order.sii_result = 'EnCola'
                 ids.append(order.id)
         if ids:
@@ -561,7 +568,7 @@ class POS(models.Model):
                 lines['UnmdItem'] = line.product_id.uom_id.name[:4]
                 lines['PrcItem'] = round(line.price_unit, 4)
             if line.discount > 0:
-                lines['DescuentoPct'] = line.discount
+                lines['DescuentoPct'] = round(line.discount, 2)
                 lines['DescuentoMonto'] = currency.round((((line.discount / 100) * lines['PrcItem'])* qty))
             if not no_product and not taxInclude:
                 price = currency.round(line.price_subtotal)
@@ -719,8 +726,8 @@ class POS(models.Model):
         datos["ID"] = "Env%s" %envio_id.id
         result = fe.timbrar_y_enviar(datos)
         envio = {
-                'xml_envio': result['sii_xml_request'],
-                'name': result['sii_send_filename'],
+                'xml_envio': result.get('sii_xml_request', 'temporal'),
+                'name': result.get('sii_send_filename', 'temporal'),
                 'company_id': self[0].company_id.id,
                 'user_id': self.env.uid,
                 'sii_send_ident': result.get('sii_send_ident'),

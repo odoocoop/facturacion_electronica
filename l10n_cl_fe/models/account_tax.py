@@ -114,9 +114,9 @@ class SiiTax(models.Model):
 
         base_values = self.env.context.get('base_values')
         if not base_values:
-            if prec == 0:
-                base = float_round_custom(price_unit * quantity, precision_digits=prec+2)
-                base = float_round_custom(base, precision_digits=prec)
+            if prec == 5:
+                base = float_round_custom(price_unit * quantity, precision_digits=2)
+                base = float_round_custom(base, precision_digits=0)
                 disc = (base * ((discount or 0.0) /100.0))
                 tot_discount = float_round_custom(disc, precision_digits=0)
                 base -= tot_discount
