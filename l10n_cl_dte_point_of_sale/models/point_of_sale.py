@@ -561,7 +561,7 @@ class POS(models.Model):
                 lines['UnmdItem'] = line.product_id.uom_id.name[:4]
                 lines['PrcItem'] = round(line.price_unit, 4)
             if line.discount > 0:
-                lines['DescuentoPct'] = line.discount
+                lines['DescuentoPct'] = round(line.discount, 2)
                 lines['DescuentoMonto'] = currency.round((((line.discount / 100) * lines['PrcItem'])* qty))
             if not no_product and not taxInclude:
                 price = currency.round(line.price_subtotal)
@@ -719,8 +719,8 @@ class POS(models.Model):
         datos["ID"] = "Env%s" %envio_id.id
         result = fe.timbrar_y_enviar(datos)
         envio = {
-                'xml_envio': result['sii_xml_request'],
-                'name': result['sii_send_filename'],
+                'xml_envio': result.get('sii_xml_request', 'temporal'),
+                'name': result.get("sii_send_filename", "temporal"),
                 'company_id': self[0].company_id.id,
                 'user_id': self.env.uid,
                 'sii_send_ident': result.get('sii_send_ident'),

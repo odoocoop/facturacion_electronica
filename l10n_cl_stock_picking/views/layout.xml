@@ -159,7 +159,11 @@
                                        <span t-field="l.quantity_done"/>
                                        <span t-field="l.product_uom"  groups="product.group_uom"/>
                                    </td>
-                                   <td style="padding:4px !important;"><span t-field="l.product_id.name"/> <t t-if="l.product_id.name != l.name"><span t-field="l.name"/></t></td>
+                                   <td>
+                                      <span t-if="l.product_id.name == l.name" t-field="l.product_id.name"/>
+                                      <span t-if="l.product_id.name != l.name" t-field="l.name"/>
+                                  </td>
+
                                    <td class="text-right" style="padding:4px !important;">
                                        <span t-field="l.precio_unitario" t-field-options='{"widget": "monetary", "display_currency": "o.currency_id"}'/>
                                    </td>
