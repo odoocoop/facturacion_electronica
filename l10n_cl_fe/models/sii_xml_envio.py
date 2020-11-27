@@ -131,6 +131,7 @@ class SIIXMLEnvio(models.Model):
                 "sii_xml_response": res.get("sii_xml_response", ""),
             }
         )
+        self.set_states()
 
     @api.multi
     def do_send_xml(self):
