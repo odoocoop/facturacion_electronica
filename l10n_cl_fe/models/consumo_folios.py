@@ -256,6 +256,7 @@ class ConsumoFolios(models.Model):
 
     @api.onchange("fecha_inicio", "company_id", "fecha_final")
     def set_data(self):
+        self.move_ids = False
         if self.fecha_inicio > fields.Date.context_today(self):
             raise UserError("No puede hacer Consumo de Folios de días futuros")
         self.name = self.fecha_inicio

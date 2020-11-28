@@ -25,7 +25,8 @@ class ColaEnvio(models.Model):
     )
     active = fields.Boolean(string="Active", default=True,)
     n_atencion = fields.Char(string="Número de Atención",)
-    set_pruebas = fields.Char(string="Set de pruebas", default=False)
+    set_pruebas = fields.Boolean(string="Set de pruebas", 
+                                 default=False)
     date_time = fields.Datetime(string="Auto Envío al SII",)
     send_email = fields.Boolean(string="Auto Enviar Email", default=False,)
     company_id = fields.Many2one("res.company", string="Company")
