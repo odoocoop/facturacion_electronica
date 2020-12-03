@@ -197,7 +197,8 @@
                                      <span t-field="l.discount"/>
                                  </td>
                                  <td class="text-left" style="max-height:8px; line-height:10px !important;">
-                                      <span t-field="l.price_subtotal" t-field-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
+                                      <span t-if="not price_included" t-field="l.price_subtotal" t-field-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
+                                      <span t-if="price_included" t-field="l.price_total" t-field-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
                                  </td>
                              </tr>
                          </tbody>

@@ -7,7 +7,6 @@ from odoo.tools.translate import _
 from odoo.addons import decimal_precision as dp
 from .bigint import BigInt
 import pytz
-import decimal
 import logging
 _logger = logging.getLogger(__name__)
 
@@ -41,54 +40,6 @@ TYPE2JOURNAL = {
     'out_refund': 'sale',
     'in_refund': 'purchase',
 }
-
-
-class AccountInvoiceLine(models.Model):
-    _inherit = 'account.invoice.line'
-
-    sequence = fields.Integer(
-            string="Sequence",
-            default=-1,
-        )
-    discount_amount = fields.Float(
-        string="Monto Descuento",
-        default=0.00
-    )
-
-    @api.onchange('discount', 'price_unit', 'quantity')
-    def set_discount_amount(self):
-        total = self.currency_id.round((self.quantity * self.price_unit))
-        decimal.getcontext().rounding = decimal.ROUND_HALF_UP
-        self.discount_amount = int(decimal.Decimal((total * ((self.discount or 0.0) / 100.0))).to_integral_value())
-
-    @api.depends('price_unit', 'discount', 'invoice_line_tax_ids', 'quantity',
-        'product_id', 'invoice_id.partner_id', 'invoice_id.currency_id',
-        'invoice_id.company_id', 'invoice_id.date_invoice')
-    def _compute_price(self):
-        for line in self:
-            currency = line.invoice_id and line.invoice_id.currency_id or None
-            taxes = False
-            total = 0
-            if line.invoice_line_tax_ids:
-                for t in line.invoice_line_tax_ids:
-                    if t.uom_id and t.uom_id.category_id != line.uom_id.category_id:
-                        raise UserError("Con este tipo de impuesto, solamente deben ir unidades de medida de la categoría %s" %t.uom_id.category_id.name)
-                    if t.mepco:
-                        t.verify_mepco(line.invoice_id.date_invoice, line.invoice_id.currency_id)
-                taxes = line.invoice_line_tax_ids.compute_all(line.price_unit, currency, line.quantity, product=line.product_id, partner=line.invoice_id.partner_id, discount=line.discount, uom_id=line.uom_id)
-            if taxes:
-                line.price_subtotal = price_subtotal_signed = taxes['total_excluded']
-            else:
-                line.set_discount_amount()
-                total = line.currency_id.round((line.quantity * line.price_unit))
-                decimal.getcontext().rounding = decimal.ROUND_HALF_UP
-                total = line.currency_id.round((line.quantity * line.price_unit)) - line.discount_amount
-                line.price_subtotal = price_subtotal_signed = int(decimal.Decimal(total).to_integral_value())
-            if line.invoice_id.currency_id and line.invoice_id.currency_id != line.invoice_id.company_id.currency_id:
-                price_subtotal_signed = line.invoice_id.currency_id.with_context(date=line.invoice_id._get_currency_rate_date()).compute(price_subtotal_signed, line.invoice_id.company_id.currency_id)
-            sign = line.invoice_id.type in ['in_refund', 'out_refund'] and -1 or 1
-            line.price_subtotal_signed = price_subtotal_signed * sign
-            line.price_total = taxes['total_included'] if (taxes and taxes['total_included'] > total) else total
 
 
 class Referencias(models.Model):
@@ -535,7 +486,8 @@ class AccountInvoice(models.Model):
 
     @api.one
     @api.depends('invoice_line_ids.price_subtotal', 'tax_line_ids.amount', 'tax_line_ids.amount_rounding',
-                 'currency_id', 'company_id', 'date_invoice', 'type', 'global_descuentos_recargos')
+                 'currency_id', 'company_id', 'date_invoice', 'type', 'global_descuentos_recargos.valor',
+                 'document_class_id')
     def _compute_amount(self):
         neto = 0
         if self.global_descuentos_recargos:
@@ -549,13 +501,18 @@ class AccountInvoice(models.Model):
         for tax in self.tax_line_ids:
             if tax.tax_id.price_include:
                 included = True
-            amount_tax += tax.amount
+            amount_tax += self.currency_id.round(tax.amount)
             amount_retencion += tax.amount_retencion
         self.amount_retencion = amount_retencion
-        neto += sum((line.invoice_line_tax_ids.compute_all(
-            line.price_unit, self.currency_id, line.quantity,
-            line.product_id, self.partner_id, discount=line.discount,
-            uom_id=line.uom_id)['total_excluded']) for line in self.invoice_line_ids)
+        boleta = self.document_class_id.es_boleta()
+        nc_boleta = self._nc_boleta()
+        if boleta or nc_boleta:
+            neto += sum(line.price_total for line in self.invoice_line_ids)- amount_tax
+        else:
+            neto += sum((line.invoice_line_tax_ids.compute_all(
+                line.price_unit, self.currency_id, line.quantity,
+                line.product_id, self.partner_id, discount=line.discount,
+                uom_id=line.uom_id)['total_excluded']) for line in self.invoice_line_ids)
         self.amount_untaxed = self.currency_id.round(neto)
         self.amount_tax = amount_tax
         self.amount_total = self.amount_untaxed + self.amount_tax - amount_retencion
@@ -663,26 +620,51 @@ class AccountInvoice(models.Model):
                 tax_grouped[key]['base'] += val['base']
         return tax_grouped
 
+    '''
+        Se agrega un problema con la contaiblidad analitica, ya que para cumplir
+        con la nueva normativa, se toma la linea analitica de la ultima linea
+        de factura para asignar el iva
+        Se requiere mejorar este caso, que es aplicable cuando es impuesto
+        compuesto y boleta
+    '''
     @api.multi
     def get_taxes_values(self):
         tax_grouped = {}
-        totales = {}
         included = False
+        boleta = self.document_class_id.es_boleta()
+        nc_boleta = self._nc_boleta()
+        iva = False
+        amount_total = 0
+        line_aca_id = False
         for line in self.invoice_line_ids:
-            if (line.invoice_line_tax_ids and line.invoice_line_tax_ids[0].price_include) :# se asume todos losproductos vienen con precio incluido o no ( no hay mixes)
-                if included or not tax_grouped:#genero error en caso de contenido mixto, en caso primer impusto no incluido segundo impuesto incluido
-                    for t in line.invoice_line_tax_ids:
-                        if t not in totales:
-                            totales[t] = 0
-                        amount_line = (self.currency_id.round(line.price_unit *line.quantity))
-                        totales[t] += (amount_line - line.discount_amount)
-                included = True
-            else:
-                included = False
-            if (totales and not included) or (included and not totales):
-                raise UserError('No se puede hacer timbrado mixto, todos los impuestos en este pedido deben ser uno de estos dos:  1.- precio incluído, 2.-  precio sin incluir')
-            taxes = line.invoice_line_tax_ids.compute_all(line.price_unit, self.currency_id, line.quantity, line.product_id, self.partner_id, discount=line.discount, uom_id=line.uom_id)['taxes']
+            es_exento = False
+            for t in line.invoice_line_tax_ids:
+                if t.amount == 0 or t.sii_code in [0]:
+                    es_exento = True
+                elif t.sii_code in [14, 15]:
+                    iva = t
+            if (boleta or nc_boleta) and len(line.invoice_line_tax_ids) > 1:
+                line_aca_id = line
+                amount_total += line.price_total
+            if not es_exento and (boleta or nc_boleta) and len(line.invoice_line_tax_ids) > 1:
+                continue
+            taxes = line.invoice_line_tax_ids.compute_all(
+                    line.price_unit,
+                    self.currency_id,
+                    line.quantity,
+                    line.product_id,
+                    self.partner_id,
+                    discount=line.discount,
+                    uom_id=line.uom_id)['taxes']
             tax_grouped = self._get_grouped_taxes(line, taxes, tax_grouped)
+        if amount_total > 0 and (boleta or nc_boleta):
+            if not iva.price_include:
+                amount_total = self.currency_id.round(amount_total / (1+ (iva.amount / 100.0)))
+            taxes = iva.compute_all(
+                    amount_total,
+                    self.currency_id,
+                    1)['taxes']
+            tax_grouped = self._get_grouped_taxes(line_aca_id, taxes, tax_grouped)
         #if totales:
         #    tax_grouped = {}
         #    for line in self.invoice_line_ids:
@@ -917,6 +899,7 @@ class AccountInvoice(models.Model):
         if self.move_id or self.type in ['in_invoice', 'in_refund']:
             return
         self.document_class_id = self.journal_document_class_id.sii_document_class_id.id
+        self._onchange_invoice_line_ids()
 
     '''
     @TODO mejor forma de avisar problema conrut
@@ -1508,25 +1491,14 @@ a VAT."))
                 lines['CdgItem'] = {}
                 lines['CdgItem']['TpoCodigo'] = 'INT1'
                 lines['CdgItem']['VlrCodigo'] = line.product_id.default_code
-            taxInclude = False
-            lines["Impuesto"] = []
-            for t in line.invoice_line_tax_ids:
-                if t.sii_code in [26, 27, 28, 35, 271]:#@Agregar todos los adicionales
-                    lines['CodImpAdic'] = t.sii_code
-                taxInclude = t.price_include or ( (self._es_boleta() or self._nc_boleta()) and not t.sii_detailed )
-                if t.amount == 0 or t.sii_code in [0]:#@TODO mejor manera de identificar exento de afecto
-                    lines['IndExe'] = 1#line.product_id.ind_exe or 1
-                    MntExe += currency_base.round(line.price_subtotal)
-                else:
-                    amount = t.amount
-                    if t.sii_code in [28, 35]:
-                        amount = t.compute_factor(line.uom_id)
-                    lines['Impuesto'].append({
-                                "CodImp": t.sii_code,
-                                'price_include': taxInclude,
-                                'TasaImp': amount,
-                            }
-                    )
+            details = line.get_tax_detail()
+            lines["Impuesto"] = details['impuestos']
+            MntExe += details['MntExe']
+            taxInclude = details['taxInclude']
+            if details.get('cod_imp_adic'):
+                lines['CodImpAdic'] = details['cod_imp_adic']
+            if details.get('IndExe'):
+                lines['IndExe'] = details['IndExe']
             #if line.product_id.type == 'events':
             #   lines['ItemEspectaculo'] =
 #            if self._es_boleta():
@@ -1777,7 +1749,9 @@ a VAT."))
         datos = self[0]._get_datos_empresa(self[0].company_id)
         datos['Documento'] = []
         docs = {}
+        api = False
         for r in self:
+            api = r._es_boleta()
             if r.sii_xml_request.state not in ['Aceptado', 'Rechazado']:
                 continue
             docs.setdefault(r.document_class_id.sii_code, [])
@@ -1785,6 +1759,8 @@ a VAT."))
         if not docs:
             _logger.warning("En get_get_status, no docs")
             return
+        if self._context.get("set_pruebas", False):
+            api = False
         for k, v in docs.items():
             datos['Documento'].append ({
                 'TipoDTE': k,

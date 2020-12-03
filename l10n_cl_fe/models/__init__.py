@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from . import account
 from . import account_invoice
+from . import account_invoice_line
 from . import account_journal
 from . import account_journal_sii_document_class
 from . import account_tax

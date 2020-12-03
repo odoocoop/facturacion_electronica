@@ -36,6 +36,7 @@ class ColaEnvio(models.Model):
     n_atencion = fields.Char(
             string="Número atención",
         )
+    set_pruebas = fields.Boolean(string="Set de pruebas", default=False)
     date_time = fields.Datetime(
             string='Auto Envío al SII',
         )
@@ -64,7 +65,8 @@ class ColaEnvio(models.Model):
             return
         docs = self.env[self.model].with_context(
                     user=self.user_id.id,
-                    company_id=self.company_id.id
+                    company_id=self.company_id.id,
+                    set_pruebas=self.set_pruebas
                     ).browse(ast.literal_eval(self.doc_ids))
         if self.tipo_trabajo == 'persistencia':
             if self.date_time and datetime.now() >= datetime.strptime(
@@ -171,14 +173,28 @@ class ColaEnvio(models.Model):
 
     @api.model
     def _cron_procesar_cola(self):
-        ids = self.search([("active", "=", True), ('tipo_trabajo', 'in', ['envio', 'pasivo'])], limit=20)
+        ids = self.search([("active", "=", True), ('tipo_trabajo', '=', 'envio')], limit=20)
         if ids:
             for c in ids:
                 try:
                     c._procesar_tipo_trabajo()
                 except Exception as e:
                     _logger.warning("error al procesartipo trabajo %s"%str(e))
-        ids = self.search([("active", "=", True), ('tipo_trabajo', 'not in', ['envio', 'pasivo'])], limit=20)
+        ids = self.search([("active", "=", True), ('tipo_trabajo', '=', 'pasivo')], limit=20)
+        if ids:
+            for c in ids:
+                try:
+                    c._procesar_tipo_trabajo()
+                except Exception as e:
+                    _logger.warning("error al procesartipo trabajo %s"%str(e))
+        ids = self.search([("active", "=", True), ('tipo_trabajo', '=', 'consulta')], limit=20)
+        if ids:
+            for c in ids:
+                try:
+                    c._procesar_tipo_trabajo()
+                except Exception as e:
+                    _logger.warning("error al procesartipo trabajo %s"%str(e))
+        ids = self.search([("active", "=", True), ('tipo_trabajo', '=', 'persistencia')], limit=20)
         if ids:
             for c in ids:
                 try:

@@ -3,7 +3,7 @@ from odoo import api, models, fields
 from odoo.tools.translate import _
 from odoo.tools import DEFAULT_SERVER_DATETIME_FORMAT as DTF
 from .currency import float_round_custom
-from datetime import datetime
+from datetime import datetime, time
 import dateutil.relativedelta as relativedelta
 import pytz
 import logging
@@ -307,13 +307,13 @@ class SiiTax(models.Model):
             ])
         tz = pytz.timezone('America/Santiago')
         if date_target:
-            fields_model = self.env['ir.fields.converter']
-            ''' @TODO crearlo como utilidad python'''
-            user_zone = fields_model._input_tz()
+            user_zone = pytz.timezone(self._context.get("tz") or "UTC")
             date = datetime.strptime(date_target, "%Y-%m-%d")
             if tz != user_zone:
-                if not date.tzinfo:
-                    date = user_zone.localize(date_target)
+                if not hasattr(date, "tzinfo"):
+                    date = datetime.combine(date, time.min)
+                date = date.astimezone(tz)
+            if not date.tzinfo:
                 date = date.astimezone(tz)
         else:
             date = datetime.now(tz)
