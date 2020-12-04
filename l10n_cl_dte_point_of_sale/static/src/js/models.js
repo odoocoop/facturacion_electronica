@@ -551,17 +551,17 @@ models.Order = models.Order.extend({
 		}
 	},
 	get_total_exento:function(){
+		var self = this;
 		var taxes =  this.pos.taxes;
 		var exento = 0;
-		this.orderlines.each(function(line){
+		self.orderlines.each(function(line){
 			var product =  line.get_product();
 			var taxes_ids = product.taxes_id;
 			_(taxes_ids).each(function(el){
-				_.detect(taxes,function(t){
-					if(t.id === el && t.amount === 0){
+					var t = self.pos.taxes_by_id[id];
+					if(t.sii_code === 0){
 						exento += (line.get_unit_price() * line.get_quantity());
 					}
-				});
 			});
 		});
 		return exento;
@@ -579,12 +579,12 @@ models.Order = models.Order.extend({
 					for(var id in ldetails){
 						if(ldetails.hasOwnProperty(id)){
 							var t = self.pos.taxes_by_id[id];
-							if(boleta && t.amount > 0){
-								if (t.sii_code  === 14 || t.sii_code  === 15 ){
+							if(boleta && t.sii_code !== 0){
+								if (t.sii_code === 14 || t.sii_code === 15 ){
 									iva = t;
 								}
 							}else{
-								if(t.amount > 0){
+								if(t.sii_code === 0){
 									exento = true;
 								}else{
 									details[id] = (details[id] || 0) + ldetails[id];
@@ -625,7 +625,7 @@ models.Order = models.Order.extend({
 						var ldetails = line.get_tax_details();
 						for(var id in ldetails){
 							var t = self.pos.taxes_by_id[id];
-							if(t.amount > 0){
+							if(t.sii_code !== 0){
 								if (t.sii_code  === 14 || t.sii_code  === 15 ){
 									iva = t;
 								}
@@ -727,22 +727,6 @@ models.Order = models.Order.extend({
 			return (this.es_factura_exenta() && this.pos.config.secuencia_factura_exenta);
 		}
 		return false;
-	},
-	get_total_exento:function(){
-		var self = this;
-		var exento = 0;
-		self.orderlines.each(function(line){
-			var product =  line.get_product();
-			var taxes_ids = product.taxes_id;
-			_(taxes_ids).each(function(id){
-				var t = self.pos.taxes_by_id[id]
-				if(t.sii_code === 0){
-					console.log(t);
-					exento += (line.get_unit_price() * line.get_quantity());
-				}
-			});
-		});
-		return exento;
 	},
 	completa_cero: function(val){
     	if (parseInt(val) < 10){
