@@ -346,10 +346,10 @@ models.Orderline = models.Orderline.extend({
             if (tax.price_include){
                 price_included = true;
 	            if (tax.amount_type == 'percent'){
-	                percent += tax.amount
+	                percent += tax.amount;
 								}
 	            else{
-	                var amount_tax = this._compute_factor(this, uom_id);
+	                var amount_tax = this._compute_factor(tax, uom_id);
 	                rec += (quantity * amount_tax);
 								}
 						}
@@ -377,6 +377,10 @@ models.Orderline = models.Orderline.extend({
 			var total_included = total_excluded;
 			var base = total_excluded;
 			var included = false;
+			let composed_tax = {}
+      if (taxes.length > 1){
+          composed_tax = self._fix_composed_included_tax(taxes, total_included, quantity, uom_id)
+			}
 			_(taxes).each(function(tax) {
 					included = tax.price_include;
 					if (!no_map_tax){
@@ -393,13 +397,14 @@ models.Orderline = models.Orderline.extend({
 							list_taxes = list_taxes.concat(ret.taxes);
 					}
 					else {
-							var tax_amount = self._compute_all(tax, base, quantity, false, uom_id);
+						var _base = tax.id in composed_tax ? composed_tax[tax.id] : base;
+						var tax_amount = self._compute_all(tax, _base, quantity, uom_id);
 							tax_amount = round_pr(tax_amount, currency_rounding);
 
 							if (tax_amount){
 									if (tax.price_include) {
 											total_excluded -= tax_amount;
-											base -= tax_amount;
+											_base -= tax_amount;
 									}
 									else {
 											total_included += tax_amount;
