@@ -1761,6 +1761,7 @@ a VAT."))
             return
         if self._context.get("set_pruebas", False):
             api = False
+        datos['api'] = api
         for k, v in docs.items():
             datos['Documento'].append ({
                 'TipoDTE': k,

@@ -557,7 +557,7 @@ models.Order = models.Order.extend({
 		self.orderlines.each(function(line){
 			var product =  line.get_product();
 			var taxes_ids = product.taxes_id;
-			_(taxes_ids).each(function(el){
+			_(taxes_ids).each(function(id){
 					var t = self.pos.taxes_by_id[id];
 					if(t.sii_code === 0){
 						exento += (line.get_unit_price() * line.get_quantity());
