@@ -156,7 +156,7 @@ class SIIXMLEnvio(models.Model):
         )
         res = fe.consulta_estado_dte(datos)
         self.write(
-            {"state": res["status"], "sii_receipt": res["xml_resp"],}
+            {"state": res["status"], "sii_receipt": res.get("xml_resp", False),}
         )
         self.set_states()
 
@@ -173,10 +173,11 @@ class SIIXMLEnvio(models.Model):
         state = self.state
         if state in ['draft', 'NoEnviado']:
             return
-        receipt = self.object_receipt()
-        if type(receipt) is dict:
-            if not receipt.get('estadistica'):
-                state = 'Enviado'
-        elif receipt.find("RESP_HDR") is not None:
-            state = "Enviado"
+        if self.sii_receipt:
+            receipt = self.object_receipt()
+            if type(receipt) is dict:
+                if not receipt.get('estadistica'):
+                    state = 'Aceptado'
+            elif receipt.find("RESP_HDR") is not None:
+                state = "Aceptado"
         self.set_childs(state)

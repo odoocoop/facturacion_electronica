@@ -65,33 +65,35 @@
           <br />
           <table class='receipt-total'>
               <tr>
+                  <td>Descuento:</td>
+                  <td class="pos-right-align">
+                      <t t-esc="widget.format_currency(receipt.total_discount)"/>
+                  </td>
+              </tr>
+              <tr>
                   <td>Subtotal:</td>
                   <td class="pos-right-align">
-                      <t t-esc="widget.format_currency(order.get_total_without_tax())"/>
+                      <t t-esc="widget.format_currency(receipt.total_without_tax)"/>
                   </td>
               </tr>
               <tr t-if="receipt.exento !=0">
                   <td>Exento:</td>
                   <td class="pos-right-align">
-                      <t t-esc="receipt.exento"/>
+                      <t t-esc="widget.format_currency(receipt.exento)"/>
                   </td>
               </tr>
-              <tr>
-                  <td>Total IVA:</td>
+              <tr t-foreach="receipt.tax_details" t-as="t">
+                <t t-if="t.amount >0">
+                  <td><t t-esc="t.name" />:</td>
                   <td class="pos-right-align">
-                      <t t-esc="widget.format_currency(order.get_total_tax())"/>
+                      <t t-esc="widget.format_currency(t.amount)"/>
                   </td>
-              </tr>
-              <tr>
-                  <td>Descuento:</td>
-                  <td class="pos-right-align">
-                      <t t-esc="widget.format_currency(order.get_total_discount())"/>
-                  </td>
+                </t>
               </tr>
               <tr class="emph">
                   <td>Total:</td>
                   <td class="pos-right-align">
-                      <t t-esc="widget.format_currency(order.get_total_with_tax())"/>
+                      <t t-esc="widget.format_currency(receipt.total_with_tax)"/>
                   </td>
               </tr>
           </table>
@@ -224,10 +226,12 @@
         </t>
         <t t-if="receipt.total_tax !=0">
           <line><right>--------</right></line>
-          <line class='total'>
-            <left><pre>        IVA</pre></left>
-            <right>$ <value value-decimals='0'><t t-esc='receipt.total_tax' /></value></right>
-          </line>
+          <t t-foreach="receipt.tax_details" t-as="t">
+            <line class='total' t-if="t.amount > 0">
+              <left><pre>        <t t-esc="t.name"/></pre></left>
+              <right>$ <value value-decimals='0'><t t-esc='t.amount' /></value></right>
+            </line>
+          </t>
         </t>
         <line><right>--------</right></line>
         <line class='total'>
@@ -364,27 +368,27 @@
         <br />
         <table class='receipt-total'>
             <tr>
+                <td>Descuento:</td>
+                <td class="pos-right-align">
+                    <t t-esc="widget.format_currency(receipt.total_discount)"/>
+                </td>
+            </tr>
+            <tr>
                 <td>Subtotal:</td>
                 <td class="pos-right-align">
-                    <t t-esc="widget.format_currency(order.get_total_without_tax())"/>
+                    <t t-esc="widget.format_currency(receipt.total_without_tax)"/>
                 </td>
             </tr>
             <tr t-if="receipt.exento !=0">
                 <td>Exento:</td>
                 <td class="pos-right-align">
-                    <t t-esc="receipt.exento"/>
-                </td>
-            </tr>
-            <tr>
-                <td>Descuento:</td>
-                <td class="pos-right-align">
-                    <t t-esc="widget.format_currency(order.get_total_discount())"/>
+                    <t t-esc="widget.format_currency(receipt.exento)"/>
                 </td>
             </tr>
             <tr class="emph">
                 <td>Total:</td>
                 <td class="pos-right-align">
-                    <t t-esc="widget.format_currency(order.get_total_with_tax())"/>
+                    <t t-esc="widget.format_currency(receipt.total_with_tax)"/>
                 </td>
             </tr>
         </table>

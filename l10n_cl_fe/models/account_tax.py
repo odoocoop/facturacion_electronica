@@ -321,9 +321,9 @@ class SiiTax(models.Model):
         if date_target:
             user_zone = pytz.timezone(self._context.get("tz") or "UTC")
             date = date_target
+            if not hasattr(date, "tzinfo"):
+                date = datetime.combine(date, time.min)
             if tz != user_zone:
-                if not hasattr(date, "tzinfo"):
-                    date = datetime.combine(date, time.min)
                 date = date.astimezone(tz)
         else:
             date = datetime.now(tz)

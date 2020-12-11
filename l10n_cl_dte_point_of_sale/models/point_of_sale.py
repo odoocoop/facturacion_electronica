@@ -1160,7 +1160,7 @@ class POS(models.Model):
                 self.do_validate()
         return super(POS, self).action_pos_order_paid()
 
-    @api.depends('statement_ids', 'lines.price_subtotal_incl', 'lines.discount')
+    @api.depends('statement_ids', 'lines.price_subtotal_incl', 'lines.discount', 'document_class_id')
     def _compute_amount_all(self):
         for order in self:
             order.amount_paid = order.amount_return = order.amount_tax = 0.0
@@ -1168,13 +1168,24 @@ class POS(models.Model):
             order.amount_paid = sum(payment.amount for payment in order.statement_ids)
             order.amount_return = sum(payment.amount < 0 and payment.amount or 0 for payment in order.statement_ids)
             taxes = {}
+            iva = False
+            amount_taxed = 0
             for line in order.lines:
                 line_taxes = self._amount_line_tax(line, order.fiscal_position_id)
                 for t in line_taxes:
+                    tax = self.env['account.tax'].browse(t['id'])
+                    if order.document_class_id.sii_code in [39] and tax.sii_code in [14, 15]:
+                        iva = tax
+                        amount_taxed += t.get('amount', 0.0)
+                        continue
                     taxes.setdefault(t['id'], 0)
                     taxes[t['id']] += t.get('amount', 0.0)
-            order.amount_tax = sum(currency.round(t) for k, t in taxes.items())
+            if order.document_class_id.sii_code in [39]:
+                amount_tax = currency.round((amount_taxed /(1+(iva.amount/100.0))) * (iva.amount/100.0))
+            else:
+                amount_tax = sum(currency.round(t) for k, t in taxes.items())
             amount_total = currency.round(sum(line.price_subtotal_incl for line in order.lines))
+            order.amount_tax = amount_tax
             order.amount_total = amount_total
 
     @api.multi

@@ -14,7 +14,14 @@ var secuencias = {};
 for(var i=0; i<modules.length; i++){
 	var model=modules[i];
 	if(model.model === 'res.company'){
-		model.fields.push('activity_description','street','city', 'dte_resolution_date', 'dte_resolution_number');
+		model.fields.push(
+			'activity_description',
+			'street',
+			'city',
+			'dte_resolution_date',
+			'dte_resolution_number',
+			'sucursal_ids',
+		);
 	}
 	if(model.model === 'res.partner'){
 		model.fields.push('document_number','activity_description','document_type_id', 'state_id', 'city_id', 'dte_email', 'sync', 'es_mipyme');
@@ -29,7 +36,7 @@ for(var i=0; i<modules.length; i++){
 		model.fields.push('code');
 	}
 	if (model.model == 'account.tax') {
-		model.fields.push('uom_id');
+		model.fields.push('uom_id', 'sii_code');
 	}
 }
 
@@ -163,10 +170,28 @@ models.load_models({
       	},
 });
 
+
+models.load_models({
+	model: 'sii.sucursal',
+	fields: ['id', 'name', 'sii_code', 'partner_id'],
+	domain: function(self){ return [['company_id','=', self.company.id]]; },
+	loaded: function(self, sucursales){
+  		self.company.sucursal_ids = sucursales;
+			if(sucursales ){
+				_.each(sucursales, function(sucursal){
+						sucursal.partner_id = self.db.get_partner_by_id(sucursal.partner_id[0]);
+						if(self.config.sucursal_id  && sucursal.id === self.config.sucursal_id[0]){
+							self.config.sucursal_id = sucursal;
+						}
+				})
+			}
+	},
+});
+
 var PosModelSuper = models.PosModel.prototype;
 models.PosModel = models.PosModel.extend({
 	folios_factura_afecta: function(){
-		return this.secuencia_factura_afecta || !this.folios_factura_exenta();
+		return (this.secuencia_factura_afecta || !this.folios_factura_exenta());
 	},
 	folios_factura_exenta: function(){
 		return this.secuencia_factura_exenta;
@@ -208,7 +233,8 @@ models.PosModel = models.PosModel.extend({
 			var dif = sii_document_number - ((parseInt(start_caf_file.AUTORIZACION.CAF.DA.RNG.H) - start_number) + 1 + gived);
 			sii_document_number = parseInt(caf_file.AUTORIZACION.CAF.DA.RNG.D) + dif;
 			if (sii_document_number >  parseInt(caf_file.AUTORIZACION.CAF.DA.RNG.H)){
-				sii_document_number = get_next_number(sii_document_number);
+				sii_document_number = this.get_next_number(
+					sii_document_number, caf_files, start_number);
 			}
 		}
 		return sii_document_number;
@@ -314,8 +340,8 @@ models.Orderline = models.Orderline.extend({
 	_fix_composed_included_tax: function(taxes, base, quantity, uom_id){
         let composed_tax = {}
         var price_included = false;
-        var percent = 0.0
-        var rec = 0.0
+        var percent = 0.0;
+        var rec = 0.0;
         _(taxes).each(function(tax){
             if (tax.price_include){
                 price_included = true;
@@ -324,7 +350,7 @@ models.Orderline = models.Orderline.extend({
 								}
 	            else{
 	                var amount_tax = this._compute_factor(tax, uom_id);
-	                rec += (quantity * amount_tax)
+	                rec += (quantity * amount_tax);
 								}
 						}
 				});
@@ -371,7 +397,7 @@ models.Orderline = models.Orderline.extend({
 							list_taxes = list_taxes.concat(ret.taxes);
 					}
 					else {
-							var _base = tax.id in composed_tax ? composed_tax[tax.id] : base;
+  						var _base = tax.id in composed_tax ? composed_tax[tax.id] : base;
 							var tax_amount = self._compute_all(tax, _base, quantity, uom_id);
 							tax_amount = round_pr(tax_amount, currency_rounding);
 
@@ -455,8 +481,10 @@ models.Order = models.Order.extend({
 			this.set_tipo(this.pos.config.secuencia_boleta_exenta);
 		}else if (this.pos.config.marcar === 'factura'){
 			this.set_to_invoice(true);
+			this.set_tipo(this.pos.config.secuencia_factura_afecta);
 		}else if (this.pos.config.marcar === 'factura_exenta'){
 			this.set_to_invoice(true);
+			this.set_tipo(this.pos.config.secuencia_factura_exenta);
 		}
 		if(this.es_boleta()){
 			this.signature = this.signature || false;
@@ -480,15 +508,15 @@ models.Order = models.Order.extend({
 		json.finalized = this.finalized;
 		return json;
 	},
-    init_from_JSON: function(json) {// carga pedido individual
-			_super_order.init_from_JSON.apply(this,arguments);
-			if (json.sequence_id){
-    		this.sequence_id = secuencias[json.sequence_id];
-			}
-    	this.sii_document_number = json.sii_document_number;
-    	this.signature = json.signature;
-    	this.orden_numero = json.orden_numero;
-			this.finalized = json.finalized;
+  init_from_JSON: function(json) {// carga pedido individual
+  	_super_order.init_from_JSON.apply(this,arguments);
+		if (json.sequence_id){
+  		this.sequence_id = secuencias[json.sequence_id];
+		}
+  	this.sii_document_number = json.sii_document_number;
+  	this.signature = json.signature;
+  	this.orden_numero = json.orden_numero;
+		this.finalized = json.finalized;
 	},
 	export_for_printing: function() {
 		var self = this;
@@ -528,6 +556,62 @@ models.Order = models.Order.extend({
 			this.finalized = true;
 		}
 	},
+	get_total_exento:function(){
+		var self = this;
+		var taxes =  this.pos.taxes;
+		var exento = 0;
+		self.orderlines.each(function(line){
+			var product =  line.get_product();
+			var taxes_ids = product.taxes_id;
+			_(taxes_ids).each(function(id){
+					var t = self.pos.taxes_by_id[id];
+					if(t.sii_code === 0){
+						exento += (line.get_unit_price() * line.get_quantity());
+					}
+			});
+		});
+		return exento;
+	},
+	get_tax_details: function(){
+			var self = this;
+			var details = {};
+			var fulldetails = [];
+			var boleta = self.es_boleta();
+			var amount_total = 0;
+			var iva = false;
+			self.orderlines.each(function(line){
+					var exento = false;
+					var ldetails = line.get_tax_details();
+					for(var id in ldetails){
+						if(ldetails.hasOwnProperty(id)){
+							var t = self.pos.taxes_by_id[id];
+							if(boleta && t.sii_code !== 0){
+								if (t.sii_code  === 14 || t.sii_code  === 15 ){
+									iva = t;
+								}
+							}else{
+								if(t.sii_code === 0){
+									exento = true;
+								}else{
+									details[id] = (details[id] || 0) + ldetails[id];
+								}
+							}
+						}
+					}
+					if (boleta && !exento){
+						amount_total += line.get_price_with_tax();
+					}
+			});
+			if (iva){
+				details[iva.id] = round_pr(((amount_total / (1 + (iva.amount/100)))*(iva.amount/100) ), 0);
+			}
+			for(var id in details){
+					if(details.hasOwnProperty(id)){
+							fulldetails.push({amount: details[id], tax: self.pos.taxes_by_id[id], name: self.pos.taxes_by_id[id].name});
+					}
+			}
+			return fulldetails;
+	},
 	get_total_tax: function() {
 		var tax = 0;
 		var tDetails = this.get_tax_details();
@@ -536,13 +620,43 @@ models.Order = models.Order.extend({
 			}, this.pos.currency.rounding);
 		return tax;
 	},
-get_total_without_tax: function() {
-		return round_pr(this.orderlines.reduce((function(sum, orderLine) {
-				var all_prices = orderLine.get_all_prices();
-				var price = all_prices.priceNotRound || all_prices.priceWithoutTax;
-				return sum + price;
-		}), 0), this.pos.currency.rounding);
-},
+	get_total_without_tax: function() {
+			var self = this;
+			if(self.es_boleta()){
+				var neto = 0;
+				var amount_total = 0;
+				var iva = false;
+				self.orderlines.each(function(line){
+						var exento = false;
+						var ldetails = line.get_tax_details();
+						for(var id in ldetails){
+							var t = self.pos.taxes_by_id[id];
+							if(t.sii_code !== 0){
+								if (t.sii_code  === 14 || t.sii_code  === 15 ){
+									iva = t;
+								}
+							}else{
+								exento = true;
+								var all_prices = line.get_all_prices();
+								var price = all_prices.priceNotRound || all_prices.priceWithoutTax;
+								neto += price;
+							}
+						}
+						if (self.es_boleta() && !exento){
+							amount_total += line.get_price_with_tax();
+						}
+				});
+				if (iva){
+					neto += round_pr((amount_total / (1 + (iva.amount/100))), 0);
+				}
+				return neto;
+			}
+			return round_pr(this.orderlines.reduce((function(sum, orderLine) {
+					var all_prices = orderLine.get_all_prices();
+					var price = all_prices.priceNotRound || all_prices.priceWithoutTax;
+					return sum + price;
+			}), 0), this.pos.currency.rounding);
+	},
 	fix_tax_included_price: function(line){
 			if(this.fiscal_position){
 					var unit_price = line.price;
@@ -586,25 +700,25 @@ get_total_without_tax: function() {
 		return this.boleta;
 	},
     // esto devolvera True si es Boleta exenta(sii_code = 41)
-		es_boleta_exenta: function(check_marcar=false){
-			if(!this.es_boleta()){
-				return false;
-			}
-			return (this.sequence_id.sii_document_class_id.sii_code === 41);
-	  },
-	    // esto devolvera True si es Boleta afecta(sii_code = 39)
-		es_boleta_afecta: function(check_marcar=false){
-			if(!this.es_boleta()){
-				return false;
-			}
-			return (this.sequence_id.sii_document_class_id.sii_code === 39);
-		},
-		es_factura_afecta: function(){
-			return (this.sequence_id && this.sequence_id.sii_document_class_id.sii_code === 33 && this.is_to_invoice());
-		},
-		es_factura_exenta: function(){
-			return (this.sequence_id && this.sequence_id.sii_document_class_id.sii_code === 34 && this.is_to_invoice());
-		},
+	es_boleta_exenta: function(check_marcar=false){
+		if(!this.es_boleta()){
+			return false;
+		}
+		return (this.sequence_id.sii_document_class_id.sii_code === 41);
+  },
+    // esto devolvera True si es Boleta afecta(sii_code = 39)
+	es_boleta_afecta: function(check_marcar=false){
+		if(!this.es_boleta()){
+			return false;
+		}
+		return (this.sequence_id.sii_document_class_id.sii_code === 39);
+	},
+	es_factura_afecta: function(){
+		return (this.sequence_id && this.sequence_id.sii_document_class_id.sii_code === 33 && this.is_to_invoice());
+	},
+	es_factura_exenta: function(){
+		return (this.sequence_id && this.sequence_id.sii_document_class_id.sii_code === 34 && this.is_to_invoice());
+	},
 	crear_guia: function(){
 		return (this.pos.config.dte_picking && (this.pos.config.dte_picking_option === 'all' || (this.pos.config.dte_picking_option === 'no_tributarios' && !this.es_tributaria())));
 	},
@@ -620,28 +734,12 @@ get_total_without_tax: function() {
 		}
 		return false;
 	},
-  get_total_exento:function(){
-  	var taxes =  this.pos.taxes;
-  	var exento = 0;
-  	this.orderlines.each(function(line){
-  		var product =  line.get_product();
-  		var taxes_ids = product.taxes_id;
-  		_(taxes_ids).each(function(el){
-  			_.detect(taxes,function(t){
-  				if(t.id === el && t.amount === 0){
-  					exento += (line.get_unit_price() * line.get_quantity());
-  				}
-  			});
-  		});
-  	});
-  	return exento;
-  },
 	completa_cero: function(val){
-  	if (parseInt(val) < 10){
-  		return '0' + val;
-  	}
-  	return val;
-  },
+    	if (parseInt(val) < 10){
+    		return '0' + val;
+    	}
+    	return val;
+    },
 	timbrar: function(order){
 		if (order.signature){ // no firmar otra vez
 			return order.signature;
@@ -669,7 +767,6 @@ get_total_without_tax: function() {
 		if(!partner_id.document_number){
 			partner_id.document_number = "66666666-6";
 		}
-
 		function format_str(text){
 			return text.replace('&', '&amp;');
 		}
@@ -719,7 +816,7 @@ get_total_without_tax: function() {
 				'<RSAPK><M>' + caf_file.AUTORIZACION.CAF.DA.RSAPK.M + '</M><E>' + caf_file.AUTORIZACION.CAF.DA.RSAPK.E + '</E></RSAPK>' +
 				'<IDK>' + caf_file.AUTORIZACION.CAF.DA.IDK + '</IDK>' +
 				'</DA>' +
-				'<FRMA algoritmo="SHA1withRSA">' + caf_file.AUTORIZACION.CAF.FRMA["#text"] + '</FRMA>' +
+				'<FRMA algoritmo="SHA1withRSA">' + caf_file.AUTORIZACION.CAF.FRMA + '</FRMA>' +
 			'</CAF>'+
 			'<TSTED>' + date + '</TSTED></DD>';
 		md.update(string);
