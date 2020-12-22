@@ -1170,23 +1170,24 @@ class POS(models.Model):
             taxes = {}
             iva = False
             amount_taxed = 0
+            amount_total = 0
             for line in order.lines:
                 line_taxes = self._amount_line_tax(line, order.fiscal_position_id)
                 for t in line_taxes:
                     tax = self.env['account.tax'].browse(t['id'])
                     if order.document_class_id.sii_code in [39] and tax.sii_code in [14, 15]:
                         iva = tax
-                        amount_taxed += t.get('amount', 0.0)
+                        amount_taxed += line.price_subtotal_incl
                         continue
                     taxes.setdefault(t['id'], 0)
                     taxes[t['id']] += t.get('amount', 0.0)
+                amount_total = line.price_subtotal_incl
             if order.document_class_id.sii_code in [39]:
                 amount_tax = currency.round((amount_taxed /(1+(iva.amount/100.0))) * (iva.amount/100.0))
             else:
                 amount_tax = sum(currency.round(t) for k, t in taxes.items())
-            amount_total = currency.round(sum(line.price_subtotal_incl for line in order.lines))
             order.amount_tax = amount_tax
-            order.amount_total = amount_total
+            order.amount_total = currency.round(amount_total)
 
     @api.multi
     def exento(self):
