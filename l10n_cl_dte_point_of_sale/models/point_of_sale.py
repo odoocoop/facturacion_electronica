@@ -1203,7 +1203,7 @@ class POS(models.Model):
                         continue
                     taxes.setdefault(t['id'], 0)
                     taxes[t['id']] += t.get('amount', 0.0)
-                amount_total = line.price_subtotal_incl
+                amount_total += line.price_subtotal_incl
             if order.document_class_id.sii_code in [39]:
                 amount_tax = currency.round((amount_taxed /(1+(iva.amount/100.0))) * (iva.amount/100.0))
             else:
