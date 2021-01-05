@@ -418,6 +418,8 @@ class UploadXMLWizard(models.TransientModel):
                 [
                     ('sequence', '=', line.find('NroLinDet').text),
                     ('document_id', '=', document_id.id),
+                    ('product_id.product_tmpl_id', '!=',
+                                 self.env.ref('l10n_cl_fe.product_imp').id)
                 ]
             )
             if line_id:
@@ -461,7 +463,7 @@ class UploadXMLWizard(models.TransientModel):
                     code = ''
                     coma = ''
                     for c in line.findall("CdgItem"):
-                        code += coma + c.find("TpoCodigo").text + ' ' + c.find("VlrCodigo").text
+                        code += coma + (c.find("TpoCodigo").text or '') + ' ' + c.find("VlrCodigo").text
                         coma = ', '
                     return NmbItem + '' + code
         elif self.type == 'ventas' and not product_id:
@@ -787,11 +789,12 @@ class UploadXMLWizard(models.TransientModel):
                                  self.env.ref('l10n_cl_fe.product_imp').id)
             ]
         ).id
+        type = 'purchase' if self.type == 'compras' else 'sale'
         if Encabezado.find('Totales/ImptoReten') is not None:
             ImptoReten = Encabezado.findall('Totales/ImptoReten')
             for i in ImptoReten:
                 imp = self._buscar_impuesto(
-                    type='purchase' if self.type == 'compras' else 'sale',
+                    type=type,
                     name="OtrosImps_" + i.find('TipoImp').text,
                     sii_code=i.find('TipoImp').text,
                     company_id=company_id)
@@ -806,14 +809,17 @@ class UploadXMLWizard(models.TransientModel):
                                         price_subtotal,
                                         self.env.user.company_id.currency_id,
                                         1)['total_excluded']
+                account = self.env['account.invoice.line'].get_invoice_line_account(
+                    type, product_id, None, company_id)
                 lines.append([0,  0,   {
                     'invoice_line_tax_ids': ((6, 0, imp.ids)),
-                    'product_id': product_id,
+                    'product_id': product_id.id,
                     'name': 'MontoImpuesto %s' % i.find('TipoImp').text,
                     'price_unit': price,
                     'quantity': 1,
                     'price_subtotal': price_subtotal,
-                    #'account_id':
+                    'account_id': account.id,
+                    'uom_id': product_id.uom_id.id,
                     }]
                 )
         #if 'IVATerc' in dte['Encabezado']['Totales']:

@@ -506,7 +506,7 @@ class AccountInvoice(models.Model):
         self.amount_retencion = amount_retencion
         boleta = self.document_class_id.es_boleta()
         nc_boleta = self._nc_boleta()
-        if boleta or nc_boleta:
+        if boleta or nc_boleta or included:
             neto += sum(line.price_total for line in self.invoice_line_ids)- amount_tax
         else:
             neto += sum((line.invoice_line_tax_ids.compute_all(
@@ -1607,7 +1607,7 @@ a VAT."))
         ref_lines = []
         if self._context.get("set_pruebas", False):
             RazonRef = "CASO"
-            if not self._es_boleta():
+            if not self._es_boleta() and n_atencion:
                 RazonRef += ' ' + n_atencion
             RazonRef +="-" + str(self.sii_batch_number)
             ref_line = {}

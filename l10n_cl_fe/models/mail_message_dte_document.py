@@ -320,7 +320,7 @@ class ProcessMailsDocument(models.Model):
                     if self.claim != "ACD":
                         if self.claim != "ERM":
                             self.claim = res.codEvento
-            date_end = self.create_date + relativedelta(days=8)
+            date_end = datetime.strptime(self.create_date, DTF) + relativedelta(days=8)
             if self.claim in ["ACD", "ERM", "PAG"]:
                 self.state = "accepted"
             elif date_end <= datetime.now() and self.claim == "N/D":
