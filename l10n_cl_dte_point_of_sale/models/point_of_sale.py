@@ -533,13 +533,14 @@ class POS(models.Model):
                 lines['CdgItem'] = {}
                 lines['CdgItem']['TpoCodigo'] = 'INT1'
                 lines['CdgItem']['VlrCodigo'] = line.product_id.default_code
-            taxInclude = True
-            for t in line.tax_ids:
-                if t.amount == 0 or t.sii_code in [0]:#@TODO mejor manera de identificar exento de afecto
-                    lines['IndExe'] = 1
-                    MntExe += currency.round(line.price_subtotal_incl)
-                else:
-                    taxInclude = t.price_include
+            taxInclude = self.document_class_id.es_boleta()
+            if not taxInclude:
+                for t in line.tax_ids:
+                    if t.amount == 0 or t.sii_code in [0]:#@TODO mejor manera de identificar exento de afecto
+                        lines['IndExe'] = 1
+                        MntExe += currency.round(line.price_subtotal_incl)
+                    else:
+                        taxInclude = t.price_include
             #if line.product_id.type == 'events':
             #   lines['ItemEspectaculo'] =
 #            if self.document_class_id.es_boleta():

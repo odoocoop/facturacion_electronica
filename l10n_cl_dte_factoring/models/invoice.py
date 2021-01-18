@@ -270,7 +270,7 @@ entregados por parte del deudor de la factura {4}, RUT {5}, de acuerdo a lo esta
                 sii_result = "Rechazado"
             if resp.find('RESP_BODY/REPARO').text == "1":
                 sii_result = "Reparo"
-        elif resp.find('RESP_HDR/ESTADO').text == "FAU":
+        elif resp.find('RESP_HDR/ESTADO').text in ["FAU", "RCS"]:
             sii_result = "Rechazado"
         #self.sii_cesion_result = result
 

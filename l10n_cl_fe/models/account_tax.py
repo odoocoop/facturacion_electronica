@@ -46,7 +46,7 @@ class SiiTax(models.Model):
         amount_tax = self.amount or 0.0
         if self.uom_id and self.uom_id != uom_id:
             if self.env.context.get("date"):
-                mepco = self._target_mepco(self.env.context.get("date")[:10])
+                mepco = self._target_mepco(self.env.context.get("date"))
                 amount_tax = mepco.amount
             factor = self.uom_id._compute_quantity(1, uom_id)
             amount_tax = amount_tax / factor

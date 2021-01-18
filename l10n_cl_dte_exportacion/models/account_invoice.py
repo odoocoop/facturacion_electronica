@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from odoo import fields, models, api, _
 from odoo.exceptions import UserError
+from odoo.addons.l10n_cl_fe.models.currency import float_round_custom as round
 import logging
 _logger = logging.getLogger(__name__)
 
@@ -146,10 +147,23 @@ class Exportacion(models.Model):
             self.exportacion.unlink()
 
     def _es_nc_exportacion(self):
-        return self.document_class_id.sii_code in [111, 112]
+        return self.document_class_id.es_nc_exportacion()
 
     def _es_exportacion(self):
-        return self.document_class_id.sii_code in [110] or self._es_nc_exportacion()
+        return self.document_class_id.es_exportacion()
+
+    def _totales(self, MntExe=0, no_product=False, taxInclude=False):
+        if not self._es_exportacion():
+            return super(Exportacion, self)._totales(MntExe, no_product, taxInclude)
+        gdr = 0
+        if self.global_descuentos_recargos:
+            gdr = self.global_descuentos_recargos.get_monto_aplicar()
+        TasaIVA = False
+        MntIVA = 0
+        MntBase = 0
+        MntNeto = round(gdr) + sum(round(line.price_total) for line in self.invoice_line_ids)
+        MntExe = MntTotal = MntNeto
+        return MntExe, MntNeto, MntIVA, TasaIVA, MntTotal, MntBase
 
     def currency_base(self):
         result = super(Exportacion, self).currency_base()
@@ -162,7 +176,7 @@ class Exportacion(models.Model):
             clp = self.env.ref('base.CLP').with_context(date=self.date_invoice)
             if self.currency_id != clp:
                 return self.env.ref('base.CLP').with_context(date=self.date_invoice)
-            return False
+            return clp
         return super(Exportacion, self).currency_target()
 
     def _totales_normal(self, currency_id, MntExe, MntNeto, IVA, TasaIVA,
@@ -280,7 +294,7 @@ class Exportacion(models.Model):
         return Bultos
 
     def _aduana(self):
-        expo = self.exportacion
+        expo = self.exportacion.with_context(exportacion=True)
         Aduana = {}
         Aduana['CodModVenta'] = self.payment_term_id.modalidad_venta.code
         if self.incoterm_id:

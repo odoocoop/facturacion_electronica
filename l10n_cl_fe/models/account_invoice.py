@@ -1430,7 +1430,7 @@ a VAT."""))
         MntExe = 0
         currency_base = self.currency_base()
         currency_id = self.currency_target()
-        taxInclude = False
+        taxInclude = self.document_class_id.es_boleta()
         if (
             self.env["account.invoice.line"]
             .with_context(lang="es_CL")
@@ -1451,7 +1451,8 @@ a VAT."""))
             details = line.get_tax_detail()
             lines["Impuesto"] = details['impuestos']
             MntExe += details['MntExe']
-            taxInclude = details['taxInclude']
+            if not taxInclude:
+                taxInclude = details['taxInclude']
             if details.get('cod_imp_adic'):
                 lines['CodImpAdic'] = details['cod_imp_adic']
             if details.get('IndExe'):
@@ -1475,7 +1476,8 @@ a VAT."""))
             elif qty < 0:
                 raise UserError("NO puede ser menor que 0")
             if not no_product:
-                lines["UnmdItem"] = line.uom_id.name[:4]
+                uom_name = line.uom_id.with_context(exportacion=self.document_class_id.es_exportacion()).name_get()
+                lines["UnmdItem"] = uom_name[0][1][:4]
                 lines["PrcItem"] = round(line.price_unit, 6)
                 if currency_id:
                     lines["OtrMnda"] = {}
@@ -1788,7 +1790,7 @@ a VAT."""))
             self.claim = claim
             return
         tipo_dte = self.document_class_id.sii_code
-        datos = self._get_datos_empresa(doc.company_id)
+        datos = self._get_datos_empresa(self.company_id)
         partner_id = self.commercial_partner_id or self.partner_id.commercial_partner_id
         rut_emisor = partner_id.rut()
         datos["DTEClaim"] = [
