@@ -400,7 +400,7 @@ class stock_picking(models.Model):
             picking_lines['tax_include'])
         lin_ref = 1
         ref_lines = []
-        if self._context.get("set_pruebas", False):
+        if n_atencion and self._context.get("set_pruebas", False):
             ref_line = {}
             ref_line['NroLinRef'] = lin_ref
             ref_line['TpoDocRef'] = "SET"
@@ -587,7 +587,7 @@ class stock_picking(models.Model):
     @api.multi
     def sii_header(self):
         W, H = (560, 255)
-        img = Image.new('RGB', (W, H), color=(0,0,255))
+        img = Image.new('RGB', (W, H), color=(255,255,255))
 
         d = ImageDraw.Draw(img)
         w, h = (0, 0)
@@ -603,6 +603,6 @@ class stock_picking(models.Model):
         font = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', 20)
 
         buffered = BytesIO()
-        img.save(buffered, format="PNG", transparency=(0,0,255))
+        img.save(buffered, format="PNG")
         imm = base64.b64encode(buffered.getvalue()).decode()
         return imm

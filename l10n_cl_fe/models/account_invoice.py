@@ -958,7 +958,6 @@ a VAT."""))
                 continue
             inv._validaciones_uso_dte()
             inv.sii_result = "NoEnviado"
-            inv.responsable_envio = self.env.user.id
             if inv.type in ["out_invoice", "out_refund"]:
                 if inv.journal_id.restore_mode:
                     inv.sii_result = "Proceso"
