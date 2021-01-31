@@ -124,13 +124,16 @@ class SIIXMLEnvio(models.Model):
             {"sii_xml_request": self.xml_envio, "filename": self.name, "api": "EnvioBOLETA" in self.xml_envio,}
         )
         res = fe.enviar_xml(datos)
-        self.write(
-            {
-                "state": res.get("status", "NoEnviado"),
-                "sii_send_ident": res.get("sii_send_ident", ""),
-                "sii_xml_response": res.get("sii_xml_response", ""),
-            }
-        )
+        if type(res) is str:
+            self.state = "NoEnviado"
+        else:
+            self.write(
+                {
+                    "state": res.get("status", "NoEnviado"),
+                    "sii_send_ident": res.get("sii_send_ident", ""),
+                    "sii_xml_response": res.get("sii_xml_response", ""),
+                }
+            )
         self.set_states()
 
     @api.multi

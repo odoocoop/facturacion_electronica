@@ -103,6 +103,7 @@ Facturación Electrónica para Chile. Mayor información en https://globalrespon
         "data/sii.regional.offices.csv",
         "data/decimal_precision.xml",
         "data/res.currency.csv",
+        "data/uom_uom.xml",
         "security/state_manager.xml",
         "security/ir.model.access.csv",
     ],

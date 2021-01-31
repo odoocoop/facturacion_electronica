@@ -181,7 +181,7 @@ class SiiTax(models.Model):
                 total_included -= tax_amount_retencion
                 _base -= tax_amount - tax_amount_retencion
             else:
-                total_included += self.currency_id.round(tax_amount - tax_amount_retencion)
+                total_included += currency.round(tax_amount - tax_amount_retencion)
 
             # Keep base amount used for the current tax
             tax_base = _base
