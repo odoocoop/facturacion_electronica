@@ -22,6 +22,11 @@ class ResConfigSettings(models.TransientModel):
     token_apicaf = fields.Char(string="Token APICAF", default="token_publico",)
     cf_autosend = fields.Boolean(string="AutoEnviar Consumo de Folios", default=False,)
     fe_version = fields.Char(string="Versión FE instalado", readonly=True,)
+    medios_de_pago_electronico = fields.Many2many(
+        'account.journal',
+        related="company_id.medios_de_pago_electronico",
+        string="Medios de pago Electrónico",
+    )
 
     @api.model
     def get_values(self):

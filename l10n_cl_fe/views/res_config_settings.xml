@@ -134,6 +134,16 @@
                         </div>
                         <h2>Otras Opciones</h2>
                         <div class="row mt16 o_settings_container">
+                            <div class="col-xs-12 col-md-6 o_setting_box" id="boleta_voucher">
+                              <div class="o_setting_left_pane" />
+                              <div class="o_setting_right_pane" name="boleta_voucher_right_pane">
+                                  <label string="Medios de pago" for="medios_de_pago_electronico"/>
+                                  <field name="medios_de_pago_electronico" options="{'no_create': True}" widget="many2many_tags" domain="[('type', 'not in ', ['sale', 'purchase']), ('company_id', '=', company_id)]"/>
+                                  <div class="text-muted">
+                                     Medios de pago electrónicos, que actúan como Boleta Electrónica
+                                  </div>
+                              </div>
+                            </div>
                             <div class="col-xs-12 col-md-6 o_setting_box" id="limit_dte_lines">
                                 <div class="o_setting_left_pane">
                                     <field name="limit_dte_lines" widget="upgrade_odoocoop_boolean" />

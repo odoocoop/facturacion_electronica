@@ -13,7 +13,7 @@
             </tree>
         </field>
     </record>
-    <record id="view_electroinic_libro_honorarios_form" model="ir.ui.view">
+    <record id="view_electronic_libro_honorarios_form" model="ir.ui.view">
         <field name="name">l10n_cl.libro_honorarios.form</field>
         <field name="model">account.move.book.honorarios</field>
         <field name="arch" type="xml">

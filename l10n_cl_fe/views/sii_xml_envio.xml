@@ -30,6 +30,7 @@
                         <field name="company_id" />
                         <field name="xml_envio" />
                         <field name="invoice_ids" readonly="True" />
+                        <field name="boleta_voucher_ids" readonly="True"/>
                     </group>
                     <notebook attrs="{'invisible': [('state', 'not in', ['Enviado', 'Aceptado'])]}">
                         <page string="Respuesta Email SII">

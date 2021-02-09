@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from . import account_move_boleta_voucher
 from . import activity_description
 from . import consumo_folios
 from . import ir_sequence

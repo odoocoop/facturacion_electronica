@@ -44,7 +44,7 @@
                 </search>
             </field>
         </record>
-        <record id="view_electroinic_consumo_folios_form" model="ir.ui.view">
+        <record id="view_electronic_consumo_folios_form" model="ir.ui.view">
             <field name="name">l10n_cl.consumo_folios.form</field>
             <field name="model">account.move.consumo_folios</field>
             <field name="arch" type="xml">

@@ -5193,7 +5193,7 @@ msgid "Anula Documento de Referencia"
 msgstr "Anula Documento de Referencia"
 
 #. module: l10n_cl_fe
-#: model:ir.ui.view,arch_db:l10n_cl_fe.view_electroinic_consumo_folios_form
+#: model:ir.ui.view,arch_db:l10n_cl_fe.view_electronic_consumo_folios_form
 msgid "Anulaciones Manuales de Folio"
 msgstr "Anulaciones Manuales de Folio"
 
@@ -5282,8 +5282,8 @@ msgid "Ask Refund"
 msgstr "Nota de Crédito"
 
 #. module: l10n_cl_fe
-#: model:ir.ui.view,arch_db:l10n_cl_fe.view_electroinic_book_compra_venta_form
-#: model:ir.ui.view,arch_db:l10n_cl_fe.view_electroinic_consumo_folios_form
+#: model:ir.ui.view,arch_db:l10n_cl_fe.view_electronic_book_compra_venta_form
+#: model:ir.ui.view,arch_db:l10n_cl_fe.view_electronic_consumo_folios_form
 #: model:ir.ui.view,arch_db:l10n_cl_fe.view_invoice_form
 msgid "Ask for DTE"
 msgstr "Consultar estado Documento"
@@ -5386,7 +5386,7 @@ msgstr "Boleta Electrónica"
 
 #. module: l10n_cl_fe
 #: model:ir.model.fields,field_description:l10n_cl_fe.field_account_move_book_boletas
-#: model:ir.ui.view,arch_db:l10n_cl_fe.view_electroinic_book_compra_venta_form
+#: model:ir.ui.view,arch_db:l10n_cl_fe.view_electronic_book_compra_venta_form
 msgid "Boletas"
 msgstr "Boletas"
 
@@ -7106,8 +7106,8 @@ msgid "Documents Type"
 msgstr "Tipos de Documento"
 
 #. module: l10n_cl_fe
-#: model:ir.ui.view,arch_db:l10n_cl_fe.view_electroinic_book_compra_venta_form
-#: model:ir.ui.view,arch_db:l10n_cl_fe.view_electroinic_consumo_folios_form
+#: model:ir.ui.view,arch_db:l10n_cl_fe.view_electronic_book_compra_venta_form
+#: model:ir.ui.view,arch_db:l10n_cl_fe.view_electronic_consumo_folios_form
 #: model:ir.ui.view,arch_db:l10n_cl_fe.view_invoice_form
 msgid "Download XML"
 msgstr "Descargar XML de envío"
@@ -7573,8 +7573,8 @@ msgid "Enviar Email automático al Auto Enviar DTE al SII"
 msgstr "Enviar Email automático al Auto Enviar DTE al SII"
 
 #. module: l10n_cl_fe
-#: model:ir.ui.view,arch_db:l10n_cl_fe.view_electroinic_book_compra_venta_form
-#: model:ir.ui.view,arch_db:l10n_cl_fe.view_electroinic_consumo_folios_form
+#: model:ir.ui.view,arch_db:l10n_cl_fe.view_electronic_book_compra_venta_form
+#: model:ir.ui.view,arch_db:l10n_cl_fe.view_electronic_consumo_folios_form
 msgid "Envio SII"
 msgstr "Envio SII"
 
@@ -9370,9 +9370,9 @@ msgid "Journal Item"
 msgstr "Apunte contable"
 
 #. module: l10n_cl_fe
-#: model:ir.ui.view,arch_db:l10n_cl_fe.view_electroinic_book_compra_venta_form
-#: model:ir.ui.view,arch_db:l10n_cl_fe.view_electroinic_consumo_folios_form
-#: model:ir.ui.view,arch_db:l10n_cl_fe.view_electroinic_libro_honorarios_form
+#: model:ir.ui.view,arch_db:l10n_cl_fe.view_electronic_book_compra_venta_form
+#: model:ir.ui.view,arch_db:l10n_cl_fe.view_electronic_consumo_folios_form
+#: model:ir.ui.view,arch_db:l10n_cl_fe.view_electronic_libro_honorarios_form
 msgid "Journal Items"
 msgstr "Apuntes contables"
 
@@ -10033,9 +10033,9 @@ msgstr "Movimiento"
 
 #. module: l10n_cl_fe
 #: model:ir.model.fields,field_description:l10n_cl_fe.field_sii_dte_masive_send_wizard_documentos
-#: model:ir.ui.view,arch_db:l10n_cl_fe.view_electroinic_book_compra_venta_form
-#: model:ir.ui.view,arch_db:l10n_cl_fe.view_electroinic_consumo_folios_form
-#: model:ir.ui.view,arch_db:l10n_cl_fe.view_electroinic_libro_honorarios_form
+#: model:ir.ui.view,arch_db:l10n_cl_fe.view_electronic_book_compra_venta_form
+#: model:ir.ui.view,arch_db:l10n_cl_fe.view_electronic_consumo_folios_form
+#: model:ir.ui.view,arch_db:l10n_cl_fe.view_electronic_libro_honorarios_form
 msgid "Movimientos"
 msgstr "Movimientos"
 
@@ -12313,8 +12313,8 @@ msgid "Select the turns you want to             invoice in this Journal"
 msgstr "Seleccione los turnos que desea facturar en este Diario"
 
 #. module: l10n_cl_fe
-#: model:ir.ui.view,arch_db:l10n_cl_fe.view_electroinic_book_compra_venta_form
-#: model:ir.ui.view,arch_db:l10n_cl_fe.view_electroinic_consumo_folios_form
+#: model:ir.ui.view,arch_db:l10n_cl_fe.view_electronic_book_compra_venta_form
+#: model:ir.ui.view,arch_db:l10n_cl_fe.view_electronic_consumo_folios_form
 #: model:ir.ui.view,arch_db:l10n_cl_fe.view_invoice_form
 msgid "Send XML"
 msgstr "Enviar Documento al SII"
@@ -13151,16 +13151,16 @@ msgid "Total Boletas"
 msgstr "Total Boletas"
 
 #. module: l10n_cl_fe
-#: model:ir.ui.view,arch_db:l10n_cl_fe.view_electroinic_book_compra_venta_form
-#: model:ir.ui.view,arch_db:l10n_cl_fe.view_electroinic_consumo_folios_form
-#: model:ir.ui.view,arch_db:l10n_cl_fe.view_electroinic_libro_honorarios_form
+#: model:ir.ui.view,arch_db:l10n_cl_fe.view_electronic_book_compra_venta_form
+#: model:ir.ui.view,arch_db:l10n_cl_fe.view_electronic_consumo_folios_form
+#: model:ir.ui.view,arch_db:l10n_cl_fe.view_electronic_libro_honorarios_form
 msgid "Total Credit"
 msgstr "Crédito total"
 
 #. module: l10n_cl_fe
-#: model:ir.ui.view,arch_db:l10n_cl_fe.view_electroinic_book_compra_venta_form
-#: model:ir.ui.view,arch_db:l10n_cl_fe.view_electroinic_consumo_folios_form
-#: model:ir.ui.view,arch_db:l10n_cl_fe.view_electroinic_libro_honorarios_form
+#: model:ir.ui.view,arch_db:l10n_cl_fe.view_electronic_book_compra_venta_form
+#: model:ir.ui.view,arch_db:l10n_cl_fe.view_electronic_consumo_folios_form
+#: model:ir.ui.view,arch_db:l10n_cl_fe.view_electronic_libro_honorarios_form
 msgid "Total Debit"
 msgstr "Débito total"
 
@@ -13480,9 +13480,9 @@ msgstr "Validar Documentos"
 
 #. module: l10n_cl_fe
 #: model:ir.ui.view,arch_db:l10n_cl_fe.honorarios_form
-#: model:ir.ui.view,arch_db:l10n_cl_fe.view_electroinic_book_compra_venta_form
-#: model:ir.ui.view,arch_db:l10n_cl_fe.view_electroinic_consumo_folios_form
-#: model:ir.ui.view,arch_db:l10n_cl_fe.view_electroinic_libro_honorarios_form
+#: model:ir.ui.view,arch_db:l10n_cl_fe.view_electronic_book_compra_venta_form
+#: model:ir.ui.view,arch_db:l10n_cl_fe.view_electronic_consumo_folios_form
+#: model:ir.ui.view,arch_db:l10n_cl_fe.view_electronic_libro_honorarios_form
 msgid "Validate"
 msgstr "Validar"
 
