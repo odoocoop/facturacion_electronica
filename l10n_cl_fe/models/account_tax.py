@@ -163,7 +163,7 @@ class SiiTax(models.Model):
                     total_included -= (tax_amount_retencion)
                     _base -= (tax_amount - tax_amount_retencion )
                 else:
-                    total_included += (tax_amount - tax_amount_retencion)
+                    total_included += currency.round(tax_amount - tax_amount_retencion)
             else:
                 if price_include:
                     total_excluded -= tax_amount

@@ -2,7 +2,7 @@
 {
     "name": """Facturación Electrónica para Chile\
     """,
-    'version': '0.27.2',
+    'version': '0.28.0',
     'category': 'Localization/Chile',
     'sequence': 12,
     'author':  'Daniel Santibáñez Polanco, Cooperativa OdooCoop',
@@ -72,6 +72,7 @@ Facturación Electrónica para Chile. Mayor infromación en https://globalrespon
             'views/account_journal_sii_document_class_view.xml',
             'views/account_move_line_view.xml',
             'views/account_move_view.xml',
+            'views/account_move_boleta_voucher.xml',
             'views/country_view.xml',
             'views/currency_view.xml',
             'views/honorarios.xml',

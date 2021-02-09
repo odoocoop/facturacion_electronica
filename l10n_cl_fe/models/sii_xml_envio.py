@@ -132,6 +132,13 @@ class SIIXMLEnvio(models.Model):
             string="Glosa Recepción",
             readonly=True,
         )
+    boleta_voucher_ids = fields.One2many(
+            'account.move.boleta_voucher',
+            'sii_xml_request',
+            string="NC Boleta Voucher",
+            readonly=True,
+            states={'draft': [('readonly', False)]},
+        )
 
     @api.multi
     def name_get(self):
@@ -221,6 +228,8 @@ class SIIXMLEnvio(models.Model):
 
     def set_childs(self, state):
         for r in self.invoice_ids:
+            r.sii_result = state
+        for r in self.boleta_voucher_ids:
             r.sii_result = state
 
     @api.onchange('state')

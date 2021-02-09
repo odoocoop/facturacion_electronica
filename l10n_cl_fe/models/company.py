@@ -113,6 +113,11 @@ stamp to be legally valid.''',
         'company_id',
         string="Sucursales de la compañia",
     )
+    medios_de_pago_electronico = fields.Many2many(
+        'account.journal',
+        string="Medios de pago Electrónico",
+        domain=[('type', 'not in', ['sale', 'purchase'])],
+    )
 
     @api.onchange('document_number', 'document_type_id')
     def onchange_document(self):

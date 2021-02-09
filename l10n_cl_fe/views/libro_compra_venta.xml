@@ -27,7 +27,7 @@
             </field>
         </record>
 
-        <record id="view_electroinic_book_compra_venta_form" model="ir.ui.view">
+        <record id="view_electronic_book_compra_venta_form" model="ir.ui.view">
             <field name="name">l10n_cl.libro_compra_venta.form</field>
             <field name="model">account.move.book</field>
             <field name="arch" type="xml">

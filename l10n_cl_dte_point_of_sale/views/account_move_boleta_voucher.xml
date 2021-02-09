@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+
+    <record id="view_electronic_boleta_voucher_form" model="ir.ui.view">
+        <field name="name">l10n_cl_fe.boleta_voucher.form</field>
+        <field name="model">account.move.boleta_voucher</field>
+        <field name="inherit_id" ref="l10n_cl_fe.view_electronic_boleta_voucher_form"/>
+        <field name="arch" type="xml">
+          <notebook position="inside">
+            <page string="Órdenes PdV">
+              <field name="order_ids"  editable="bottom" widget="many2many_list" options="{'no_create': True}">
+                <tree>
+                  <field name="state" invisible="1"/>
+                  <field name="date_order" />
+                  <field name="document_class_id" />
+                  <field name="sii_document_number" />
+                  <field name="amount_total" />
+                </tree>
+              </field>
+            </page>
+          </notebook>
+        </field>
+    </record>
+
+    <menuitem
+            icon="STOCK_JUSTIFY_FILL"
+            action="l10n_cl_fe.action_move_boleta_voucher"
+            id="menu_action_move_boleta_voucher_form"
+            parent="point_of_sale.menu_point_rep"
+            groups="point_of_sale.group_pos_manager"
+            sequence="3"/>
+    </data>
+</odoo>

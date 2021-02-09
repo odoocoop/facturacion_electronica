@@ -53,3 +53,8 @@ class sii_document_class(models.Model):
             return True
         return False
 
+    def es_nc_exportacion(self):
+        return self.sii_code in [111, 112]
+
+    def es_exportacion(self):
+        return self.sii_code in [110] or self.es_nc_exportacion()

@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from odoo import api, fields, models
 from odoo.exceptions import UserError
-import decimal
 
 
 
@@ -20,8 +19,7 @@ class AccountInvoiceLine(models.Model):
     @api.onchange('discount', 'price_unit', 'quantity')
     def set_discount_amount(self):
         total = self.currency_id.round((self.quantity * self.price_unit))
-        decimal.getcontext().rounding = decimal.ROUND_HALF_UP
-        self.discount_amount = int(decimal.Decimal((total * ((self.discount or 0.0) / 100.0))).to_integral_value())
+        self.discount_amount = self.currency_id.round((total * ((self.discount or 0.0) / 100.0)))
 
     @api.depends('price_unit', 'discount', 'invoice_line_tax_ids', 'quantity',
         'product_id', 'invoice_id.partner_id', 'invoice_id.currency_id',
@@ -70,14 +68,15 @@ class AccountInvoiceLine(models.Model):
         details = dict(
             impuestos=[],
             taxInclude=False,
-            MntExe=0
+            MntExe=0,
+            price_unit=self.price_unit,
         )
         currency_base = self.invoice_id.currency_base()
         for t in self.invoice_line_tax_ids:
             if not boleta and not nc_boleta:
                 if t.sii_code in [26, 27, 28, 35, 271]:#@Agregar todos los adicionales
                     details['cod_imp_adic'] = t.sii_code
-            details['taxInclude'] = t.price_include or ( (boleta or nc_boleta) and not t.sii_detailed )
+            details['taxInclude'] = t.price_include
             if t.amount == 0 or t.sii_code in [0]:#@TODO mejor manera de identificar exento de afecto
                 details['IndExe'] = 1#line.product_id.ind_exe or 1
                 details['MntExe'] += currency_base.round(self.price_subtotal)
@@ -101,4 +100,15 @@ class AccountInvoiceLine(models.Model):
                     'TasaImp': amount,
                 }
             )
+            if not details['taxInclude'] and (boleta or nc_boleta):
+                taxes_res = self.invoice_line_tax_ids.compute_all(
+                    self.price_unit,
+                    self.invoice_id.currency_id,
+                    1,
+                    product=self.product_id,
+                    partner=self.invoice_id.partner_id,
+                    discount=self.discount, uom_id=self.uom_id)
+                details['price_unit'] = taxes_res.get('total_included', 0.0)
+        if boleta or nc_boleta:
+             details['taxInclude'] = True
         return details

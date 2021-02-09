@@ -59,6 +59,11 @@ class ResConfigSettings(models.TransientModel):
         string="Versión FE instalado",
         readonly=True,
     )
+    medios_de_pago_electronico = fields.Many2many(
+        'account.journal',
+        related="company_id.medios_de_pago_electronico",
+        string="Medios de pago Electrónico",
+    )
 
     @api.model
     def get_values(self):

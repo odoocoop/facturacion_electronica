@@ -1481,7 +1481,7 @@ a VAT."))
                 ('invoice_id', '=', self.id)
             ]):
             self._onchange_invoice_line_ids()
-        taxInclude = False
+        taxInclude = self.document_class_id.es_boleta()
         for line in self.with_context(lang="es_CL").invoice_line_ids:
             if line.product_id.default_code == 'NO_PRODUCT':
                 no_product = True
@@ -1494,7 +1494,8 @@ a VAT."))
             details = line.get_tax_detail()
             lines["Impuesto"] = details['impuestos']
             MntExe += details['MntExe']
-            taxInclude = details['taxInclude']
+            if not taxInclude:
+                taxInclude = details['taxInclude']
             if details.get('cod_imp_adic'):
                 lines['CodImpAdic'] = details['cod_imp_adic']
             if details.get('IndExe'):
@@ -1519,12 +1520,13 @@ a VAT."))
             elif qty < 0:
                 raise UserError("NO puede ser menor que 0")
             if not no_product:
+                price_unit = details['price_unit']
                 lines['UnmdItem'] = line.uom_id.name[:4]
-                lines['PrcItem'] = round(line.price_unit, 6)
+                lines['PrcItem'] = round(price_unit, 6)
                 if currency_id:
                     lines['OtrMnda'] = {}
                     lines['OtrMnda']['PrcOtrMon'] = round(currency_base.compute(
-                        line.price_unit, currency_id, round=False), 6)
+                        price_unit, currency_id, round=False), 6)
                     lines['OtrMnda']['Moneda'] = self._acortar_str(currency_base.name, 3)
                     lines['OtrMnda']['FctConv'] = round(currency_id.rate, 4)
             if line.discount > 0:
@@ -1820,7 +1822,7 @@ a VAT."))
             self.claim = claim
             return
         tipo_dte = self.document_class_id.sii_code
-        datos = self._get_datos_empresa(doc.company_id)
+        datos = self._get_datos_empresa(self.company_id)
         partner_id = self.commercial_partner_id or self.partner_id.commercial_partner_id
         rut_emisor = partner_id.rut()
         datos["DTEClaim"] = [

@@ -62,4 +62,6 @@ access_sii_respuesta_cliente,access_sii_respuesta_cliente,model_sii_respuesta_cl
 edit_account_tax_mepco,edit_account_tax_mepco,model_account_tax_mepco,account.group_account_invoice,1,1,1,1
 access_account_tax_mepco,access_account_tax_mepco,model_account_tax_mepco,,1,0,0,0
 edit_sii_dte_claim,edit_sii_dte_claim,model_sii_dte_claim,account.group_account_invoice,1,1,1,1
-access_sii_dte_claim,access_sii_dte_claim,model_sii_dte_claim,,1,0,0,0s
+access_sii_dte_claim,access_sii_dte_claim,model_sii_dte_claim,,1,0,0,0
+access_account_move_boleta_voucher_user,account_move_boleta_voucher_user,model_account_move_boleta_voucher,,1,0,0,0
+edit_account_move_boleta_voucher_manager,account_move_boleta_voucher_manager,model_account_move_boleta_voucher,account.group_account_manager,1,1,1,1

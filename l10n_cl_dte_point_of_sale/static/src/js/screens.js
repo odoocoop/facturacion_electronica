@@ -51,6 +51,15 @@ screens.PaymentScreenWidget.include({
 		      	});
 						return false;
 				}
+				var product = ols[i].get_product();
+				if ( !product.taxes_id){
+						this.pos.gui.show_popup('error', {
+		        	'title': "Error de integridad",
+		        	'body': "El producto " + product.name + " no tiene seleccionado impuesto, debe seleccionar uno",
+		      	});
+						return false;
+				}
+
 			}
 		}
 		if ((order.is_to_invoice() || order.crear_guia()) && order.get_client()) {
@@ -267,7 +276,7 @@ screens.ClientListScreenWidget.include({
 	                }
               		self.gui.show_popup('error',{
               			'title': _t('Error: Could not Save Changes partner'),
-              			'body': err_body
+              			'body': error_body
               		});
                 });
             }, function(err_type, err){

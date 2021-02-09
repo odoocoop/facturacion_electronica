@@ -365,7 +365,8 @@ models.Orderline = models.Orderline.extend({
 				}
         return composed_tax
 	},
-	compute_all: function(taxes, price_unit, quantity, currency_rounding, no_map_tax, uom_id) {
+	compute_all: function(taxes, price_unit, quantity, currency_rounding, no_map_tax, discount, uom_id) {
+			discount = discount || 0;
 			var self = this;
 			var list_taxes = [];
 			var currency_rounding_bak = currency_rounding;
@@ -374,6 +375,12 @@ models.Orderline = models.Orderline.extend({
 			}
 			var total_excluded = round_pr(price_unit * quantity, currency_rounding);
 			total_excluded = round_pr(total_excluded, currency_rounding_bak);
+			if (currency_rounding_bak === 1){
+				var disc = round_pr(total_excluded * (discount / 100.0), currency_rounding_bak);
+				total_excluded = total_excluded - disc;
+			}else{
+				total_excluded = round_pr(total_excluded * (1.0 - (discount / 100.0)), currency_rounding_bak);
+			}
 			var total_included = total_excluded;
 			var base = total_excluded;
 			var included = false;
@@ -390,7 +397,7 @@ models.Orderline = models.Orderline.extend({
 							return;
 					}
 					if (tax.amount_type === 'group'){
-							var ret = self.compute_all(tax.children_tax_ids, price_unit, quantity, currency_rounding, false, uom_id);
+							var ret = self.compute_all(tax.children_tax_ids, price_unit, quantity, currency_rounding, false, discount, uom_id);
 							total_excluded = ret.total_excluded;
 							base = ret.total_excluded;
 							total_included = ret.total_included;
@@ -432,7 +439,7 @@ models.Orderline = models.Orderline.extend({
 			return vals;
 	},
 	get_all_prices: function(){
-			var price_unit = this.get_unit_price() * (1.0 - (this.get_discount() / 100.0));
+			var price_unit = this.get_unit_price();
 			var taxtotal = 0;
 
 			var product =  this.get_product();
@@ -447,7 +454,7 @@ models.Orderline = models.Orderline.extend({
 					}));
 			});
 
-			var all_taxes = this.compute_all(product_taxes, price_unit, this.get_quantity(), this.pos.currency.rounding, false, this.get_unit());
+			var all_taxes = this.compute_all(product_taxes, price_unit, this.get_quantity(), this.pos.currency.rounding, false, this.get_discount(), this.get_unit());
 			_(all_taxes.taxes).each(function(tax) {
 					taxtotal += tax.amount;
 					taxdetail[tax.id] = tax.amount;
@@ -612,11 +619,12 @@ models.Order = models.Order.extend({
 			return fulldetails;
 	},
 	get_total_tax: function() {
+		var self = this;
 		var tax = 0;
-		var tDetails = this.get_tax_details();
+		var tDetails = self.get_tax_details();
 		tDetails.forEach(function(t) {
-			tax += round_pr(t.amount);
-			}, this.pos.currency.rounding);
+			tax += round_pr(t.amount, self.pos.currency.rounding);
+		});
 		return tax;
 	},
 	get_total_without_tax: function() {
@@ -646,7 +654,7 @@ models.Order = models.Order.extend({
 						}
 				});
 				if (iva){
-					neto += round_pr((amount_total / (1 + (iva.amount/100))), 0);
+					neto += round_pr((amount_total / (1 + (iva.amount/100))), self.pos.currency.rounding);
 				}
 				return neto;
 			}
@@ -671,7 +679,7 @@ models.Order = models.Order.extend({
 					})
 
 					if (mapped_included_taxes.length > 0) {
-							unit_price = line.compute_all(mapped_included_taxes, unit_price, 1, this.pos.currency.rounding, true, uom_id).total_excluded;
+							unit_price = line.compute_all(mapped_included_taxes, unit_price, 1, this.pos.currency.rounding, true, 0, uom_id).total_excluded;
 					}
 
 					line.set_unit_price(unit_price);

@@ -38,7 +38,7 @@ msgid "\"El acuse de recibo que se declara en este acto, de acuerdo a lo dispues
 msgstr "\"El acuse de recibo que se declara en este acto, de acuerdo a lo dispuesto en la letra b) del Artículo 4°, y la letra c) del Artículo 5° de la Ley 19.983, acredita que la entrega de mercaderías o servicio(s) prestado(s) ha(n) sido recibido(s)\""
 
 #. module: l10n_cl_stock_picking
-#: model:ir.ui.view,arch_db:l10n_cl_stock_picking.view_electroinic_stock_picking_form
+#: model:ir.ui.view,arch_db:l10n_cl_stock_picking.view_electronic_stock_picking_form
 msgid "- Next Number:"
 msgstr "- Próximo Número:"
 
@@ -182,7 +182,7 @@ msgid "Archivo Repetido"
 msgstr "Archivo Repetido"
 
 #. module: l10n_cl_stock_picking
-#: model:ir.ui.view,arch_db:l10n_cl_stock_picking.view_electroinic_book_guias_form
+#: model:ir.ui.view,arch_db:l10n_cl_stock_picking.view_electronic_book_guias_form
 #: model:ir.ui.view,arch_db:l10n_cl_stock_picking.view_electronic_stock_picking_form
 msgid "Ask for DTE"
 msgstr "Consultar estado Guía de Despacho"
@@ -358,7 +358,7 @@ msgid "Documento"
 msgstr "Documento"
 
 #. module: l10n_cl_stock_picking
-#: model:ir.ui.view,arch_db:l10n_cl_stock_picking.view_electroinic_book_guias_form
+#: model:ir.ui.view,arch_db:l10n_cl_stock_picking.view_electronic_book_guias_form
 #: model:ir.ui.view,arch_db:l10n_cl_stock_picking.view_electronic_stock_picking_form
 msgid "Download XML"
 msgstr "Descargar XML de envío"
@@ -404,7 +404,7 @@ msgid "Envio Rechazado - Otros"
 msgstr "Envio Rechazado - Otros"
 
 #. module: l10n_cl_stock_picking
-#: model:ir.ui.view,arch_db:l10n_cl_stock_picking.view_electroinic_book_guias_form
+#: model:ir.ui.view,arch_db:l10n_cl_stock_picking.view_electronic_book_guias_form
 msgid "Envio SII"
 msgstr "Envio SII"
 
@@ -554,7 +554,7 @@ msgstr "Move ids"
 
 #. module: l10n_cl_stock_picking
 #: model:ir.model.fields,field_description:l10n_cl_stock_picking.field_sii_dte_stock_picking_masive_send_wizard_documentos
-#: model:ir.ui.view,arch_db:l10n_cl_stock_picking.view_electroinic_book_guias_form
+#: model:ir.ui.view,arch_db:l10n_cl_stock_picking.view_electronic_book_guias_form
 msgid "Movimientos"
 msgstr "Movimientos"
 
@@ -866,7 +866,7 @@ msgid "Send File Name"
 msgstr "Nombre archivo de envío"
 
 #. module: l10n_cl_stock_picking
-#: model:ir.ui.view,arch_db:l10n_cl_stock_picking.view_electroinic_book_guias_form
+#: model:ir.ui.view,arch_db:l10n_cl_stock_picking.view_electronic_book_guias_form
 #: model:ir.ui.view,arch_db:l10n_cl_stock_picking.view_electronic_stock_picking_form
 msgid "Send XML"
 msgstr "Enviar Guía de Despacho al SII"
@@ -999,7 +999,7 @@ msgid "Use Documents?"
 msgstr "¿Usa Documentos Tributarios?"
 
 #. module: l10n_cl_stock_picking
-#: model:ir.ui.view,arch_db:l10n_cl_stock_picking.view_electroinic_book_guias_form
+#: model:ir.ui.view,arch_db:l10n_cl_stock_picking.view_electronic_book_guias_form
 msgid "Validate"
 msgstr "Validar"
 

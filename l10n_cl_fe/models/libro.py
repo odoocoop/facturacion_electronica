@@ -5,7 +5,6 @@ from odoo.exceptions import UserError
 from datetime import datetime, timedelta
 import dateutil.relativedelta as relativedelta
 from odoo.tools import DEFAULT_SERVER_DATETIME_FORMAT as DTF
-from lxml import etree
 import pytz
 import logging
 _logger = logging.getLogger(__name__)

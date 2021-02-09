@@ -977,9 +977,13 @@ class POS(models.Model):
 
                 # Create the tax lines
                 line_taxes = line.tax_ids_after_fiscal_position.filtered(lambda t: t.company_id.id == current_company.id)
-                if not line_taxes:
-                    raise UserError("Hay un producto sin impuesto, seleccionar exento si no afecta al IVA")
-                    continue
+                if not line_taxes and order.document_class_id:
+                    line.tax_ids = line.product_id.taxes_id
+                    line.tax_ids_after_fiscal_position = line.tax_ids
+                    line_taxes = line.tax_ids_after_fiscal_position.filtered(lambda t: t.company_id.id == current_company.id)
+                    if not line_taxes:
+	                    raise UserError("El producto %s está sin impuesto, seleccionar exento si no afecta al IVA" % line.product_id.name)
+	                    continue
                 #el Cálculo se hace sumando todos los valores redondeados, luego se cimprueba si hay descuadre de $1 y se agrega como línea de ajuste
                 taxes = line.tax_ids_after_fiscal_position.filtered(lambda t: t.company_id.id == current_company.id)
                 for tax in taxes.with_context(date=order.date_order, currency=cur_company.code).compute_all(line.price_unit, cur, line.qty, discount=line.discount, uom_id=line.product_id.uom_id)['taxes']:
