@@ -403,7 +403,7 @@ class stock_picking(models.Model):
             picking_lines['tax_include'])
         lin_ref = 1
         ref_lines = []
-        if self._context.get("set_pruebas", False):
+        if n_atencion and self._context.get("set_pruebas", False):
             ref_line = {}
             ref_line['NroLinRef'] = lin_ref
             ref_line['TpoDocRef'] = "SET"
