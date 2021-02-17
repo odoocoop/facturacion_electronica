@@ -487,6 +487,7 @@ class SIIResumenBoletaVoucher(models.Model):
             'FolioRef': self.folio_anular,
             'FchRef': self.fecha_emision,
             'RazonRef': "Rebajo IVA ventas Boletas Voucher",
+            'CodRef': 1,
         }]
 
     def _dte(self):
