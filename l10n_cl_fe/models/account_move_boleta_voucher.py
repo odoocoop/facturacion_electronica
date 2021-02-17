@@ -487,7 +487,6 @@ class SIIResumenBoletaVoucher(models.Model):
             'FolioRef': self.folio_anular,
             'FchRef': self.fecha_emision.strftime("%Y-%m-%d"),
             'RazonRef': "Rebajo IVA ventas Boletas Voucher",
-            'TpoDocRef': 1,
         }]
 
     def _dte(self):
@@ -537,10 +536,11 @@ class SIIResumenBoletaVoucher(models.Model):
         self.state = 'EnCola'
 
     def _crear_envio(self, RUTRecep="60803000-K"):
-        #if self.sii_result == "Rechazado" or not self.sii_xml_dte: #Retimbrar con número de atención y envío
-        self._timbrar()
+        if self.sii_result == "Rechazado" or not self.sii_xml_dte: #Retimbrar con número de atención y envío
+            self._timbrar()
         if self.sii_result in ['Rechazado'] or self.sii_xml_request.state in ["", "draft", "NoEnviado"]:
             self.sii_xml_request.unlink()
+            self.state = 'NoEnviado'
             self.sii_message = ''
         datos = self._get_datos_empresa()
         datos.update({
@@ -587,9 +587,9 @@ class SIIResumenBoletaVoucher(models.Model):
         if self.sii_xml_request.state not in ['Aceptado', 'Rechazado']:
             return
         for r in self:
-            datos['Documento'].append ({
+            datos['Documento'].append({
                 'TipoDTE': self.document_class_id.sii_code,
-                'documentos': self._dte(),
+                'documentos': [self._dte()],
             })
         resultado = fe.consulta_estado_documento(datos)
         if not resultado:
@@ -598,9 +598,16 @@ class SIIResumenBoletaVoucher(models.Model):
         for r in self:
             id = "T{}F{}".format(r.document_class_id.sii_code,
                                  r.get_folio())
-            r.sii_result = resultado[id]['status']
+            r.state = resultado[id]['status']
             if resultado[id].get('xml_resp'):
                 r.sii_message = resultado[id].get('xml_resp')
+
+    @api.multi
+    def set_draft(self):
+        if self.sii_result in ['Rechazado'] or self.sii_xml_request.state in ["", "draft", "NoEnviado"]:
+            self.sii_xml_request.unlink()
+            self.state = 'draft'
+            self.sii_message = ''
 
     @api.multi
     def ask_for_dte_status(self):
@@ -634,6 +641,6 @@ class SIIResumenBoletaVoucher(models.Model):
                         }
             if mess:
                 self.env['bus.bus'].sendone((self._cr.dbname,
-                                            'account.invoice',
-                                            r.user_id.partner_id.id),
+                                            'account.move.boleta_voucher',
+                                            r.env.user.partner_id.id),
                                             mess)
