@@ -4,6 +4,7 @@ from . import stock_picking
 from . import dte
 from . import libro
 from . import account_invoice
+from . import ir_module_module
 from . import ir_sequence
 from . import purchase_order
 from . import sale_order
