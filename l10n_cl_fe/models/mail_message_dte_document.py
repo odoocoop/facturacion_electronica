@@ -37,7 +37,7 @@ class ProcessMailsDocument(models.Model):
     state = fields.Selection(
         [("draft", "Recibido"), ("accepted", "Aceptado"), ("rejected", "Rechazado"),], default="draft",
     )
-    invoice_id = fields.Many2one("account.invoice", string="Factura", readonly=True,)
+    move_id = fields.Many2one("account.move", string="Factura", readonly=True,)
     xml = fields.Text(string="XML Documento", readonly=True,)
     purchase_to_done = fields.Many2many(
         "purchase.order", string="Ordenes de Compra a validar", domain=[("state", "not in", ["accepted", "rejected"])],
@@ -133,16 +133,16 @@ class ProcessMailsDocument(models.Model):
         return Encabezado
 
     def _dte(self):
-        if self.invoice_id:
-            return self.invoice_id._dte()
+        if self.move_id:
+            return self.move_id._dte()
         dte = {}
         dte["Encabezado"] = self._encabezado()
         return dte
 
-    @api.onchange("invoice_id")
+    @api.onchange("move_id")
     def update_claim(self):
         for r in self.claim_ids:
-            r.invoice_id = self.invoice_id.id
+            r.move_id = self.move_id.id
 
     @api.model
     def auto_accept_documents(self, limit=50):
@@ -163,7 +163,7 @@ class ProcessMailsDocument(models.Model):
         )
         self.browse([line.get("id") for line in self.env.cr.dictfetchall()]).accept_document()
 
-    @api.multi
+
     def accept_document(self):
         created = []
         for r in self:
@@ -172,10 +172,10 @@ class ProcessMailsDocument(models.Model):
             except Exception as e:
                 _logger.warning("Problema al obtener claim desde accept %s" % str(e))
                 _logger.warning("encolar")
-            if r.invoice_id and r.state != "draft":
+            if r.move_id and r.state != "draft":
                 continue
-            if self.invoice_id:
-                resp = [self.invoice_id.id]
+            if self.move_id:
+                resp = [self.move_id.id]
             else:
                 vals = {
                     "xml_file": r.xml.encode("ISO-8859-1"),
@@ -190,7 +190,7 @@ class ProcessMailsDocument(models.Model):
             if r.company_id.dte_service_provider == "SIICERT":
                 r.state = "accepted"
                 continue
-            for i in self.env["account.invoice"].browse(resp):
+            for i in self.env["account.move"].browse(resp):
                 if i.claim in ["ACD", "ERM", "PAG"]:
                     r.state = "accepted"
         xml_id = "account.action_invoice_tree2"
@@ -201,7 +201,7 @@ class ProcessMailsDocument(models.Model):
             result["domain"] = domain
         return result
 
-    @api.multi
+
     def reject_document(self):
         for r in self:
             if r.xml:
@@ -279,7 +279,7 @@ class ProcessMailsDocument(models.Model):
             if self.company_id.dte_service_provider == "SII":
                 raise UserError("Error al obtener aceptación: %s" % str(e))
 
-    @api.multi
+
     def get_claim(self):
         date_end = self.create_date + relativedelta(days=8)
         if date_end <= datetime.now() and self.claim == "N/D":

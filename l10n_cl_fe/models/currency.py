@@ -24,7 +24,7 @@ class ResCurrency(models.Model):
     )
     rounding = fields.Float(string="Rounding Factor", digits=(12, 14), default=0.01)
 
-    @api.multi
+    
     def round(self, amount):
         """Return ``amount`` rounded  according to ``self``'s rounding rules.
 

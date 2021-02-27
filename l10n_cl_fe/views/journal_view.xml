@@ -61,7 +61,7 @@
                             <field name="company_activity_ids" invisible="1" />
                             <field
                                 name="journal_activities_ids"
-                                attrs="{'invisible': ['|',('type','not in',['purchase','sale'])],'required': [('use_documents','=',True),('type','in',['sale'])]}"
+                                attrs="{'invisible': [('type','not in',['purchase','sale'])],'required': [('use_documents','=',True),('type','in',['sale'])]}"
                                 placeholder="Giros del Diario"
                                 widget="many2many_tags"
                                 options="{'no_create': True}"

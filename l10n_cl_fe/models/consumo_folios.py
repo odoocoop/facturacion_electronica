@@ -175,7 +175,13 @@ class ConsumoFolios(models.Model):
             r.total = total
             r.total_boletas = total_boletas
 
-    def _get_resumenes(self):
+    def _get_moves(self):
+        recs = self.with_context(lang="es_CL").move_ids.filtered(
+            lambda a: a.is_invoice() and a.document_class_id.es_boleta()\
+            and a.sii_document_number not in [0, False])
+        return recs
+
+    def _get_datos(self):
         grupos = {}
         recs = self._get_moves()
         for r in recs:
@@ -199,6 +205,10 @@ class ConsumoFolios(models.Model):
             "Correlativo": self.correlativo,
             "Documento": [{"TipoDTE": k, "documentos": v} for k, v in grupos.items()],
         }
+        return datos
+
+    def _get_resumenes(self):
+        datos = self._get_datos()
         resumenes = CF(datos)._get_resumenes()
         return resumenes
 
@@ -261,18 +271,14 @@ class ConsumoFolios(models.Model):
             raise UserError("No puede hacer Consumo de Folios de días futuros")
         self.name = self.fecha_inicio
         self.fecha_final = self.fecha_inicio
-        self.move_ids = (
-            self.env["account.move"]
-            .search(
+        self.move_ids = self.env["account.move"].search(
                 [
                     ("document_class_id.sii_code", "in", [39, 41]),
-                    #            ('sended','=', False),
-                    ("date", "=", self.fecha_inicio),
+                    ("invoice_date", "=", self.fecha_inicio),
                     ("company_id", "=", self.company_id.id),
+                    ("sii_document_number", 'not in', [0, False]),
                 ]
-            )
-            .ids
-        )
+            ).filtered(lambda a: a.is_invoice())
         consumos = self.search_count(
             [
                 ("fecha_inicio", "=", self.fecha_inicio),
@@ -282,22 +288,18 @@ class ConsumoFolios(models.Model):
         )
         if consumos > 0:
             self.sec_envio = consumos + 1
-        self._resumenes()
 
-    @api.multi
     def copy(self, default=None):
         res = super(ConsumoFolios, self).copy(default)
         res.set_data()
         return res
 
-    @api.multi
     def unlink(self):
         for libro in self:
             if libro.state not in ("draft", "cancel"):
                 raise UserError(_("You cannot delete a Validated book."))
         return super(ConsumoFolios, self).unlink()
 
-    @api.multi
     def get_xml_file(self):
         return {
             "type": "ir.actions.act_url",
@@ -305,7 +307,6 @@ class ConsumoFolios(models.Model):
             "target": "self",
         }
 
-    @api.multi
     def validar_consumo_folios(self):
         self._validar()
         consumos = self.search(
@@ -330,8 +331,8 @@ class ConsumoFolios(models.Model):
         Emisor["ValorIva"] = 19
         return Emisor
 
-    def _get_datos_empresa(self, company_id):
-        signature_id = self.env.user.get_digital_signature(company_id)
+    def _get_datos_empresa(self):
+        signature_id = self.env.user.get_digital_signature(self.company_id)
         if not signature_id:
             raise UserError(
                 _(
@@ -344,55 +345,11 @@ class ConsumoFolios(models.Model):
             "firma_electronica": signature_id.parametros_firma(),
         }
 
-    def _get_moves(self):
-        recs = []
-        for rec in self.with_context(lang="es_CL").move_ids:
-            rec.sended = True
-            document_class_id = rec.document_class_id
-            if (
-                not document_class_id
-                or document_class_id.sii_code not in [39, 41]
-                or rec.sii_document_number in [False, 0]
-            ):
-                continue
-            ref = self.env["account.invoice"].search(
-                [
-                    ("sii_document_number", "=", rec.sii_document_number),
-                    ("document_class_id", "=", document_class_id.id),
-                    ("partner_id.commercial_partner_id", "=", rec.partner_id.id),
-                    ("journal_id", "=", rec.journal_id.id),
-                    ("state", "not in", ["cancel", "draft"]),
-                ]
-            )
-            recs.append(ref)
-        return recs
-
     def _validar(self):
-        datos = self._get_datos_empresa(self.company_id)
-        grupos = {}
-        recs = self._get_moves()
-        for r in recs:
-            grupos.setdefault(r.document_class_id.sii_code, [])
-            grupos[r.document_class_id.sii_code].append(r.with_context(tax_detail=True)._dte())
-        for r in self.anulaciones:
-            grupos.setdefault(r.tpo_doc.sii_code, [])
-            for i in range(r.rango_inicio, r.rango_final + 1):
-                grupos[r.tpo_doc.sii_code].append(
-                    {
-                        "Encabezado": {
-                            "IdDoc": {"Folio": i, "FechaEmis": self.fecha_inicio.strftime("%d-%m-%Y"), "Anulado": True,}
-                        }
-                    }
-                )
-        datos["ConsumoFolios"] = [
-            {
-                "FchInicio": self.fecha_inicio.strftime("%d-%m-%Y"),
-                "FchFinal": self.fecha_final.strftime("%d-%m-%Y"),
-                "SecEnvio": self.sec_envio,
-                "Correlativo": self.correlativo,
-                "Documento": [{"TipoDTE": k, "documentos": v} for k, v in grupos.items()],
-            }
-        ]
+        if not self.impuestos:
+            self._resumenes()
+        datos = self._get_datos_empresa()
+        datos["ConsumoFolios"] = [self._get_datos()]
         datos["test"] = True
         result = fe.consumo_folios(datos)[0]
         envio_dte = result["sii_xml_request"]
@@ -403,7 +360,6 @@ class ConsumoFolios(models.Model):
             .id
         )
 
-    @api.multi
     def do_dte_send_consumo_folios(self):
         if self.state not in ["draft", "NoEnviado", "Rechazado"]:
             raise UserError("El Consumo de Folios ya ha sido enviado")
@@ -440,7 +396,7 @@ class ConsumoFolios(models.Model):
         else:
             self.state = self.sii_xml_request.state
 
-    @api.multi
+
     def ask_for_dte_status(self):
         self._get_send_status()
 

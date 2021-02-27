@@ -1,437 +1,68 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="UTF-8"?>
+<templates id="template" xml:space="preserve">
 
-<templates id="template" inherit_id="point_of_sale.template">
-  <t t-extend="PosTicket">
-    <t t-jquery="div" t-operation="replace">
-      <div class="pos-sale-ticket">
-        <div style="text-align:center;">
-          <h2><t t-esc="widget.pos.company.name"/></h2>
-          <h4><t t-esc="widget.pos.company.document_number"/></h4>
-          <t t-esc="widget.pos.company.activity_description[1]"/><br />
-          Casa Matriz: <t t-esc="widget.pos.company.street"/> <t t-esc="widget.pos.company.city"/><br />
-          <t t-if="widget.pos.company.sucursal_ids">
-            <t t-foreach="widget.pos.company.sucursal_ids" t-as="sucursal">
+    <t t-name="OrderReceipt" t-inherit="point_of_sale.OrderReceipt" t-inherit-mode="extension" owl="1">
+      <t t-if="!receipt.company.logo" position="replace">
+        <h3 class="pos-receipt-center-align">
+            <t t-esc="receipt.company.name" />
+            <br/>
+            <t t-esc="receipt.company.document_number"/>
+            <t t-if="receipt.nombre_documento"><br /><t t-esc="receipt.nombre_documento"/><t t-esc="' N°:' + receipt.sii_document_number"/></t>
+        </h3>
+      </t>
+      <t t-if="receipt.company.contact_address" position="replace">
+        <h3>
+          <t t-esc="receipt.company.activity_description"/><br />
+          Casa Matriz: <t t-esc="receipt.company.street"/> <t t-esc="receipt.company.city"/><br />
+          <t t-if="receipt.company.sucursal_ids">
+            <t t-foreach="receipt.company.sucursal_ids" t-as="sucursal">
                 Sucursal: <t t-esc="sucursal.partner_id.street + ', ' + sucursal.partner_id.city_id.name+ ', ' + sucursal.partner_id.city"/><br />
             </t>
           </t>
-          <div class="pos-center-align"><t t-if="receipt.nombre_documento"><t t-esc="receipt.nombre_documento"/> N°:</t><t t-esc="order.sii_document_number or order.name"/></div>
-        </div>
-          <br />
+        </h3>
 
-          Teléfono: <t t-esc="widget.pos.company.phone || ''"/><br />
-          Vendedor: <t t-esc="widget.pos.cashier ? widget.pos.cashier.name : widget.pos.user.name"/><br />
-          Tienda: <t t-esc="widget.pos.shop.name"/><br />
-          Fecha: <t t-esc="receipt.creation_date"/><br />
-          <br />
-          <div class="row">
-            <t t-set="client" t-value="order.get_client()" />
-            <div class="col-xs-12 text-left" t-if="client">
-                Cliente: <span t-esc="client.name"/><br/>
-                Rut: <span t-esc="client.document_number"/><br/>
-                Dirección: <span t-esc="client.street"/><br/>
-                Número de identificación: <span t-esc="client.id"/><br/>
-            </div>
-          </div>
-          <br />
-          <t t-if="receipt.header">
-              <div style='text-align:center'>
-                  <t t-esc="receipt.header" />
-              </div>
-              <br />
-          </t>
-          <table class='receipt-orderlines'>
-              <colgroup>
-                  <col width='50%' />
-                  <col width='25%' />
-                  <col width='25%' />
-              </colgroup>
-              <tr t-foreach="orderlines" t-as="orderline">
-                  <td>
-                      <t t-esc="orderline.get_product().display_name"/>
-                       <t t-if="orderline.get_discount() > 0">
-                          <div class="pos-disc-font">
-                              With a <t t-esc="orderline.get_discount()"/>% discount
-                          </div>
-                      </t>
-                  </td>
-                  <td class="pos-right-align">
-                      <t t-esc="orderline.get_quantity_str_with_unit()"/>
-                  </td>
-                  <td class="pos-right-align">
-                      <t t-esc="widget.format_currency(orderline.get_display_price())"/>
-                  </td>
-              </tr>
-          </table>
-          <br />
-          <table class='receipt-total'>
-              <tr>
-                  <td>Descuento:</td>
-                  <td class="pos-right-align">
-                      <t t-esc="widget.format_currency(receipt.total_discount)"/>
-                  </td>
-              </tr>
-              <tr>
-                  <td>Subtotal:</td>
-                  <td class="pos-right-align">
-                      <t t-esc="widget.format_currency(receipt.total_without_tax)"/>
-                  </td>
-              </tr>
-              <tr t-if="receipt.exento !=0">
-                  <td>Exento:</td>
-                  <td class="pos-right-align">
-                      <t t-esc="widget.format_currency(receipt.exento)"/>
-                  </td>
-              </tr>
-              <tr t-foreach="receipt.tax_details" t-as="t">
-                <t t-if="t.amount >0">
-                  <td><t t-esc="t.name" />:</td>
-                  <td class="pos-right-align">
-                      <t t-esc="widget.format_currency(t.amount)"/>
-                  </td>
-                </t>
-              </tr>
-              <tr class="emph">
-                  <td>Total:</td>
-                  <td class="pos-right-align">
-                      <t t-esc="widget.format_currency(receipt.total_with_tax)"/>
-                  </td>
-              </tr>
-          </table>
-          <br />
-          <table class='receipt-paymentlines'>
-              <t t-foreach="paymentlines" t-as="line">
-                <tr>
-                    <td>
-                        <t t-esc="line.name"/>
-                    </td>
-                    <td class="pos-right-align">
-                        <t t-esc="widget.format_currency(line.get_amount())"/>
-                    </td>
-                </tr>
-              </t>
-          </table>
-          <br />
-          <table class='receipt-change'>
-              <tr><td>Vuelto:</td><td class="pos-right-align">
-                  <t t-esc="widget.format_currency(order.get_change())"/>
-                  </td></tr>
-          </table>
-          <br/>
-          <div class="row" t-if="receipt.barcode">
-            <div class="col-xs-12">
-              <img t-att-src="receipt.barcode" style="width:100%;height: 150px;"/>
-            </div>
-            <div class="col-xs-12">
-                <p style="text-align:center;color:red; font-size:8px;">
-                  Timbre Electrónico SII
-                  <br/>
-                  Resolución <t t-esc='widget.pos.company.dte_resolution_number'/> de <t t-esc='widget.pos.company.dte_resolution_date.slice(0, 4)'/> Verifique documento en:
-                  <br />
-                  www.sii.cl o en <br />
-                  <t t-esc="widget.pos.company.website + '/boleta/' + order.sii_document_number"/>
-                </p>
-            </div>
-          </div>
-          <div class='before-footer' />
-          <t t-if="receipt.footer">
-              <br />
-              <div style='text-align:center'>
-                  <t t-esc="receipt.footer" />
-              </div>
-          </t>
-      </div>
-    </t>
-  </t>
-
-
-  <t t-extend="XmlReceipt">
-    <t t-jquery="receipt" t-operation="replace">
-      <receipt align='center' width='40' value-thousands-separator='.' >
-        <t t-if='receipt.company.logo'>
-            <img t-att-src='receipt.company.logo' />
-        </t>
-        <t t-if='!receipt.company.logo'>
-          <h3><t t-esc='receipt.company.name' /></h3>
-        </t>
-        <div>
-          <h3><t t-esc="receipt.company.name"/></h3>
-          <h4><t t-esc="receipt.company.document_number"/></h4>
-          <em>
-            <t t-esc="receipt.company.activity_description"/><br />
-            Casa Matriz: <t t-esc="receipt.company.street"/> <t t-esc="receipt.company.city"/><br />
-            <t t-if="receipt.company.sucursal_ids">
-              <t t-foreach="receipt.company.sucursal_ids" t-as="sucursal">
-                  Sucursal: <t t-esc="sucursal.partner_id.street + ', ' + sucursal.partner_id.city_id.name+ ', ' + sucursal.partner_id.city"/>
-              </t>
-            </t>
-          </em>
-          <div class="pos-center-align"><t t-if="receipt.nombre_documento"><t t-esc="receipt.nombre_documento"/> N°:</t><t t-esc="receipt.sii_document_number or receipt.name"/></div>
+      </t>
+      <t t-if="receipt.company.vat" position="replace">
+        <div />
+      </t>
+      <xpath expr="//div[hasclass('pos-receipt-contact')]" position="inside">
+        <div class="col-xs-12 text-left" t-if="receipt.partner_id">
+            Cliente: <span t-esc="receipt.client.name"/><br/>
+            Rut: <span t-esc="receipt.client.document_number"/><br/>
+            Dirección: <span t-esc="receipt.client.street"/><br/>
+            Número de identificación: <span t-esc="receipt.client.id"/><br/>
         </div>
-        <line><left font='b'>Teléfono: </left><right><t t-esc="receipt.company.phone || ''"/></right></line>
-        <line><left font='b'>Vendedor: </left><right><t t-esc="receipt.cashier"/></right></line>
-        <line><left font='b'>Tienda: </left><right><t t-esc="receipt.shop.name"/></right></line>
-        <line><left font='b'>Fecha: </left><right><t t-esc="receipt.creation_date"/></right></line>
-        <t t-if="receipt.client">
-          <line><left font='b'>Cliente: </left><right><span t-esc="receipt.client.name"/></right></line>
-          <line><left font='b'>Rut: </left><right><span t-esc="receipt.client.document_number"/></right></line>
-          <line><left font='b'>Dirección: </left><right><span t-esc="receipt.client.street"/></right></line>
-          <line><left font='b'>Número de identificación: </left><right><span t-esc="receipt.client.id"/></right></line>
-        </t>
-        <t t-if="receipt.header">
-          <div style='text-align:center'>
-              <t t-esc="receipt.header" />
-          </div>
-        </t>
-        <line><right>--------</right></line>
-        <div class='orderlines' line-ratio='0.6'>
-          <t t-foreach='receipt.orderlines' t-as='line'>
-            <t t-set='simple' t-value='line.discount === 0 and line.unit_name === "Unit(s)" and line.quantity === 1' />
-            <t t-if='simple'>
-                <line>
-                    <left><t t-esc='line.product_name' /></left>
-                    <right>$ <value value-decimals='0'><t t-esc='line.price_display' /></value></right>
-                </line>
-            </t>
-            <t t-if='!simple'>
-              <line><left><t t-esc='line.product_name' /></left></line>
-              <t t-if='line.discount !== 0'>
-                <line indent='1'><left>Descuento: <t t-esc='line.discount' />%</left></line>
-              </t>
-              <line indent='1'>
-                <left>
-                  <value value-decimals='3' value-autoint='on'>
-                    <t t-esc='line.quantity' />
-                  </value>
-                  <t t-if='line.unit_name !== "Unit(s)"'>
-                    <t t-esc='line.unit_name' />
-                  </t>
-                  x
-                  $ <value value-decimals='0'>
-                    <t t-esc='line.price' />
-                  </value>
-                </left>
-                <right>
-                  $ <value value-decimals='0'><t t-esc='line.price_display' /></value>
-                </right>
-              </line>
-            </t>
-          </t>
-        </div>
-        <t t-if="receipt.exento !=0">
-          <line><right>--------</right></line>
-          <line class='total'>
-            <left><pre>        Exento</pre></left>
-            <right>$ <value value-decimals='0'><t t-esc='receipt.exento' /></value></right>
-          </line>
-        </t>
-        <t t-if="receipt.total_tax !=0">
-          <line><right>--------</right></line>
-          <t t-foreach="receipt.tax_details" t-as="t">
-            <line class='total' t-if="t.amount > 0">
-              <left><pre>        <t t-esc="t.name"/></pre></left>
-              <right>$ <value value-decimals='0'><t t-esc='t.amount' /></value></right>
-            </line>
-          </t>
-        </t>
-        <line><right>--------</right></line>
-        <line class='total'>
-          <left><pre>        TOTAL</pre></left>
-          <right>$ <value value-decimals='0'><t t-esc='receipt.total_with_tax' /></value></right>
-        </line>
-        <t t-foreach='paymentlines' t-as='line'>
-          <line>
-            <left><t t-esc='line.name' /></left>
-            <right>$ <value value-decimals='0'><t t-esc='line.get_amount()'/></value></right>
-          </line>
-        </t>
-        <line>
-          <left><pre>        Vuelto:</pre></left>
-          <right>$ <value value-decimals='0'><t t-esc='receipt.change' /></value></right>
-        </line>
-        <div t-if="receipt.barcode">
-          <img t-att-src="receipt.barcode"/>
-          <em>
-            <p >
-              Timbre Electrónico SII
-              <br/>
-              Resolución <t t-esc='receipt.company.dte_resolution_number'/> de <t t-esc='receipt.company.dte_resolution_date.slice(0, 4)'/> Verifique documento en:
-              <br />
-              www.sii.cl o en
-              <br />
-              <t t-esc="receipt.company.website +'/boleta/' + receipt.sii_document_number " />
-            </p>
-          </em>
-        </div>
-        <div class='before-footer' />
-        <t t-if="receipt.footer">
-            <br />
-            <div style='text-align:center'>
-                <t t-esc="receipt.footer" />
+      </xpath>
+      <t t-if="!isTaxIncluded" position="replace">
+        <t t-foreach="receipt.tax_details" t-as="tax" t-key="tax.name">
+            <div t-if="tax.amount > 0">
+                <t t-esc="tax.name" />
+                <span t-esc='env.pos.format_currency_no_symbol(tax.amount)' class="pos-receipt-right-align"/>
             </div>
         </t>
-      </receipt>
-    </t>
-  </t>
-
-  <t t-name="PosInvoice">
-    <div class="pos-sale-ticket">
-      <div style="text-align:center; color:red; border-color:1px solid red;padding:5px;">
-        <h2>R.U.T.:<t t-esc="widget.pos.company.document_number"/></h2>
-        <div class="pos-center-align"><t t-esc="order.nombre_documento"/> N°:<t t-esc="order.sii_document_number"/></div>
-      </div>
-      <br/>
-      <div stle="text-align:center;">
-        <img t-att-src='widget.pos.company.logo' />
-      </div>
-      <br/>
-      <div style="text-align:right;">
-        <h2><t t-esc="widget.pos.company.name"/></h2>
-        <t t-esc="widget.pos.company.activity_description[1]"/><br />
-        Casa Matriz: <t t-esc="widget.pos.company.street"/> <t t-esc="widget.pos.company.city"/><br />
-        <t t-if="widget.pos.company.sucursal_ids">
-          <line t-foreach="widget.pos.company.sucursal_ids" t-as="sucursal">
-              Sucursal: <t t-esc="sucursal.partner_id.street + ', ' + sucursal.partner_id.city_id.name+ ', ' + sucursal.partner_id.city"/>
-          </line>
-        </t>
-        Tienda: <t t-esc="widget.pos.shop.name"/><br /> Vendedor: <t t-esc="widget.pos.cashier ? widget.pos.cashier.name : widget.pos.user.name"/><br />
-        Teléfono: <t t-esc="widget.pos.company.phone || ''"/><br />
-      </div>
-        <br />
-        <div class="row">
-          <h3>Razón Social del Receptor</h3>
-          <t t-set="client" t-value="order.get_client()" />
-          <div class="col-xs-12 text-left" t-if="client">
-              Cliente: <span t-esc="client.name"/><br/>
-              Rut: <span t-esc="client.document_number"/><br/>
-              Giro: <span t-esc="client.activity_description"/><br/>
-              Dirección: <span t-esc="client.street"/><br/>
-              Número de identificación: <span t-esc="client.id"/><br/>
-          </div>
+        <!-- Exento -->
+        <div class="pos-receipt-amount" t-if="receipt.exento !=0">
+            Exento:
+            <span t-esc="widget.format_currency(receipt.exento)" class="pos-receipt-right-align"/>
         </div>
-        <div class="row" t-if="receipt.referencias.length > 0">
-          <table  class='receipt-orderlines'>
-            <colgroup>
-                <col width='10%' />
-                <col width='30%' />
-                <col width='10%' />
-                <col width='20%' />
-                <col width='20%' />
-            </colgroup>
-            <tr>
-              <th>Folio</th>
-              <th>Tipo Documento</th>
-              <th>Fecha Documento</th>
-              <th>Código Referencia</th>
-              <th>Razón Referencia</th>
-            </tr>
-            <tr t-foreach="receipt.referencias" t-as="ref">
-              <td t-esc="ref.folio"/>
-              <td t-esc="ref.tpo_doc"/>
-              <td t-esc="ref.date"/>
-              <td t-esc="ref.sii_code"/>
-              <td t-esc="ref.razon"/>
-            </tr>
-          </table>
-        </div>
-        <br />
-        Fecha de Emisión: <t t-esc="receipt.creation_date"/><br />
-        <br />
-        <t t-if="receipt.header">
-            <div style='text-align:center'>
-                <t t-esc="receipt.header" />
-            </div>
-            <br />
-        </t>
-        <table class='receipt-orderlines'>
-            <colgroup>
-                <col width='50%' />
-                <col width='25%' />
-                <col width='25%' />
-            </colgroup>
-            <tr t-foreach="orderlines" t-as="orderline">
-                <td>
-                    <t t-esc="orderline.get_product().display_name"/>
-                     <t t-if="orderline.get_discount() > 0">
-                        <div class="pos-disc-font">
-                            With a <t t-esc="orderline.get_discount()"/>% discount
-                        </div>
-                    </t>
-                </td>
-                <td class="pos-right-align">
-                    <t t-esc="orderline.get_quantity_str_with_unit()"/>
-                </td>
-                <td class="pos-right-align">
-                    <t t-esc="widget.format_currency(orderline.get_display_price())"/>
-                </td>
-            </tr>
-        </table>
-        <br />
-        <table class='receipt-total'>
-            <tr>
-                <td>Descuento:</td>
-                <td class="pos-right-align">
-                    <t t-esc="widget.format_currency(receipt.total_discount)"/>
-                </td>
-            </tr>
-            <tr>
-                <td>Subtotal:</td>
-                <td class="pos-right-align">
-                    <t t-esc="widget.format_currency(receipt.total_without_tax)"/>
-                </td>
-            </tr>
-            <tr t-if="receipt.exento !=0">
-                <td>Exento:</td>
-                <td class="pos-right-align">
-                    <t t-esc="widget.format_currency(receipt.exento)"/>
-                </td>
-            </tr>
-            <tr class="emph">
-                <td>Total:</td>
-                <td class="pos-right-align">
-                    <t t-esc="widget.format_currency(receipt.total_with_tax)"/>
-                </td>
-            </tr>
-        </table>
-        <br />
-        <table class='receipt-paymentlines'>
-            <t t-foreach="paymentlines" t-as="line">
-              <tr>
-                  <td>
-                      <t t-esc="line.name"/>
-                  </td>
-                  <td class="pos-right-align">
-                      <t t-esc="widget.format_currency(line.get_amount())"/>
-                  </td>
-              </tr>
-            </t>
-        </table>
-        <br />
-        <table class='receipt-change'>
-            <tr><td>Vuelto:</td><td class="pos-right-align">
-                <t t-esc="widget.format_currency(order.get_change())"/>
-                </td></tr>
-        </table>
-        <br/>
-        <div class="row">
+      </t>
+      <t t-if="isTaxIncluded" position="replace">
+        <div class="row" t-if="receipt.barcode">
           <div class="col-xs-12">
-            <img t-att-src="order.barcode_pdf417()" style="width:100%; height: 150px;"/>
-
+            <img t-att-src="receipt.barcode" style="width:100%;height: 150px;"/>
           </div>
           <div class="col-xs-12">
               <p style="text-align:center;color:red; font-size:8px;">
                 Timbre Electrónico SII
                 <br/>
-                Resolución <t t-esc='widget.pos.company.dte_resolution_number'/> de <t t-esc='widget.pos.company.dte_resolution_date.slice(0, 4)'/> Verifique documento: www.sii.cl
+                Resolución <t t-esc='receipt.company.dte_resolution_number'/> de <t t-esc='receipt.company.dte_resolution_date.slice(0, 4)'/> Verifique documento en:
+                <br />
+                www.sii.cl o en <br />
+                <t t-esc="receipt.company.website + '/boleta/' + receipt.sii_document_number"/>
               </p>
           </div>
         </div>
-        <div class='before-footer' />
-        <t t-if="receipt.footer">
-            <br />
-            <div style='text-align:center'>
-                <t t-esc="receipt.footer" />
-            </div>
-        </t>
-    </div>
-  </t>
+      </t>
+    </t>
+
 </templates>

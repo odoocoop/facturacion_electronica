@@ -31,9 +31,7 @@
         </record>
         <record model="ir.actions.act_window" id="act_sii_responsability">
             <field name="name">SII Responsability</field>
-            <field name="type">ir.actions.act_window</field>
             <field name="res_model">sii.responsability</field>
-            <field name="view_type">form</field>
             <field name="view_mode">tree,form</field>
         </record>
         <menuitem

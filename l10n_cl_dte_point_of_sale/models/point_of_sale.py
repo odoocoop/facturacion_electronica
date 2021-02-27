@@ -85,6 +85,7 @@ class POS(models.Model):
 
     def _get_barcode_img(self):
         for r in self:
+            r.sii_barcode_img = False
             if r.sii_barcode:
                 barcodefile = BytesIO()
                 image = self.pdf417bc(r.sii_barcode)
@@ -242,7 +243,7 @@ class POS(models.Model):
         att = self.env['ir.attachment'].sudo().create(values)
         return att
 
-    @api.multi
+
     def get_xml_file(self):
         return {
             'type': 'ir.actions.act_url',
@@ -286,31 +287,29 @@ class POS(models.Model):
         return result
 
     @api.model
-    def _process_order(self, order):
-        lines = []
-        for l in order['lines']:
+    def _process_order(self, order, draft, existing_order):
+        for l in order['data']['lines']:
             l[2]['pos_order_line_id'] = int(l[2]['id'])
-            lines.append(l)
-        order['lines'] = lines
-        order_id = super(POS, self)._process_order(order)
-        if order_id.amount_total != float(order['amount_total']):
+        id = super(POS, self)._process_order(order, draft, existing_order)
+        order_id = self.env['pos.order'].browse(id)
+        if order_id.amount_total != float(order['data']['amount_total']):
             raise UserError("Diferencia de cálculo, verificar. En el caso de que el cálculo use Mepco, debe intentar cerrar la caja porque el valor a cambiado")
-        order_id.sequence_number = order['sequence_number'] #FIX odoo bug
-        if order.get('sequence_id'):
+        order_id.sequence_number = order['data']['sequence_number'] #FIX odoo bug
+        if order.get('data', {}).get('sequence_id'):
             order_id.document_class_id = order_id.sequence_id.sii_document_class_id.id
-        if order.get('orden_numero', False) and order_id.document_class_id:
+        if order.get('data', {}).get('orden_numero', False) and order_id.document_class_id:
             order_id.document_class_id = order_id.sequence_id.sii_document_class_id.id
-            if order_id.sequence_id and order_id.document_class_id.sii_code == 39 and order['orden_numero'] > order_id.session_id.numero_ordenes:
-                order_id.session_id.numero_ordenes = order['orden_numero']
-            elif order_id.sequence_id and order_id.document_class_id.sii_code == 41 and order['orden_numero'] > order_id.session_id.numero_ordenes_exentas:
-                order_id.session_id.numero_ordenes_exentas = order['orden_numero']
+            if order_id.sequence_id and order_id.document_class_id.sii_code == 39 and order['data']['orden_numero'] > order_id.session_id.numero_ordenes:
+                order_id.session_id.numero_ordenes = order['data']['orden_numero']
+            elif order_id.sequence_id and order_id.document_class_id.sii_code == 41 and order['data']['orden_numero'] > order_id.session_id.numero_ordenes_exentas:
+                order_id.session_id.numero_ordenes_exentas = order['data']['orden_numero']
             sign = self.env.user.get_digital_signature(self.env.user.company_id)
             if (order_id.session_id.caf_files or order_id.session_id.caf_files_exentas) and sign:
-                timbre = etree.fromstring(order['signature'])
+                timbre = etree.fromstring(order['data']['signature'])
                 order_id.timestamp_timbre = timbre.find('DD/TSTED').text
                 order_id._timbrar()
                 order_id.sequence_id.next_by_id()#consumo Folio
-        return order_id
+        return order_id.id
 
     def _prepare_invoice(self):
         result = super(POS, self)._prepare_invoice()
@@ -335,7 +334,7 @@ class POS(models.Model):
         })
         return result
 
-    @api.multi
+
     def do_validate(self):
         ids = []
         for order in self:
@@ -357,14 +356,14 @@ class POS(models.Model):
                 'send_email': False if self[0].company_id.dte_service_provider=='SIICERT' or not self.env['ir.config_parameter'].sudo().get_param('account.auto_send_email', default=True) else True,
             })
 
-    @api.multi
+
     def do_dte_send_order(self):
         ids = []
         for order in self:
             if not order.invoice_id and order.document_class_id.sii_code in [61, 39, 41]:
-                if order.sii_result not in [False, '', 'NoEnviado', 'Rechazado']:
+                if order.sii_xml_request.sii_send_ident not in [False, 'BE'] and order.sii_result not in [False, '', 'NoEnviado', 'Rechazado']:
                     raise UserError("El documento %s ya ha sido enviado o está en cola de envío" % order.sii_document_number)
-                if order.sii_result in ["Rechazado"]:
+                if order.sii_result in ["Rechazado"] or order.sii_xml_request.sii_send_ident == 'BE':
                     order._timbrar()
                     if len(order.sii_xml_request.order_ids) == 1:
                         order.sii_xml_request.unlink()
@@ -707,7 +706,7 @@ class POS(models.Model):
             )
         return envio
 
-    @api.multi
+
     def do_dte_send(self, n_atencion=None):
         datos = self._crear_envio()
         envio_id = self[0].sii_xml_request
@@ -758,7 +757,7 @@ class POS(models.Model):
             if resultado[id].get('xml_resp'):
                 r.sii_message = resultado[id].get('xml_resp')
 
-    @api.multi
+
     def ask_for_dte_status(self):
         for r in self:
             if not r.sii_xml_request and not r.sii_xml_request.sii_send_ident:
@@ -795,374 +794,11 @@ class POS(models.Model):
         send_mail = self.env['mail.mail'].sudo().create(values)
         send_mail.send()
 
-    def _prepare_account_move_and_lines(self, session=None, move=None):
-        def _flatten_tax_and_children(taxes, group_done=None):
-            children = self.env['account.tax']
-            if group_done is None:
-                group_done = set()
-            for tax in taxes.filtered(lambda t: t.amount_type == 'group'):
-                if tax.id not in group_done:
-                    group_done.add(tax.id)
-                    children |= _flatten_tax_and_children(tax.children_tax_ids, group_done)
-            return taxes + children
-        # Tricky, via the workflow, we only have one id in the ids variable
-        """Create a account move line of order grouped by products or not."""
-        IrProperty = self.env['ir.property']
-        ResPartner = self.env['res.partner']
-
-        if session and not all(session.id == order.session_id.id for order in self):
-            raise UserError(_('Selected orders do not have the same session!'))
-
-        grouped_data = {}
-        have_to_group_by = session and session.config_id.group_by or False
-        rounding_method = session and session.config_id.company_id.tax_calculation_rounding_method
-        document_class_id = False
-
-        def add_anglosaxon_lines(grouped_data):
-            Product = self.env['product.product']
-            Analytic = self.env['account.analytic.account']
-            keys = []
-            for product_key in list(grouped_data.keys()):
-                if product_key[0] == "product":
-                    line = grouped_data[product_key][0]
-                    product = Product.browse(line['product_id'])
-                    # In the SO part, the entries will be inverted by function compute_invoice_totals
-                    price_unit = self._get_pos_anglo_saxon_price_unit(product, line['partner_id'], line['quantity'])
-                    account_analytic = Analytic.browse(line.get('analytic_account_id'))
-                    res = Product._anglo_saxon_sale_move_lines(
-                        line['name'], product, product.uom_id, line['quantity'], price_unit,
-                            fiscal_position=order.fiscal_position_id,
-                            account_analytic=account_analytic)
-                    if res:
-                        line1, line2 = res
-                        line1 = Product._convert_prepared_anglosaxon_line(line1, line['partner_id'])
-                        values = {
-                            'name': line1['name'],
-                            'account_id': line1['account_id'],
-                            'credit': line1['credit'] or 0.0,
-                            'debit': line1['debit'] or 0.0,
-                            'partner_id': line1['partner_id']
-                        }
-                        keys.append(self._get_account_move_line_group_data_type_key('counter_part', values))
-                        insert_data('counter_part', values)
-
-                        line2 = Product._convert_prepared_anglosaxon_line(line2, line['partner_id'])
-                        values = {
-                            'name': line2['name'],
-                            'account_id': line2['account_id'],
-                            'credit': line2['credit'] or 0.0,
-                            'debit': line2['debit'] or 0.0,
-                            'partner_id': line2['partner_id']
-                        }
-                        keys.append(self._get_account_move_line_group_data_type_key('counter_part', values))
-                        insert_data('counter_part', values)
-            if not keys:
-                return
-            dif = 0
-            for group_key, group_data in grouped_data.items():
-                if group_key in keys:
-                    for value in group_data:
-                        if value['credit'] > 0:
-                            entera, decimal = math.modf(value['credit'])
-                            dif = cur_company.round(value['credit']) - entera
-                        elif dif > 0 and value['debit'] > 0:
-                            value['debit'] += 1
-                            dif = 0
-
-        for order in self.filtered(lambda o: not o.account_move or o.state == 'paid'):
-            current_company = order.sale_journal.company_id
-            account_def = IrProperty.get(
-                'property_account_receivable_id', 'res.partner')
-            order_account = order.partner_id.property_account_receivable_id.id or account_def and account_def.id
-            partner_id = ResPartner._find_accounting_partner(order.partner_id).id or False
-            if move is None:
-                # Create an entry for the sale
-                journal_id = self.env['ir.config_parameter'].sudo().get_param(
-                    'pos.closing.journal_id_%s' % current_company.id, default=order.sale_journal.id)
-                move = self._create_account_move(
-                    order.session_id.start_at, order.name, int(journal_id), order.company_id.id)
-            if order.document_class_id and not move.document_class_id:
-                move.document_class_id = order.document_class_id
-            def insert_data(data_type, values):
-                # if have_to_group_by:
-                values.update({
-                    'partner_id': partner_id,
-                    'move_id': move.id,
-                })
-                key = self._get_account_move_line_group_data_type_key(data_type, values)
-                if not key:
-                    return
-
-                grouped_data.setdefault(key, [])
-
-                if have_to_group_by:
-                    if not grouped_data[key]:
-                        grouped_data[key].append(values)
-                    else:
-                        current_value = grouped_data[key][0]
-                        current_value['quantity'] = current_value.get('quantity', 0.0) + values.get('quantity', 0.0)
-                        current_value['credit'] = current_value.get('credit', 0.0) + values.get('credit', 0.0)
-                        current_value['debit'] = current_value.get('debit', 0.0) + values.get('debit', 0.0)
-                else:
-                    grouped_data[key].append(values)
-
-            # because of the weird way the pos order is written, we need to make sure there is at least one line,
-            # because just after the 'for' loop there are references to 'line' and 'income_account' variables (that
-            # are set inside the for loop)
-            # TOFIX: a deep refactoring of this method (and class!) is needed
-            # in order to get rid of this stupid hack
-            assert order.lines, _('The POS order must have lines when calling this method')
-            # Create an move for each order line
-            cur = order.pricelist_id.currency_id
-            cur_company = order.company_id.currency_id
-            amount_cur_company = 0.0
-            date_order = order.date_order.date() if order.date_order else fields.Date.today()
-            total = 0
-            all_tax = {}
-            last = False
-            for line in order.lines:
-                if cur != cur_company:
-                    amount_subtotal = cur._convert(line.price_subtotal, cur_company, order.company_id, date_order)
-                else:
-                    amount_subtotal = line.price_subtotal
-                if amount_subtotal != 0:
-                    last = line
-                # Search for the income account
-                if line.product_id.property_account_income_id.id:
-                    income_account = line.product_id.property_account_income_id.id
-                elif line.product_id.categ_id.property_account_income_categ_id.id:
-                    income_account = line.product_id.categ_id.property_account_income_categ_id.id
-                else:
-                    raise UserError(_('Please define income '
-                                      'account for this product: "%s" (id:%d).')
-                                    % (line.product_id.name, line.product_id.id))
-
-                name = line.product_id.name
-                if line.notice:
-                    # add discount reason in move
-                    name = name + ' (' + line.notice + ')'
-
-                # Create a move for the line for the order line
-                # Just like for invoices, a group of taxes must be present on this base line
-                # As well as its children
-                base_line_tax_ids = _flatten_tax_and_children(line.tax_ids_after_fiscal_position).filtered(lambda tax: tax.type_tax_use in ['sale', 'none'])
-                fpos = line.order_id.fiscal_position_id
-                tax_ids_after_fiscal_position = fpos.map_tax(line.tax_ids, line.product_id, order.partner_id) if fpos else line.tax_ids
-                taxes = tax_ids_after_fiscal_position.with_context(round=False, date=order.date_order, currency=cur_company.code).compute_all(line.price_unit, order.pricelist_id.currency_id, line.qty, product=line.product_id, partner=order.partner_id, discount=line.discount, uom_id=line.product_id.uom_id)
-                data = {
-                    'name': name,
-                    'quantity': line.qty,
-                    'product_id': line.product_id.id,
-                    'account_id': income_account,
-                    'analytic_account_id': self._prepare_analytic_account(line),
-                    'credit': ((amount_subtotal > 0) and amount_subtotal) or 0.0,
-                    'debit': ((amount_subtotal < 0) and -amount_subtotal) or 0.0,
-                    'tax_ids': [(6, 0, base_line_tax_ids.ids)],
-                    'partner_id': partner_id
-                }
-                total += amount_subtotal
-                if cur != cur_company:
-                    data['currency_id'] = cur.id
-                    data['amount_currency'] = -abs(line.price_subtotal) if data.get('credit') else abs(line.price_subtotal)
-                    amount_cur_company += data['credit'] - data['debit']
-                insert_data('product', data)
-
-                # Create the tax lines
-                line_taxes = line.tax_ids_after_fiscal_position.filtered(lambda t: t.company_id.id == current_company.id)
-                if not line_taxes and order.document_class_id:
-                    line.tax_ids = line.product_id.taxes_id
-                    line.tax_ids_after_fiscal_position = line.tax_ids
-                    line_taxes = line.tax_ids_after_fiscal_position.filtered(lambda t: t.company_id.id == current_company.id)
-                    if not line_taxes:
-	                    raise UserError("El producto %s está sin impuesto, seleccionar exento si no afecta al IVA" % line.product_id.name)
-	                    continue
-                #el Cálculo se hace sumando todos los valores redondeados, luego se cimprueba si hay descuadre de $1 y se agrega como línea de ajuste
-                taxes = line.tax_ids_after_fiscal_position.filtered(lambda t: t.company_id.id == current_company.id)
-                for tax in taxes.with_context(date=order.date_order, currency=cur_company.code).compute_all(line.price_unit, cur, line.qty, discount=line.discount, uom_id=line.product_id.uom_id)['taxes']:
-                    if cur != cur_company:
-                        round_tax = False if rounding_method == 'round_globally' else True
-                        amount_tax = cur._convert(tax['amount'], cur_company, order.company_id, date_order, round=round_tax)
-                        # amount_tax = cur.with_context(date=date_order).compute(tax['amount'], cur_company, round=round_tax)
-                    else:
-                        amount_tax = tax['amount']
-                    data = {
-                        'name': _('Tax') + ' ' + tax['name'],
-                        'product_id': line.product_id.id,
-                        'quantity': line.qty,
-                        'account_id': tax['account_id'] or income_account,
-                        'credit': ((amount_tax > 0) and amount_tax) or 0.0,
-                        'debit': ((amount_tax < 0) and -amount_tax) or 0.0,
-                        'tax_line_id': tax['id'],
-                        'partner_id': partner_id,
-                        'order_id': order.id
-                    }
-                    all_tax.setdefault(tax['name'], 0)
-                    all_tax[tax['name']] += amount_tax
-                    if cur != cur_company:
-                        data['currency_id'] = cur.id
-                        data['amount_currency'] = -abs(tax['amount']) if data.get('credit') else abs(tax['amount'])
-                        amount_cur_company += data['credit'] - data['debit']
-                    insert_data('tax', data)
-            # round tax lines  per order
-            total_tax = 0
-            for t, v in all_tax.items():
-                total_tax += cur_company.round(v)
-            dif = order.amount_total - (cur.round(total) + total_tax)
-            if rounding_method == 'round_globally':
-                for group_key, group_value in grouped_data.items():
-                    if dif != 0 and group_key[0] == 'product':
-                        for l in group_value:
-                            if last.product_id.id == l['product_id']:
-                                if l['credit'] > 0:
-                                    l['credit'] += dif
-                                else:
-                                    l['debit'] -= dif
-                                dif = 0
-                    if group_key[0] == 'tax':
-                        for l in group_value:
-                            l['credit'] = cur_company.round(l['credit'])
-                            l['debit'] = cur_company.round(l['debit'])
-                            if l.get('currency_id'):
-                                l['amount_currency'] = cur.round(l.get('amount_currency', 0.0))
-            # counterpart
-            if cur != cur_company:
-                # 'amount_cur_company' contains the sum of the AML converted in the company
-                # currency. This makes the logic consistent with 'compute_invoice_totals' from
-                # 'account.invoice'. It ensures that the counterpart line is the same amount than
-                # the sum of the product and taxes lines.
-                amount_total = amount_cur_company
-            else:
-                amount_total = order.amount_total
-            data = {
-                'name': _("Trade Receivables"),  # order.name,
-                'account_id': order_account,
-                'credit': ((amount_total < 0) and -amount_total) or 0.0,
-                'debit': ((amount_total > 0) and amount_total) or 0.0,
-                'partner_id': partner_id
-            }
-            if cur != cur_company:
-                data['currency_id'] = cur.id
-                data['amount_currency'] = -abs(order.amount_total) if data.get('credit') else abs(order.amount_total)
-            insert_data('counter_part', data)
-
-            order.write({'state': 'done', 'account_move': move.id})
-
-        if self and order.company_id.anglo_saxon_accounting:
-            add_anglosaxon_lines(grouped_data)
-        return {
-            'grouped_data': grouped_data,
-            'move': move,
-        }
-
-    def create_picking(self):
-        """Create a picking for each order and validate it."""
-        Picking = self.env['stock.picking']
-        # If no email is set on the user, the picking creation and validation will fail be cause of
-        # the 'Unable to log message, please configure the sender's email address.' error.
-        # We disable the tracking in this case.
-        if not self.env.user.partner_id.email:
-            Picking = Picking.with_context(tracking_disable=True)
-        Move = self.env['stock.move']
-        StockWarehouse = self.env['stock.warehouse']
-        for order in self:
-            if not order.lines.filtered(lambda l: l.product_id.type in ['product', 'consu']):
-                continue
-            address = order.partner_id.address_get(['delivery']) or {}
-            picking_type = order.picking_type_id
-            return_pick_type = order.picking_type_id.return_picking_type_id or order.picking_type_id
-            order_picking = Picking
-            return_picking = Picking
-            moves = Move
-            location_id = order.location_id.id
-            if order.partner_id:
-                destination_id = order.partner_id.property_stock_customer.id
-            else:
-                if (not picking_type) or (not picking_type.default_location_dest_id):
-                    customerloc, supplierloc = StockWarehouse._get_partner_locations()
-                    destination_id = customerloc.id
-                else:
-                    destination_id = picking_type.default_location_dest_id.id
-
-            if picking_type:
-                message = _("This transfer has been created from the point of sale session: <a href=# data-oe-model=pos.order data-oe-id=%d>%s</a>") % (order.id, order.name)
-                picking_vals = {
-                    'origin': order.name,
-                    'partner_id': address.get('delivery', False),
-                    'date_done': order.date_order,
-                    'picking_type_id': picking_type.id,
-                    'company_id': order.company_id.id,
-                    'move_type': 'direct',
-                    'note': order.note or "",
-                    'location_id': location_id,
-                    'location_dest_id': destination_id,
-                }
-                if order.config_id.dte_picking:
-                    if order.config_id.dte_picking_option == 'all' or (not order.document_class_id and order.config_id.dte_picking_option == 'no_tributarios'):
-                        picking_vals.update({
-                            'use_documents': True,
-                            'move_reason': order.config_id.dte_picking_move_type,
-                            'transport_type': order.config_id.dte_picking_transport_type,
-                            'dte_ticket': order.config_id.dte_picking_ticket,
-                        })
-                pos_qty = any([x.qty > 0 for x in order.lines if x.product_id.type in ['product', 'consu']])
-                if pos_qty:
-                    order_picking = Picking.create(picking_vals.copy())
-                    if self.env.user.partner_id.email:
-                        order_picking.message_post(body=message)
-                    else:
-                        order_picking.sudo().message_post(body=message)
-                neg_qty = any([x.qty < 0 for x in order.lines if x.product_id.type in ['product', 'consu']])
-                if neg_qty:
-                    return_vals = picking_vals.copy()
-                    return_vals.update({
-                        'location_id': destination_id,
-                        'location_dest_id': return_pick_type != picking_type and return_pick_type.default_location_dest_id.id or location_id,
-                        'picking_type_id': return_pick_type.id
-                    })
-                    return_picking = Picking.create(return_vals)
-                    if self.env.user.partner_id.email:
-                        return_picking.message_post(body=message)
-                    else:
-                        return_picking.message_post(body=message)
-
-            for line in order.lines.filtered(lambda l: l.product_id.type in ['product', 'consu'] and not float_is_zero(l.qty, precision_rounding=l.product_id.uom_id.rounding)):
-                m =  Move.create({
-                    'name': line.product_id.name,
-                    'product_uom': line.product_id.uom_id.id,
-                    'picking_id': order_picking.id if line.qty >= 0 else return_picking.id,
-                    'picking_type_id': picking_type.id if line.qty >= 0 else return_pick_type.id,
-                    'product_id': line.product_id.id,
-                    'product_uom_qty': abs(line.qty),
-                    'state': 'draft',
-                    'location_id': location_id if line.qty >= 0 else destination_id,
-                    'location_dest_id': destination_id if line.qty >= 0 else return_pick_type != picking_type and return_pick_type.default_location_dest_id.id or location_id,
-                    'precio_unitario': line.price_unit,
-                    'move_line_tax_ids': [(6,0, line.tax_ids_after_fiscal_position.filtered(lambda t: t.company_id.id == line.order_id.company_id.id).ids)],
-                })
-                moves |= m
-
-            # prefer associating the regular order picking, not the return
-            order.write({'picking_id': order_picking.id or return_picking.id})
-
-            if return_picking:
-                order._force_picking_done(return_picking)
-            if order_picking:
-                order._force_picking_done(order_picking)
-
-            # when the pos.config has no picking_type_id set only the moves will be created
-            if moves and not return_picking and not order_picking:
-                moves._action_assign()
-                moves.filtered(lambda m: m.product_id.tracking == 'none')._action_done()
-
-        return True
-
-    @api.multi
     def action_pos_order_paid(self):
-        if self.test_paid():
-            if self.sequence_id and not self.sii_xml_request and self.document_class_id.sii_code not in [33, 34]:
-                if (not self.sii_document_number or self.sii_document_number == 0) and not self.signature:
-                    self.sii_document_number = self.sequence_id.next_by_id()
-                self.do_validate()
+        if self.sequence_id and not self.sii_xml_request and self.document_class_id.sii_code not in [33, 34]:
+            if (not self.sii_document_number or self.sii_document_number == 0) and not self.signature:
+                self.sii_document_number = self.sequence_id.next_by_id()
+            self.do_validate()
         return super(POS, self).action_pos_order_paid()
 
     @api.depends('statement_ids', 'lines.price_subtotal_incl', 'lines.discount', 'document_class_id')
@@ -1194,7 +830,7 @@ class POS(models.Model):
             order.amount_tax = amount_tax
             order.amount_total = currency.round(amount_total)
 
-    @api.multi
+
     def exento(self):
         exento = 0
         for l in self.lines:
@@ -1202,19 +838,19 @@ class POS(models.Model):
                 exento += l.price_subtotal
         return exento if exento > 0 else (exento * -1)
 
-    @api.multi
+
     def print_nc(self):
         """ Print NC
         """
         return self.env.ref('l10n_cl_dte_point_of_sale.action_report_pos_boleta_ticket').report_action(self)
 
-    @api.multi
+
     def _get_printed_report_name(self):
         self.ensure_one()
         report_string = "%s %s" % (self.document_class_id.name, self.sii_document_number)
         return report_string
 
-    @api.multi
+
     def get_invoice(self):
         return self.invoice_id
 

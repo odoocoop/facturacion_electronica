@@ -2,8 +2,8 @@
 <odoo>
     <data>
         <record id="view_account_invoice_notas" model="ir.ui.view">
-            <field name="name">account.invoice.refun.form</field>
-            <field name="model">account.invoice.refund</field>
+            <field name="name">account.move.refun.form</field>
+            <field name="model">account.move.refund</field>
             <field name="inherit_id" ref="account.view_account_invoice_refund" />
             <field name="arch" type="xml">
                 <form position="replace">
@@ -55,7 +55,7 @@
                                 <field name="description" />
                             </group>
                             <group>
-                                <field name="date_invoice" />
+                                <field name="date" />
                                 <field name="date" groups="base.group_no_one" />
                             </group>
                         </group>

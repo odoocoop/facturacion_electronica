@@ -56,7 +56,6 @@
             <form string="Mail DTE Process">
                 <header>
                     <button name="process_message" string="Procesar Envío" type="object" />
-                    <button name="reject_document" string="Rechazar" type="object" />
                 </header>
                 <sheet>
                     <group>
@@ -123,7 +122,7 @@
                         <group>
                             <field name="amount" />
                             <field name="currency_id" />
-                            <field name="invoice_id" />
+                            <field name="move_id" />
                             <field name="company_id" />
                             <field name="purchase_to_done" widget="many2many_tags" options="{'no_create': True}" />
                         </group>
@@ -194,7 +193,7 @@
     <record id="dte_message_process" model="ir.ui.view">
         <field name="name">mail.message.form</field>
         <field name="model">mail.message</field>
-        <field name="inherit_id" ref="mail.view_message_form" />
+        <field name="inherit_id" ref="mail.mail_message_view_form" />
         <field name="arch" type="xml">
             <field name="subject" position="after">
                 <button
@@ -216,18 +215,14 @@
         </field>
     </record>
     <record id="action_dte_process" model="ir.actions.act_window">
-        <field name="type">ir.actions.act_window</field>
         <field name="name">Aceptar o Rechazar Documentos</field>
         <field name="domain">[]</field>
         <field name="res_model">mail.message.dte.document</field>
-        <field name="view_type">form</field>
         <field name="target">current</field>
     </record>
     <record id="act_xml_recept" model="ir.actions.act_window">
-        <field name="type">ir.actions.act_window</field>
         <field name="name">XML Recibidos</field>
         <field name="res_model">mail.message.dte</field>
-        <field name="view_type">form</field>
         <field name="target">current</field>
     </record>
     <menuitem id="menu_recept_xml" action="action_dte_process" parent="l10n_cl_fe.menu_sii_exchange" sequence="1" />
@@ -237,16 +232,5 @@
         id="menu_action_xml_recept"
         parent="l10n_cl_fe.menu_sii_exchange"
         sequence="2"
-    />
-    <act_window
-        id="action_masive_validate"
-        multi="True"
-        key2="client_action_multi"
-        name="Validar Documentos"
-        res_model="sii.dte.validar.wizard"
-        src_model="account.invoice"
-        view_mode="form"
-        target="new"
-        view_type="form"
     />
 </odoo>

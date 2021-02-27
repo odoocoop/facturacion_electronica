@@ -6,7 +6,7 @@
         <field name="model">account.tax</field>
         <field name="inherit_id" ref="account.view_tax_form" />
         <field name="arch" type="xml">
-            <div name="button_box" position="before">
+            <sheet position="before">
                 <header attrs="{'invisible': [('mepco', '=', False)]}">
                     <button name="actualizar_mepco" string="Actualizar Mepco" type="object" />
                     <button
@@ -18,7 +18,7 @@
                         context="{'search_default_type': mepco, 'default_type': mepco}"
                     />
                 </header>
-            </div>
+            </sheet>
         </field>
     </record>
 </odoo>

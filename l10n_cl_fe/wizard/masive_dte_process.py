@@ -16,7 +16,7 @@ class MasiveDTEProcessWizard(models.TransientModel):
         required=True,
     )
 
-    @api.multi
+    
     def confirm(self):
         dtes = self.env["mail.message.dte"].browse(self._context.get("active_ids", []))
         if self.action == "create":

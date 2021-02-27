@@ -18,7 +18,7 @@ class DTEClaim(models.Model):
     _inherit = ["mail.thread"]
 
     document_id = fields.Many2one("mail.message.dte.document", string="Documento", ondelete="cascade",)
-    invoice_id = fields.Many2one("account.invoice", string="Documento", ondelete="cascade",)
+    move_id = fields.Many2one("account.move", string="Documento", ondelete="cascade",)
     sequence = fields.Integer(string="Número de línea", default=1)
     claim = fields.Selection(
         [
@@ -78,7 +78,7 @@ class DTEClaim(models.Model):
         }
 
     def send_claim(self):
-        doc = self.invoice_id
+        doc = self.move_id
         if doc:
             doc.set_dte_claim(self.claim)
             return
@@ -104,7 +104,7 @@ class DTEClaim(models.Model):
                     raise UserError('%s: Conexión al SII caída/rechazada o el SII está temporalmente fuera de línea, reintente la acción' % (msg))
                 raise UserError(("%s: %s" % (msg, str(e))))
 
-    def _create_attachment(self, xml, name, id=False, model="account.invoice"):
+    def _create_attachment(self, xml, name, id=False, model="account.move"):
         data = base64.b64encode(xml.encode("ISO-8859-1"))
         filename = (name).replace(" ", "")
         url_path = (
@@ -129,7 +129,7 @@ class DTEClaim(models.Model):
         id_seq = self.env.ref("l10n_cl_fe.response_sequence")
         IdRespuesta = id_seq.next_by_id()
         NroDetalles = 1
-        doc = self.invoice_id or self.document_id
+        doc = self.move_id or self.document_id
         datos = doc._get_datos_empresa(doc.company_id)
         """ @TODO separar estos dos"""
         dte = {
@@ -173,14 +173,14 @@ class DTEClaim(models.Model):
         id_seq = self.env.ref("l10n_cl_fe.response_sequence")
         IdRespuesta = id_seq.next_by_id()
         NroDetalles = 1
-        doc = self.invoice_id
-        tipo = "account.invoice"
+        doc = self.move_id
+        tipo = "account.move"
         if not doc:
             tipo = "mail.message.dte.document"
             doc = self.document_id
-        if doc.claim in ["ACD"] or (self.invoice_id and doc.type in ["out_invoice", "out_refund"]):
+        if doc.claim in ["ACD"] or (self.move_id and doc.type in ["out_invoice", "out_refund"]):
             return
-        datos = doc._get_datos_empresa(doc.company_id) if self.invoice_id else self._get_datos_empresa(doc.company_id)
+        datos = doc._get_datos_empresa(doc.company_id) if self.move_id else self._get_datos_empresa(doc.company_id)
         dte = doc._dte()
         """ @TODO separar estos dos"""
         dte["CodEnvio"] = IdRespuesta
@@ -234,11 +234,11 @@ class DTEClaim(models.Model):
         except Exception:
             _logger.warning("@TODO crear código que encole la respuesta")
 
-    @api.multi
+
     def do_recep_mercaderia(self):
         message = ""
-        doc = self.invoice_id
-        tipo = "account.invoice"
+        doc = self.move_id
+        tipo = "account.move"
         if not doc:
             tipo = "mail.message.dte.document"
             doc = self.document_id
@@ -246,7 +246,7 @@ class DTEClaim(models.Model):
             return
         if self.claim == "ERM":
             datos = (
-                doc._get_datos_empresa(doc.company_id) if self.invoice_id else self._get_datos_empresa(doc.company_id)
+                doc._get_datos_empresa(doc.company_id) if self.move_id else self._get_datos_empresa(doc.company_id)
             )
             receptor = doc._receptor()
             datos["RecepcionMer"] = {

@@ -51,7 +51,6 @@
         <record id="action_pos_order_refund" model="ir.actions.act_window">
             <field name="name">Refund order</field>
             <field name="res_model">pos.order.refund</field>
-            <field name="view_type">form</field>
             <field name="view_mode">tree,form</field>
            <field name="view_id" ref="view_pos_order_refund"/>
            <field name="target">new</field>

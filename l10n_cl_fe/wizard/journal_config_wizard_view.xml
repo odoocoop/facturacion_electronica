@@ -36,10 +36,8 @@
     </record>
     <record id="action_account_journal_document_config_form" model="ir.actions.act_window">
         <field name="name">Journal Documents Configuration</field>
-        <field name="type">ir.actions.act_window</field>
         <field name="res_model">account.journal.document_config</field>
         <field name="view_id" ref="l10n_cl_fe.view_account_journal_document_config_form" />
-        <field name="view_type">form</field>
         <field name="view_mode">form</field>
         <field name="target">new</field>
     </record>

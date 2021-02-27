@@ -28,10 +28,15 @@
             </field>
         </record>
 
-        <act_window id="action_stock_picking_masive_send"
-            multi="True"
-            key2="client_action_multi" name="Enviar Guías de despacho al sii"
-            res_model="sii.dte.stock_picking.masive_send.wizard" src_model="stock.picking"
-view_mode="form" target="new" view_type="form" />
+        <record id="action_stock_picking_masive_send" model="ir.actions.act_window">
+            <field name="name">Enviar Guías de despacho al SII</field>
+            <field name="res_model">sii.dte.stock_picking.masive_send.wizard</field>
+            <field name="view_mode">tree,form</field>
+            <field name="view_id" ref="sii_dte_masive_send_wizard_form"/>
+            <field name="target">new</field>
+            <field name="groups_id" eval="[(4, ref('stock.group_stock_user'))]"/>
+            <field name="binding_model_id" ref="stock.model_stock_picking" />
+            <field name="binding_view_types">list</field>
+        </record>
     </data>
 </odoo>

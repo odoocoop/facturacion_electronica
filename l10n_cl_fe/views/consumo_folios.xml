@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" ?>
+<?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <data>
         <record id="electronic_consumo_folios_tree" model="ir.ui.view">
@@ -117,7 +117,8 @@
                     <notebook>
                         <page string="Movimientos">
                             <field name="move_ids" editable="bottom" widget="many2many_list">
-                                <field name="document_number" />
+                              <form>
+                                <field name="name" />
                                 <field name="date" />
                                 <field name="line_ids" widget="one2many_list">
                                     <tree editable="bottom" string="Journal Items">
@@ -125,6 +126,7 @@
                                         <field name="credit" sum="Total Credit" />
                                     </tree>
                                 </field>
+                              </form>
                             </field>
                         </page>
                         <page string="Anulaciones Manuales de Folio">
@@ -150,11 +152,8 @@
         <record id="action_move_consumo_folios" model="ir.actions.act_window">
             <field name="name">Consumo de Folios</field>
             <field name="res_model">account.move.consumo_folios</field>
-            <field name="view_type">form</field>
             <field name="view_mode">tree,form</field>
             <field name="view_id" ref="electronic_consumo_folios_tree" />
-            <!--<field name="search_view_id" ref="view_account_move_filter"/>
-      <field name="context"></field>-->
             <field name="help" type="html">
                 <p class="oe_view_nocontent_create">
           Click to create a journal entry.
@@ -171,8 +170,8 @@
         </p>
             </field>
         </record>
+
         <menuitem
-            icon="STOCK_JUSTIFY_FILL"
             action="action_move_consumo_folios"
             id="menu_action_move_consumo_folios_form"
             parent="account.menu_finance_reports"

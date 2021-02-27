@@ -20,7 +20,7 @@ class ProccessMail(models.Model):
     def pre_process(self):
         self.process_message(pre=True)
 
-    @api.multi
+    
     def process_message(self, pre=False, option=False):
         created = []
         for r in self:

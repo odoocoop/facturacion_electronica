@@ -21,7 +21,7 @@
             <field name="name" position="after">
               <field name="sii_document_number" />
             </field>
-            <field name="sale_journal" position="after">
+            <field name="session_move_id" position="after">
               <field name="sequence_id"
                      options="{'no_create': True}" />
               <field name="document_class_id"
@@ -94,14 +94,12 @@
           </field>
       </record>
       <menuitem
-              icon="STOCK_JUSTIFY_FILL"
               action="l10n_cl_fe.action_move_consumo_folios"
               id="menu_action_move_consumo_folios_form"
               parent="point_of_sale.menu_point_rep"
               groups="point_of_sale.group_pos_manager"
               sequence="3"/>
       <menuitem
-              icon="STOCK_JUSTIFY_FILL"
               action="l10n_cl_fe.action_move_books"
               id="menu_action_move_books_form"
               parent="point_of_sale.menu_point_rep"

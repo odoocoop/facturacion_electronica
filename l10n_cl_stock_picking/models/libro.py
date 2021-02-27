@@ -36,14 +36,14 @@ connection_status = {
 class LibroGuia(models.Model):
     _name = "stock.picking.book"
 
-    @api.multi
+    
     def unlink(self):
         for libro in self:
             if libro.state not in ('draft', 'cancel'):
                 raise UserError(_('You cannot delete a Validated book.'))
         return super(LibroGuia, self).unlink()
 
-    @api.multi
+    
     def get_xml_file(self):
         return {
             'type' : 'ir.actions.act_url',
@@ -155,7 +155,7 @@ class LibroGuia(models.Model):
             related="state",
         )
 
-    @api.multi
+    
     def validar_libro(self):
         self._validar()
         return self.write({'state': 'NoEnviado'})
@@ -214,7 +214,7 @@ class LibroGuia(models.Model):
             'company_id': self.company_id.id,
         }).id
 
-    @api.multi
+    
     def do_dte_send_book(self):
         if self.state not in ['draft', 'NoEnviado', 'Rechazado']:
             raise UserError("El Libro ya ha sido enviado")
@@ -248,7 +248,7 @@ class LibroGuia(models.Model):
         else:
             self.state = self.sii_xml_request.state
 
-    @api.multi
+    
     def ask_for_dte_status(self):
         self._get_send_status()
 

@@ -50,11 +50,8 @@
     <record id="action_move_books" model="ir.actions.act_window">
       <field name="name">Libros Cierre de Mes</field>
       <field name="res_model">stock.picking.book</field>
-      <field name="view_type">form</field>
       <field name="view_mode">tree,form</field>
       <field name="view_id" ref="electronic_book_guias_tree"/>
-      <!--<field name="search_view_id" ref="view_account_move_filter"/>
-      <field name="context"></field>-->
       <field name="help" type="html">
         <p class="oe_view_nocontent_create">
           Click to create a journal entry.
@@ -70,10 +67,7 @@
       </field>
     </record>
 
-    <menuitem
-            icon="STOCK_JUSTIFY_FILL"
-            action="action_move_books"
-            id="menu_action_move_books_form"
+    <menuitem action="action_move_books" id="menu_action_move_books_form"
             parent="stock.menu_stock_warehouse_mgmt"
             groups="stock.group_stock_manager"
             sequence="3"/>

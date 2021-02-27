@@ -8,7 +8,7 @@ _logger = logging.getLogger(__name__)
 class POL(models.Model):
     _inherit = 'purchase.order.line'
 
-    @api.multi
+    
     def _prepare_stock_moves(self, picking):
         result = super(POL, self)._prepare_stock_moves(picking)
         self.ensure_one()

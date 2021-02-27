@@ -58,7 +58,7 @@ Include unusual taxes documents, as transfer invoice, and reissue
                         break
                 self.excempt_documents = no_vat
 
-    @api.multi
+    
     def confirm(self):
         context = dict(self._context or {})
         journal_ids = context.get("active_ids", False)

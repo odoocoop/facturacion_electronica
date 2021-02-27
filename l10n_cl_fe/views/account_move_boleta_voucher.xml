@@ -43,8 +43,8 @@
               <form>
                 <header>
                   <button name="validar_boleta_voucher" type="object" states="draft" string="Validate" class="oe_highlight" groups="base.group_user"/>
-                  <button string="Download XML" type="object"  name="get_xml_file"  attrs="{'invisible':[('state', 'in', ['draft','NoEnviado'])]}"/>
-                  <button string="Send XML" type="object" class="oe_highlight" name="do_dte_send_boleta_voucher" attrs="{'invisible': [ ('state', 'not in', ['NoEnviado'])]}"/>
+                  <!--<button string="Download XML" type="object"  name="get_xml_file"  attrs="{'invisible':[('state', 'in', ['draft','NoEnviado'])]}"/>-->
+                  <!--<button string="Send XML" type="object" class="oe_highlight" name="do_dte_send_boleta_voucher" attrs="{'invisible': [ ('state', 'not in', ['NoEnviado'])]}"/>-->
                   <button string="Ask for DTE" type="object" class="oe_highlight" name="ask_for_dte_status" attrs="{'invisible': [('state', 'in', ['draft','NoEnviado'])]}"/>
                   <field name="state" widget="statusbar"/>
                 </header>
@@ -80,24 +80,22 @@
                 <notebook>
                   <page string="Movimientos">
                     <field name="move_ids" editable="bottom" widget="many2many_list" options="{'no_create': True}">
-                      <field name="document_number"/>
-                      <field name="date"/>
-                        <field name="line_ids" widget="one2many_list">
-                                <tree editable="bottom" string="Journal Items">
-                                    <field name="debit" sum="Total Debit"/>
-                                    <field name="credit" sum="Total Credit"/>
-                                </tree>
-                            </field>
+                      <tree>
+                        <field name="name"/>
+                        <field name="date"/>
+                          <field name="line_ids" widget="one2many_list">
+                                  <tree editable="bottom" string="Journal Items">
+                                      <field name="debit" sum="Total Debit"/>
+                                      <field name="credit" sum="Total Credit"/>
+                                  </tree>
+                              </field>
+                        </tree>
                     </field>
                   </page>
                   <page string="Envio SII">
                     <header>
-                        <button string="Download XML" type="object"
-                          name="get_xml_file"  attrs="{'invisible':['|',('state', 'in', ['draft']), ('sii_xml_request','=',False)]}"/>
-                        <button string="Download XML Exchange" type="object"
-                          name="get_xml_exchange_file"  attrs="{'invisible':['|',('state', 'in', ['draft']), ('sii_xml_request','=',False)]}"/>
-                        <button string="Envío Manual XML Intercambio" type="object"
-                          name="manual_send_exchange"  attrs="{'invisible':['|',('state', 'in', ['draft']), ('sii_xml_request','=',False)]}"/>
+                      <!--  <button string="Download XML Exchange" type="object"
+                          name="get_xml_exchange_file"  attrs="{'invisible':['|',('state', 'in', ['draft']), ('sii_xml_request','=',False)]}"/>-->
                         <button string="Send XML" type="object" class="oe_highlight" name="do_dte_send" attrs="{'invisible': [ ('state', 'in', ['draft'])]}"/>
                         <button string="Ask for DTE" type="object" class="oe_highlight" name="ask_for_dte_status" attrs="{'invisible':[('state', 'in', ['draft'])]}"/>
                         <button string="Set Draft" type="object" class="oe_highlight" name="set_draft" attrs="{'invisible':[('state', 'not in', ['Rechazado'])]}"/>
@@ -117,7 +115,6 @@
     <record id="action_move_boleta_voucher" model="ir.actions.act_window">
       <field name="name">Reportes boletas con voucher electrónico</field>
       <field name="res_model">account.move.boleta_voucher</field>
-      <field name="view_type">form</field>
       <field name="view_mode">tree,form</field>
       <field name="view_id" ref="electronic_boleta_voucher_tree"/>
       <!--<field name="search_view_id" ref="view_account_move_filter"/>
@@ -138,7 +135,6 @@
     </record>
 
     <menuitem
-            icon="STOCK_JUSTIFY_FILL"
             action="action_move_boleta_voucher"
             id="menu_action_move_boleta_voucher_form"
             parent="account.menu_finance_reports"

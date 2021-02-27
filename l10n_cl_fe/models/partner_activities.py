@@ -5,7 +5,7 @@ class PartnerActivities(models.Model):
     _name = "partner.activities"
     _description = "SII Economical Activities"
 
-    @api.multi
+    
     def name_get(self):
         res = []
         for r in self:

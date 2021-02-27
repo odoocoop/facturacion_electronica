@@ -23,7 +23,7 @@ class ConsumoFolios(models.Model):
             days=1)).astimezone(pytz.utc)
         orders_array = self.env['pos.order'].search(
             [
-             ('invoice_id' , '=', False),
+             ('is_invoiced', '=', False),
              ('sii_document_number', 'not in', [False, '0']),
              ('document_class_id.sii_code', 'in', [39, 41, 61]),
              ('date_order','>=', current),

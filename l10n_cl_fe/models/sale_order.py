@@ -8,7 +8,7 @@ class SO(models.Model):
     acteco_id = fields.Many2one("partner.activities", string="Partner Activity",)
     referencia_ids = fields.One2many("sale.order.referencias", "so_id", string="Referencias de documento")
 
-    @api.multi
+
     def _prepare_invoice(self):
         vals = super(SO, self)._prepare_invoice()
         if self.acteco_id:

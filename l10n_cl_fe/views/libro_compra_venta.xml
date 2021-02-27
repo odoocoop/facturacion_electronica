@@ -1,18 +1,6 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <odoo>
     <data>
-        <!--
-        <record id="view_electronic_stock_picking_filter" model="ir.ui.view">
-            <field name="name">l10n_cl.stock_picking.search</field>
-            <field name="model">stock.picking</field>
-            <field name="inherit_id" ref="stock.view_stock_picking_filter"/>
-            <field name="arch" type="xml">
-                <field name="number" position="attributes">
-                    <attribute name="filter_domain">['|','|','|','|', ('sii_document_number','ilike',self), ('number','ilike',self), ('origin','ilike',self), ('supplier_invoice_number', 'ilike', self), ('partner_id', 'child_of', self)]</attribute>
-                </field>
-            </field>
-        </record>
-      -->
         <record id="electronic_book_compra_venta_tree" model="ir.ui.view">
             <field name="name">l10n_cl.libro_compra_venta.tree</field>
             <field name="model">account.move.book</field>
@@ -63,19 +51,6 @@
                             class="oe_highlight"
                             name="ask_for_dte_status"
                             attrs="{'invisible': [('state', 'in', ['draft','NoEnviado'])]}"
-                        />
-                        <button
-                            string="Cancelar"
-                            type="object"
-                            name="action_cancel"
-                            states="NoEnviado"
-                            confirm="Esta seguro de cancelar este registro???"
-                        />
-                        <button
-                            string="Volver a Borrador"
-                            type="object"
-                            name="action_cancel_to_draft"
-                            states="Anulado"
                         />
                         <field name="state" widget="statusbar" />
                     </header>
@@ -157,11 +132,8 @@
         <record id="action_move_books" model="ir.actions.act_window">
             <field name="name">Libros Cierre de Mes</field>
             <field name="res_model">account.move.book</field>
-            <field name="view_type">form</field>
             <field name="view_mode">tree,form</field>
             <field name="view_id" ref="electronic_book_compra_venta_tree" />
-            <!--<field name="search_view_id" ref="view_account_move_filter"/>
-      <field name="context"></field>-->
             <field name="help" type="html">
                 <p class="oe_view_nocontent_create">
           Click to create a journal entry.
@@ -178,8 +150,8 @@
         </p>
             </field>
         </record>
+
         <menuitem
-            icon="STOCK_JUSTIFY_FILL"
             action="action_move_books"
             id="menu_action_move_books_form"
             parent="account.menu_finance_reports"

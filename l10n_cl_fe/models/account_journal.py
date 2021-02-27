@@ -36,13 +36,11 @@ class AccountJournal(models.Model):
         if len(self.journal_activities_ids) > 4:
             raise UserError("Deben Ser máximo 4 actecos por Diario, seleccione los más significativos para este diario")
 
-    @api.multi
     def _get_default_doc(self):
         self.ensure_one()
         if self.type == "sale" or self.type == "purchase":
             self.use_documents = True
 
-    @api.multi
     def name_get(self):
         res = []
         for journal in self:

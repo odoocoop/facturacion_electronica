@@ -39,7 +39,7 @@
                   <field name="subtotal"/>
                   <field name="currency_id" invisible="1"/>
                 </xpath>
-                <xpath expr="//field[@name='move_ids_without_package']/..//button[@name='put_in_pack']" position="after">
+                <xpath expr="//field[@name='move_ids_without_package']/..//button[@name='action_put_in_pack']" position="after">
                   <group class="oe_subtotal_footer oe_right">
                     <field name="amount_untaxed"/>
                     <field name="amount_tax"/>
@@ -81,27 +81,6 @@
                   <field name="chofer" attrs="{'required':[('transport_type','=', '2'), ('use_documents', '=', True)], 'invisible':[('transport_type','!=','2')]}"/>
                   <field name="patente" attrs="{'required':[('transport_type','in', ['2']), ('use_documents', '=', True)]}"/>
                 </field>
-                <notebook>
-                    <page string="Electronic Document" name="electronic_document" >
-                        <header>
-                            <button string="Download XML" type="object"  name="get_xml_file"  attrs="{'invisible':['|',('state', 'not in', ['done']),('sii_result','in',['','NoEnviado'])]}"/>
-                            <button string="Send XML" type="object" class="oe_highlight" name="do_dte_send_picking" attrs="{'invisible':['|',('state', 'not in', ['done']),('sii_result', 'not in', ['NoEnviado'])]}"/>
-                            <button string="ReSend XML" type="object" class="oe_highlight" name="do_dte_send_picking" attrs="{'invisible':['|',('state', 'not in', ['done']),('sii_result', 'not in', ['Rechazado'])]}"/>
-                            <button string="Ask for DTE" type="object" class="oe_highlight" name="ask_for_dte_status" attrs="{'invisible':['|',('state', 'not in', ['done']),('sii_result','in',['','NoEnviado'])]}"/>
-                            <field name='sii_result' widget="statusbar"/>
-                        </header>
-                        <group>
-                            <field name="invoiced" />
-                            <field name="responsable_envio" invisible="True" readonly="True"/>
-                            <field name="canceled" />
-                            <field name='sii_batch_number' readonly="1"/>
-                            <field name='sii_xml_request' attrs="{'invisible':[('sii_result', '=', '')]}" readonly="1"/>
-                            <field name='sii_barcode_img' widget="image" attrs="{'invisible':[('sii_result', '=', '')]}" readonly="1"/>
-                            <field name='sii_message' attrs="{'invisible':[('sii_result', 'in', ['','NoEnviado'])]}" readonly="1"/>
-                            <field name='sii_xml_dte' attrs="{'invisible':[('sii_result', '=', '')]}" readonly="1"/>
-                        </group>
-                    </page>
-                </notebook>
           </field>
 
         </record>
@@ -109,7 +88,7 @@
         <record id="view_move_picking_tree_valued" model="ir.ui.view">
             <field name="name">stock.move.tree.valued</field>
             <field name="model">stock.move</field>
-            <field name="inherit_id" ref="stock.view_move_picking_tree"/>
+            <field name="inherit_id" ref="stock.view_picking_move_tree"/>
             <field name="arch" type="xml">
               <field name="product_uom" position="after">
                 <field name="name"/>
@@ -119,28 +98,6 @@
                 <field name="subtotal"/>
                 <field name="currency_id" invisible="1"/>
               </field>
-            </field>
-        </record>
-
-        <record id="view_move_picking_form_valued" model="ir.ui.view">
-            <field name="name">stock.move.form.valued</field>
-            <field name="model">stock.move</field>
-            <field name="inherit_id" ref="stock.view_move_picking_form"/>
-            <field name="arch" type="xml">
-                <xpath expr="//group/group[last()]" position="before">
-                    <group>
-                      <field name="name"/>
-                        <field name="precio_unitario"/>
-                        <field name="move_line_tax_ids" widget="many2many_tags" domain="[('type_tax_use','=','sale'),('company_id','=',parent.company_id)]"/>
-                        <field name="discount"/>
-                        <field name="currency_id" invisible="1"/>
-                    </group>
-                    <group>
-                        <field name="price_untaxed"/>
-                        <field name="subtotal"/>
-                        <field name="currency_id" invisible="1"/>
-                    </group>
-                </xpath>
             </field>
         </record>
     </data>

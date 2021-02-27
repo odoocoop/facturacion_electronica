@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="view_electronic_stock_picking_form" model="ir.ui.view">
+            <field name="model">stock.picking</field>
+            <field name="name">stock.picking.sii.form</field>
+            <field name="inherit_id" ref="stock.view_picking_form" />
+            <field name="arch" type="xml">
+                <notebook>
+                    <page string="Electronic Document" name="electronic_document" >
+                        <header>
+                            <button string="Download XML" type="object"  name="get_xml_file"  attrs="{'invisible':['|',('state', 'not in', ['done']),('sii_result','in',['','NoEnviado'])]}"/>
+                            <button string="Send XML" type="object" class="oe_highlight" name="do_dte_send_picking" attrs="{'invisible':['|',('state', 'not in', ['done']),('sii_result', 'not in', ['NoEnviado'])]}"/>
+                            <button string="ReSend XML" type="object" class="oe_highlight" name="do_dte_send_picking" attrs="{'invisible':['|',('state', 'not in', ['done']),('sii_result', 'not in', ['Rechazado'])]}"/>
+                            <button string="Ask for DTE" type="object" class="oe_highlight" name="ask_for_dte_status" attrs="{'invisible':['|',('state', 'not in', ['done']),('sii_result','in',['','NoEnviado'])]}"/>
+                            <field name='sii_result' widget="statusbar"/>
+                        </header>
+                        <group>
+                            <field name="invoiced" />
+                            <field name="responsable_envio" invisible="True" readonly="True"/>
+                            <field name="canceled" />
+                            <field name='sii_batch_number' readonly="1"/>
+                            <field name='sii_xml_request' attrs="{'invisible':[('sii_result', '=', '')]}" readonly="1"/>
+                            <field name='sii_barcode_img' widget="image" attrs="{'invisible':[('sii_result', '=', '')]}" readonly="1"/>
+                            <field name='sii_message' attrs="{'invisible':[('sii_result', 'in', ['','NoEnviado'])]}" readonly="1"/>
+                            <field name='sii_xml_dte' attrs="{'invisible':[('sii_result', '=', '')]}" readonly="1"/>
+                        </group>
+                    </page>
+                </notebook>
+            </field>
+        </record>
+    </data>
+</odoo>

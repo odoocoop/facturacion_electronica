@@ -104,7 +104,7 @@ class Honorarios(models.Model):
             lines.append([0, 0, i])
         self.impuestos = lines
 
-    @api.multi
+    
     def validar_libro(self):
         return self.write({"state": "done"})
 

@@ -12,7 +12,7 @@ class sii_ws_currency_rate_wizard(models.TransientModel):
 
     currency_id = fields.Many2one("res.currency", "Currency", required=True,)
 
-    @api.multi
+    
     def confirm(self):
         self.ensure_one()
         point_of_sale_id = self._context.get("active_id", False)

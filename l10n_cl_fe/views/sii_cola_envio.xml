@@ -36,9 +36,7 @@
     </record>
     <record model="ir.actions.act_window" id="cola_envio">
         <field name="name">SII Cola de envío</field>
-        <field name="type">ir.actions.act_window</field>
         <field name="res_model">sii.cola_envio</field>
-        <field name="view_type">form</field>
         <field name="view_mode">tree,form</field>
     </record>
     <menuitem

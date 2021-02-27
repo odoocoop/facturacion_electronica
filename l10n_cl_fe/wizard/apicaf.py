@@ -316,7 +316,7 @@ class APICAF(models.TransientModel):
                 )
             self.lineas_disponibles = folios
 
-    @api.multi
+    
     def obtener_caf(self):
         if not self.id_peticion:
             return
@@ -381,7 +381,7 @@ class APICAF(models.TransientModel):
             return
         return self.confirmar()
 
-    @api.multi
+    
     def confirmar(self):
         if not self.id_peticion:
             return
@@ -470,7 +470,7 @@ class APICAF(models.TransientModel):
         caf._compute_data()
         self.sequence_id._qty_available()
 
-    @api.multi
+    
     def delist(self):
         ICPSudo = self.env["ir.config_parameter"].sudo()
         url = ICPSudo.get_param("dte.url_apicaf").replace("company_info", "delist")

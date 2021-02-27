@@ -50,7 +50,6 @@
                 <field
                     name="city_id"
                     placeholder="Comuna"
-                    style="width: 100%"
                     options='{"no_open": True, "no_quick_create": True}'
                 />
             </field>

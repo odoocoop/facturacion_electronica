@@ -17,14 +17,14 @@ class Binary(http.Controller):
         ]
         return request.make_response(filecontent, headers=headers, cookies=None)
 
-    @http.route(["/download/xml/invoice/<model('account.invoice'):document_id>"], type="http", auth="user")
+    @http.route(["/download/xml/invoice/<model('account.move'):document_id>"], type="http", auth="user")
     @serialize_exception
     def download_document(self, document_id, **post):
         filename = ("%s.xml" % document_id.number).replace(" ", "_")
         filecontent = document_id.sii_xml_request.xml_envio
         return self.document(filename, filecontent)
 
-    @http.route(["/download/xml/invoice_exchange/<model('account.invoice'):rec_id>"], type="http", auth="user")
+    @http.route(["/download/xml/invoice_exchange/<model('account.move'):rec_id>"], type="http", auth="user")
     @serialize_exception
     def download_document_exchange(self, rec_id, **post):
         filename = ("%s.xml" % rec_id.number).replace(" ", "_")

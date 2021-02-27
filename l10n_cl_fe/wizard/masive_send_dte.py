@@ -16,14 +16,14 @@ class masive_send_dte_wizard(models.TransientModel):
         active_ids = context.get("active_ids", []) or []
         return [(6, 0, active_ids)]
 
-    documentos = fields.Many2many("account.invoice", string="Movimientos", default=_getIDs)
+    documentos = fields.Many2many("account.move", string="Movimientos", default=_getIDs)
 
     numero_atencion = fields.Char(string="Número de atención")
     set_pruebas = fields.Boolean(string="Es set de pruebas",
                               invisible=lambda self: self.env.user.company_id.dte_service_provider=='SIICERT',
                               default=lambda self: self.env.user.company_id.dte_service_provider=='SIICERT')
 
-    @api.multi
+    
     def confirm(self):
         self.documentos.with_context(set_pruebas=self.set_pruebas)\
             .do_dte_send_invoice(self.numero_atencion)

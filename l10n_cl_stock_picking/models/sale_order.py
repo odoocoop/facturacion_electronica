@@ -8,7 +8,7 @@ _logger = logging.getLogger(__name__)
 class SOL(models.Model):
     _inherit = 'sale.order.line'
 
-    @api.multi
+    
     def _prepare_procurement_values(self, group_id=False):
         result = super(SOL, self)._prepare_procurement_values(group_id)
         self.ensure_one()

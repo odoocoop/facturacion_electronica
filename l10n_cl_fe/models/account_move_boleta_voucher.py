@@ -30,7 +30,7 @@ class SIIResumenBoletaVoucher(models.Model):
     _name = 'account.move.boleta_voucher'
     _description = "Resumen Mensual Boletas Electronica con pagos Electronico"
 
-    @api.multi
+
     def get_barcode_img(self, columns=13, ratio=3):
         barcodefile = BytesIO()
         image = self.pdf417bc(self.sii_barcode, columns, ratio)
@@ -40,8 +40,10 @@ class SIIResumenBoletaVoucher(models.Model):
 
     def _get_barcode_img(self):
         for r in self:
+            sii_barcode_img = False
             if r.sii_barcode:
-                r.sii_barcode_img = r.get_barcode_img()
+                sii_barcode_img = r.get_barcode_img()
+            r.sii_barcode_img = sii_barcode_img
 
     sii_document_number = fields.Integer(
         string="Folio del Documento",
@@ -557,7 +559,7 @@ class SIIResumenBoletaVoucher(models.Model):
         })
         return datos
 
-    @api.multi
+
     def do_dte_send(self, n_atencion=None):
         datos = self._crear_envio()
         envio_id = self.sii_xml_request
@@ -603,14 +605,14 @@ class SIIResumenBoletaVoucher(models.Model):
             if resultado[id].get('xml_resp'):
                 r.sii_message = resultado[id].get('xml_resp')
 
-    @api.multi
+
     def set_draft(self):
         if self.sii_result in ['Rechazado'] or self.sii_xml_request.state in ["", "draft", "NoEnviado"]:
             self.sii_xml_request.unlink()
             self.state = 'draft'
             self.sii_message = ''
 
-    @api.multi
+
     def ask_for_dte_status(self):
         for r in self:
             if not r.sii_xml_request and not r.sii_xml_request.sii_send_ident:

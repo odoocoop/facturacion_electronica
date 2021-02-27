@@ -5,7 +5,7 @@
     <field name="model">sii.xml.envio</field>
     <field name="inherit_id" ref="l10n_cl_fe.xml_envio_view_form"/>
     <field name="arch" type="xml">
-      <field name="invoice_ids" position="after">
+      <field name="move_ids" position="after">
         <field name="order_ids" readonly="True"/>
       </field>
     </field>

@@ -50,7 +50,8 @@
                 <notebook>
                     <page string="Movimientos">
                         <field name="move_ids" editable="bottom" widget="many2many_list">
-                            <field name="document_number" />
+                          <form>
+                            <field name="name" />
                             <field name="date" />
                             <field name="line_ids" widget="one2many_list">
                                 <tree editable="bottom" string="Journal Items">
@@ -58,6 +59,7 @@
                                     <field name="credit" sum="Total Credit" />
                                 </tree>
                             </field>
+                          </form>
                         </field>
                     </page>
                 </notebook>
@@ -67,11 +69,8 @@
     <record id="action_move_libro_honorarios" model="ir.actions.act_window">
         <field name="name">Libro Honorarios</field>
         <field name="res_model">account.move.book.honorarios</field>
-        <field name="view_type">form</field>
         <field name="view_mode">tree,form</field>
         <field name="view_id" ref="libro_honorarios_tree" />
-        <!--<field name="search_view_id" ref="view_account_move_filter"/>
-      <field name="context"></field>-->
         <field name="help" type="html">
             <p class="oe_view_nocontent_create">
           Click to create a journal entry.
@@ -88,12 +87,4 @@
         </p>
         </field>
     </record>
-    <menuitem
-        icon="STOCK_JUSTIFY_FILL"
-        action="action_move_libro_honorarios"
-        id="menu_action_move_libro_honorarios_form"
-        parent="account.menu_finance_reports"
-        groups="account.group_account_manager"
-        sequence="4"
-    />
 </odoo>

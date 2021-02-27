@@ -11,7 +11,7 @@
                         type="object"
                         name="action_process"
                         class="oe_highlight"
-                        attrs="{'invisible':['|', ('state', 'not in', ['unverified', 'incomplete'])]}"
+                        attrs="{'invisible':[('state', 'not in', ['unverified', 'incomplete'])]}"
                     />
                     <field name="state" widget="statusbar" />
                 </header>
@@ -111,8 +111,6 @@
     <record id="action_sii_firma_form" model="ir.actions.act_window">
         <field name="name">Firmas</field>
         <field name="res_model">sii.firma</field>
-        <field name="type">ir.actions.act_window</field>
-        <field name="view_type">form</field>
         <field name="view_id" ref="view_sii_firma_tree" />
         <field name="search_view_id" ref="view_sii_firma_search" />
         <field name="context">{}</field>

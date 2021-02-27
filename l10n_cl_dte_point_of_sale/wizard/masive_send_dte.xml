@@ -25,10 +25,15 @@
             </field>
         </record>
 
-        <act_window id="action_account_invoice_send"
-            multi="True"
-            key2="client_action_multi" name="Enviar Documentos al SII"
-            res_model="sii.dte.pos.masive_send.wizard" src_model="pos.order"
-view_mode="form" target="new" view_type="form" />
+        <record id="action_pos_orders_send" model="ir.actions.act_window">
+            <field name="name">Enviar Documentos al SII</field>
+            <field name="res_model">sii.dte.pos.masive_send.wizard</field>
+            <field name="view_mode">tree,form</field>
+            <field name="view_id" ref="sii_dte_masive_send_wizard_form"/>
+            <field name="target">new</field>
+            <field name="groups_id" eval="[(4, ref('account.group_account_invoice'))]"/>
+            <field name="binding_model_id" ref="point_of_sale.model_pos_order" />
+            <field name="binding_view_types">list</field>
+        </record>
     </data>
 </odoo>

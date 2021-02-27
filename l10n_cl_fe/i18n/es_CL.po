@@ -50,7 +50,7 @@ msgstr "* El estado \"Borrador\" se usa cuando un usuario está registrando una 
 " * El estado 'Cancelado' se usa cuando el usuario cancela la factura."
 
 #. module: l10n_cl_fe
-#: selection:account.invoice,claim:0
+#: selection:account.move,claim:0
 msgid " Otorga  Recibo  de  Mercaderías  o Servicios"
 msgstr " Otorga  Recibo  de  Mercaderías  o Servicios"
 
@@ -4567,12 +4567,12 @@ msgid "Account Entry"
 msgstr "Asiento Contable"
 
 #. module: l10n_cl_fe
-#: selection:account.invoice,claim:0
+#: selection:account.move,claim:0
 msgid "Acepta Contenido del Documento"
 msgstr "Acepta Contenido del Documento"
 
 #. module: l10n_cl_fe
-#: selection:account.invoice,sii_result:0
+#: selection:account.move,sii_result:0
 #: selection:account.move.book,state:0
 #: selection:account.move.consumo_folios,state:0
 #: selection:mail.message.dte.document,state:0
@@ -5188,7 +5188,7 @@ msgid "Anual"
 msgstr "Anual"
 
 #. module: l10n_cl_fe
-#: selection:account.invoice.referencias,sii_referencia_CodRef:0
+#: selection:account.move.referencias,sii_referencia_CodRef:0
 msgid "Anula Documento de Referencia"
 msgstr "Anula Documento de Referencia"
 
@@ -5198,7 +5198,7 @@ msgid "Anulaciones Manuales de Folio"
 msgstr "Anulaciones Manuales de Folio"
 
 #. module: l10n_cl_fe
-#: selection:account.invoice,sii_result:0
+#: selection:account.move,sii_result:0
 #: selection:account.move.book,state:0
 #: selection:account.move.consumo_folios,state:0
 msgid "Anulado"
@@ -5402,7 +5402,7 @@ msgid "Book"
 msgstr "Libro"
 
 #. module: l10n_cl_fe
-#: selection:account.invoice,sii_result:0
+#: selection:account.move,sii_result:0
 #: selection:account.move.book,state:0
 #: selection:account.move.book.honorarios,state:0
 #: selection:account.move.consumo_folios,state:0
@@ -6104,7 +6104,7 @@ msgid "Compras"
 msgstr "Compras"
 
 #. module: l10n_cl_fe
-#: selection:account.invoice,no_rec_code:0
+#: selection:account.move,no_rec_code:0
 #: selection:account.move,no_rec_code:0
 msgid "Compras destinadas a IVA a generar operaciones no gravados o exentas."
 msgstr "Compras destinadas a IVA a generar operaciones no gravados o exentas."
@@ -6234,7 +6234,7 @@ msgid "Contacto"
 msgstr "Contacto"
 
 #. module: l10n_cl_fe
-#: selection:account.invoice,forma_pago:0
+#: selection:account.move,forma_pago:0
 msgid "Contado"
 msgstr "Contado"
 
@@ -6299,12 +6299,12 @@ msgid "Corretaje de Productos Agrícolas"
 msgstr "Corretaje de Productos Agrícolas"
 
 #. module: l10n_cl_fe
-#: selection:account.invoice.referencias,sii_referencia_CodRef:0
+#: selection:account.move.referencias,sii_referencia_CodRef:0
 msgid "Corrige montos"
 msgstr "Corrige montos"
 
 #. module: l10n_cl_fe
-#: selection:account.invoice.referencias,sii_referencia_CodRef:0
+#: selection:account.move.referencias,sii_referencia_CodRef:0
 msgid "Corrige texto Documento Referencia"
 msgstr "Corrige texto Documento Referencia"
 
@@ -6467,7 +6467,7 @@ msgid "Cron de envío y consulta estado documento en el sii"
 msgstr "Cron de envío y consulta estado documento en el sii"
 
 #. module: l10n_cl_fe
-#: selection:account.invoice,forma_pago:0
+#: selection:account.move,forma_pago:0
 msgid "Crédito"
 msgstr "Crédito"
 
@@ -6877,7 +6877,7 @@ msgid "Descripción Producto"
 msgstr "Descripción Producto"
 
 #. module: l10n_cl_fe
-#: selection:account.invoice.gdr,type:0
+#: selection:account.move.gdr,type:0
 msgid "Descuento"
 msgstr "Descuento"
 
@@ -7507,7 +7507,7 @@ msgid "Empresas de Traducción E Interpretación"
 msgstr "Empresas de Traducción E Interpretación"
 
 #. module: l10n_cl_fe
-#: selection:account.invoice,sii_result:0
+#: selection:account.move,sii_result:0
 msgid "En cola de envío"
 msgstr "En cola de envío"
 
@@ -7532,7 +7532,7 @@ msgid "Entidad"
 msgstr "Entidad"
 
 #. module: l10n_cl_fe
-#: selection:account.invoice,no_rec_code:0
+#: selection:account.move,no_rec_code:0
 #: selection:account.move,no_rec_code:0
 msgid "Entregas gratuitas (premios, bonificaciones, etc.) recibidos."
 msgstr "Entregas gratuitas (premios, bonificaciones, etc.) recibidos."
@@ -7548,7 +7548,7 @@ msgid "Envasado de Agua Mineral Natural, de Manantial y Potable Preparada"
 msgstr "Envasado de Agua Mineral Natural, de Manantial y Potable Preparada"
 
 #. module: l10n_cl_fe
-#: selection:account.invoice,sii_result:0
+#: selection:account.move,sii_result:0
 #: selection:account.move.book,state:0
 #: selection:account.move.consumo_folios,state:0
 #: selection:sii.xml.envio,state:0
@@ -8655,7 +8655,7 @@ msgid "Facturas"
 msgstr "Facturas"
 
 #. module: l10n_cl_fe
-#: selection:account.invoice,no_rec_code:0
+#: selection:account.move,no_rec_code:0
 #: selection:account.move,no_rec_code:0
 msgid "Facturas de proveedores registrados fuera de plazo."
 msgstr "Facturas de proveedores registrados fuera de plazo."
@@ -8736,7 +8736,7 @@ msgid "Financieras"
 msgstr "Financieras"
 
 #. module: l10n_cl_fe
-#: selection:account.invoice.gdr,aplicacion:0
+#: selection:account.move.gdr,aplicacion:0
 msgid "Flete"
 msgstr "Flete"
 
@@ -8856,7 +8856,7 @@ msgid "Galvarino"
 msgstr "Galvarino"
 
 #. module: l10n_cl_fe
-#: selection:account.invoice,no_rec_code:0
+#: selection:account.move,no_rec_code:0
 #: selection:account.move,no_rec_code:0
 msgid "Gastos rechazados."
 msgstr "Gastos rechazados."
@@ -8991,7 +8991,7 @@ msgid "Graneros"
 msgstr "Graneros"
 
 #. module: l10n_cl_fe
-#: selection:account.invoice,forma_pago:0
+#: selection:account.move,forma_pago:0
 msgid "Gratuito"
 msgstr "Gratuito"
 
@@ -9973,7 +9973,7 @@ msgid "Monte Patria"
 msgstr "Monte Patria"
 
 #. module: l10n_cl_fe
-#: selection:account.invoice.gdr,gdr_type:0
+#: selection:account.move.gdr,gdr_type:0
 #: model:ir.model.fields,field_description:l10n_cl_fe.field_account_move_book_honorarios_tax_amount
 #: model:ir.model.fields,field_description:l10n_cl_fe.field_account_move_book_tax_amount
 #: model:ir.model.fields,field_description:l10n_cl_fe.field_mail_message_dte_document_amount
@@ -10140,7 +10140,7 @@ msgid "No"
 msgstr "No"
 
 #. module: l10n_cl_fe
-#: selection:account.invoice,sii_result:0
+#: selection:account.move,sii_result:0
 #: selection:account.move.book,state:0
 #: selection:account.move.consumo_folios,state:0
 #: selection:sii.xml.envio,state:0
@@ -10559,7 +10559,7 @@ msgid "Otros Tipos de Venta Al Por Menor No Realizada En Almacenes N.C.P."
 msgstr "Otros Tipos de Venta Al Por Menor No Realizada En Almacenes N.C.P."
 
 #. module: l10n_cl_fe
-#: selection:account.invoice,no_rec_code:0
+#: selection:account.move,no_rec_code:0
 #: selection:account.move,no_rec_code:0
 msgid "Otros."
 msgstr "Otros."
@@ -10820,7 +10820,7 @@ msgstr "Please select your company service provider for DTE service.\n"
 "    "
 
 #. module: l10n_cl_fe
-#: selection:account.invoice.gdr,gdr_type:0
+#: selection:account.move.gdr,gdr_type:0
 msgid "Porcentaje"
 msgstr "Porcentaje"
 
@@ -10923,7 +10923,7 @@ msgid "Private Key Type"
 msgstr "Tipo de clave privada"
 
 #. module: l10n_cl_fe
-#: selection:account.invoice,sii_result:0
+#: selection:account.move,sii_result:0
 msgid "Procesado"
 msgstr "Procesado"
 
@@ -11271,7 +11271,7 @@ msgid "Razón del descuento"
 msgstr "Razón del descuento"
 
 #. module: l10n_cl_fe
-#: selection:account.invoice.gdr,type:0
+#: selection:account.move.gdr,type:0
 msgid "Recargo"
 msgstr "Recargo"
 
@@ -11303,7 +11303,7 @@ msgid "Receptors"
 msgstr "Receptores"
 
 #. module: l10n_cl_fe
-#: selection:account.invoice,sii_result:0
+#: selection:account.move,sii_result:0
 #: selection:account.move.book,state:0
 #: selection:account.move.consumo_folios,state:0
 #: selection:mail.message.dte.document,state:0
@@ -11326,12 +11326,12 @@ msgid "Recibido"
 msgstr "Recibido"
 
 #. module: l10n_cl_fe
-#: selection:account.invoice,estado_recep_dte:0
+#: selection:account.move,estado_recep_dte:0
 msgid "Recibido en DTE"
 msgstr "Recibido en DTE"
 
 #. module: l10n_cl_fe
-#: selection:account.invoice,estado_recep_dte:0
+#: selection:account.move,estado_recep_dte:0
 msgid "Recibido mercaderias"
 msgstr "Recibido mercaderias"
 
@@ -11371,17 +11371,17 @@ msgid "Reclamo"
 msgstr "Reclamo"
 
 #. module: l10n_cl_fe
-#: selection:account.invoice,claim:0
+#: selection:account.move,claim:0
 msgid "Reclamo al  Contenido del Documento "
 msgstr "Reclamo al Contenido del Documento "
 
 #. module: l10n_cl_fe
-#: selection:account.invoice,claim:0
+#: selection:account.move,claim:0
 msgid "Reclamo por Falta Parcial de Mercaderías"
 msgstr "Reclamo por Falta Parcial de Mercaderías"
 
 #. module: l10n_cl_fe
-#: selection:account.invoice,claim:0
+#: selection:account.move,claim:0
 msgid "Reclamo por Falta Total de Mercaderías"
 msgstr "Reclamo por Falta Total de Mercaderías"
 
@@ -11675,7 +11675,7 @@ msgid "Reparación de Transmisores de Radio y Televisión, Aparatos Para Telefon
 msgstr "Reparación de Transmisores de Radio y Televisión, Aparatos Para Telefonía y Telegrafía Con Hilos"
 
 #. module: l10n_cl_fe
-#: selection:account.invoice,sii_result:0
+#: selection:account.move,sii_result:0
 #: selection:account.move.book,state:0
 #: selection:account.move.consumo_folios,state:0
 msgid "Reparo"
@@ -12292,7 +12292,7 @@ msgid "Securitizadoras"
 msgstr "Securitizadoras"
 
 #. module: l10n_cl_fe
-#: selection:account.invoice.gdr,aplicacion:0
+#: selection:account.move.gdr,aplicacion:0
 msgid "Seguro"
 msgstr "Seguro"
 
@@ -12955,8 +12955,8 @@ msgstr "Usted no posee una firma autorizada en el sistema. Asegúrese de que el 
 #. module: l10n_cl_fe
 #: code:addons/l10n_cl_fe/models/invoice.py:729
 #, python-format
-msgid "This %s has been created from: <a href=# data-oe-model=account.invoice data-oe-id=%d>%s</a>"
-msgstr "This %s has been created from: <a href=# data-oe-model=account.invoice data-oe-id=%d>%s</a>"
+msgid "This %s has been created from: <a href=# data-oe-model=account.move data-oe-id=%d>%s</a>"
+msgstr "This %s has been created from: <a href=# data-oe-model=account.move data-oe-id=%d>%s</a>"
 
 #. module: l10n_cl_fe
 #: model:ir.model.fields,help:l10n_cl_fe.field_account_journal_sii_document_class_sequence_id
@@ -13464,7 +13464,7 @@ msgid "Valid"
 msgstr "Validar"
 
 #. module: l10n_cl_fe
-#: selection:account.invoice,estado_recep_dte:0
+#: selection:account.move,estado_recep_dte:0
 msgid "Validada Comercial"
 msgstr "Validada Comercial"
 
@@ -14169,13 +14169,13 @@ msgstr "Zapallar"
 
 #. module: l10n_cl_fe
 #: model:ir.model,name:l10n_cl_fe.model_account_invoice_gdr
-msgid "account.invoice.gdr"
-msgstr "account.invoice.gdr"
+msgid "account.move.gdr"
+msgstr "account.move.gdr"
 
 #. module: l10n_cl_fe
 #: model:ir.model,name:l10n_cl_fe.model_account_invoice_referencias
-msgid "account.invoice.referencias"
-msgstr "account.invoice.referencias"
+msgid "account.move.referencias"
+msgstr "account.move.referencias"
 
 #. module: l10n_cl_fe
 #: model:ir.model,name:l10n_cl_fe.model_account_journal_document_config

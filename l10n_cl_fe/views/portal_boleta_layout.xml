@@ -77,7 +77,7 @@
                                 class="form-control pull-right"
                                 style="display: inline-block; width: 100%;"
                                 type="date"
-                                name="date_invoice"
+                                name="date"
                                 required=""
                                 placeholder="yyyy-mm-dd"
                             />
@@ -126,7 +126,7 @@
         />
         <div t-att-style="boleta_style">
             <t t-foreach="docs" t-as="o">
-                <t t-if="o._name == 'account.invoice'">
+                <t t-if="o._name == 'account.move'">
                     <t t-call="l10n_cl_fe.report_invoice_document_with_payments" />
                 </t>
             </t>

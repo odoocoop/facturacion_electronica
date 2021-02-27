@@ -25,7 +25,7 @@
                 eval="(datetime.now() + relativedelta(days=1, hour=8, minute=0, second=0)).strftime('%Y-%m-%d %H:%M:%S')"
             />
         </record>
-        <record id="ir_cron_update_remote partners" model="ir.cron">
+        <record id="ir_cron_update_remote_partners" model="ir.cron">
             <field name="name">Cron Verificación de Partners</field>
             <field name="interval_number">1</field>
             <field name="interval_type">days</field>

@@ -22,15 +22,15 @@ class StockPicking(models.Model):
                 for k, v in taxes.items():
                     amount_tax += v['amount']
                 rec.amount_tax = rec.currency_id.round(amount_tax)
-                for line in rec.move_lines:
+                for line in self.move_lines:
                     amount_untaxed += line.price_untaxed
                 rec.amount_untaxed = amount_untaxed
             rec.amount_total = amount_untaxed + amount_tax
 
     def _prepare_tax_line_vals(self, line, tax):
-        """ Prepare values to create an account.invoice.tax line
+        """ Prepare values to create an account.move.tax line
 
-        The line parameter is an account.invoice.line, and the
+        The line parameter is an account.move.line, and the
         tax parameter is the output of account.tax.compute_all().
         """
         t = self.env['account.tax'].browse(tax['id'])
@@ -62,7 +62,7 @@ class StockPicking(models.Model):
                 tax_grouped[key]['base'] += self.currency_id.round(val['base'])
         return tax_grouped
 
-    @api.multi
+    
     def get_taxes_values(self):
         tax_grouped = {}
         totales = {}
@@ -281,7 +281,7 @@ class StockMove(models.Model):
         if self.picking_id.reference:
             for ref in self.picking_id.reference:
                 if ref.sii_referencia_TpoDocRef.sii_code in [33]:
-                    il = self.env['account.invoice'].search(
+                    il = self.env['account.move'].search(
                             [
                                     ('sii_document_number', '=', ref.origen),
                                     ('sii_document_class_id.sii_code', '=', ref.sii_referencia_TpoDocRef.sii_code),

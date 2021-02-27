@@ -11,6 +11,7 @@ class PosConfig(models.Model):
 
     def get_left_numbers(self):
         for rec in self:
+            rec.left_number_exenta = rec.left_number_guia = rec.left_number = 0
             if rec.secuencia_boleta:
                 rec.left_number = rec.secuencia_boleta.get_qty_available()
             if rec.secuencia_boleta_exenta:
@@ -20,13 +21,15 @@ class PosConfig(models.Model):
 
     def _get_sequence_picking(self):
         for rec in self:
+            rec.dte_picking_sequence = self.env['ir.sequence']
             if 'sequence_id' in rec.picking_type_id.default_location_src_id:
-                rec.dte_picking_sequence = rec.picking_type_id.default_location_src_id.sequence_id.id
+                rec.dte_picking_sequence = rec.picking_type_id.default_location_src_id.sequence_id
 
     def _sii_sucursal(self):
         for rec in self:
+            rec.sucursal_id = self.env['sii.sucursal']
             if 'sucursal_id' in rec.picking_type_id.default_location_src_id:
-                rec.sucursal_id = rec.picking_type_id.default_location_src_id.sucursal_id.id
+                rec.sucursal_id = rec.picking_type_id.default_location_src_id.sucursal_id
 
     secuencia_boleta = fields.Many2one(
             'ir.sequence',
@@ -167,7 +170,6 @@ class PosConfig(models.Model):
             if r.sii_document_class_id.sii_code == 34:
                 self.secuencia_factura_exenta = r.sequence_id
 
-    @api.one
     @api.constrains('marcar', 'secuencia_boleta', 'secuencia_boleta_exenta', 'iface_invoicing')
     def _check_document_type(self):
         if self.marcar == 'boleta' and not self.secuencia_boleta:

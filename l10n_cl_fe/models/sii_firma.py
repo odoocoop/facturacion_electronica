@@ -104,7 +104,7 @@ class SignatureCert(models.Model):
     ]
     _order = "priority DESC"
 
-    @api.multi
+    
     def action_process(self):
         if self.subject_serial_number:
             return self.check_signature()

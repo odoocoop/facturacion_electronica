@@ -38,7 +38,7 @@ class UploadXMLWizard(models.TransientModel):
         if self.xml_file:
             self.num_dtes = len(self._get_dtes())
 
-    @api.multi
+
     def confirm(self, ret=False):
         created = []
         if self.document_id:
@@ -54,7 +54,7 @@ class UploadXMLWizard(models.TransientModel):
         if self.type == "ventas":
             created = self.do_create_inv()
             xml_id = "account.action_vendor_bill_template"
-            target_model = "account.invoice"
+            target_model = "account.move"
         elif self.pre_process or self.action == "upload":
             created = self.do_create_pre()
             xml_id = "l10n_cl_fe.action_dte_process"
@@ -65,7 +65,7 @@ class UploadXMLWizard(models.TransientModel):
         elif self.action == "create":
             created = self.do_create_inv()
             xml_id = "account.action_vendor_bill_template"
-            target_model = "account.invoice"
+            target_model = "account.move"
         if self.action == "create_po":
             self.do_create_po()
             xml_id = "purchase.purchase_order_tree"
@@ -122,7 +122,7 @@ class UploadXMLWizard(models.TransientModel):
             "firma_electronica": firma.parametros_firma(),
         }
 
-    def _create_attachment(self, xml, name, id=False, model="account.invoice"):
+    def _create_attachment(self, xml, name, id=False, model="account.move"):
         data = base64.b64encode(xml.encode("ISO-8859-1"))
         filename = (name + ".xml").replace(" ", "")
         url_path = "/download/xml/resp/%s" % (id)
@@ -452,7 +452,7 @@ class UploadXMLWizard(models.TransientModel):
         else:
             product_id = self.env["product.product"].browse(product_id)
             fpos = self.env["account.fiscal.position"].browse(fpos_id)
-            account = self.env["account.invoice.line"].get_invoice_line_account(type, product_id, fpos, company_id)
+            account = self.env["account.move.line"].get_invoice_line_account(type, product_id, fpos, company_id)
             IndExe = line.find("IndExe")
             amount = 0
             sii_code = 0
@@ -500,8 +500,8 @@ class UploadXMLWizard(models.TransientModel):
             data.update(
                 {
                     "account_id": account.id,
-                    "invoice_line_tax_ids": [(6, 0, tax_ids.ids)],
-                    "uom_id": product_id.uom_id.id,
+                    "tax_ids": [(6, 0, tax_ids.ids)],
+                    "product_uom_id": product_id.uom_id.id,
                     "price_unit": price,
                     "price_subtotal": price_subtotal,
                 }
@@ -616,7 +616,7 @@ class UploadXMLWizard(models.TransientModel):
         invoice.update(
             {
                 "origin": "XML Envío: " + name.decode(),
-                "date_invoice": FchEmis,
+                "date": FchEmis,
                 "partner_id": partner_id,
                 "company_id": company_id.id,
                 # 'sii_xml_request': xml_envio.id,
@@ -716,7 +716,7 @@ class UploadXMLWizard(models.TransientModel):
                         0,
                         0,
                         {
-                            "invoice_line_tax_ids": ((6, 0, imp.ids)),
+                            "tax_ids": ((6, 0, imp.ids)),
                             "product_id": product_id,
                             "name": "MontoImpuesto %s" % i.find("TipoImp").text,
                             "price_unit": price,
@@ -729,7 +729,7 @@ class UploadXMLWizard(models.TransientModel):
         # if 'IVATerc' in dte['Encabezado']['Totales']:
         #    imp = self._buscar_impuesto(name="IVATerc" )
         #    lines.append([0,0,{
-        #        'invoice_line_tax_ids': [ imp ],
+        #        'tax_ids': [ imp ],
         #        'product_id': product_id,
         #        'name': 'MontoImpuesto IVATerc' ,
         #        'price_unit': dte['Encabezado']['Totales']['IVATerc'],
@@ -777,14 +777,14 @@ class UploadXMLWizard(models.TransientModel):
             Emisor = encabezado.find("Emisor")
             query.append(("partner_id.vat", "=", self.format_rut(Emisor.find("RUTEmisor").text)))
             query.append(("type", "in", ["in_invoice", "in_refund"]))
-        return self.env["account.invoice"].search(query)
+        return self.env["account.move"].search(query)
 
     def _create_inv(self, documento, company_id):
         inv = self._inv_exist(documento)
         if inv:
             return inv
         data = self._get_data(documento, company_id)
-        inv = self.env["account.invoice"].create(data)
+        inv = self.env["account.move"].create(data)
         return inv
 
     def _dte_exist(self, documento):
@@ -847,7 +847,7 @@ class UploadXMLWizard(models.TransientModel):
                 if pre:
                     inv = self._inv_exist(documento)
                     pre.write(
-                        {"xml": etree.tostring(dte), "invoice_id": inv.id,}
+                        {"xml": etree.tostring(dte), "move_id": inv.id,}
                     )
                     created.append(pre.id)
             except Exception as e:
@@ -869,7 +869,7 @@ class UploadXMLWizard(models.TransientModel):
                 )
                 inv = self._create_inv(documento, company_id,)
                 if self.document_id:
-                    self.document_id.invoice_id = inv.id
+                    self.document_id.move_id = inv.id
                 if inv:
                     created.append(inv.id)
                 if not inv:
@@ -905,11 +905,11 @@ class UploadXMLWizard(models.TransientModel):
                 _logger.warning("Error en crear 1 factura con error:  %s" % str(e))
         if created and self.option not in [False, "upload"] and self.type == "compras":
             datos = {
-                "invoice_ids": [(6, 0, created)],
+                "move_ids": [(6, 0, created)],
                 "action": "ambas",
                 "claim": "ACD",
                 "estado_dte": "0",
-                "tipo": "account.invoice",
+                "tipo": "account.move",
             }
             wiz_accept = self.env["sii.dte.validar.wizard"].create(datos)
             wiz_accept.confirm()
@@ -998,7 +998,7 @@ class UploadXMLWizard(models.TransientModel):
         purchase_vals["order_line"] = lines
         po = purchase_model.create(purchase_vals)
         po.button_confirm()
-        self.env["account.invoice"].search([("purchase_id", "=", po.id)])
+        self.env["account.move"].search([("purchase_id", "=", po.id)])
         # inv.sii_document_class_id = dte['Encabezado']['IdDoc']['TipoDTE']
         return po
 

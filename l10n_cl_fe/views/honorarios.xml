@@ -3,48 +3,19 @@
     <data>
         <record id="honorarios_form" model="ir.ui.view">
             <field name="name">account.honorarios.form</field>
-            <field name="model">account.invoice</field>
+            <field name="model">account.move</field>
             <field name="priority">5</field>
             <field name="arch" type="xml">
                 <form string="Boletas Honorarios">
                     <field name="document_class_ids" invisible="1" />
                     <field name="use_documents" invisible="1" />
                     <field name="sii_document_number" invisible="1" />
-                    <field name="move_name" invisible="1" />
                     <header>
                         <button
                             name="invoice_open"
                             states="draft,proforma2"
                             string="Validate"
                             class="oe_highlight"
-                            groups="account.group_account_invoice"
-                        />
-                        <button
-                            name="%(account.action_account_invoice_payment)d"
-                            type="action"
-                            states="open"
-                            string="Register Payment"
-                            groups="account.group_account_invoice"
-                            class="oe_highlight"
-                        />
-                        <button
-                            name="%(account.action_account_invoice_refund)d"
-                            type='action'
-                            string='Ask Refund'
-                            groups="account.group_account_invoice"
-                            attrs="{'invisible': ['|',('type', '=', 'in_refund'),('state','not in',('open','paid'))]}"
-                        />
-                        <button
-                            name="invoice_cancel"
-                            states="draft,proforma2"
-                            string="Cancel Bill"
-                            groups="account.group_account_invoice"
-                        />
-                        <button
-                            name="action_cancel_draft"
-                            states="cancel"
-                            string="Set to Draft"
-                            type="object"
                             groups="account.group_account_invoice"
                         />
                         <field
@@ -58,13 +29,11 @@
                         class="alert alert-info"
                         role="alert"
                         style="margin-bottom:0px;"
-                        attrs="{'invisible': [('has_outstanding','=',False)]}"
                     >
                     You have <bold>
                             <a class="alert-link" href="#outstanding" role="button">outstanding debits</a>
                         </bold> for this supplier. You can allocate them to mark this bill as paid.
                 </div>
-                    <field name="has_outstanding" invisible="1" />
                     <sheet string="Boleta de honorarios">
                         <div class="oe_button_box" name="button_box">
                     </div>
@@ -83,7 +52,7 @@
                                     attrs="{'invisible': ['|',('state','not in',('draft',)), ('type','!=','out_refund')]}"
                                 >Draft Credit Note</span>
                                 <field
-                                    name="number"
+                                    name="name"
                                     readonly="1"
                                     class="oe_inline"
                                     attrs="{'invisible': [('state','in',('draft',))]}"
@@ -110,9 +79,8 @@
                             </group>
                             <group>
                                 <field name="origin" attrs="{'invisible': [('origin', '=', False)]}" />
-                                <field name="date_invoice" string="Bill Date" />
-                                <field name="date_due" />
-                                <field name="move_name" invisible="1" />
+                                <field name="date" string="Bill Date" />
+                                <field name="invoice_date_due" />
                                 <field
                                     name="currency_id"
                                     options="{'no_create': True, 'no_open': True}"
@@ -144,7 +112,7 @@
                                         <field name="price_unit" />
                                         <field name="discount" groups="sale.group_discount_per_so_line" />
                                         <field
-                                            name="invoice_line_tax_ids"
+                                            name="tax_ids"
                                             widget="many2many_tags"
                                             context="{'type':parent.type}"
                                             domain="[('type_tax_use','=','purchase'),('company_id', '=', parent.company_id)]"
@@ -220,7 +188,7 @@
                                             name="journal_id"
                                             groups="account.group_account_user"
                                             options="{'no_create': True}"
-                                            attrs="{'readonly':['|','|',('state','!=','draft'),('sii_document_number','!=',False),('move_name','!=',False)]}"
+                                            attrs="{'readonly':['|','|',('state','!=','draft'),('sii_document_number','!=',False)]}"
                                             domain="[('journal_document_class_ids.sii_document_class_id.document_letter_id.name','=','M')]"
                                         />
                                         <field
@@ -302,19 +270,19 @@
             </field>
         </record>
         <record id="honorarios_tree" model="ir.ui.view">
-            <field name="name">account.invoice.supplier.tree</field>
-            <field name="model">account.invoice</field>
+            <field name="name">account.move.supplier.tree</field>
+            <field name="model">account.move</field>
             <field name="arch" type="xml">
                 <tree decoration-info="state == 'draft'" decoration-muted="state == 'cancel'" string="Invoice">
                     <field name="partner_id" groups="base.group_user" string="Vendor" />
-                    <field name="date_invoice" string="Bill Date" />
+                    <field name="date" string="Bill Date" />
                     <field name="number" />
                     <field name="reference" />
                     <field name="commercial_partner_id" invisible="1" />
                     <field name="name" invisible="1" />
                     <field name="journal_id" invisible="1" />
                     <field name="company_id" groups="base.group_multi_company" options="{'no_create': True}" />
-                    <field name="date_due" />
+                    <field name="invoice_date_due" />
                     <field name="origin" />
                     <field name="amount_total_signed" sum="Total" />
                     <field name="residual_signed" string="To Pay" sum="To pay" />
@@ -327,7 +295,7 @@
         </record>
         <record id="honorarios_tree2" model="ir.actions.act_window">
             <field name="name">Boletas Honorarios</field>
-            <field name="res_model">account.invoice</field>
+            <field name="res_model">account.move</field>
             <field name="view_type">form</field>
             <field name="view_mode">tree,kanban,form,calendar,pivot,graph</field>
             <field eval="False" name="view_id" />
@@ -367,7 +335,7 @@ action = {
               "type": "ir.actions.act_window",
               "view_mode": "tree,kanban,form",
               "act_window_id": arbol.id,
-              "res_model":  'account.invoice',
+              "res_model":  'account.move',
               "domain": [('type','in',('in_invoice', 'in_refund')),
                           ('journal_id','in', ids)],
               "context": {'default_type': 'in_invoice',

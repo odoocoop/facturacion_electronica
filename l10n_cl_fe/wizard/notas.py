@@ -11,7 +11,7 @@ _logger = logging.getLogger(__name__)
 class AccountInvoiceRefund(models.TransientModel):
     """Refunds invoice"""
 
-    _inherit = "account.invoice.refund"
+    _inherit = "account.move.refund"
 
     tipo_nota = fields.Many2one(
         "sii.document_class",
@@ -32,9 +32,9 @@ class AccountInvoiceRefund(models.TransientModel):
         if self.filter_refund == "2":
             self.description = _("Dice:   Debe Decir: ")
 
-    @api.multi
+
     def compute_refund(self, mode="1"):
-        inv_obj = self.env["account.invoice"]
+        inv_obj = self.env["account.move"]
         context = dict(self._context or {})
         xml_id = False
         for form in self:
@@ -51,7 +51,7 @@ class AccountInvoiceRefund(models.TransientModel):
                         )
                     )
 
-                date = form.date_invoice or False
+                date = form.date or False
                 description = form.description or inv.name
                 type = inv.type
                 if mode in ["2"]:
@@ -101,13 +101,13 @@ class AccountInvoiceRefund(models.TransientModel):
                                 "sii_referencia_TpoDocRef": inv.document_class_id.id,
                                 "sii_referencia_CodRef": mode,
                                 "motivo": description,
-                                "fecha_documento": inv.date_invoice,
+                                "fecha_documento": inv.date,
                             },
                         ]
                     ]
                     invoice.update(
                         {
-                            "date_invoice": date,
+                            "date": date,
                             "state": "draft",
                             "number": False,
                             "date": date,
@@ -120,7 +120,7 @@ class AccountInvoiceRefund(models.TransientModel):
                             "referencias": referencias,
                             "invoice_line_ids": invoice_lines,
                             "tax_line_ids": False,
-                            "refund_invoice_id": inv.id,
+                            "refund_move_id": inv.id,
                         }
                     )
 
@@ -131,10 +131,10 @@ class AccountInvoiceRefund(models.TransientModel):
                             invoice[field] = invoice[field] or False
                     refund = inv_obj.create(invoice)
                     if refund.payment_term_id.id:
-                        refund._onchange_payment_term_date_invoice()
+                        refund._onchange_payment_term_date()
                 if mode in ["1", "3"]:
                     refund = inv.refund(
-                        form.date_invoice,
+                        form.date,
                         date,
                         description,
                         inv.journal_id.id,

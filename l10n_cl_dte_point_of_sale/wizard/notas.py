@@ -32,7 +32,7 @@ class AccountInvoiceRefund(models.TransientModel):
     motivo = fields.Char("Motivo")
     date_order = fields.Date(string="Fecha de Documento")
 
-    @api.multi
+    
     def confirm(self):
         """Create a copy of order  for refund order"""
         clone_list = self.env['pos.order']

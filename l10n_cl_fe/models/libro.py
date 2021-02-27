@@ -204,12 +204,13 @@ class Libro(models.Model):
         query = [
             ("company_id", "=", self.company_id.id),
             ("sended", "=", False),
-            ("date", "<", next_month.strftime("%Y-%m-%d")),
+            ("invoice_date", "<", next_month.strftime("%Y-%m-%d")),
+            ('sii_document_number', 'not in', [0, False])
         ]
         domain = "sale"
         if self.tipo_operacion in ["COMPRA"]:
             two_month = current + relativedelta(months=-2)
-            query.append(("date", ">=", two_month.strftime("%Y-%m-%d")))
+            query.append(("invoice_date", ">=", two_month.strftime("%Y-%m-%d")))
             domain = "purchase"
         elif self.tipo_operacion != "BOLETA":
             # en ventas no considerar las boletas
@@ -310,8 +311,7 @@ class Libro(models.Model):
                         0,
                         0,
                         {
-                            "tax_id": self.env["account.tax"]
-                            .search(
+                            "tax_id": self.env["account.tax"].search(
                                 [
                                     ("sii_code", "=", 14),
                                     ("type_tax_use", "=", "sale"),
@@ -328,8 +328,7 @@ class Libro(models.Model):
                         0,
                         0,
                         {
-                            "tax_id": self.env["account.tax"]
-                            .search(
+                            "tax_id": self.env["account.tax"].search(
                                 [
                                     ("sii_code", "=", 0),
                                     ("type_tax_use", "=", "sale"),
@@ -346,7 +345,7 @@ class Libro(models.Model):
             )
             operator = "in"
         if self.tipo_operacion in ["VENTA", "BOLETA"]:
-            query.append(("date", ">=", current.strftime("%Y-%m-%d")))
+            query.append(("invoice_date", ">=", current.strftime("%Y-%m-%d")))
         query.append(("document_class_id.sii_code", operator, docs))
         self.boletas = boleta_lines
         self.impuestos = impuesto_lines
@@ -367,7 +366,7 @@ class Libro(models.Model):
     @api.onchange("move_ids")
     def set_resumen(self):
         for book in self:
-            for mov in book.move_ids:
+            for mov in book._get_moves():
                 totales = mov.totales_por_movimiento()
                 book.total_afecto += totales["neto"]
                 book.total_exento += totales["exento"]
@@ -395,14 +394,13 @@ class Libro(models.Model):
                 lines.append([0, 0, i])
             self.impuestos = lines
 
-    @api.multi
     def unlink(self):
         for libro in self:
             if libro.state not in ("draft", "cancel"):
                 raise UserError(_("You cannot delete a Validated book."))
         return super(Libro, self).unlink()
 
-    @api.multi
+
     def get_xml_file(self):
         return {
             "type": "ir.actions.act_url",
@@ -416,27 +414,15 @@ class Libro(models.Model):
         if self.periodo_tributario and self.name:
             self.name += " " + self.periodo_tributario
 
-    @api.multi
     def validar_libro(self):
         self._validar()
         return self.write({"state": "NoEnviado"})
 
     def _get_moves(self):
-        recs = []
-        for rec in self.with_context(lang="es_CL").move_ids:
-            rec.sended = True
-            document_class_id = rec.document_class_id
-            if not document_class_id or document_class_id.sii_code in [39, 41] or rec.sii_document_number in [False, 0]:
-                continue
-            query = [
-                ("sii_document_number", "=", rec.sii_document_number),
-                ("document_class_id", "=", document_class_id.id),
-                ("partner_id.commercial_partner_id", "=", rec.partner_id.id),
-                ("journal_id", "=", rec.journal_id.id),
-                ("state", "not in", ["cancel", "draft"]),
-            ]
-            ref = self.env["account.invoice"].search(query)
-            recs.append(ref)
+        recs = self.with_context(lang="es_CL").move_ids.filtered(
+            lambda a: a.is_invoice() and not a.document_class_id and\
+            not (a.document_class_id.es_boleta() or (self.tipo_libro == 'BOLETA' and a.document_class_id.es_boleta())) \
+            and a.sii_document_number not in [False, 0])
         return recs
 
     def _emisor(self):
@@ -494,7 +480,6 @@ class Libro(models.Model):
             .id
         )
 
-    @api.multi
     def do_dte_send_book(self):
         if self.state not in ["draft", "NoEnviado", "Rechazado"]:
             raise UserError("El Libro ya ha sido enviado")
@@ -561,7 +546,7 @@ class Libro(models.Model):
         else:
             self.state = self.sii_xml_request.state
 
-    @api.multi
+
     def ask_for_dte_status(self):
         self._get_send_status()
 

@@ -40,6 +40,7 @@ class ResPartner(models.Model):
     @api.depends("child_ids")
     def _compute_dte_email(self):
         for p in self:
+            p.dte_email_id = self.env['res.partner']
             if p.dte_email == p.email:
                 continue
             for dte in p.child_ids:
@@ -47,6 +48,7 @@ class ResPartner(models.Model):
                     p.dte_email_id = dte.id
                     p.dte_email = dte.email
                     break
+
 
     type = fields.Selection(selection_add=[("dte", "Contacto DTE"),])
     state_id = fields.Many2one("res.country.state", "Ubication",)
@@ -170,7 +172,7 @@ class ResPartner(models.Model):
     #                              })
     #        self.dte_email_id = dte_email_id.id
 
-    @api.multi
+
     @api.onchange("responsability_id")
     def _get_tp_sii_code(self):
         for record in self:

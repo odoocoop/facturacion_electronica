@@ -12,7 +12,7 @@ class sii_ws_consult_wizard(models.TransientModel):
 
     number = fields.Integer("Number", required=True,)
 
-    @api.multi
+    
     def confirm(self):
         self.ensure_one()
         journal_sii_document_class_id = self._context.get("active_id", False)

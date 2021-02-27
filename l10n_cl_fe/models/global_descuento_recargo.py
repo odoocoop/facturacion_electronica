@@ -9,7 +9,7 @@ _logger = logging.getLogger(__name__)
 
 
 class GlobalDescuentoRecargo(models.Model):
-    _name = "account.invoice.gdr"
+    _name = "account.move.gdr"
     _description = "Linea de descuento global factura"
 
     def _get_name(self):
@@ -42,12 +42,12 @@ class GlobalDescuentoRecargo(models.Model):
         [("afectos", "Solo Afectos"), ("exentos", "Solo Exentos"), ("no_facturables", "Solo No Facturables")],
         default="afectos",
     )
-    invoice_id = fields.Many2one("account.invoice", string="Factura", copy=False,)
+    move_id = fields.Many2one("account.move", string="Factura", copy=False,)
 
     def _get_valores(self, tipo="afectos"):
         afecto = 0.00
-        for line in self[0].invoice_id.invoice_line_ids:
-            for tl in line.invoice_line_tax_ids:
+        for line in self[0].move_id.invoice_line_ids:
+            for tl in line.tax_ids:
                 if tl.amount > 0 and tipo == "afectos":
                     afecto += line.price_subtotal
                 elif tipo == "exentos":
@@ -60,24 +60,24 @@ class GlobalDescuentoRecargo(models.Model):
         for gdr in self:
             if not gdr.valor:
                 continue
-            if gdr.invoice_id.id not in groups:
+            if gdr.move_id.id not in groups:
                 if gdr.impuesto == "afectos":
-                    groups[gdr.invoice_id.id] = dict(afecto=gdr._get_valores(), des=0, rec=0,)
+                    groups[gdr.move_id.id] = dict(afecto=gdr._get_valores(), des=0, rec=0,)
                 else:
-                    groups[gdr.invoice_id.id] = dict(afecto=gdr._get_valores("exentos"), des=0, rec=0,)
-            groups[gdr.invoice_id.id]["dr"] = gdr.valor
+                    groups[gdr.move_id.id] = dict(afecto=gdr._get_valores("exentos"), des=0, rec=0,)
+            groups[gdr.move_id.id]["dr"] = gdr.valor
             if gdr.gdr_type in ["percent"]:
-                if groups[gdr.invoice_id.id]["afecto"] == 0.00:
+                if groups[gdr.move_id.id]["afecto"] == 0.00:
                     continue
-                if groups[gdr.invoice_id.id]["afecto"] > 0:
-                    groups[gdr.invoice_id.id]["dr"] = gdr.invoice_id.currency_id.round(
-                        groups[gdr.invoice_id.id]["afecto"] * (groups[gdr.invoice_id.id]["dr"] / 100.0)
+                if groups[gdr.move_id.id]["afecto"] > 0:
+                    groups[gdr.move_id.id]["dr"] = gdr.move_id.currency_id.round(
+                        groups[gdr.move_id.id]["afecto"] * (groups[gdr.move_id.id]["dr"] / 100.0)
                     )
             if gdr.type == "D":
-                groups[gdr.invoice_id.id]["des"] += groups[gdr.invoice_id.id]["dr"]
+                groups[gdr.move_id.id]["des"] += groups[gdr.move_id.id]["dr"]
             else:
-                groups[gdr.invoice_id.id]["rec"] += groups[gdr.invoice_id.id]["dr"]
-            gdr.amount_untaxed_global_dr = groups[gdr.invoice_id.id]["dr"]
+                groups[gdr.move_id.id]["rec"] += groups[gdr.move_id.id]["dr"]
+            gdr.amount_untaxed_global_dr = groups[gdr.move_id.id]["dr"]
         for key, dr in groups.items():
             if dr["des"] >= (dr["afecto"] + dr["rec"]):
                 raise UserError(

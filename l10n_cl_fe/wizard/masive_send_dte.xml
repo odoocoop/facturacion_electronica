@@ -1,5 +1,6 @@
-<?xml version="1.0" encoding="utf-8" ?>
+<?xml version="1.0" encoding="utf-8"?>
 <odoo>
+  <data>
     <record id="sii_dte_masive_send_wizard_form" model="ir.ui.view">
         <field name="name">SII WS Consult Wizard form</field>
         <field name="model">sii.dte.masive_send.wizard</field>
@@ -9,8 +10,7 @@
                     <field name="documentos" widget="one2many">
                         <tree string="DTes a enviar" editable="top/bottom">
                             <field name="state" invisible="True" />
-                            <field name="number" />
-                            <field name="origin" />
+                            <field name="name" />
                             <field name="amount_total" />
                             <field name="sii_batch_number" readonly="False" />
                         </tree>
@@ -26,15 +26,16 @@
             </form>
         </field>
     </record>
-    <act_window
-        id="action_account_invoice_send"
-        multi="True"
-        key2="client_action_multi"
-        name="Enviar Documentos al SII"
-        res_model="sii.dte.masive_send.wizard"
-        src_model="account.invoice"
-        view_mode="form"
-        target="new"
-        view_type="form"
-    />
+
+    <record id="action_account_invoice_send" model="ir.actions.act_window">
+        <field name="name">Enviar Documentos al SII</field>
+        <field name="res_model">sii.dte.masive_send.wizard</field>
+        <field name="view_mode">tree,form</field>
+        <field name="view_id" ref="sii_dte_masive_send_wizard_form"/>
+        <field name="target">new</field>
+        <field name="groups_id" eval="[(4, ref('account.group_account_invoice'))]"/>
+        <field name="binding_model_id" ref="account.model_account_move" />
+        <field name="binding_view_types">list</field>
+    </record>
+  </data>
 </odoo>

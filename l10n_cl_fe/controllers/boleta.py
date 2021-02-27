@@ -14,8 +14,8 @@ class Boleta(http.Controller):
 
     def _get_domain_account_invoice(self, folio, post_values):
         domain = [("sii_document_number", "=", folio)]
-        if post_values.get("date_invoice", ""):
-            domain.append(("date_invoice", "=", post_values.get("date_invoice", "")))
+        if post_values.get("date", ""):
+            domain.append(("date", "=", post_values.get("date", "")))
         if post_values.get("amount_total", ""):
             domain.append(("amount_total", "=", post_values.get("amount_total", "")))
         if post_values.get("sii_codigo", ""):
@@ -25,7 +25,7 @@ class Boleta(http.Controller):
         return domain
 
     def get_orders(self, folio, post):
-        Model = request.env["account.invoice"].sudo()
+        Model = request.env["account.move"].sudo()
         domain = self._get_domain_account_invoice(folio, post)
         orders = Model.search(domain, limit=1)
         return orders

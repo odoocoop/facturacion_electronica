@@ -18,8 +18,8 @@ class ValidarDTEWizard(models.TransientModel):
 
     def _get_invs(self):
         context = dict(self._context or {})
-        if self.tipo != "account.invoice" != context.get("active_model"):
-            return self.env["account.invoice"]
+        if self.tipo != "account.move" != context.get("active_model"):
+            return self.env["account.move"]
         active_ids = context.get("active_ids", []) or []
         return [(6, 0, active_ids)]
 
@@ -32,7 +32,7 @@ class ValidarDTEWizard(models.TransientModel):
         string="Respuesta a Emitir",
         default="validate",
     )
-    invoice_ids = fields.Many2many("account.invoice", string="Facturas", default=lambda self: self._get_invs(),)
+    move_ids = fields.Many2many("account.move", string="Facturas", default=lambda self: self._get_invs(),)
     document_ids = fields.Many2many(
         "mail.message.dte.document", string="Documentos Dte", default=lambda self: self._get_docs(),
     )
@@ -68,7 +68,7 @@ class ValidarDTEWizard(models.TransientModel):
                 self.claim = "ACD"
             # elif self.estado_dte == '1' and self.claim not in ['N/D', 'RCD']:
 
-    @api.multi
+
     def confirm(self):
         """
         if self.action == 'receipt' and self.claim not in ['N/D', 'ERM', 'RFP', 'RFT']:
@@ -82,7 +82,7 @@ class ValidarDTEWizard(models.TransientModel):
             self.do_validar_comercial()
         if self.document_ids and self.estado_dte in ["0", "1"]:
             for r in self.document_ids:
-                if not r.invoice_id:
+                if not r.move_id:
                     vals = {
                         "xml_file": r.xml.encode("ISO-8859-1"),
                         "filename": r.dte_id.name,
@@ -93,10 +93,10 @@ class ValidarDTEWizard(models.TransientModel):
                     wiz = self.env["sii.dte.upload_xml.wizard"].create(vals)
                     resp = wiz.confirm(ret=True)
                     if resp:
-                        r.invoice_id = resp[0]
+                        r.move_id = resp[0]
 
     def do_reject(self, document_ids):
-        docs = self.invoice_ids or self.document_ids
+        docs = self.move_ids or self.document_ids
         for doc in docs:
             claims = 1
             datos = {
@@ -107,15 +107,15 @@ class ValidarDTEWizard(models.TransientModel):
                 "sequence": claims,
                 "estado_dte": self.estado_dte,
             }
-            if self.tipo == "account.invoice":
-                datos["invoice_id"] = doc.id
+            if self.tipo == "account.move":
+                datos["move_id"] = doc.id
             else:
                 datos["document_id"] = doc.id
             claim = self.env["sii.dte.claim"].sudo().create(datos)
             claim.do_reject(doc)
 
     def do_validar_comercial(self):
-        docs = self.invoice_ids or self.document_ids
+        docs = self.move_ids or self.document_ids
         for doc in docs:
             claims = 1
             datos = {
@@ -126,16 +126,16 @@ class ValidarDTEWizard(models.TransientModel):
                 "sequence": claims,
                 "estado_dte": self.estado_dte,
             }
-            if self.tipo == "account.invoice":
-                datos["invoice_id"] = doc.id
+            if self.tipo == "account.move":
+                datos["move_id"] = doc.id
             else:
                 datos["document_id"] = doc.id
             claim = self.env["sii.dte.claim"].sudo().create(datos)
             claim.do_validar_comercial()
 
-    @api.multi
+
     def do_receipt(self):
-        docs = self.invoice_ids or self.document_ids
+        docs = self.move_ids or self.document_ids
         for doc in docs:
             claims = 1
             datos = {
@@ -146,13 +146,13 @@ class ValidarDTEWizard(models.TransientModel):
                 "sequence": claims,
                 "estado_dte": self.estado_dte,
             }
-            if self.tipo == "account.invoice":
-                datos["invoice_id"] = doc.id
+            if self.tipo == "account.move":
+                datos["move_id"] = doc.id
             else:
                 datos["document_id"] = doc.id
             claim = self.env["sii.dte.claim"].sudo().create(datos)
-            if self.tipo == "account.invoice":
-                claim.invoice_id = doc.id
+            if self.tipo == "account.move":
+                claim.move_id = doc.id
             else:
                 claim.document_id = doc.id
             claim.do_recep_mercaderia()

@@ -24,7 +24,6 @@
     </record>
 
     <menuitem
-            icon="STOCK_JUSTIFY_FILL"
             action="l10n_cl_fe.action_move_boleta_voucher"
             id="menu_action_move_boleta_voucher_form"
             parent="point_of_sale.menu_point_rep"

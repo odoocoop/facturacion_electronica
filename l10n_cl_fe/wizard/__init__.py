@@ -7,6 +7,6 @@ from . import masive_send_dte
 from . import masive_dte_process
 from . import masive_dte_accept
 from . import mail_compose_message
-from . import notas
+#from . import notas
 from . import upload_xml
 from . import validar

@@ -41,7 +41,7 @@ class ProcessMails(models.Model):
             [("vat", "=", self._format_rut(doc.find("RUTRecep").text)), ("parent_id", "=", False),]
         )
         inv = (
-            self.env["account.invoice"]
+            self.env["account.move"]
             .sudo()
             .search(
                 [
@@ -86,7 +86,7 @@ class ProcessMails(models.Model):
                 [("vat", "=", self._format_rut(doc.find("RUTRecep").text)), ("parent_id", "=", False),]
             )
             inv = (
-                self.env["account.invoice"]
+                self.env["account.move"]
                 .sudo()
                 .search(
                     [
@@ -113,7 +113,7 @@ class ProcessMails(models.Model):
                 [("vat", "=", self._format_rut(doc.find("RUTRecep").text)), ("parent_id", "=", False),]
             )
             inv = (
-                self.env["account.invoice"]
+                self.env["account.move"]
                 .sudo()
                 .search(
                     [
@@ -161,7 +161,7 @@ class ProcessMails(models.Model):
         elif el.tag in ["RespuestaDTE", "EnvioRecibos"]:
             self._proccess_respuesta(el, att)
 
-    @api.multi
+    
     def process_mess(self):
         if self.model == "mail.message.dte":
             dte = self.env[self.model].sudo().browse(self.res_id)
