@@ -1645,7 +1645,7 @@ a VAT."""))
         if result[0].get("error"):
             raise UserError(result[0].get("error"))
         self.write(
-            {"sii_xml_dte": result[0]["sii_xml_request"], "sii_barcode": result[0]["sii_barcode"],}
+            {"sii_xml_dte": result[0].get("sii_xml_request", "temporal"), "sii_barcode": result[0]["sii_barcode"],}
         )
 
     def _crear_envio(self, n_atencion=None, RUTRecep="60803000-K"):
