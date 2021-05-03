@@ -112,7 +112,7 @@ class AccountInvoiceRefund(models.TransientModel):
                             "number": False,
                             "date": date,
                             "name": description,
-                            "origin": inv.number,
+                            "origin": inv.name,
                             "fiscal_position_id": inv.fiscal_position_id.id,
                             "type": refund_type,
                             "journal_document_class_id": jdc.id,

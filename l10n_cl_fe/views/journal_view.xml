@@ -27,12 +27,17 @@
             <field name="name">account.journal.cl.form</field>
             <field name="inherit_id" ref="account.view_account_journal_form" />
             <field name="arch" type="xml">
+                <field name="default_account_id" position="before">
+                  <field name="default_gdr_account_id" attrs="{'invisible': [('type', 'not in', [ 'purchase', 'sale'])]}" />
+                </field>
+
                 <field name="type" position="after">
                     <field name="sucursal_id" />
                     <field name="sii_code" />
                     <field name="use_documents" attrs="{'invisible': [('type', 'not in', [ 'purchase', 'sale'])]}" />
                     <field name="restore_mode" attrs="{'invisible': [('type', 'not in', [ 'sale' ])]}" />
                 </field>
+
                 <notebook position="inside">
                     <page
                         string="Documents"

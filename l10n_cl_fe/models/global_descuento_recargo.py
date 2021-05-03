@@ -43,6 +43,12 @@ class GlobalDescuentoRecargo(models.Model):
         default="afectos",
     )
     move_id = fields.Many2one("account.move", string="Factura", copy=False,)
+    account_id = fields.Many2one('account.account', string='Account',
+        required=True,
+        company_dependent=True,
+        domain="[('deprecated', '=', False), ('company_id', '=', current_company_id)]",
+        default=lambda self: self.move_id.journal_id.default_gdr_account_id
+    )
 
     def _get_valores(self, tipo="afectos"):
         afecto = 0.00

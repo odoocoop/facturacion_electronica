@@ -1,6 +1,6 @@
 from odoo import SUPERUSER_ID, api
 
-from . import controllers, models, wizard
+from . import controllers, models, wizard, report
 
 
 def _set_default_configs(cr, registry):

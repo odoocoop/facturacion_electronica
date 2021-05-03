@@ -1176,7 +1176,7 @@
             <field name="state_id" ref="CL08300" />
         </record>
         <record model="res.city" id="CL08301">
-            <field name="name">Los Angeles</field>
+            <field name="name">Los Ángeles</field>
             <field name="code">CL08301</field>
             <field name="country_id" ref="base.cl" />
             <field name="state_id" ref="CL08300" />

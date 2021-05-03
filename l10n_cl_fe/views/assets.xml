@@ -4,6 +4,10 @@
         <xpath expr="." position="inside">
             <script src="/l10n_cl_fe/static/src/js/upgrade_fields.js" />
             <script src="/l10n_cl_fe/static/src/js/notify_manager.js" />
+            <script
+                type="text/javascript"
+                src="/l10n_cl_fe/static/src/js/report/action_manager_report.js"
+            />
         </xpath>
     </template>
 </odoo>

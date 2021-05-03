@@ -147,11 +147,16 @@
                             <field name="gdr_detail" />
                             <field name="aplicacion" />
                             <field name="impuesto" />
+                            <field name="account_id"/>
                             <field name="amount_untaxed_global_dr" invisible="1" />
                             <field name="move_id" invisible="1" />
                         </tree>
                     </field>
                 </field>
+                <xpath expr="//field[@name='line_ids']/tree/field[@name='is_rounding_line']" position="before">
+                    <field name="is_gd_line" invisible="1"/>
+                    <field name="is_gr_line" invisible="1"/>
+                </xpath>
                 <page id="other_tab" position="after">
                   <page id="referencias" string="Referencias" attrs="{'invisible': [('move_type', 'not in', ('out_invoice', 'out_refund', 'in_invoice', 'in_refund'))]}">
                     <group>

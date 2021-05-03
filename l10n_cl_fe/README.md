@@ -3,7 +3,7 @@ Se crea este repositorio, para dar un enfoque de firma electrónica directa con 
 
  - Se tomaron los inicios de github.com/odoo-chile/l10n_cl_dte y otros módulos de odoo-chile y la continuación de estos en github.com/dansanti/l10n_cl_dte.
  - Este repositorio se crea con la finalidad de unificar módulos y facilitar la mantención de la facturación electrónica, que se estaba muy complejo
- - obtener módulo de exportación xlsx "Base report xlsx" desde https://github.com/OCA/reporting-engine
+ - Debido a que el módulo "Base report xlsx" no está publicado en la tienda desde odoo 13.0, se integra el código desde NO es necesario instalarlo https://github.com/OCA/reporting-engine
  - Se integra la consulta de datos de empresas al repositorio https://sre.cl, para permitir obtener datos digitando el rut
  - Al instalar este módulo acepta que por defecto estará activa la sincronización de datos de partners al repositorio https://sre.cl, sin embargo puede desactivarlo en todo momento desde el panel de configuración general.
  - Integración con https://apicaf.cl , Api que permite emitir folios vía api, sin pasar por la página del SII. El uso y condiciones de la api es según políticas expuestas en el sitio web mismo de la api.

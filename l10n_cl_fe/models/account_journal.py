@@ -24,6 +24,9 @@ class AccountJournal(models.Model):
             invoice in this Journal""",
     )
     restore_mode = fields.Boolean(string="Restore Mode", default=False,)
+    default_gdr_account_id = fields.Many2one('account.account', string='Default GDR Account',
+        company_dependent=True, domain="[('deprecated', '=', False), ('company_id', '=', current_company_id)]"
+    )
 
     @api.onchange("journal_document_class_ids")
     def set_documents(self):

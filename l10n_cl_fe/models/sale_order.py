@@ -40,8 +40,9 @@ class SO(models.Model):
             for line in order.order_line:
                 amount_untaxed += line.price_subtotal
                 amount_tax += line.price_tax
-            amount_untaxed = order.currency_id.round(amount_untaxed)
-            amount_tax = order.currency_id.round(amount_tax)
+            if order.currency_id:
+                amount_untaxed = order.currency_id.round(amount_untaxed)
+                amount_tax = order.currency_id.round(amount_tax)
             order.update(
                 {
                     "amount_untaxed": amount_untaxed,
