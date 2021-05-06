@@ -8,9 +8,9 @@ var _t = core._t;
 var rpc = require('web.rpc');
 
 screens.PaymentScreenWidget.include({
-	renderElement: function(parent,options) {
+	renderElement: function(parent, options) {
 		var self = this;
-		this._super();
+		this._super(parent, options);
 		this.$('.js_boleta').click(function(){
 			self.click_boleta();
 		});

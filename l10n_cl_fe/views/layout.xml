@@ -94,6 +94,13 @@
                               SII - <span t-field="o.company_id.sii_regional_office_id.name" />
                           </p>
                         </div>
+                        <t t-if="o.origin">
+                            <div class="row" style="text-align: center !important;">
+                                        <div class="col-12" style="text-align: center; color: black; font-size: 12px; margin-top: 5px;">
+                                            Documento de Origen: <t t-esc="o.origin"/>
+                                        </div>
+                            </div>
+                        </t>
                     </div>
                 </div>
                 <div class="row" style="display:none !important;">
@@ -321,117 +328,121 @@
                     </table>
                 </div>
                 <div class="clearfix">
-                    <div class="row">
-                        <div class="col-5">
-                            <t t-if="o.sii_barcode_img">
-                                <div class="col-xs-12">
-                                    <img
-                                        t-if="o.sii_barcode_img"
-                                        t-att-src="'data:image/png;base64,%s' % to_text(o.sii_barcode_img)"
-                                    />
-                                </div>
-                                <div class="col-xs-12">
-                                    <p style="text-align:center;color:red; font-size:8px;">
-                                Timbre Electrónico SII
-                                <br />
-                                Resolución <t t-esc="o.company_id.dte_resolution_number" /> de <t
-                                            t-esc="o.company_id.dte_resolution_date.year"
-                                        /> Verifique documento en: www.sii.cl <t t-if="not o._es_boleta()">o en </t><t
-                                            t-if="o._es_boleta()"
-                                            t-esc="'%s/boleta/%s' % (o.company_id.website, o.sii_document_number)"
-                                        />
-                              </p>
-                                </div>
-                            </t>
-                        </div>
-                        <div class="col-xs-3">
-                            <p t-if="o.comment">
-                                <strong>Comment:</strong>
-                                <br />
-                                <span t-field="o.comment" />
-                            </p>
-                        </div>
-                        <div id="total" t-attf-class="#{'col-4' if report_type != 'html' else 'col-md-5'}">
-                            <table class="table table-sm">
-                                <t t-if="o.global_descuentos_recargos">
-                                    <tr
-                                        t-foreach="o.global_descuentos_recargos"
-                                        t-as="gdr"
-                                        class="border-black"
-                                        style="max-height:11px; font-size:12px !important;"
-                                    >
-                                        <td>
-                                            <strong>Descuento o Recargo Global</strong>
-                                        </td>
-                                        <td class="text-right">
-                                            <span
-                                                t-esc="gdr.valor if gdr.gdr_type=='amount' else gdr.amount_untaxed_global_dr"
-                                                t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"
-                                            />
-                                        </td>
-                                    </tr>
-                                </t>
-                                <tr
-                                    style="max-height:11px; font-size:12px !important;"
-                                    name="subtotal"
-                                    t-if="not price_included"
-                                >
-                                    <td>
-                                        <strong>Subtotal</strong>
-                                    </td>
-                                    <td class="text-right">
-                                        <span
-                                            t-field="o.amount_untaxed"
-                                            t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"
-                                        />
-                                    </td>
-                                </tr>
-                                <tr
-                                    name="discount"
-                                    t-if="display_discount"
-                                    class="border-black"
-                                    style="max-height:11px; font-size:12px !important;"
-                                >
-                                    <td>
-                                        <strong>Descuento</strong>
-                                    </td>
-                                    <td class="text-right">
-                                        <span
-                                            t-esc="o.getTotalDiscount()"
-                                            t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"
-                                        />
-                                    </td>
-                                </tr>
-                                <t t-foreach="o.tax_line_ids" t-as="t">
-                                    <tr
-                                        t-if="not o._es_boleta() or (o._es_boleta() and ( t.tax_id.amount == 0 or t.tax_id.sii_code in [14, 15, 17])) "
-                                        style="max-height:11px; font-size:12px !important;"
-                                    >
-                                        <td>
-                                            <span t-field="t.tax_id.description" />
-                                        </td>
-                                        <td class="text-right">
-                                            <span
-                                                t-esc="t.amount if t.amount &gt; 0 else t.base"
-                                                t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"
-                                            />
-                                        </td>
-                                    </tr>
-                                </t>
-                                <tr class="border-black" style="max-height:12px; font-size:12px !important;">
-                                    <td>
-                                        <strong>Total</strong>
-                                    </td>
-                                    <td class="text-right">
-                                        <span
-                                            t-field="o.amount_total"
-                                            t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"
-                                        />
-                                    </td>
-                                </tr>
-                            </table>
-                        </div>
+                  <div class="row">
+                      <div class="col-5">
+                          <t t-if="o.sii_barcode_img">
+                              <div class="col-xs-12">
+                                  <img
+                                      t-if="o.sii_barcode_img"
+                                      t-att-src="'data:image/png;base64,%s' % to_text(o.sii_barcode_img)"
+                                  />
+                              </div>
+                              <div class="col-xs-12">
+                                  <p style="text-align:center;color:red; font-size:8px;">
+                              Timbre Electrónico SII
+                              <br />
+                              Resolución <t t-esc="o.company_id.dte_resolution_number" /> de <t
+                                          t-esc="o.company_id.dte_resolution_date.year"
+                                      /> Verifique documento en: www.sii.cl <t t-if="not o._es_boleta()">o en </t><t
+                                          t-if="o._es_boleta()"
+                                          t-esc="'%s/boleta/%s' % (o.company_id.website, o.sii_document_number)"
+                                      />
+                                    </p>
+                              </div>
+                          </t>
+                      </div>
+                      <div id="total" t-attf-class="#{'col-4' if report_type != 'html' else 'col-md-5'}">
+                          <table class="table table-sm">
+                              <t t-if="o.global_descuentos_recargos">
+                                  <tr
+                                      t-foreach="o.global_descuentos_recargos"
+                                      t-as="gdr"
+                                      class="border-black"
+                                      style="max-height:11px; font-size:12px !important;"
+                                  >
+                                      <td>
+                                          <strong>Descuento o Recargo Global</strong>
+                                      </td>
+                                      <td class="text-right">
+                                          <span
+                                              t-esc="gdr.valor if gdr.gdr_type=='amount' else gdr.amount_untaxed_global_dr"
+                                              t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"
+                                          />
+                                      </td>
+                                  </tr>
+                              </t>
+                              <tr
+                                  style="max-height:11px; font-size:12px !important;"
+                                  name="subtotal"
+                                  t-if="not price_included"
+                              >
+                                  <td>
+                                      <strong>Subtotal</strong>
+                                  </td>
+                                  <td class="text-right">
+                                      <span
+                                          t-field="o.amount_untaxed"
+                                          t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"
+                                      />
+                                  </td>
+                              </tr>
+                              <tr
+                                  name="discount"
+                                  t-if="display_discount"
+                                  class="border-black"
+                                  style="max-height:11px; font-size:12px !important;"
+                              >
+                                  <td>
+                                      <strong>Descuento</strong>
+                                  </td>
+                                  <td class="text-right">
+                                      <span
+                                          t-esc="o.getTotalDiscount()"
+                                          t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"
+                                      />
+                                  </td>
+                              </tr>
+                              <t t-foreach="o.tax_line_ids" t-as="t">
+                                  <tr
+                                      t-if="not o._es_boleta() or (o._es_boleta() and ( t.tax_id.amount == 0 or t.tax_id.sii_code in [14, 15, 17])) "
+                                      style="max-height:11px; font-size:12px !important;"
+                                  >
+                                      <td>
+                                          <span t-field="t.tax_id.description" />
+                                      </td>
+                                      <td class="text-right">
+                                          <span
+                                              t-esc="t.amount if t.amount &gt; 0 else t.base"
+                                              t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"
+                                          />
+                                      </td>
+                                  </tr>
+                              </t>
+                              <tr class="border-black" style="max-height:12px; font-size:12px !important;">
+                                  <td>
+                                      <strong>Total</strong>
+                                  </td>
+                                  <td class="text-right">
+                                      <span
+                                          t-field="o.amount_total"
+                                          t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"
+                                      />
+                                  </td>
+                              </tr>
+                          </table>
+                      </div>
+                  </div>
+                  <t t-if="o.comment">
+                    <div class="row" style="max-height: 120px!important; margin-bottom: 20px!important; overflow: hidden!important;">
+                      <div class="col-12">
+                        <strong>Observaciones:</strong>
+                        <br />
+                        <p>
+                            <span t-field="o.comment" />
+                        </p>
+                      </div>
                     </div>
+                  </t>
                 </div>
                 <t t-if="cedible">
                     <div class="clearfix">
@@ -651,10 +662,10 @@
                                             <t t-esc="t.tax_id.description" />
                                         </td>
                                         <td class="text-right">
-                                            <span
-                                                t-field="t.base"
-                                                t-field-options="{'widget': 'monetary', 'display_currency': o.currency_id}"
-                                            />
+                                          <span
+                                              t-esc="t.amount if t.amount &gt; 0 else t.base"
+                                              t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"
+                                          />
                                         </td>
                                     </tr>
                                 </t>
@@ -664,7 +675,7 @@
                                     </td>
                                     <td class="text-right">
                                         <span
-                                            t-esc="t.amount if t.amount > 0 else t.base"
+                                            t-esc="o.amount_total"
                                             t-options='{"widget": "monetary", "display_currency": o.currency_id}'
                                         />
                                     </td>

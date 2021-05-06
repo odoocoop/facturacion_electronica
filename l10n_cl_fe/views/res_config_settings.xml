@@ -138,7 +138,7 @@
                               <div class="o_setting_left_pane" />
                               <div class="o_setting_right_pane" name="boleta_voucher_right_pane">
                                   <label string="Medios de pago" for="medios_de_pago_electronico"/>
-                                  <field name="medios_de_pago_electronico" options="{'no_create': True}" widget="many2many_tags" domain="[('type', 'not in ', ['sale', 'purchase']), ('company_id', '=', company_id)]"/>
+                                  <field name="medios_de_pago_electronico" options="{'no_create': True}" widget="many2many_tags" domain="[('type', 'not in', ['sale', 'purchase']), ('company_id', '=', company_id)]"/>
                                   <div class="text-muted">
                                      Medios de pago electrónicos, que actúan como Boleta Electrónica
                                   </div>

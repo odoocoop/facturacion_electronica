@@ -172,7 +172,7 @@ class SiiTax(models.Model):
             else:
                 tax_amount = currency.round(tax_amount)
             tax_amount_retencion = 0
-            if tax.sii_type in ["R"]:
+            if tax.sii_type in ["R", "RH"]:
                 tax_amount_retencion = tax._compute_amount_ret(_base, price_unit, quantity, product, partner, uom_id)
                 if not round_tax:
                     tax_amount_retencion = round(tax_amount_retencion, prec)

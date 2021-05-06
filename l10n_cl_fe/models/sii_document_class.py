@@ -47,3 +47,6 @@ class SIIDocumentClass(models.Model):
 
     def es_exportacion(self):
         return self.sii_code in [110] or self.es_nc_exportacion()
+
+    def es_factura_compra(self):
+        return self.sii_code in [45, 46]

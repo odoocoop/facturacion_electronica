@@ -52,9 +52,8 @@ class APICAF(models.TransientModel):
     def conectar_api(self):
         if not self.firma:
             return
-        ICPSudo = self.env["ir.config_parameter"].sudo()
-        url = ICPSudo.get_param("dte.url_apicaf")
-        token = ICPSudo.get_param("dte.token_apicaf")
+        url = self.company_id.url_apicaf
+        token = self.company_id.token_apicaf
         etapa = "conectar"
         if self.operacion == "reobtener":
             etapa = "reob_conectar"
@@ -214,9 +213,8 @@ class APICAF(models.TransientModel):
         elif self.operacion == "anular":
             etapa = "an_" + etapa
             self.an_etapa = etapa
-        ICPSudo = self.env["ir.config_parameter"].sudo()
-        url = ICPSudo.get_param("dte.url_apicaf")
-        token = ICPSudo.get_param("dte.token_apicaf")
+        url = self.company_id.url_apicaf
+        token = self.company_id.token_apicaf
         params = {
             "token": token,
             "etapa": etapa,
@@ -249,9 +247,8 @@ class APICAF(models.TransientModel):
     def get_disp(self):
         if not self.id_peticion:
             return
-        ICPSudo = self.env["ir.config_parameter"].sudo()
-        url = ICPSudo.get_param("dte.url_apicaf")
-        token = ICPSudo.get_param("dte.token_apicaf")
+        url = self.company_id.url_apicaf
+        token = self.company_id.token_apicaf
         self.etapa = "disponibles"
         etapa = "disponibles"
         if self.operacion == "reobtener":
@@ -320,9 +317,8 @@ class APICAF(models.TransientModel):
     def obtener_caf(self):
         if not self.id_peticion:
             return
-        ICPSudo = self.env["ir.config_parameter"].sudo()
-        url = ICPSudo.get_param("dte.url_apicaf")
-        token = ICPSudo.get_param("dte.token_apicaf")
+        url = self.company_id.url_apicaf
+        token = self.company_id.token_apicaf
         peticion = {
             "token": token,
             "id_peticion": self.id_peticion,
@@ -385,9 +381,8 @@ class APICAF(models.TransientModel):
     def confirmar(self):
         if not self.id_peticion:
             return
-        ICPSudo = self.env["ir.config_parameter"].sudo()
-        url = ICPSudo.get_param("dte.url_apicaf")
-        token = ICPSudo.get_param("dte.token_apicaf")
+        url = self.company_id.url_apicaf
+        token = self.company_id.token_apicaf
         peticion = {
             "token": token,
             "id_peticion": self.id_peticion,
@@ -472,9 +467,8 @@ class APICAF(models.TransientModel):
 
     @api.multi
     def delist(self):
-        ICPSudo = self.env["ir.config_parameter"].sudo()
-        url = ICPSudo.get_param("dte.url_apicaf").replace("company_info", "delist")
-        token = ICPSudo.get_param("dte.token_apicaf")
+        url = self.company_id.url_apicaf.replace("company_info", "delist")
+        token = self.company_id.token_apicaf
         peticion = {
             "token": token,
         }

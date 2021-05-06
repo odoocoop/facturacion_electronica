@@ -98,18 +98,20 @@ class AccountInvoice(models.Model):
         for r in self:
             r.document_class_ids = []
             dc_type = ["invoice"] if r.type in ["in_invoice", "out_invoice"] else ["credit_note", "debit_note"]
-            ids = []
             if r.type in ["in_invoice", "in_refund"]:
-                for j in r.journal_id.document_class_ids:
-                    if j.document_type in dc_type:
-                        ids.append(j.id)
+                if r.type == "in_invoice":
+                    dc_type.append("invoice_in")
+                for dc in r.journal_id.document_class_ids:
+                    if dc.document_type in dc_type:
+                        r.document_class_ids += dc
             else:
                 jdc_ids = self.env["account.journal.sii_document_class"].search(
                     [("journal_id", "=", r.journal_id.id), ("sii_document_class_id.document_type", "in", dc_type),]
                 )
                 for dc in jdc_ids:
-                    ids.append(dc.sii_document_class_id.id)
-            r.document_class_ids = ids
+                    r.document_class_ids += dc.sii_document_class_id
+            r.journal_document_class_id = r._default_journal_document_class_id()
+            r.use_documents = r.type in ["out_refund", "out_invoice"] and len(r.journal_id.journal_document_class_ids) > 0
 
     vat_discriminated = fields.Boolean(
         "Discriminate VAT?",
@@ -155,7 +157,9 @@ class AccountInvoice(models.Model):
         readonly=True,
         states={"draft": [("readonly", False)]},
     )  # @TODO select 1 automático si es emisor 2Categoría
-    use_documents = fields.Boolean(related="journal_id.use_documents", string="Use Documents?", readonly=True,)
+    use_documents = fields.Boolean(string="Use Documents?", default=lambda self: len(self.journal_id.journal_document_class_ids) > 0,
+                                   readonly=True,
+                                   states={"draft": [("readonly", False)]},)
     referencias = fields.One2many(
         "account.invoice.referencias", "invoice_id", readonly=True, states={"draft": [("readonly", False)]},
     )
@@ -279,18 +283,33 @@ class AccountInvoice(models.Model):
     @api.depends("state", "journal_id", "date_invoice", "document_class_id")
     def _get_sequence_prefix(self):
         for invoice in self:
-            if invoice.use_documents and invoice.type in ["out_invoice", "out_refund"]:
+            if invoice.type in ['in_invoice']:
+                invoice.use_documents = False
+                invoice.journal_document_class_id = False
+                for jdc in invoice.journal_id.journal_document_class_ids:
+                    if invoice.document_class_id == jdc.sii_document_class_id:
+                        invoice.use_documents = True
+                        invoice.journal_document_class_id = jdc
+            if invoice.journal_document_class_id:
                 invoice.sequence_number_next_prefix = invoice.document_class_id.doc_code_prefix or ""
             else:
-                super(AccountInvoice, self)._get_sequence_prefix()
+                super(AccountInvoice, invoice)._get_sequence_prefix()
 
-    @api.depends("state", "journal_id", "document_class_id")
+    @api.depends("state", "journal_id", "journal_document_class_id")
     def _get_sequence_number_next(self):
         for invoice in self:
-            if invoice.use_documents and invoice.type in ["out_invoice", "out_refund"]:
+            if invoice.journal_document_class_id:
                 invoice.sequence_number_next = invoice.journal_document_class_id.sequence_id.number_next_actual
             else:
-                super(AccountInvoice, self)._get_sequence_number_next()
+                super(AccountInvoice, invoice)._get_sequence_number_next()
+
+    @api.multi
+    def _set_sequence_next(self):
+        if self.type == 'in_invoice' and self.journal_id and self.state not in ['draft', 'cancel']:
+            self._get_sequence_prefix()
+            self._get_sequence_number_next()
+        return super(AccountInvoice, self)._set_sequence_next()
+
 
     @api.multi
     def compute_invoice_totals(self, company_currency, invoice_move_lines):
@@ -403,12 +422,15 @@ class AccountInvoice(models.Model):
             self.amount_untaxed_global_recargo = agrupados["R"] + agrupados["R_exe"]
         amount_tax = 0
         amount_retencion = 0
+        retencion_honorario = True
         included = False
         for tax in self.tax_line_ids:
             if tax.tax_id.price_include:
                 included = True
             amount_tax += self.currency_id.round(tax.amount)
             amount_retencion += tax.amount_retencion
+            if tax.tax_id.sii_type == "RH":
+                retencion_honorario = True
         self.amount_retencion = amount_retencion
         boleta = self.document_class_id.es_boleta()
         nc_boleta = self._nc_boleta()
@@ -421,7 +443,7 @@ class AccountInvoice(models.Model):
                 uom_id=line.uom_id)['total_excluded']) for line in self.invoice_line_ids)
         self.amount_untaxed = self.currency_id.round(neto)
         self.amount_tax = amount_tax
-        self.amount_total = self.amount_untaxed + self.amount_tax - amount_retencion
+        self.amount_total = self.amount_untaxed + (0 if retencion_honorario else self.amount_tax) - amount_retencion
         amount_total_company_signed = self.amount_total
         amount_untaxed_signed = self.amount_untaxed
         if self.currency_id and self.company_id and self.currency_id != self.company_id.currency_id:
@@ -817,6 +839,8 @@ class AccountInvoice(models.Model):
     @api.onchange("journal_document_class_id")
     def set_document_class_id(self):
         if self.move_id or self.type in ["in_invoice", "in_refund"]:
+            if self.journal_document_class_id.sii_document_class_id.es_factura_compra():
+                self._onchange_invoice_line_ids()
             return
         self.document_class_id = self.journal_document_class_id.sii_document_class_id.id
         self._onchange_invoice_line_ids()
@@ -879,22 +903,23 @@ a VAT."""))
     def action_move_create(self):
         for obj_inv in self:
             invtype = obj_inv.type
-            if obj_inv.journal_document_class_id and not obj_inv.sii_document_number:
-                if invtype in ("out_invoice", "out_refund") and obj_inv.use_documents:
-                    to_write = {}
-                    if not obj_inv.journal_document_class_id.sequence_id:
-                        raise UserError(_("Please define sequence on the journal related documents to this invoice."))
-                    if not obj_inv.document_class_id:
-                        to_write["document_class_id"] = obj_inv.journal_document_class_id.sii_document_class_id.id
-                    sii_document_number = obj_inv.journal_document_class_id.sequence_id.next_by_id()
-                    prefix = obj_inv.document_class_id.doc_code_prefix or ""
-                    move_name = (prefix + str(sii_document_number)).replace(" ", "")
-                    to_write.update({"sii_document_number": int(sii_document_number), "move_name": move_name})
-                    obj_inv.write(to_write)
+            if obj_inv.journal_document_class_id and not obj_inv.sii_document_number and obj_inv.use_documents:
+                to_write = {}
+                if not obj_inv.journal_document_class_id.sequence_id:
+                    raise UserError(_("Please define sequence on the journal related documents to this invoice."))
+                if not obj_inv.document_class_id:
+                    to_write["document_class_id"] = obj_inv.journal_document_class_id.sii_document_class_id.id
+                sii_document_number = obj_inv.journal_document_class_id.sequence_id.next_by_id()
+                prefix = obj_inv.document_class_id.doc_code_prefix or ""
+                move_name = (prefix + str(sii_document_number)).replace(" ", "")
+                to_write.update({"sii_document_number": int(sii_document_number), "move_name": move_name})
+                obj_inv.write(to_write)
         super(AccountInvoice, self).action_move_create()
         for obj_inv in self:
+            if not obj_inv.document_class_id:
+                continue
             invtype = obj_inv.type
-            if invtype in ("in_invoice", "in_refund") and obj_inv.reference and not obj_inv.sii_document_number:
+            if (invtype in ("in_invoice", "in_refund") or obj_inv.document_class_id.es_factura_compra()) and obj_inv.reference and not obj_inv.sii_document_number:
                 obj_inv.sii_document_number = int(obj_inv.reference)
             document_class_id = obj_inv.document_class_id.id
             guardar = {
@@ -954,34 +979,33 @@ a VAT."""))
     @api.multi
     def invoice_validate(self):
         for inv in self:
-            if not inv.journal_id.use_documents or not inv.document_class_id.dte:
+            if not inv.journal_document_class_id or not inv.document_class_id.dte or not inv.use_documents:
                 continue
             inv._validaciones_uso_dte()
             inv.sii_result = "NoEnviado"
-            if inv.type in ["out_invoice", "out_refund"]:
-                if inv.journal_id.restore_mode:
-                    inv.sii_result = "Proceso"
-                else:
-                    inv._timbrar()
-                    tiempo_pasivo = datetime.now() + timedelta(
-                        hours=int(self.env["ir.config_parameter"].sudo().get_param("account.auto_send_dte", default=1))
-                    )
-                    self.env["sii.cola_envio"].create(
-                        {
-                            "company_id": inv.company_id.id,
-                            "doc_ids": [inv.id],
-                            "model": "account.invoice",
-                            "user_id": self.env.uid,
-                            "tipo_trabajo": "pasivo",
-                            "date_time": tiempo_pasivo,
-                            "send_email": False
-                            if inv.company_id.dte_service_provider == "SIICERT"
-                            or not self.env["ir.config_parameter"]
-                            .sudo()
-                            .get_param("account.auto_send_email", default=True)
-                            else True,
-                        }
-                    )
+            if inv.journal_id.restore_mode:
+                inv.sii_result = "Proceso"
+            else:
+                inv._timbrar()
+                tiempo_pasivo = datetime.now() + timedelta(
+                    hours=int(self.env["ir.config_parameter"].sudo().get_param("account.auto_send_dte", default=1))
+                )
+                self.env["sii.cola_envio"].create(
+                    {
+                        "company_id": inv.company_id.id,
+                        "doc_ids": [inv.id],
+                        "model": "account.invoice",
+                        "user_id": self.env.uid,
+                        "tipo_trabajo": "pasivo",
+                        "date_time": tiempo_pasivo,
+                        "send_email": False
+                        if inv.company_id.dte_service_provider == "SIICERT"
+                        or not self.env["ir.config_parameter"]
+                        .sudo()
+                        .get_param("account.auto_send_email", default=True)
+                        else True,
+                    }
+                )
             if inv.purchase_to_done:
                 for ptd in inv.purchase_to_done:
                     ptd.write({"state": "done"})
@@ -1606,7 +1630,7 @@ a VAT."""))
                 ref_line["RazonRef"] = ref.motivo
                 if self._es_boleta():
                     ref_line['CodVndor'] = self.user_id.id
-                    ref_lines["CodCaja"] = self.journal_id.point_of_sale_id.name
+                    #ref_lines["CodCaja"] = self.journal_id.point_of_sale_id.name
                 ref_lines.append(ref_line)
                 lin_ref += 1
         dte["Detalle"] = invoice_lines["Detalle"]
@@ -1645,7 +1669,7 @@ a VAT."""))
         if result[0].get("error"):
             raise UserError(result[0].get("error"))
         self.write(
-            {"sii_xml_dte": result[0].get("sii_xml_request", "temporal"), "sii_barcode": result[0]["sii_barcode"],}
+            {"sii_xml_dte": result[0].get("sii_xml_request", ''), "sii_barcode": result[0]["sii_barcode"],}
         )
 
     def _crear_envio(self, n_atencion=None, RUTRecep="60803000-K"):

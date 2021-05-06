@@ -9,6 +9,13 @@
                 <group attrs="{'invisible': [('purchase', '=', False)]}">
                     <div> Presione Confirmar para crear todos los documentos </div>
                 </group>
+                <div attrs="{'invisible': [('purchase', '=', False)]}">
+                  <h3>Factura de Compras</h3>
+                  <h4>Por favor NO CONFUNDIR con el concepto de factura de proveedores ( que muchos llamana facturas de compras), habilitar esta opción solo si necesitan habilitar el tipo de documento que se llama Factura Electrónica código SII 46, para esto deben tener resolución exenta del SII para poder emitir Facturas de Compra Electrónica. Si recibe una factura Electrónica NO es una Factura de Compra Electrónica</h4>
+                  <group attrs="{'invisible': [('purchase', '=', False)]}">
+                    <field name="factura_compra" />
+                  </group>
+                </div>
                 <group attrs="{'invisible': [('purchase', '=', True)]}">
                     <group>
                         <field name="dte_register" />
