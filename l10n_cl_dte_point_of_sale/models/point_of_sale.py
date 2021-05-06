@@ -316,12 +316,11 @@ class POS(models.Model):
         result = super(POS, self)._prepare_invoice()
         if not self.sequence_id:
             return result
-        self.document_class_id= self.sequence_id.sii_document_class_id.id
         sale_journal = self.session_id.config_id.invoice_journal_id
         journal_document_class_id = self.env['account.journal.sii_document_class'].search(
                 [
                     ('journal_id', '=', sale_journal.id),
-                    ('sii_document_class_id', '=', self.document_class_id.id),
+                    ('sequence_id', '=', self.sequence_id.id),
                 ],
             )
         if not journal_document_class_id:
@@ -332,6 +331,7 @@ class POS(models.Model):
             'document_class_id': self.document_class_id.id,
             'journal_document_class_id': journal_document_class_id.id,
             'responsable_envio': self.env.uid,
+            'use_documents': True,
         })
         return result
 
@@ -559,8 +559,21 @@ class POS(models.Model):
                 lines['QtyItem'] = 1
                 #raise UserError("NO puede ser menor que 0")
             if not no_product:
+                cur_company = line.company_id.currency_id
+                fpos = self.fiscal_position_id
+                tax_ids_after_fiscal_position = fpos.map_tax(line.tax_ids, line.product_id, self.partner_id) if fpos else line.tax_ids
+                taxes = tax_ids_after_fiscal_position.with_context(
+                    date=self.date_order,
+                    currency=cur_company.code).compute_all(
+                        line.price_unit,
+                        self.pricelist_id.currency_id,
+                        1,
+                        product=line.product_id,
+                        partner=self.partner_id,
+                        discount=line.discount,
+                        uom_id=line.product_id.uom_id)
                 lines['UnmdItem'] = line.product_id.uom_id.name[:4]
-                lines['PrcItem'] = round(line.price_unit, 4)
+                lines['PrcItem'] = round(taxes['total_included'], 4)
             if line.discount > 0:
                 lines['DescuentoPct'] = round(line.discount, 2)
                 lines['DescuentoMonto'] = currency.round((((line.discount / 100) * lines['PrcItem'])* qty))
@@ -1165,8 +1178,8 @@ class POS(models.Model):
                 self.do_validate()
         return super(POS, self).action_pos_order_paid()
 
-    @api.depends('statement_ids', 'lines.price_subtotal_incl', 'lines.discount', 'document_class_id')
-    def _compute_amount_all(self):
+    @api.onchange('statement_ids', 'lines', 'document_class_id')
+    def _onchange_amount_all(self):
         for order in self:
             order.amount_paid = order.amount_return = order.amount_tax = 0.0
             currency = order.pricelist_id.currency_id

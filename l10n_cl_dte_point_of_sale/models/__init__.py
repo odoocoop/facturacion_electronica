@@ -2,6 +2,7 @@
 from . import account_move_boleta_voucher
 from . import activity_description
 from . import consumo_folios
+from . import export
 from . import ir_sequence
 from . import libro
 from . import point_of_sale
