@@ -37,3 +37,21 @@ class ColaEnvio(models.Model):
                     _logger.warning(str(e))
             return
         return super(ColaEnvio, self)._procesar_tipo_trabajo()
+
+    @api.model
+    def _cron_procesar_cola(self):
+        super(ColaEnvio, self)._cron_procesar_cola()
+        ids = self.search([("active", "=", True), ('tipo_trabajo', '=', 'cesion')], limit=20)
+        if ids:
+            for c in ids:
+                try:
+                    c._procesar_tipo_trabajo()
+                except Exception as e:
+                    _logger.warning("error al procesartipo trabajo cesion %s"%str(e))
+        ids = self.search([("active", "=", True), ('tipo_trabajo', '=', 'cesion_consulta')], limit=20)
+        if ids:
+            for c in ids:
+                try:
+                    c._procesar_tipo_trabajo()
+                except Exception as e:
+                    _logger.warning("error al procesartipo trabajo cesion consulta %s"%str(e))

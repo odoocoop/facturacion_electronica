@@ -6,6 +6,11 @@ import collections
 import logging
 _logger = logging.getLogger(__name__)
 
+try:
+    from facturacion_electronica import facturacion_electronica as fe
+except Exception as e:
+    _logger.warning("no se ha cargado FE %s" % str(e))
+
 
 class SIIXMLEnvio(models.Model):
     _inherit = 'sii.xml.envio'
