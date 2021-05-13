@@ -37,6 +37,9 @@
                 <field name="name" position="attributes">
                     <attribute name="invisible">1</attribute>
                 </field>
+                <field name="payment_state" position="after">
+                    <field name="sii_result" widget="badge" decoration-muted="sii_result in ['draft', 'NoEnviado', 'Anulado'] or state == 'cancel'" decoration-info="sii_result in ['Enviado', 'EnProceso']" decoration-success="sii_result == 'Proceso'" decoration-danger="sii_result == 'Rechazado'" decoration-warning="sii_result == 'Reparo'"/>
+                </field>
             </field>
         </record>
 

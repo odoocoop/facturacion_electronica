@@ -287,6 +287,10 @@ class SiiTax(models.Model):
             # the right total
             subsequent_taxes = self.env['account.tax']
             subsequent_tags = self.env['account.account.tag']
+            tax_amount_retencion = 0
+            if tax.sii_type in ["R", "RH"]:
+                tax_amount_retencion = tax._compute_amount_ret(base, price_unit, quantity, product, partner, uom_id)
+                tax_amount_retencion = round(tax_amount_retencion, precision_rounding=prec)
             if tax.include_base_amount:
                 subsequent_taxes = taxes[i+1:]
                 subsequent_tags = subsequent_taxes.get_tax_tags(is_refund, 'base')
@@ -314,6 +318,7 @@ class SiiTax(models.Model):
                     'id': tax.id,
                     'name': partner and tax.with_context(lang=partner.lang).name or tax.name,
                     'amount': sign * line_amount,
+                    'retencion': sign * tax_amount_retencion,
                     'base': round(sign * base, precision_rounding=prec),
                     'sequence': tax.sequence,
                     'account_id': tax.cash_basis_transition_account_id.id if tax.tax_exigibility == 'on_payment' else repartition_line.account_id.id,
@@ -333,7 +338,7 @@ class SiiTax(models.Model):
             if tax.include_base_amount:
                 base += factorized_tax_amount
 
-            total_included += factorized_tax_amount
+            total_included += factorized_tax_amount - tax_amount_retencion
             i += 1
 
         return {

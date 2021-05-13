@@ -47,8 +47,21 @@ class GlobalDescuentoRecargo(models.Model):
         required=True,
         company_dependent=True,
         domain="[('deprecated', '=', False), ('company_id', '=', current_company_id)]",
-        default=lambda self: self.move_id.journal_id.default_gdr_account_id
+        default=lambda self: self.move_id.journal_id.default_gd_account_id if self.type == 'D' else self.move_id.journal_id.default_gr_account_id
     )
+
+    def unlink(self):
+        for r in self:
+            line = r.move_id.invoice_line_ids.filtered(lambda a: a.name == r.name)
+            line.unlink()
+        return super(GlobalDescuentoRecargo, self).unlink()
+
+    @api.onchange('type')
+    def set_account(self):
+        if self.type == "D":
+            self.account_id = self.move_id.journal_id.default_gd_account_id.id
+        else:
+            self.account_id = self.move_id.journal_id.default_gr_account_id.id
 
     def _get_valores(self, tipo="afectos"):
         afecto = 0.00

@@ -25,7 +25,7 @@ class ColaEnvio(models.Model):
     )
     active = fields.Boolean(string="Active", default=True,)
     n_atencion = fields.Char(string="Número de Atención",)
-    set_pruebas = fields.Boolean(string="Set de pruebas", 
+    set_pruebas = fields.Boolean(string="Set de pruebas",
                                  default=False)
     date_time = fields.Datetime(string="Auto Envío al SII",)
     send_email = fields.Boolean(string="Auto Enviar Email", default=False,)
@@ -124,7 +124,7 @@ class ColaEnvio(models.Model):
         elif self.tipo_trabajo == "envio" and (
             not docs[0].sii_xml_request
             or not docs[0].sii_xml_request.sii_send_ident
-            or docs[0].sii_xml_request.state not in ["Aceptado", "Enviado"]
+            or docs[0].sii_xml_request.state not in ["Aceptado", "Enviado", "EnProceso"]
         ):
             envio_id = False
             try:
@@ -141,7 +141,7 @@ class ColaEnvio(models.Model):
             and docs[0].sii_xml_request
             and (
                 docs[0].sii_xml_request.sii_send_ident
-                or docs[0].sii_xml_request.state in ["Aceptado", "Enviado", "Rechazado"]
+                or docs[0].sii_xml_request.state in ["Aceptado", "Enviado", "Rechazado", "EnProceso"]
             )
         ):
             self.tipo_trabajo = "consulta"

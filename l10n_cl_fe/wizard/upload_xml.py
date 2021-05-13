@@ -75,7 +75,6 @@ class UploadXMLWizard(models.TransientModel):
         return {
             "type": "ir.actions.act_window",
             "name": _("List of Results"),
-            "view_type": "form" if self.dte_id else "tree",
             "view_mode": "tree",
             "res_model": target_model,
             "domain": str([("id", "in", created)]),
@@ -132,7 +131,7 @@ class UploadXMLWizard(models.TransientModel):
         if att:
             return att
         values = dict(
-            name=filename, datas_fname=filename, url=url_path, res_model=model, res_id=id, type="binary", datas=data,
+            name=filename, url=url_path, res_model=model, res_id=id, type="binary", datas=data,
         )
         att = self.env["ir.attachment"].create(values)
         return att
@@ -248,8 +247,6 @@ class UploadXMLWizard(models.TransientModel):
         partner_id = False
         partner = self._get_data_partner(data)
         if partner:
-            if self.type == "compras":
-                partner.update({"supplier": True})
             partner_id = self.env["res.partner"].create(partner)
         return partner_id
 
@@ -418,14 +415,14 @@ class UploadXMLWizard(models.TransientModel):
             self.env["product.supplierinfo"].create(supplier_info)
         if not product_id.active:
             raise UserError(_("Producto para el proveedor marcado como archivado"))
-        return product_id.id
+        return product_id
 
-    def _prepare_line(self, line, document_id, type, company_id, fpos_id, price_included=False, exenta=False):
+    def _prepare_line(self, line, document_id, type, company_id, fpos_id, price_included=False, exenta=False, document=False):
         data = {}
         product_id = self._buscar_producto(document_id, line, company_id, price_included, exenta)
         if isinstance(product_id, int):
             data.update(
-                {"product_id": product_id,}
+                {"product_id": product_id.id,}
             )
         elif not product_id:
             return False
@@ -438,21 +435,24 @@ class UploadXMLWizard(models.TransientModel):
         data.update(
             {
                 "sequence": line.find("NroLinDet").text,
-                "name": DescItem.text if DescItem is not None else line.find("NmbItem").text,
                 "price_unit": price,
                 "discount": discount,
                 "quantity": line.find("QtyItem").text if line.find("QtyItem") is not None else 1,
                 "price_subtotal": price_subtotal,
             }
         )
-        if self.pre_process and self.type == "compras":
+        if not document:
+            data.update({
+                "name": DescItem.text if DescItem is not None else line.find("NmbItem").text,
+            })
+        if document:
             data.update(
                 {"new_product": product_id, "product_description": DescItem.text if DescItem is not None else "",}
             )
         else:
-            product_id = self.env["product.product"].browse(product_id)
-            fpos = self.env["account.fiscal.position"].browse(fpos_id)
-            account = self.env["account.move.line"].get_invoice_line_account(type, product_id, fpos, company_id)
+            #product_id = self.env["product.product"].browse(product_id)
+            #fpos = self.env["account.fiscal.position"].browse(fpos_id)
+            #account = self.env["account.move.line"].get_invoice_line_account(type, product_id, fpos, company_id)
             IndExe = line.find("IndExe")
             amount = 0
             sii_code = 0
@@ -496,12 +496,12 @@ class UploadXMLWizard(models.TransientModel):
                     price_subtotal = tax_ids.compute_all(price_subtotal, self.env.user.company_id.currency_id, 1)[
                         "total_included"
                     ]
-
+            #if not document:
+            #    data["account_id"] = account.id
             data.update(
                 {
-                    "account_id": account.id,
                     "tax_ids": [(6, 0, tax_ids.ids)],
-                    "product_uom_id": product_id.uom_id.id,
+                    #"product_uom_id": product_id.uom_id.id,
                     "price_unit": price,
                     "price_subtotal": price_subtotal,
                 }
@@ -558,7 +558,7 @@ class UploadXMLWizard(models.TransientModel):
         data["gdr_detail"] = dr.find("GlosaDR").text if dr.find("GlosaDR") is not None else "Descuento globla"
         return data
 
-    def _prepare_invoice(self, documento, company_id, journal_id):
+    def _prepare_invoice(self, documento, company_id, journal_id, document=False):
         type = "Emisor"
         rut_path = "RUTEmisor"
         if self.type == "ventas":
@@ -568,34 +568,21 @@ class UploadXMLWizard(models.TransientModel):
         IdDoc = Encabezado.find("IdDoc")
         Emisor = Encabezado.find(type)
         RUT = Emisor.find(rut_path).text
-        invoice = {
-            "account_id": False,
-        }
+        invoice = {}
         partner_id = self.env["res.partner"].search(
             [("active", "=", True), ("parent_id", "=", False), ("vat", "=", self.format_rut(RUT))]
         )
         if not partner_id:
             partner_id = self._create_partner(Encabezado.find("%s" % type))
-        elif not partner_id.supplier and self.type == "compras":
-            partner_id.supplier = True
-        invoice["type"] = "in_invoice"
-        if self.type == "ventas":
-            invoice["type"] = "out_invoice"
-        if IdDoc.find("TipoDTE").text in ["54", "61"]:
-            invoice["type"] = "in_refund"
+        if not document:
+            invoice["move_type"] = "in_invoice"
             if self.type == "ventas":
-                invoice["type"] = "out_refund"
+                invoice["move_type"] = "out_invoice"
+            if IdDoc.find("TipoDTE").text in ["54", "61"]:
+                invoice["move_type"] = "in_refund"
+                if self.type == "ventas":
+                    invoice["move_type"] = "out_refund"
         if partner_id:
-            if journal_id:
-                account_id = partner_id.property_account_payable_id.id or journal_id.default_debit_account_id.id
-                if invoice["type"] in ("out_invoice", "in_refund"):
-                    account_id = partner_id.property_account_receivable_id.id or journal_id.default_credit_account_id.id
-                fpos = self.env["account.fiscal.position"].get_fiscal_position(
-                    partner_id.id, delivery_id=partner_id.address_get(["delivery"])["delivery"]
-                )
-                invoice.update(
-                    {"fiscal_position": fpos.id if fpos else False, "account_id": account_id,}
-                )
             partner_id = partner_id.id
         try:
             name = self.filename.decode("ISO-8859-1").encode("UTF-8")
@@ -606,28 +593,24 @@ class UploadXMLWizard(models.TransientModel):
         if documento.find("TED") is not None:
             ted_string = etree.tostring(documento.find("TED"), method="c14n", pretty_print=False)
         FchEmis = IdDoc.find("FchEmis").text
-        # xml_envio = self.env['sii.xml.envio'].create(
-        #    {
-        #        'name': 'ENVIO_%s' % name.decode(),
-        #        'xml_envio': etree.tostring(dte),
-        #        'state': 'Aceptado',
-        #    }
-        # )
         invoice.update(
             {
-                "origin": "XML Envío: " + name.decode(),
                 "date": FchEmis,
                 "partner_id": partner_id,
                 "company_id": company_id.id,
-                # 'sii_xml_request': xml_envio.id,
-                "sii_xml_dte": "<DTE>%s</DTE>" % etree.tostring(documento),
-                "sii_barcode": ted_string.decode(),
             }
         )
-        if journal_id:
+        if not document:
+            invoice.update({
+                "sii_xml_dte": "<DTE>%s</DTE>" % etree.tostring(documento),
+                "invoice_origin": "XML Envío: " + name.decode(),
+                "sii_barcode": ted_string.decode(),
+                "invoice_date": FchEmis,
+            })
+        if journal_id and not document:
             invoice["journal_id"] = journal_id.id
         DscRcgGlobal = documento.findall("DscRcgGlobal")
-        if DscRcgGlobal:
+        if DscRcgGlobal and not document:
             drs = [(5,)]
             for dr in DscRcgGlobal:
                 drs.append((0, 0, self.process_dr(dr)))
@@ -636,21 +619,20 @@ class UploadXMLWizard(models.TransientModel):
             )
         Folio = IdDoc.find("Folio").text
         dc_id = self.env["sii.document_class"].search([("sii_code", "=", IdDoc.find("TipoDTE").text)])
-        invoice.update(
-            {"sii_document_number": Folio, "document_class_id": dc_id.id,}
-        )
-        if self.type == "ventas":
+        invoice["document_class_id"] = dc_id.id
+        if not document:
+            invoice["sii_document_number"] =  Folio
+        if not document and self.type == "ventas":
             invoice.update(
                 {"move_name": "{}{}".format(dc_id.doc_code_prefix, Folio),}
             )
-        else:
+        elif document:
             RznSoc = Emisor.find("RznSoc")
             if RznSoc is None:
                 RznSoc = Emisor.find("RznSocEmisor")
             invoice.update(
                 {
                     "number": Folio,
-                    "date": FchEmis,
                     "new_partner": RUT + " " + RznSoc.text,
                     "amount": Encabezado.find("Totales/MntTotal").text,
                 }
@@ -672,26 +654,26 @@ class UploadXMLWizard(models.TransientModel):
             )
         return journal_id
 
-    def _get_invoice_lines(self, documento, document_id, invoice_type, fpos, price_included, company_id):
+    def _get_invoice_lines(self, documento, document_id, invoice_type, fpos, price_included, company_id, document=False):
         exenta = documento.find("Encabezado/IdDoc/TipoDTE").text in ["34", "41"]
         lines = []
         for line in documento.findall("Detalle"):
-            new_line = self._prepare_line(line, document_id, invoice_type, company_id, fpos, price_included, exenta)
+            new_line = self._prepare_line(line, document_id, invoice_type, company_id, fpos, price_included, exenta, document)
             if new_line:
                 lines.append(new_line)
         return lines
 
-    def _get_data(self, documento, company_id, ignore_journal=False):
+    def _get_data(self, documento, company_id, ignore_journal=False, document=False):
         Encabezado = documento.find("Encabezado")
         IdDoc = Encabezado.find("IdDoc")
         price_included = Encabezado.find("MntBruto")
         journal_id = self._get_journal(IdDoc.find("TipoDTE").text, company_id, ignore_journal)
-        data = self._prepare_invoice(documento, company_id, journal_id)
+        data = self._prepare_invoice(documento, company_id, journal_id, document)
         lines = [(5,)]
         document_id = self._dte_exist(documento)
         lines.extend(
             self._get_invoice_lines(
-                documento, document_id, data["type"], data.get("fiscal_position", False), price_included, company_id
+                documento, document_id, data.get("move_type", False), data.get("fiscal_position", False), price_included, company_id, document
             )
         )
         product_id = (
@@ -739,7 +721,7 @@ class UploadXMLWizard(models.TransientModel):
         #        }]
         #    )
         Referencias = documento.findall("Referencia")
-        if not self.pre_process and Referencias:
+        if not document and Referencias:
             refs = [(5,)]
             for ref in Referencias:
                 refs.append(self._prepare_ref(ref))
@@ -752,8 +734,11 @@ class UploadXMLWizard(models.TransientModel):
         MntExe = Encabezado.find("Totales/MntExe")
         if MntExe is not None:
             mnt_neto += int(MntExe.text or 0)
-        data["amount_untaxed"] = mnt_neto
-        data["amount_total"] = int(Encabezado.find("Totales/MntTotal").text)
+        if not document:
+            data.update({
+                "amount_untaxed": mnt_neto,
+                "amount_total": int(Encabezado.find("Totales/MntTotal").text)
+            })
         if document_id:
             purchase_to_done = False
             if document_id.purchase_to_done:
@@ -770,13 +755,13 @@ class UploadXMLWizard(models.TransientModel):
             ("document_class_id.sii_code", "=", IdDoc.find("TipoDTE").text),
         ]
         if self.type == "ventas":
-            query.append(("type", "in", ["out_invoice", "out_refund"]))
+            query.append(("move_type", "in", ["out_invoice", "out_refund"]))
             Receptor = encabezado.find("Receptor")
             query.append(("partner_id.vat", "=", self.format_rut(Receptor.find("RUTRecep").text)))
         else:
             Emisor = encabezado.find("Emisor")
             query.append(("partner_id.vat", "=", self.format_rut(Emisor.find("RUTEmisor").text)))
-            query.append(("type", "in", ["in_invoice", "in_refund"]))
+            query.append(("move_type", "in", ["in_invoice", "in_refund"]))
         return self.env["account.move"].search(query)
 
     def _create_inv(self, documento, company_id):
@@ -813,7 +798,7 @@ class UploadXMLWizard(models.TransientModel):
                 _("El documento {} {} ya se encuentra registrado".format(dte.number, dte.document_class_id.name))
             )
             return dte
-        data = self._get_data(documento, company_id, ignore_journal=True)
+        data = self._get_data(documento, company_id, ignore_journal=True, document=True)
         data.update(
             {"dte_id": self.dte_id.id,}
         )
@@ -879,28 +864,43 @@ class UploadXMLWizard(models.TransientModel):
                 if self.type == "ventas" or self.option == "accept":
                     inv._onchange_partner_id()
                     inv._onchange_invoice_line_ids()
-                    inv.action_move_create()
-                    guardar = {
-                        "document_class_id": inv.document_class_id.id,
-                        "sii_document_number": inv.sii_document_number,
-                    }
-                    if self.type == "ventas":
-                        inv.move_id.write(guardar)
-                        inv.state = "open"
-                if self.type == "compras":
-                    inv.set_reference()
+                    inv._post()
                 Totales = documento.find("Encabezado/Totales")
                 monto_xml = float(Totales.find("MntTotal").text)
                 if inv.amount_total == monto_xml:
                     continue
-                inv.amount_total = monto_xml
-                for t in inv.tax_line_ids:
-                    if Totales.find("TasaIVA") is not None and t.tax_id.amount == float(Totales.find("TasaIVA").text):
-                        t.amount = float(Totales.find("IVA").text)
-                        t.amount_total = float(Totales.find("IVA").text)
-                        t.base = float(Totales.find("MntNeto").text)
-                    else:
-                        t.base = float(Totales.find("MntExe").text)
+                inv.button_draft()
+                total_line = inv.line_ids.filtered(lambda a: a.name=='')
+                diff_amount_currency = diff_balance = 0
+                for line in inv.line_ids.filtered('tax_line_id'):
+                    if Totales.find("TasaIVA") is not None and line.tax_line_id.amount == float(Totales.find("TasaIVA").text):
+                        diff_amount_currency = diff_balance = float(Totales.find("IVA").text) - (line.balance if line.balance >0 else -line.balance)
+                        rounding_line_vals = {
+                            'debit': diff_balance > 0.0 and diff_balance or 0.0,
+                            'credit': diff_balance < 0.0 and -diff_balance or 0.0,
+                            'quantity': 1.0,
+                            'amount_currency': diff_amount_currency,
+                            'partner_id': inv.partner_id.id,
+                            'move_id': inv.id,
+                            'currency_id': inv.currency_id.id,
+                            'company_id': inv.company_id.id,
+                            'company_currency_id': inv.company_id.currency_id.id,
+                            'sequence': 9999,
+                            'name': _('%s (rounding)', line.name),
+                            'account_id': line.account_id.id,
+                            'exclude_from_invoice_tab': False,
+                        }
+                        rounding_line = self.env['account.move.line'].with_context(check_move_validity=False).create(rounding_line_vals)
+                    #else:
+                    #    t.base = float(Totales.find("MntExe").text)
+                if total_line.credit >0:
+                    total_line.with_context(check_move_validity=False).credit += diff_balance
+                else:
+                    total_line.with_context(check_move_validity=False).debit += diff_balance
+                inv._post()
+                if inv.amount_total == monto_xml:
+                    continue
+                raise UserError("no se pudo cuadrar la factura")
             except Exception as e:
                 _logger.warning("Error en crear 1 factura con error:  %s" % str(e))
         if created and self.option not in [False, "upload"] and self.type == "compras":
@@ -919,8 +919,6 @@ class UploadXMLWizard(models.TransientModel):
         product = self._buscar_producto(document_id, line, company_id, price_included, exenta)
         if not product:
             return False
-        if isinstance(product, int):
-            product = self.env["product.product"].browse(product)
         price_subtotal = float(line.find("MontoItem").text)
         discount = 0
         if line.find("DescuentoPct") is not None:
@@ -977,8 +975,6 @@ class UploadXMLWizard(models.TransientModel):
         )
         if not partner:
             partner = self._create_partner(Encabezado.find("Emisor"))
-        elif not partner.supplier:
-            partner.supplier = True
         purchase_vals = self._prepare_purchase(documento, company, partner)
         self._purchase_exist(purchase_vals, partner)
         document_id = self._dte_exist(documento)

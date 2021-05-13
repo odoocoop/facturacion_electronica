@@ -28,7 +28,8 @@
             <field name="inherit_id" ref="account.view_account_journal_form" />
             <field name="arch" type="xml">
                 <field name="default_account_id" position="before">
-                  <field name="default_gdr_account_id" attrs="{'invisible': [('type', 'not in', [ 'purchase', 'sale'])]}" />
+                  <field name="default_gd_account_id" attrs="{'invisible': [('type', 'not in', [ 'purchase', 'sale'])]}" />
+                  <field name="default_gr_account_id" attrs="{'invisible': [('type', 'not in', [ 'purchase', 'sale'])]}" />
                 </field>
 
                 <field name="type" position="after">

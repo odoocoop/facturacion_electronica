@@ -67,9 +67,10 @@ class StockPicking(models.Model):
 
     def _prepare_stock_move_vals(self, first_line, order_lines):
         result = super(StockPicking, self)._prepare_stock_move_vals(first_line, order_lines)
-        if result:
-            result.update({
-                'precio_unitario': first_line.price_unit,
-                'move_line_tax_ids': [(6,0, first_line.tax_ids_after_fiscal_position.filtered(lambda t: t.company_id.id == first_line.order_id.company_id.id).ids)],
-            })
+        if self.env['ir.module.module'].sudo().search([('name', '=', 'l10n_cl_stock_picking'), ('state', 'in', ['installed', 'to upgrade'])]):
+            if result:
+                result.update({
+                    'precio_unitario': first_line.price_unit,
+                    'move_line_tax_ids': [(6,0, first_line.tax_ids_after_fiscal_position.filtered(lambda t: t.company_id.id == first_line.order_id.company_id.id).ids)],
+                })
         return result

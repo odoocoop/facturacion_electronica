@@ -25,7 +25,6 @@
         'security/ir.model.access.csv',
         'views/stock_picking.xml',
         'views/stock_location.xml',
-        'views/dte.xml',
         'views/layout.xml',
         'views/libro_guias.xml',
         "views/account_move.xml",

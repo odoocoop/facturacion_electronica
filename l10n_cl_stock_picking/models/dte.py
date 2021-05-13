@@ -35,7 +35,7 @@ except:
 class stock_picking(models.Model):
     _inherit = "stock.picking"
 
-    
+
     def get_xml_file(self):
         return {
             'type' : 'ir.actions.act_url',
@@ -62,7 +62,7 @@ class stock_picking(models.Model):
         )
         return image
 
-    
+
     def get_barcode_img(self, columns=13, ratio=3):
         barcodefile = BytesIO()
         image = self.pdf417bc(self.sii_barcode, columns, ratio)
@@ -74,6 +74,8 @@ class stock_picking(models.Model):
         for r in self:
             if r.sii_barcode:
                 r.sii_barcode_img = r.get_barcode_img()
+            else:
+                r.sii_barcode_img = False
 
     sii_batch_number = fields.Integer(
         copy=False,
@@ -108,6 +110,7 @@ class stock_picking(models.Model):
                 ('NoEnviado', 'No Enviado'),
                 ('EnCola','En cola de envío'),
                 ('Enviado', 'Enviado'),
+                ('EnProceso', 'EnProceso'),
                 ('Aceptado', 'Aceptado'),
                 ('Rechazado', 'Rechazado'),
                 ('Reparo', 'Reparo'),
@@ -141,9 +144,9 @@ class stock_picking(models.Model):
     dte_ticket = fields.Boolean(
         string="¿Formato Ticket?")
 
-    
-    def action_done(self):
-        res = super(stock_picking, self).action_done()
+
+    def _action_done(self):
+        res = super(stock_picking, self)._action_done()
         for s in self:
             if not s.use_documents or s.location_id.restore_mode:
                 continue
@@ -165,7 +168,7 @@ class stock_picking(models.Model):
                                             })
         return res
 
-    
+
     def do_dte_send_picking(self, n_atencion=None):
         ids = []
         if not isinstance(n_atencion, string_types):
@@ -496,7 +499,7 @@ class stock_picking(models.Model):
             )
         return datos
 
-    
+
     def do_dte_send(self, n_atencion=False):
         datos = self._crear_envio(n_atencion)
         envio_id = self[0].sii_xml_request
@@ -547,7 +550,7 @@ class stock_picking(models.Model):
             if resultado[id].get('xml_resp'):
                 r.sii_message = resultado[id].get('xml_resp')
 
-    
+
     def ask_for_dte_status(self):
         for r in self:
             if not r.sii_xml_request and not r.sii_xml_request.sii_send_ident:
@@ -560,7 +563,7 @@ class stock_picking(models.Model):
         except Exception as e:
             _logger.warning("Error al obtener DTE Status Guía: %s" % str(e))
 
-    
+
     def _get_printed_report_name(self):
         self.ensure_one()
         if self.document_class_id:
@@ -574,7 +577,7 @@ class stock_picking(models.Model):
             report_string = super(AccountInvoice, self)._get_printed_report_name()
         return report_string
 
-    
+
     def getTotalDiscount(self):
         total_discount = 0
         for l in self.move_lines:
@@ -584,7 +587,7 @@ class stock_picking(models.Model):
             total_discount +=  (((l.discount or 0.00) /100) * l.precio_unitario * qty)
         return self.currency_id.round(total_discount)
 
-    
+
     def sii_header(self):
         W, H = (560, 255)
         img = Image.new('RGB', (W, H), color=(255,255,255))

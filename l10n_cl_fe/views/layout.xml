@@ -276,7 +276,7 @@
                         </thead>
                         <tbody class="invoice_tbody">
                             <tr
-                                t-foreach="o.invoice_line_ids.filtered('account_id')"
+                                t-foreach="o.invoice_line_ids.filtered(lambda line: line.account_id and line.product_id)"
                                 t-as="l"
                                 style="max-height:8px;line-height:10px !important; font-size:12px !important;"
                             >
@@ -285,7 +285,7 @@
                                 </td>
                                 <td style="max-height:8px; line-height:10px !important;">
                                     <span t-field="l.quantity" />
-                                    <span t-field="l.uom_id" groups="uom.group_uom" />
+                                    <span t-field="l.product_uom_id" groups="uom.group_uom" />
                                 </td>
                                 <td style="max-height:8px; line-height:10px !important;">
                                     <span t-field="l.product_id.default_code" />
@@ -365,7 +365,7 @@
                                         </td>
                                         <td class="text-right">
                                             <span
-                                                t-esc="gdr.valor if gdr.gdr_move_type=='amount' else gdr.amount_untaxed_global_dr"
+                                                t-esc="gdr.valor if gdr.gdr_type=='amount' else gdr.amount_untaxed_global_dr"
                                                 t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"
                                             />
                                         </td>
@@ -402,27 +402,38 @@
                                         />
                                     </td>
                                 </tr>
-                                <t t-foreach="o.amount_by_group" t-as="amount_by_group">
-                                    <tr style="">
-                                        <t t-if="len(o.line_ids.filtered(lambda line: line.tax_line_id)) in [0, 1] and o.amount_untaxed == amount_by_group[2]">
-                                            <td><span class="text-nowrap" t-esc="amount_by_group[0]"/></td>
-                                            <td class="text-right o_price_total">
-                                                <span class="text-nowrap" t-esc="amount_by_group[3]" />
-                                            </td>
-                                        </t>
-                                        <t t-else="">
-                                            <td>
-                                                <span t-esc="amount_by_group[0]"/>
-                                                <span class="text-nowrap"> on
-                                                    <t t-esc="amount_by_group[4]"/>
-                                                </span>
-                                            </td>
-                                            <td class="text-right o_price_total">
-                                                <span class="text-nowrap" t-esc="amount_by_group[3]"/>
-                                            </td>
-                                        </t>
+                                <t t-set="monto_exento" t-value="o.exento()" />
+                                <tr
+                                    t-if="monto_exento > 0"
+                                    style="max-height:11px; font-size:12px !important;"
+                                >
+                                    <td>
+                                        <span>Exento</span>
+                                    </td>
+                                    <td class="text-right">
+                                        <span
+                                            t-esc="monto_exento"
+                                            t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"
+                                        />
+                                    </td>
+                                </tr>
+                                <t t-foreach="o.line_ids.filtered(lambda line: line.tax_line_id)" t-as="t">
+                                    <tr
+                                        t-if="not o._es_boleta() or (o._es_boleta() and t.tax_line_id.sii_code in [14, 15, 17]) "
+                                        style="max-height:11px; font-size:12px !important;"
+                                    >
+                                        <td>
+                                            <span t-field="t.tax_line_id.description" />
+                                        </td>
+                                        <td class="text-right">
+                                            <span
+                                                t-esc="t.debit or t.credit"
+                                                t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"
+                                            />
+                                        </td>
                                     </tr>
                                 </t>
+
                                 <tr class="border-black" style="max-height:12px; font-size:12px !important;">
                                     <td>
                                         <strong>Total</strong>
@@ -554,7 +565,7 @@
         name="l10n_cl_fe.invoice_cedible"
         file="l10n_cl_fe.report_invoice_cedible"
         attachment_use="True"
-        attachment="(object.state in ('open','paid')) and ('CED_'+(object.name or '').replace('/','')+'.pdf')"
+        attachment="(object.state == 'posted') and ('CED_'+(object.name or '').replace('/','')+'.pdf')"
     />
     <report
         string="Imprimir Copia y Cedible"
@@ -564,7 +575,7 @@
         name="l10n_cl_fe.report_invoice_and_cedible"
         file="l10n_cl_fe.report_invoice_and_cedible"
         attachment_use="True"
-        attachment="(object.state in ('open','paid')) and ('FyC_'+(object.name or '').replace('/','')+'.pdf')"
+        attachment="(object.state == 'posted') and ('FyC_'+(object.name or '').replace('/','')+'.pdf')"
     />
     <template id="report_ticket">
         <t t-call="web.basic_layout">
@@ -863,7 +874,7 @@
                     <t t-foreach='doc.invoice_line_ids' t-as='line'>
                         <t
                             t-set='simple'
-                            t-value="line.discount == 0 and line.uom_id.name == 'Unit(s)' and line.quantity == 1"
+                            t-value="line.discount == 0 and line.product_uom_id.name == 'Unit(s)' and line.quantity == 1"
                         />
                         <t t-if='simple'>
                             <line>
@@ -891,8 +902,8 @@
                       <value value-decimals='3' value-autoint='on'>
                                         <t t-esc='line.quantity' />
                                     </value>
-                      <t t-if='line.uom_id.name != "Unit(s)"'>
-                                        <t t-esc='line.uom_id.name' />
+                      <t t-if='line.product_uom_id.name != "Unit(s)"'>
+                                        <t t-esc='line.product_uom_id.name' />
                                     </t>
                       x
                       $ <value>

@@ -120,7 +120,7 @@ class DTEClaim(models.Model):
         if att:
             return att
         values = dict(
-            name=filename, datas_fname=filename, url=url_path, res_model=model, res_id=id, type="binary", datas=data,
+            name=filename, url=url_path, res_model=model, res_id=id, type="binary", datas=data,
         )
         att = self.env["ir.attachment"].create(values)
         return att
@@ -178,7 +178,7 @@ class DTEClaim(models.Model):
         if not doc:
             tipo = "mail.message.dte.document"
             doc = self.document_id
-        if doc.claim in ["ACD"] or (self.move_id and doc.type in ["out_invoice", "out_refund"]):
+        if doc.claim in ["ACD"] or (self.move_id and doc.move_type in ["out_invoice", "out_refund"]):
             return
         datos = doc._get_datos_empresa(doc.company_id) if self.move_id else self._get_datos_empresa(doc.company_id)
         dte = doc._dte()

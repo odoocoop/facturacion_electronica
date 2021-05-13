@@ -21,10 +21,11 @@ class StockPicking(models.Model):
                 taxes = rec.get_taxes_values()
                 for k, v in taxes.items():
                     amount_tax += v['amount']
-                rec.amount_tax = rec.currency_id.round(amount_tax)
-                for line in self.move_lines:
+                amount_tax = rec.currency_id.round(amount_tax)
+                for line in rec.move_lines:
                     amount_untaxed += line.price_untaxed
-                rec.amount_untaxed = amount_untaxed
+            rec.amount_tax = amount_tax
+            rec.amount_untaxed = amount_untaxed
             rec.amount_total = amount_untaxed + amount_tax
 
     def _prepare_tax_line_vals(self, line, tax):
@@ -42,7 +43,7 @@ class StockPicking(models.Model):
             'base': tax['base'],
             'manual': False,
             'sequence': tax['sequence'],
-            'amount_retencion': tax['retencion']
+            'amount_retencion': tax.get('retencion', 0)
         }
         return vals
 
@@ -62,7 +63,7 @@ class StockPicking(models.Model):
                 tax_grouped[key]['base'] += self.currency_id.round(val['base'])
         return tax_grouped
 
-    
+
     def get_taxes_values(self):
         tax_grouped = {}
         totales = {}

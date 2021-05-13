@@ -36,6 +36,7 @@ class SIIXMLEnvio(models.Model):
             ("draft", "Borrador"),
             ("NoEnviado", "No Enviado"),
             ("Enviado", "Enviado"),
+            ("EnProceso", "En Proceso"),
             ("Aceptado", "Aceptado"),
             ("Rechazado", "Rechazado"),
         ],

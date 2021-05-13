@@ -193,13 +193,17 @@ class ProcessMailsDocument(models.Model):
             for i in self.env["account.move"].browse(resp):
                 if i.claim in ["ACD", "ERM", "PAG"]:
                     r.state = "accepted"
-        xml_id = "account.action_invoice_tree2"
-        result = self.env.ref("%s" % (xml_id)).read()[0]
+        action = {
+            'name': _('Accepted Moves'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'account.move',
+        }
         if created:
-            domain = safe_eval(result.get("domain", "[]"))
-            domain.append(("id", "in", created))
-            result["domain"] = domain
-        return result
+            action.update({
+                'view_mode': 'tree,form',
+                'domain': [('id', 'in', created)],
+            })
+        return action
 
 
     def reject_document(self):
@@ -300,7 +304,9 @@ class ProcessMailsDocumentLines(models.Model):
     product_description = fields.Char(string="Descripción Producto", readonly=True,)
     quantity = fields.Float(string="Cantidad", readonly=True,)
     price_unit = fields.Monetary(string="Precio Unitario", readonly=True,)
+    discount = fields.Monetary(string="Descuento", readonly=True,)
     price_subtotal = fields.Monetary(string="Total", readonly=True,)
+    product_uom_id = fields.Many2one('uom.uom', string='Unit of Measure', readonly=True)
     currency_id = fields.Many2one(
         "res.currency", string="Moneda", readonly=True, default=lambda self: self.env.user.company_id.currency_id,
     )

@@ -239,35 +239,6 @@ odoo.define('l10n_cl_dte_point_of_sale.models', function (require) {
 			}
 			return sii_document_number;
 		},
-		//
-		//push_orders: function (order, opts) {
-				//@TODO ver casos offline
-	//	},
-		push_single_order: function(order, opts) {
-			if(order && order.es_boleta()){
-				if(order.es_boleta_exenta()){
-					var orden_numero = this.pos_session.numero_ordenes_exentas;
-					this.pos_session.numero_ordenes_exentas ++;
-				}else{
-					var orden_numero = this.pos_session.numero_ordenes;
-					this.pos_session.numero_ordenes ++;
-				}
-				order.orden_numero = orden_numero+1;
-				var caf_files = JSON.parse(order.sequence_id.caf_files);
-				var start_number = order.sequence_id.sii_document_class_id.sii_code == 41 ? this.pos_session.start_number_exentas : this.pos_session.start_number;
-
-				var sii_document_number = this.get_next_number(
-					orden_numero + parseInt(start_number),
-					caf_files, start_number);
-
-				order.sii_document_number = sii_document_number;
-				var amount = Math.round(order.get_total_with_tax());
-				if (amount > 0){
-					order.signature = order.timbrar(order);
-				}
-		  }
-			return PosModelSuper.push_single_order.call(this, order, opts);
-		},
 		get_sequence_next: function(seq){
 			if (!seq){
 				return 0;
@@ -561,6 +532,8 @@ odoo.define('l10n_cl_dte_point_of_sale.models', function (require) {
 	var _super_order = models.Order.prototype;
 	models.Order = models.Order.extend({
 		initialize: function(attr, options) {
+			this.signature = false;
+			this.sii_document_number = false;
 			_super_order.initialize.call(this,attr,options);
 			this.unset_boleta();
 			if (this.pos.config.marcar === 'boleta' && this.pos.folios_boleta_afecta()){
@@ -577,8 +550,6 @@ odoo.define('l10n_cl_dte_point_of_sale.models', function (require) {
 				this.set_tipo(this.pos.config.secuencia_factura_exenta);
 			}
 			if(this.es_boleta()){
-				this.signature = this.signature || false;
-				this.sii_document_number = this.sii_document_number || false;
 				this.orden_numero = this.orden_numero || this.pos.pos_session.numero_ordenes;
 				if (this.orden_numero <= 0){
 					this.orden_numero = 1;
@@ -641,9 +612,31 @@ odoo.define('l10n_cl_dte_point_of_sale.models', function (require) {
 			return json;
 		},
 		initialize_validation_date: function(){
-			_super_order.initialize_validation_date.apply(this,arguments);
-			if (!this.is_to_invoice() && this.es_boleta() && !this.finalized){
-				this.finalized = true;
+			_super_order.initialize_validation_date.apply(this, arguments);
+			if(!this.sii_document_number && this.es_boleta()){
+				if(this.es_boleta_exenta()){
+					var orden_numero = this.pos.pos_session.numero_ordenes_exentas;
+					this.pos.pos_session.numero_ordenes_exentas ++;
+				}else{
+					var orden_numero = this.pos.pos_session.numero_ordenes;
+					this.pos.pos_session.numero_ordenes ++;
+				}
+				this.orden_numero = orden_numero+1;
+				var caf_files = JSON.parse(this.sequence_id.caf_files);
+				var start_number = this.sequence_id.sii_document_class_id.sii_code == 41 ? this.pos.pos_session.start_number_exentas : this.pos.pos_session.start_number;
+
+				var sii_document_number = this.pos.get_next_number(
+					orden_numero + parseInt(start_number),
+					caf_files, start_number);
+
+				this.sii_document_number = sii_document_number;
+				var amount = Math.round(this.get_total_with_tax());
+				if (amount > 0){
+					this.signature = this.timbrar();
+				}
+				if (!this.finalized){
+					this.finalized = true;
+				}
 			}
 		},
 		get_total_exento:function(){
@@ -810,7 +803,8 @@ odoo.define('l10n_cl_dte_point_of_sale.models', function (require) {
 	    	}
 	    	return val;
 	    },
-		timbrar: function(order){
+		timbrar: function(){
+			var order = this;
 			if (order.signature){ // no firmar otra vez
 				return order.signature;
 			}

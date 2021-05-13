@@ -37,3 +37,6 @@ class ReportAction(models.Model):
         ]
         context = self.env["res.users"].context_get()
         return report_obj.with_context(context).search(conditions, limit=1)
+
+    def render_qweb_pdf(self, res_ids=None, data=None):
+        return self._render_qweb_pdf(res_ids, data)

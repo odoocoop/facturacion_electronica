@@ -280,9 +280,11 @@ class POS(models.Model):
     def _order_fields(self, ui_order):
         result = super(POS, self)._order_fields(ui_order)
         result.update({
+            'document_class_id': ui_order.get('document_class_id', False),
             'sequence_id': ui_order.get('sequence_id', False),
             'sii_document_number': ui_order.get('sii_document_number', 0),
             'signature': ui_order.get('signature', ''),
+            'timestamp_timbre': ui_order.get('timestamp_timbre', ''),
         })
         return result
 
@@ -290,26 +292,23 @@ class POS(models.Model):
     def _process_order(self, order, draft, existing_order):
         for l in order['data']['lines']:
             l[2]['pos_order_line_id'] = int(l[2]['id'])
-        id = super(POS, self)._process_order(order, draft, existing_order)
-        order_id = self.env['pos.order'].browse(id)
-        if order_id.amount_total != float(order['data']['amount_total']):
-            raise UserError("Diferencia de cálculo, verificar. En el caso de que el cálculo use Mepco, debe intentar cerrar la caja porque el valor a cambiado")
-        order_id.sequence_number = order['data']['sequence_number'] #FIX odoo bug
+        #if order_id.amount_total != float(order['data']['amount_total']):
+        #    raise UserError("Diferencia de cálculo, verificar. En el caso de que el cálculo use Mepco, debe intentar cerrar la caja porque el valor a cambiado")
+        sequence_id = False
         if order.get('data', {}).get('sequence_id'):
-            order_id.document_class_id = order_id.sequence_id.sii_document_class_id.id
-        if order.get('data', {}).get('orden_numero', False) and order_id.document_class_id:
-            order_id.document_class_id = order_id.sequence_id.sii_document_class_id.id
-            if order_id.sequence_id and order_id.document_class_id.sii_code == 39 and order['data']['orden_numero'] > order_id.session_id.numero_ordenes:
-                order_id.session_id.numero_ordenes = order['data']['orden_numero']
-            elif order_id.sequence_id and order_id.document_class_id.sii_code == 41 and order['data']['orden_numero'] > order_id.session_id.numero_ordenes_exentas:
-                order_id.session_id.numero_ordenes_exentas = order['data']['orden_numero']
-            sign = self.env.user.get_digital_signature(self.env.user.company_id)
-            if (order_id.session_id.caf_files or order_id.session_id.caf_files_exentas) and sign:
+            sequence_id = self.env['ir.sequence'].sudo().browse(order['data']['sequence_id'])
+            order['data']['document_class_id'] = sequence_id.sii_document_class_id.id
+        if sequence_id and  sequence_id.sii_document_class_id.es_boleta():
+            session_id = self.env['pos.session'].sudo().browse(order['data']['pos_session_id'])
+            if sequence_id.sii_document_class_id.sii_code == 39 and order['data']['orden_numero'] > session_id.numero_ordenes:
+                session_id.numero_ordenes = order['data']['orden_numero']
+            elif sequence_id.sii_document_class_id.sii_code == 41 and order['data']['orden_numero'] > session_id.numero_ordenes_exentas:
+                session_id.numero_ordenes_exentas = order['data']['orden_numero']
+            if (session_id.caf_files or session_id.caf_files_exentas):
                 timbre = etree.fromstring(order['data']['signature'])
-                order_id.timestamp_timbre = timbre.find('DD/TSTED').text
-                order_id._timbrar()
-                order_id.sequence_id.next_by_id()#consumo Folio
-        return order_id.id
+                order['data']['timestamp_timbre'] = timbre.find('DD/TSTED').text
+            sequence_id.next_by_id()
+        return super(POS, self)._process_order(order, draft, existing_order)
 
     def _prepare_invoice(self):
         result = super(POS, self)._prepare_invoice()
@@ -342,9 +341,9 @@ class POS(models.Model):
             (not order.document_class_id.es_boleta() and order.document_class_id.sii_code not in [61]):
                 continue
             order._timbrar()
+            order.sii_result = 'EnCola'
             ids.append(order.id)
         if ids:
-            order.sii_result = 'EnCola'
             tiempo_pasivo = (datetime.now() + timedelta(hours=int(self.env['ir.config_parameter'].sudo().get_param('account.auto_send_dte', default=12))))
             self.env['sii.cola_envio'].sudo().create({
                 'company_id': self[0].company_id.id,
@@ -360,7 +359,7 @@ class POS(models.Model):
     def do_dte_send_order(self):
         ids = []
         for order in self:
-            if not order.invoice_id and order.document_class_id.sii_code in [61, 39, 41]:
+            if not order.to_invoice and order.document_class_id.sii_code in [61, 39, 41]:
                 if order.sii_xml_request.sii_send_ident not in [False, 'BE'] and order.sii_result not in [False, '', 'NoEnviado', 'Rechazado']:
                     raise UserError("El documento %s ya ha sido enviado o está en cola de envío" % order.sii_document_number)
                 if order.sii_result in ["Rechazado"] or order.sii_xml_request.sii_send_ident == 'BE':
@@ -795,11 +794,12 @@ class POS(models.Model):
         send_mail.send()
 
     def action_pos_order_paid(self):
+        result = super(POS, self).action_pos_order_paid()
         if self.sequence_id and not self.sii_xml_request and self.document_class_id.sii_code not in [33, 34]:
-            if (not self.sii_document_number or self.sii_document_number == 0) and not self.signature:
+            if (not self.sii_document_number or self.sii_document_number == 0):
                 self.sii_document_number = self.sequence_id.next_by_id()
             self.do_validate()
-        return super(POS, self).action_pos_order_paid()
+        return result
 
     @api.depends('statement_ids', 'lines.price_subtotal_incl', 'lines.discount', 'document_class_id')
     def _compute_amount_all(self):
@@ -849,10 +849,6 @@ class POS(models.Model):
         self.ensure_one()
         report_string = "%s %s" % (self.document_class_id.name, self.sii_document_number)
         return report_string
-
-
-    def get_invoice(self):
-        return self.invoice_id
 
 
 class Referencias(models.Model):

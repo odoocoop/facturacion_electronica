@@ -156,14 +156,15 @@ class AccountMove(models.Model):
             ("NoEnviado", "No Enviado"),
             ("EnCola", "En cola de envío"),
             ("Enviado", "Enviado"),
+            ("EnProceso", "En Proceso"),
             ("Aceptado", "Aceptado"),
             ("Rechazado", "Rechazado"),
             ("Reparo", "Reparo"),
             ("Proceso", "Procesado"),
             ("Anulado", "Anulado"),
         ],
-        string="Resultado",
-        help="SII request result",
+        string="Estado SII",
+        help="Resultado del envío y Proceso del documento nn el SII",
         copy=False,
     )
     canceled = fields.Boolean(string="Canceled?", readonly=True, states={"draft": [("readonly", False)]},)
@@ -228,10 +229,14 @@ class AccountMove(models.Model):
         "sii.activity.description", string="Giro", related="commercial_partner_id.activity_description", readonly=True,
     )
     amount_untaxed_global_discount = fields.Float(
-        string="Global Discount Amount", store=True, default=0.00, compute="_compute_amount",
+        string="Global Discount Amount", default=0.00,
+        readonly=True,
+        states={"draft": [("readonly", False)]},
     )
     amount_untaxed_global_recargo = fields.Float(
-        string="Global Recargo Amount", store=True, default=0.00, compute="_compute_amount",
+        string="Global Recargo Amount", default=0.00,
+        readonly=True,
+        states={"draft": [("readonly", False)]},
     )
     global_descuentos_recargos = fields.One2many(
         "account.move.gdr",
@@ -266,7 +271,317 @@ class AccountMove(models.Model):
     factor_proporcionalidad = fields.Float(
         string="Factor proporcionalidad", default=0.00, readonly=True, states={"draft": [("readonly", False)]},
     )
+    amount_retencion = fields.Monetary(string='Monto Retención', store=True, readonly=True,
+        compute='_compute_amount',
+        inverse='_inverse_amount_total'
+    )
 
+    @api.depends(
+        'line_ids.matched_debit_ids.debit_move_id.move_id.line_ids.amount_residual',
+        'line_ids.matched_debit_ids.debit_move_id.move_id.line_ids.amount_residual_currency',
+        'line_ids.matched_credit_ids.credit_move_id.move_id.line_ids.amount_residual',
+        'line_ids.matched_credit_ids.credit_move_id.move_id.line_ids.amount_residual_currency',
+        'line_ids.debit',
+        'line_ids.credit',
+        'line_ids.currency_id',
+        'line_ids.amount_currency',
+        'line_ids.amount_residual',
+        'line_ids.amount_residual_currency',
+        'line_ids.payment_id.state',
+        'line_ids.full_reconcile_id',
+        "global_descuentos_recargos.valor",
+        "document_class_id")
+    def _compute_amount(self):
+        for move in self:
+
+            if move.payment_state == 'invoicing_legacy':
+                # invoicing_legacy state is set via SQL when setting setting field
+                # invoicing_switch_threshold (defined in account_accountant).
+                # The only way of going out of this state is through this setting,
+                # so we don't recompute it here.
+                move.payment_state = move.payment_state
+                continue
+
+            total_untaxed = 0.0
+            total_untaxed_currency = 0.0
+            total_tax = 0.0
+            total_tax_currency = 0.0
+            total_to_pay = 0.0
+            total_residual = 0.0
+            total_residual_currency = 0.0
+            total = 0.0
+            total_currency = 0.0
+            currencies = set()
+            amount_retencion = 0
+            amount_retencion_currency = 0
+
+            for line in move.line_ids:
+                if line.currency_id and line in move._get_lines_onchange_currency():
+                    currencies.add(line.currency_id)
+
+                if move.is_invoice(include_receipts=True):
+                    # === Invoices ===
+
+                    if not line.exclude_from_invoice_tab:
+                        # Untaxed amount.
+                        total_untaxed += line.balance
+                        total_untaxed_currency += line.amount_currency
+                        total += line.balance
+                        total_currency += line.amount_currency
+                    elif line.tax_line_id:
+                        # Tax amount.
+                        total_tax += line.balance
+                        total_tax_currency += line.amount_currency
+                        if line.tax_line_id.sii_type in ['R', 'RH']:
+                            amount_retencion += line.balance
+                            amount_retencion_currency += line.amount_currency
+                            if line.tax_line_id.sii_type in ['RH']:
+                                total -= line.balance
+                                total_currency -= line.amount_currency
+                        else:
+                            total += line.balance
+                            total_currency += line.amount_currency
+                    elif line.account_id.user_type_id.type in ('receivable', 'payable'):
+                        # Residual amount.
+                        total_to_pay += line.balance
+                        total_residual += line.amount_residual
+                        total_residual_currency += line.amount_residual_currency
+                else:
+                    # === Miscellaneous journal entry ===
+                    if line.debit:
+                        total += line.balance
+                        total_currency += line.amount_currency
+
+            if move.move_type == 'entry' or move.is_outbound():
+                sign = 1
+            else:
+                sign = -1
+            move.amount_untaxed = sign * (total_untaxed_currency if len(currencies) == 1 else total_untaxed)
+            move.amount_tax = sign * (total_tax_currency if len(currencies) == 1 else total_tax)
+            #move.amount_retencion = sign * (amount_retencion_currency if len(currencies) == 1 else amount_retencion)
+            move.amount_total = sign * (total_currency if len(currencies) == 1 else total)
+            move.amount_residual = -sign * (total_residual_currency if len(currencies) == 1 else total_residual)
+            move.amount_untaxed_signed = -total_untaxed
+            move.amount_tax_signed = -total_tax
+            move.amount_total_signed = abs(total) if move.move_type == 'entry' else -total
+            move.amount_residual_signed = total_residual
+
+            currency = len(currencies) == 1 and currencies.pop() or move.company_id.currency_id
+
+            # Compute 'payment_state'.
+            new_pmt_state = 'not_paid' if move.move_type != 'entry' else False
+
+            if move.is_invoice(include_receipts=True) and move.state == 'posted':
+
+                if currency.is_zero(move.amount_residual):
+                    reconciled_payments = move._get_reconciled_payments()
+                    if not reconciled_payments or all(payment.is_matched for payment in reconciled_payments):
+                        new_pmt_state = 'paid'
+                    else:
+                        new_pmt_state = move._get_invoice_in_payment_state()
+                elif currency.compare_amounts(total_to_pay, total_residual) != 0:
+                    new_pmt_state = 'partial'
+
+            if new_pmt_state == 'paid' and move.move_type in ('in_invoice', 'out_invoice', 'entry'):
+                reverse_type = move.move_type == 'in_invoice' and 'in_refund' or move.move_type == 'out_invoice' and 'out_refund' or 'entry'
+                reverse_moves = self.env['account.move'].search([('reversed_entry_id', '=', move.id), ('state', '=', 'posted'), ('move_type', '=', reverse_type)])
+
+                # We only set 'reversed' state in cas of 1 to 1 full reconciliation with a reverse entry; otherwise, we use the regular 'paid' state
+                reverse_moves_full_recs = reverse_moves.mapped('line_ids.full_reconcile_id')
+                if reverse_moves_full_recs.mapped('reconciled_line_ids.move_id').filtered(lambda x: x not in (reverse_moves + reverse_moves_full_recs.mapped('exchange_move_id'))) == move:
+                    new_pmt_state = 'reversed'
+
+            move.payment_state = new_pmt_state
+
+    def _recompute_tax_lines(self, recompute_tax_base_amount=False):
+        ''' Compute the dynamic tax lines of the journal entry.
+
+        :param lines_map: The line_ids dispatched by type containing:
+            * base_lines: The lines having a tax_ids set.
+            * tax_lines: The lines having a tax_line_id set.
+            * terms_lines: The lines generated by the payment terms of the invoice.
+            * rounding_lines: The cash rounding lines of the invoice.
+        '''
+        self.ensure_one()
+        in_draft_mode = self != self._origin
+
+        def _serialize_tax_grouping_key(grouping_dict):
+            ''' Serialize the dictionary values to be used in the taxes_map.
+            :param grouping_dict: The values returned by '_get_tax_grouping_key_from_tax_line' or '_get_tax_grouping_key_from_base_line'.
+            :return: A string representing the values.
+            '''
+            return '-'.join(str(v) for v in grouping_dict.values())
+
+        def _compute_base_line_taxes(base_line):
+            ''' Compute taxes amounts both in company currency / foreign currency as the ratio between
+            amount_currency & balance could not be the same as the expected currency rate.
+            The 'amount_currency' value will be set on compute_all(...)['taxes'] in multi-currency.
+            :param base_line:   The account.move.line owning the taxes.
+            :return:            The result of the compute_all method.
+            '''
+            move = base_line.move_id
+
+            if move.is_invoice(include_receipts=True):
+                handle_price_include = True
+                sign = -1 if move.is_inbound() else 1
+                quantity = base_line.quantity
+                is_refund = move.move_type in ('out_refund', 'in_refund')
+                price_unit_wo_discount = sign * base_line.price_unit * (1 - (base_line.discount / 100.0))
+            else:
+                handle_price_include = False
+                quantity = 1.0
+                tax_type = base_line.tax_ids[0].type_tax_use if base_line.tax_ids else None
+                is_refund = (tax_type == 'sale' and base_line.debit) or (tax_type == 'purchase' and base_line.credit)
+                price_unit_wo_discount = base_line.balance
+
+            balance_taxes_res = base_line.tax_ids._origin.with_context(force_sign=move._get_tax_force_sign()).compute_all(
+                price_unit_wo_discount,
+                currency=base_line.currency_id,
+                quantity=quantity,
+                product=base_line.product_id,
+                partner=base_line.partner_id,
+                is_refund=is_refund,
+                handle_price_include=handle_price_include,
+                uom_id=base_line.product_uom_id,
+            )
+
+            if move.move_type == 'entry':
+                repartition_field = is_refund and 'refund_repartition_line_ids' or 'invoice_repartition_line_ids'
+                repartition_tags = base_line.tax_ids.flatten_taxes_hierarchy().mapped(repartition_field).filtered(lambda x: x.repartition_type == 'base').tag_ids
+                tags_need_inversion = (tax_type == 'sale' and not is_refund) or (tax_type == 'purchase' and is_refund)
+                if tags_need_inversion:
+                    balance_taxes_res['base_tags'] = base_line._revert_signed_tags(repartition_tags).ids
+                    for tax_res in balance_taxes_res['taxes']:
+                        tax_res['tag_ids'] = base_line._revert_signed_tags(self.env['account.account.tag'].browse(tax_res['tag_ids'])).ids
+
+            return balance_taxes_res
+
+        taxes_map = {}
+
+        # ==== Add tax lines ====
+        to_remove = self.env['account.move.line']
+        for line in self.line_ids.filtered('tax_repartition_line_id'):
+            grouping_dict = self._get_tax_grouping_key_from_tax_line(line)
+            grouping_key = _serialize_tax_grouping_key(grouping_dict)
+            if grouping_key in taxes_map:
+                # A line with the same key does already exist, we only need one
+                # to modify it; we have to drop this one.
+                to_remove += line
+            else:
+                taxes_map[grouping_key] = {
+                    'tax_line': line,
+                    'amount': 0.0,
+                    'tax_base_amount': 0.0,
+                    'grouping_dict': False,
+                    'amount_retencion': 0.0,
+                }
+        if not recompute_tax_base_amount:
+            self.line_ids -= to_remove
+
+        # ==== Mount base lines ====
+        for line in self.line_ids.filtered(lambda line: not line.tax_repartition_line_id):
+            # Don't call compute_all if there is no tax.
+            if not line.tax_ids:
+                if not recompute_tax_base_amount:
+                    line.tax_tag_ids = [(5, 0, 0)]
+                continue
+
+            compute_all_vals = _compute_base_line_taxes(line)
+
+            # Assign tags on base line
+            if not recompute_tax_base_amount:
+                line.tax_tag_ids = compute_all_vals['base_tags'] or [(5, 0, 0)]
+
+            tax_exigible = True
+            for tax_vals in compute_all_vals['taxes']:
+                grouping_dict = self._get_tax_grouping_key_from_base_line(line, tax_vals)
+                grouping_key = _serialize_tax_grouping_key(grouping_dict)
+
+                tax_repartition_line = self.env['account.tax.repartition.line'].browse(tax_vals['tax_repartition_line_id'])
+                tax = tax_repartition_line.invoice_tax_id or tax_repartition_line.refund_tax_id
+
+                if tax.tax_exigibility == 'on_payment':
+                    tax_exigible = False
+
+                taxes_map_entry = taxes_map.setdefault(grouping_key, {
+                    'tax_line': None,
+                    'amount': 0.0,
+                    'tax_base_amount': 0.0,
+                    'grouping_dict': False,
+                    'amount_retencion': 0.0,
+                })
+                taxes_map_entry['amount'] += tax_vals['amount']
+                taxes_map_entry['amount_retencion']  += tax_vals['retencion']
+                taxes_map_entry['tax_base_amount'] += self._get_base_amount_to_display(tax_vals['base'], tax_repartition_line, tax_vals['group'])
+                taxes_map_entry['grouping_dict'] = grouping_dict
+            if not recompute_tax_base_amount:
+                line.tax_exigible = tax_exigible
+        amount_retencion = 0
+        # ==== Process taxes_map ====
+        for taxes_map_entry in taxes_map.values():
+            amount_retencion += taxes_map_entry['amount_retencion']
+            # The tax line is no longer used in any base lines, drop it.
+            if taxes_map_entry['tax_line'] and not taxes_map_entry['grouping_dict']:
+                if not recompute_tax_base_amount:
+                    self.line_ids -= taxes_map_entry['tax_line']
+                continue
+
+            currency = self.env['res.currency'].browse(taxes_map_entry['grouping_dict']['currency_id'])
+
+            # Don't create tax lines with zero balance.
+            if currency.is_zero(taxes_map_entry['amount']):
+                if taxes_map_entry['tax_line'] and not recompute_tax_base_amount:
+                    self.line_ids -= taxes_map_entry['tax_line']
+                continue
+
+            # tax_base_amount field is expressed using the company currency.
+            tax_base_amount = currency._convert(taxes_map_entry['tax_base_amount'], self.company_currency_id, self.company_id, self.date or fields.Date.context_today(self))
+
+            # Recompute only the tax_base_amount.
+            if recompute_tax_base_amount:
+                if taxes_map_entry['tax_line']:
+                    taxes_map_entry['tax_line'].tax_base_amount = tax_base_amount
+                continue
+
+            balance = currency._convert(
+                taxes_map_entry['amount'],
+                self.journal_id.company_id.currency_id,
+                self.journal_id.company_id,
+                self.date or fields.Date.context_today(self),
+            )
+            to_write_on_line = {
+                'amount_currency': taxes_map_entry['amount'],
+                'currency_id': taxes_map_entry['grouping_dict']['currency_id'],
+                'debit': balance > 0.0 and balance or 0.0,
+                'credit': balance < 0.0 and -balance or 0.0,
+                'tax_base_amount': tax_base_amount,
+            }
+
+            if taxes_map_entry['tax_line']:
+                # Update an existing tax line.
+                taxes_map_entry['tax_line'].update(to_write_on_line)
+            else:
+                create_method = in_draft_mode and self.env['account.move.line'].new or self.env['account.move.line'].create
+                tax_repartition_line_id = taxes_map_entry['grouping_dict']['tax_repartition_line_id']
+                tax_repartition_line = self.env['account.tax.repartition.line'].browse(tax_repartition_line_id)
+                tax = tax_repartition_line.invoice_tax_id or tax_repartition_line.refund_tax_id
+                taxes_map_entry['tax_line'] = create_method({
+                    **to_write_on_line,
+                    'name': tax.name,
+                    'move_id': self.id,
+                    'partner_id': line.partner_id.id,
+                    'company_id': line.company_id.id,
+                    'company_currency_id': line.company_currency_id.id,
+                    'tax_base_amount': tax_base_amount,
+                    'exclude_from_invoice_tab': taxes_map_entry['amount_retencion'] != 0,
+                    'tax_exigible': tax.tax_exigibility == 'on_invoice',
+                    **taxes_map_entry['grouping_dict'],
+                })
+
+            if in_draft_mode:
+                taxes_map_entry['tax_line'].update(taxes_map_entry['tax_line']._get_fields_onchange_balance(force_computation=True))
+
+        self.amount_retencion = amount_retencion
 
     @api.depends('posted_before', 'state', 'journal_id', 'date', 'document_class_id', 'sii_document_number')
     def _compute_name(self):
@@ -279,11 +594,28 @@ class AccountMove(models.Model):
 
         super(AccountMove, not_dcs)._compute_name()
 
+    def _get_invoice_computed_reference(self):
+        if self.document_class_id:
+            return '%s%s' % (self.document_class_id.doc_code_prefix, self.sii_document_number)
+        return super(AccountMove, self)._get_invoice_computed_reference()
+
     def _post(self, soft=True):
-        to_post = super(AccountMove, self)._post(soft=soft)
+        if soft:
+            future_moves = self.filtered(lambda move: move.date > fields.Date.context_today(self))
+            future_moves.auto_post = True
+            for move in future_moves:
+                msg = _('This move will be posted at the accounting date: %(date)s', date=format_date(self.env, move.date))
+                move.message_post(body=msg)
+            to_post = self - future_moves
+        else:
+            to_post = self
         for inv in to_post:
-            if not inv.is_invoice():
+            if not inv.is_invoice() or not inv.journal_document_class_id:
                 continue
+            sii_document_number = inv.journal_document_class_id.sequence_id.next_by_id()
+            inv.sii_document_number = int(sii_document_number)
+        super(AccountMove, self)._post(soft=soft)
+        for inv in to_post:
             if inv.purchase_to_done:
                 for ptd in inv.purchase_to_done:
                     ptd.write({"state": "done"})
@@ -291,8 +623,6 @@ class AccountMove(models.Model):
                 continue
             inv._validaciones_uso_dte()
             inv.sii_result = "NoEnviado"
-            sii_document_number = inv.journal_document_class_id.sequence_id.next_by_id()
-            inv.sii_document_number = int(sii_document_number)
             if inv.journal_id.restore_mode:
                 inv.sii_result = "Proceso"
             else:
@@ -317,8 +647,6 @@ class AccountMove(models.Model):
                     }
                 )
         return to_post
-
-
 
     def _get_move_imps(self):
         imps = {}
@@ -433,6 +761,12 @@ class AccountMove(models.Model):
 
     @api.onchange("global_descuentos_recargos")
     def _onchange_descuentos(self):
+        gdrs = self.line_ids.filtered(lambda line: line.is_gd_line or line.is_gr_line)
+        for r in self.global_descuentos_recargos:
+            for l in gdrs:
+                if r.name == l.name:
+                    gdrs -= l
+        gdrs.unlink()
         self._recompute_dynamic_lines()
 
     @api.onchange("payment_term_id")
@@ -582,30 +916,33 @@ class AccountMove(models.Model):
         in_draft_mode = self != self._origin
 
         def _compute_global_gdr(self, others_lines, gdr):
-            signo = -1 if gdr.type=='D' else 1
             if gdr.gdr_type == 'amount':
-                return signo*gdr.valor, signo*gdr.valor
-            total_currency = total = 0
+                return gdr.valor, gdr.valor
+            total_currency = 0
+            total = 0
             if gdr.impuesto == "afectos":
                 for line in others_lines:
-                    for t in (line.tax_ids or line.tax_line_id):
+                    for t in line.tax_ids:
                         if t.amount > 0:
-                            total += line.balance
+                            total += line.price_subtotal
                             total_currency += line.amount_currency
                             break
-                return signo *total * (gdr.valor /100.0), signo *total_currency * (gdr.valor /100.0)
+                return total * (gdr.valor /100.0), total_currency * (gdr.valor /100.0)
             for line in others_lines:
-                for t in (line.tax_ids or line.tax_line_id):
+                for t in line.tax_ids:
                     if t.amount == 0:
-                        total += line.balance
+                        total += line.price_subtotal
                         total_currency += line.amount_currency
                         break
-            return signo * total * (gdr.valor /100.0), signo *total_currency * (gdr.valor /100.0)
+            return total * (gdr.valor /100.0), total_currency * (gdr.valor /100.0)
 
         def _apply_global_gdr(self, amount, amount_currency, global_gdr_line, gdr, taxes):
+            if gdr.type == 'D':
+                amount *= (-1)
+                amount_currency *= (-1)
             gdr_line_vals = {
-                'debit': amount > 0.0 and amount or 0.0,
-                'credit': amount < 0.0 and -amount or 0.0,
+                'debit': amount < 0.0 and -amount or 0.0,
+                'credit': amount > 0.0 and amount or 0.0,
                 'quantity': 1.0,
                 'amount_currency': amount_currency,
                 'partner_id': self.partner_id.id,
@@ -616,13 +953,10 @@ class AccountMove(models.Model):
                 'is_gd_line': gdr.type=='D',
                 'is_gr_line': gdr.type=='R',
                 'sequence': 9999,
-                'tax_ids': [(6,0, taxes.ids)]
-            }
-            gdr_line_vals.update({
                 'name': gdr.name,
                 'account_id': gdr.account_id.id,
-            })
-
+                'tax_ids': [(6,0, taxes.ids)],
+            }
             # Create or update the global gdr line.
             if global_gdr_line:
                 global_gdr_line.update({
@@ -634,9 +968,12 @@ class AccountMove(models.Model):
             else:
                 create_method = in_draft_mode and self.env['account.move.line'].new or self.env['account.move.line'].create
                 global_gdr_line = create_method(gdr_line_vals)
-
             if in_draft_mode:
                 global_gdr_line.update(global_gdr_line._get_fields_onchange_balance(force_computation=True))
+            if gdr.impuesto == 'afectos':
+                self._recompute_tax_lines()
+        total_gd = 0
+        total_gr = 0
         for gdr in self.global_descuentos_recargos:
             gds = self.line_ids.filtered(lambda line: line.is_gd_line )
             grs = self.line_ids.filtered(lambda line: line.is_gr_line )
@@ -645,19 +982,19 @@ class AccountMove(models.Model):
             gd = False
             taxes = self.env['account.tax']
             for line in others_lines:
-                for t in (line.tax_ids or line.tax_line_id):
-                    if gdr.impuesto == "afectos" and t.amount > 0:
-                        taxes += (line.tax_ids or line.tax_line_id)
-                    else:
-                        taxes += (line.tax_ids or line.tax_line_id)
+                for t in line.tax_ids:
+                    if gdr.impuesto == "afectos" and t.amount > 0 and t not in taxes:
+                        taxes += t
+                    elif gdr.impuesto != "afectos" and t not in taxes:
+                        taxes += t
             for line in gds:
                 if line.name == gdr.name:
                     gd = line
             if gdr.type=="D":
                 if not gd:
                     gd = self.env['account.move.line']
-                _logger.warning("gd")
-                gdr_amount , gdr_amount_currency = _compute_global_gdr(self, others_lines, gdr)
+                gdr_amount, gdr_amount_currency = _compute_global_gdr(self, others_lines, gdr)
+                total_gd += gdr_amount
                 _apply_global_gdr(self, gdr_amount, gdr_amount_currency, gd, gdr, taxes)
             gr = False
             for line in grs:
@@ -667,13 +1004,13 @@ class AccountMove(models.Model):
                 if not gr:
                     gr = self.env['account.move.line']
                 gdr_amount , gdr_amount_currency = _compute_global_gdr(self, others_lines, gdr)
+                total_gr += gdr_amount
                 _apply_global_gdr(self, gdr_amount, gdr_amount_currency, gr, gdr, taxes)
-
+        self.amount_untaxed_global_discount = total_gd
+        self.amount_untaxed_global_recargo = total_gr
     def _recompute_dynamic_lines(self, recompute_all_taxes=False, recompute_tax_base_amount=False):
         for invoice in self:
             if invoice.is_invoice(include_receipts=True):
-                # Compute cash rounding.
-                _logger.warning('is invoice')
                 invoice._recompute_global_gdr_lines()
 
         super(AccountMove, self)._recompute_dynamic_lines(recompute_all_taxes, recompute_tax_base_amount)
@@ -703,7 +1040,6 @@ class AccountMove(models.Model):
         data = base64.b64encode(xml_intercambio)
         values = dict(
             name=filename,
-            datas_fname=filename,
             url=url_path,
             res_model="account.move",
             res_id=self.id,
@@ -1110,7 +1446,7 @@ class AccountMove(models.Model):
         ):
             self._onchange_invoice_line_ids()
         for line in self.with_context(lang="es_CL").invoice_line_ids:
-            if not line.account_id:
+            if not line.account_id or not line.product_id:
                 continue
             if line.product_id.default_code == "NO_PRODUCT":
                 no_product = True
