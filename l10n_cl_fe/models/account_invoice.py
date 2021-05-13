@@ -422,7 +422,7 @@ class AccountInvoice(models.Model):
             self.amount_untaxed_global_recargo = agrupados["R"] + agrupados["R_exe"]
         amount_tax = 0
         amount_retencion = 0
-        retencion_honorario = True
+        retencion_honorario = False
         included = False
         for tax in self.tax_line_ids:
             if tax.tax_id.price_include:
@@ -443,7 +443,7 @@ class AccountInvoice(models.Model):
                 uom_id=line.uom_id)['total_excluded']) for line in self.invoice_line_ids)
         self.amount_untaxed = self.currency_id.round(neto)
         self.amount_tax = amount_tax
-        self.amount_total = self.amount_untaxed + (0 if retencion_honorario else self.amount_tax) - amount_retencion
+        self.amount_total = self.amount_untaxed + (0 if retencion_honorario else amount_tax) - amount_retencion
         amount_total_company_signed = self.amount_total
         amount_untaxed_signed = self.amount_untaxed
         if self.currency_id and self.company_id and self.currency_id != self.company_id.currency_id:
