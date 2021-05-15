@@ -58,7 +58,7 @@ Include unusual taxes documents, as transfer invoice, and reissue
                         break
                 self.excempt_documents = no_vat
 
-    
+
     def confirm(self):
         context = dict(self._context or {})
         journal_ids = context.get("active_ids", False)
@@ -100,7 +100,7 @@ Include unusual taxes documents, as transfer invoice, and reissue
             "sii_document_class_id": document_class.id,
             "company_id": journal.company_id.id,
             "forced_by_caf": True,
-            "autoreponer_caf": True,
+            "autoreponer_caf": journal.company_id.dte_service_provider == 'SII',
             "autoreponer_cantidad": 1 if document_class.sii_code in [56, 61, 111, 112] else 10,
             "nivel_minimo": 1 if document_class.sii_code in [56, 61, 111, 112] else 5,
         }
@@ -122,7 +122,7 @@ Include unusual taxes documents, as transfer invoice, and reissue
             domain.append(("dte", "=", True))
         document_class_obj = self.env["sii.document_class"]
         document_class_ids = document_class_obj.search(domain)
-        journal.document_class_ids = document_class_ids.ids
+        journal.document_class_ids += document_class_ids
         if journal.type == "purchase":
             return
         journal_document_obj = self.env["account.journal.sii_document_class"]
