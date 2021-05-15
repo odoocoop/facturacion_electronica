@@ -573,7 +573,7 @@ class AccountMove(models.Model):
                     'company_id': line.company_id.id,
                     'company_currency_id': line.company_currency_id.id,
                     'tax_base_amount': tax_base_amount,
-                    'exclude_from_invoice_tab': taxes_map_entry['amount_retencion'] != 0,
+                    'exclude_from_invoice_tab': True,
                     'tax_exigible': tax.tax_exigibility == 'on_invoice',
                     **taxes_map_entry['grouping_dict'],
                 })
