@@ -153,7 +153,6 @@ class ProcessMails(models.Model):
         data = {
             "mail_id": self.id,
             "name": att.name,
-            "attachment_id": att.id,
         }
         if el.tag == "EnvioDTE":
             val = self.env["mail.message.dte"].sudo().create(data)
@@ -161,7 +160,7 @@ class ProcessMails(models.Model):
         elif el.tag in ["RespuestaDTE", "EnvioRecibos"]:
             self._proccess_respuesta(el, att)
 
-    
+
     def process_mess(self):
         if self.model == "mail.message.dte":
             dte = self.env[self.model].sudo().browse(self.res_id)
@@ -182,7 +181,7 @@ class ProcessMails(models.Model):
             mail.message_type in ["email"]
             and mail.attachment_ids
             and not mail.mail_server_id
-            and mail.author_id != self.env.ref("base.partner_root")
+            and mail.author_id not in [self.env.ref("base.partner_root"), self.env.ref("base.partner_admin")]
         ):
             mail.process_mess()
         return mail

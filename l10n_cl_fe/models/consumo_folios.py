@@ -179,10 +179,9 @@ class ConsumoFolios(models.Model):
 
     def _get_moves(self):
         recs = []
-        for a in self.with_context(lang="es_CL").move_ids:
-         if a.is_invoice() and a.document_class_id.es_boleta()\
-            and a.sii_document_number not in [0, False]:
-            recs.append(a)
+        for m in self.with_context(lang="es_CL").move_ids.filtered(lambda a: a.is_invoice() and a.document_class_id.es_boleta()\
+            and a.sii_document_number not in [0, False]):
+            recs.append(m)
         return recs
 
     def _get_datos(self):

@@ -801,8 +801,8 @@ class POS(models.Model):
             self.do_validate()
         return result
 
-    @api.depends('statement_ids', 'lines.price_subtotal_incl', 'lines.discount', 'document_class_id')
-    def _compute_amount_all(self):
+    @api.onchange('statement_ids', 'lines', 'document_class_id')
+    def _onchange_amount_all(self):
         for order in self:
             order.amount_paid = order.amount_return = order.amount_tax = 0.0
             currency = order.pricelist_id.currency_id

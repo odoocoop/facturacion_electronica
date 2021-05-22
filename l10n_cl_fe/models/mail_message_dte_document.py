@@ -197,12 +197,10 @@ class ProcessMailsDocument(models.Model):
             'name': _('Accepted Moves'),
             'type': 'ir.actions.act_window',
             'res_model': 'account.move',
+            'view_mode': 'tree,form',
         }
         if created:
-            action.update({
-                'view_mode': 'tree,form',
-                'domain': [('id', 'in', created)],
-            })
+            action['domain'] = [('id', 'in', created)]
         return action
 
 

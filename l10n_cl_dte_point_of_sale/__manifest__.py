@@ -2,7 +2,7 @@
 {
     "name": """Boleta / Factura Electrónica Chilena para punto de ventas \
     """,
-    'version': '0.27.0',
+    'version': '0.27.1',
     'category': 'Point of Sale/Localization/Chile',
     'sequence': 12,
     'author':  'Daniel Santibáñez Polanco, Cooperativa OdooCoop',
@@ -34,6 +34,7 @@ Chile: API and GUI to access Electronic Invoicing webservices for Point of Sale.
         'views/point_of_sale.xml',
         'views/portal_boleta_layout.xml',
         'views/sii_xml_envio.xml',
+        'views/consumo_folios.xml',
         'wizard/masive_send_dte.xml',
 #        'data/sequence.xml',
         'security/ir.model.access.csv',
