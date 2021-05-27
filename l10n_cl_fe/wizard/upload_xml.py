@@ -55,7 +55,7 @@ class UploadXMLWizard(models.TransientModel):
             created = self.do_create_inv()
             xml_id = "account.action_vendor_bill_template"
             target_model = "account.move"
-        elif self.pre_process or self.action == "upload":
+        elif self.pre_process or self.option == "upload":
             created = self.do_create_pre()
             xml_id = "l10n_cl_fe.action_dte_process"
             target_model = "mail.message.dte"

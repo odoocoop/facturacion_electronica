@@ -233,7 +233,6 @@ class POS(models.Model):
         data = base64.b64encode(xml_intercambio)
         values = dict(
                         name=filename,
-                        datas_fname=filename,
                         url=url_path,
                         res_model='pos.order',
                         res_id=self.id,
@@ -330,6 +329,7 @@ class POS(models.Model):
             'document_class_id': self.document_class_id.id,
             'journal_document_class_id': journal_document_class_id.id,
             'responsable_envio': self.env.uid,
+            'use_documents': True,
         })
         return result
 

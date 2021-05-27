@@ -50,8 +50,6 @@
             <field name="arch" type="xml">
                 <form>
                     <field name="document_class_ids" invisible="1" />
-                    <field name="sii_document_number" invisible="1" readonly="1" />
-                    <field name="use_documents" invisible="1" />
                     <field name="sii_code" invisible="1" />
                 </form>
                 <button name="preview_invoice" position="after">
@@ -67,35 +65,42 @@
                             attrs="{'invisible': [('state', '=', 'draft'), ('move_type', 'not in', ['in_invoice', 'in_refund'])]}"
                         >
                           <field
-                                name="document_class_id"
-                                options="{'no_open': True, 'no_create': True}"
-                                domain="[('id', 'in', document_class_ids)]"
-                                attr="'required':[('use_documents', '=', True), ('state', '=', 'draft')],
-                                'readonly':['|', ('state', '!=', 'draft'), ('sii_document_number', '>', 0)]}"
-                                class="oe_inline"
-                            /> Número:<br />
-                       <field name="name" readonly="1" class="oe_inline" />
+                              name="document_class_id"
+                              options="{'no_open': True, 'no_create': True}"
+                              domain="[('id', 'in', document_class_ids)]"
+                              class="oe_inline"
+                          />
                       </div>
-                            <div
-                                attrs="{'invisible': ['|', ('state', '!=', 'draft'), ('move_type', 'in', ['in_invoice', 'in_refund'])]}"
-                            >
+                      <div
+                        attrs="{'invisible': ['|', ('state', '!=', 'draft'), ('use_documents', '=', False)]}"
+                        >
                           <span class="o_form_label" attrs="{'invisible': [('state','!=','draft')]}">Siguiente</span>
                           <field
                                     name="journal_document_class_id"
-                                    attrs="{'invisible':[('use_documents', '=', False)],
-                                    'required':[('use_documents', '=', True), ('state', '=', 'draft')],
-                                    'readonly':['|', ('state', '!=', 'draft'), ('sii_document_number', '>', 0)]}"
+                                    attrs="{
+                                    'required':[('use_documents', '=', True), ('state', '=', 'draft')]}"
                                     options="{'no_create': True}"
                                     domain="[('sii_document_class_id', 'in', document_class_ids)]"
                                     style="width: 100%"
-                                /> Número:<br />
+                                /><br /> Número:
                           <field
-                                    name="sii_document_number"
-                                    class="oe_inline"
-                                    readonly="1"
-                                    attrs="{'invisible': [('sii_document_number','&lt;=', 0)]}"
-                                />
-                          <field name="name" readonly="1" invisible="1" class="oe_inline" />
+                                  name="sequence_number_next"
+                                  class="oe_inline"
+                                  readonly="1"
+                                  attrs="{'invisible': [('sii_document_number','&gt;', 0)]}"
+                              />
+                      </div>
+                      <div attrs="{'invisible': [('use_documents', '=', True), ('sii_document_number', '=', 0)]}">
+                        Número:
+                        <field
+                              name="sii_document_number"
+                              class="oe_inline"
+                          />
+                      </div>
+                      <field name="name" readonly="1" invisible="1" class="oe_inline" />
+                      <div attrs="{'invisible': [('state', '!=', 'draft')]}">
+                        <span class="o_form_label">Emitir Documentos</span>
+                        <field name="use_documents"/>
                       </div>
                   </h1>
                 </xpath>

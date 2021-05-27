@@ -20,7 +20,7 @@ class ProccessMail(models.Model):
     def pre_process(self):
         self.process_message(pre=True)
 
-    
+
     def process_message(self, pre=False, option=False):
         created = []
         for r in self:
@@ -39,7 +39,7 @@ class ProccessMail(models.Model):
                         "dte_id": r.id,
                         "option": option,
                     }
-                    val = self.env["sii.dte.upload_xml.wizard"].create(vals)
+                    val = self.env["sii.dte.upload_xml.wizard"].with_user(self.env.ref("base.user_admin").id).create(vals)
                     created.extend(val.confirm(ret=True))
         xml_id = "l10n_cl_fe.action_dte_process"
         result = self.env.ref("%s" % (xml_id)).read()[0]

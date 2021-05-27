@@ -101,18 +101,23 @@ class AccountMove(models.Model):
         for r in self:
             r.document_class_ids = []
             dc_type = ["invoice"] if r.move_type in ["in_invoice", "out_invoice"] else ["credit_note", "debit_note"]
-            ids = []
             if r.move_type in ["in_invoice", "in_refund"]:
-                for j in r.journal_id.document_class_ids:
-                    if j.document_type in dc_type:
-                        ids.append(j.id)
+                for dc in r.journal_id.document_class_ids:
+                    if dc.document_type in dc_type:
+                        r.document_class_ids += dc
             else:
                 jdc_ids = self.env["account.journal.sii_document_class"].search(
                     [("journal_id", "=", r.journal_id.id), ("sii_document_class_id.document_type", "in", dc_type),]
                 )
                 for dc in jdc_ids:
-                    ids.append(dc.sii_document_class_id.id)
-            r.document_class_ids = ids
+                    r.document_class_ids += dc.sii_document_class_id
+            r.journal_document_class_id = r._default_journal_document_class_id()
+            r.use_documents = r.move_type in ["out_refund", "out_invoice"] and len(r.journal_id.journal_document_class_ids) > 0
+
+    def _default_use_documents(self):
+        if self._default_journal_document_class_id():
+            return True
+        return False
 
     document_class_ids = fields.Many2many(
         "sii.document_class", compute="get_dc_ids", string="Available Document Classes",
@@ -181,7 +186,9 @@ class AccountMove(models.Model):
         readonly=True,
         states={"draft": [("readonly", False)]},
     )  # @TODO select 1 automático si es emisor 2Categoría
-    use_documents = fields.Boolean(related="journal_id.use_documents", string="Use Documents?", readonly=True,)
+    use_documents = fields.Boolean(string="Use Documents?", default=lambda self: self._default_use_documents(),
+                                   readonly=True,
+                                   states={"draft": [("readonly", False)]},)
     referencias = fields.One2many(
         "account.move.referencias", "move_id", readonly=True, states={"draft": [("readonly", False)]},
     )
@@ -274,6 +281,12 @@ class AccountMove(models.Model):
     amount_retencion = fields.Monetary(string='Monto Retención', store=True, readonly=True,
         compute='_compute_amount',
         inverse='_inverse_amount_total'
+    )
+    sequence_number_next = fields.Integer(
+        compute='_get_sequence_number_next'
+    )
+    sequence_number_next_prefix = fields.Integer(
+        compute='_get_sequence_prefix'
     )
 
     @api.depends(
@@ -610,7 +623,7 @@ class AccountMove(models.Model):
         else:
             to_post = self
         for inv in to_post:
-            if not inv.is_invoice() or not inv.journal_document_class_id:
+            if not inv.is_invoice() or not inv.journal_document_class_id  or not obj_inv.use_documents:
                 continue
             sii_document_number = inv.journal_document_class_id.sequence_id.next_by_id()
             inv.sii_document_number = int(sii_document_number)
@@ -619,7 +632,7 @@ class AccountMove(models.Model):
             if inv.purchase_to_done:
                 for ptd in inv.purchase_to_done:
                     ptd.write({"state": "done"})
-            if not inv.journal_document_class_id:
+            if not inv.journal_document_class_id or not inv.use_documents:
                 continue
             inv._validaciones_uso_dte()
             inv.sii_result = "NoEnviado"
@@ -703,18 +716,23 @@ class AccountMove(models.Model):
     @api.depends("state", "journal_id", "invoice_date", "document_class_id")
     def _get_sequence_prefix(self):
         for invoice in self:
-            if invoice.use_documents and invoice.move_type in ["out_invoice", "out_refund"]:
+            invoice.sequence_number_next_prefix = ''
+            if invoice.move_type in ['in_invoice']:
+                invoice.use_documents = False
+                invoice.journal_document_class_id = False
+                for jdc in invoice.journal_id.journal_document_class_ids:
+                    if invoice.document_class_id == jdc.sii_document_class_id:
+                        invoice.use_documents = True
+                        invoice.journal_document_class_id = jdc
+            if invoice.journal_document_class_id:
                 invoice.sequence_number_next_prefix = invoice.document_class_id.doc_code_prefix or ""
-            else:
-                super(AccountMove, self)._get_sequence_prefix()
 
     @api.depends("state", "journal_id", "document_class_id")
     def _get_sequence_number_next(self):
         for invoice in self:
-            if invoice.use_documents and invoice.move_type in ["out_invoice", "out_refund"]:
+            invoice.sequence_number_next = 0
+            if invoice.journal_document_class_id:
                 invoice.sequence_number_next = invoice.journal_document_class_id.sequence_id.number_next_actual
-            else:
-                super(AccountMove, self)._get_sequence_number_next()
 
     def _prepare_refund(
         self, invoice, invoice_date=None, description=None, journal_id=None, tipo_nota=61, mode="1"
