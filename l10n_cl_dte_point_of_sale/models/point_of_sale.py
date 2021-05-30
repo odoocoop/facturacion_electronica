@@ -199,6 +199,14 @@ class POS(models.Model):
         copy=False,
     )
 
+    def action_pos_order_invoice(self):
+        recs = self.env['pos.order']
+        for r in self:
+            if r.document_class_id:
+                continue
+            recs += r
+        return super(POS, recs).action_pos_order_invoice()
+
     @api.model
     def _amount_line_tax(self, line, fiscal_position_id):
         taxes = line.tax_ids.filtered(lambda t: t.company_id.id == line.order_id.company_id.id)

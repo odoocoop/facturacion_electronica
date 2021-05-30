@@ -8,10 +8,10 @@
             <header>
               <field name="sii_code" invisible="1"/>
               <button string="Imprimir" type="object"  name="print_nc"  attrs="{'invisible':[('state', 'in', ['draft']), ('document_class_id','=', False)]}"/>
-              <button name="action_pos_order_invoice" position="attributes">
-                <attribute name="attrs">{'readonly': [('partner_id', '=', False), ('sii_code', 'in', [39, 41])]}</attribute>
-              </button>
             </header>
+            <button name="action_pos_order_invoice" position="attributes">
+              <attribute name="attrs">{'invisible': ['|', '|', ('invoice_group', '=', False), ('state','!=','paid'), ('document_class_id', '!=', False)]}</attribute>
+            </button>
             <button name="refund" position="replace">
               <button name="%(action_pos_order_refund)d" string="Crear una Nota de Crédito" type="action"
                             attrs="{'invisible':['|', ('state','=','draft'), ('sii_code', 'not in', [39, 41])]}"/>
