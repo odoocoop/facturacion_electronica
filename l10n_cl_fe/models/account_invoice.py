@@ -111,7 +111,6 @@ class AccountInvoice(models.Model):
                 for dc in jdc_ids:
                     r.document_class_ids += dc.sii_document_class_id
             r.journal_document_class_id = r._default_journal_document_class_id()
-            r.use_documents = r.type in ["out_refund", "out_invoice"] and len(r.journal_id.journal_document_class_ids) > 0
 
     vat_discriminated = fields.Boolean(
         "Discriminate VAT?",
