@@ -5,6 +5,9 @@ from odoo.tools.safe_eval import safe_eval
 from odoo.exceptions import UserError
 from odoo.tools.translate import _
 
+MAGIC_COLUMNS = ('id', 'create_uid', 'create_date', 'write_uid', 'write_date')
+
+
 
 class AccountInvoiceRefund(models.TransientModel):
     """Refunds invoice"""
@@ -143,10 +146,15 @@ class AccountInvoiceRefund(models.TransientModel):
                         }])
                     global_descuentos_recargo = []
                     for gdr in  inv.global_descuentos_recargos:
-                        n_gdr = gdr.copy()
-                        if n_gdr.get('invoice_id'):
-                            del n_gdr['invoice_id']
-                        global_descuentos_recargo.append([0,0, n_gdr])
+                        values = {}
+                        for name, field in gdr._fields.items():
+                            if name in MAGIC_COLUMNS:
+                                continue
+                            elif field.type == 'many2one':
+                                values[name] = gdr[name].id
+                            elif field.type not in ['many2many', 'one2many']:
+                                values[name] = gdr[name]
+                        global_descuentos_recargo.append([0,0, values])
                     invoice.update({
                         'date_invoice': date,
                         'state': 'draft',
