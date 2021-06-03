@@ -144,7 +144,8 @@ class AccountInvoiceRefund(models.TransientModel):
                     global_descuentos_recargo = []
                     for gdr in  inv.global_descuentos_recargos:
                         n_gdr = gdr.copy()
-                        del n_gdr['invoice_id']
+                        if n_gdr.get('invoice_id'):
+                            del n_gdr['invoice_id']
                         global_descuentos_recargo.append([0,0, n_gdr])
                     invoice.update({
                         'date_invoice': date,

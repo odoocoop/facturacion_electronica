@@ -202,7 +202,7 @@
 <record model="res.city" id="CL08304"><field name="name">Laja</field><field name="code">CL08304</field><field name="country_id" ref="base.cl"/><field name="state_id" ref="CL08300"/></record>
 <record model="res.city" id="CL08303"><field name="name">Cabrero</field><field name="code">CL08303</field><field name="country_id" ref="base.cl"/><field name="state_id" ref="CL08300"/></record>
 <record model="res.city" id="CL08302"><field name="name">Antuco</field><field name="code">CL08302</field><field name="country_id" ref="base.cl"/><field name="state_id" ref="CL08300"/></record>
-<record model="res.city" id="CL08301"><field name="name">Los Angeles</field><field name="code">CL08301</field><field name="country_id" ref="base.cl"/><field name="state_id" ref="CL08300"/></record>
+<record model="res.city" id="CL08301"><field name="name">Los Ángeles</field><field name="code">CL08301</field><field name="country_id" ref="base.cl"/><field name="state_id" ref="CL08300"/></record>
 <record model="res.city" id="CL08312"><field name="name">Tucapel</field><field name="code">CL08312</field><field name="country_id" ref="base.cl"/><field name="state_id" ref="CL08300"/></record>
 <record model="res.city" id="CL08206"><field name="name">Los Alamos</field><field name="code">CL08206</field><field name="country_id" ref="base.cl"/><field name="state_id" ref="CL08200"/></record>
 <record model="res.city" id="CL08205"><field name="name">Curanilahue</field><field name="code">CL08205</field><field name="country_id" ref="base.cl"/><field name="state_id" ref="CL08200"/></record>

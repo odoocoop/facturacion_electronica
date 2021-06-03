@@ -1520,8 +1520,9 @@ a VAT."))
             elif qty < 0:
                 raise UserError("NO puede ser menor que 0")
             if not no_product:
+                uom_name = line.uom_id.with_context(exportacion=self.document_class_id.es_exportacion()).name_get()
                 price_unit = details['price_unit']
-                lines['UnmdItem'] = line.uom_id.name[:4]
+                lines['UnmdItem'] = uom_name[0][1][:4]
                 lines['PrcItem'] = round(price_unit, 6)
                 if currency_id:
                     lines['OtrMnda'] = {}

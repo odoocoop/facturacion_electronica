@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
   <template t-name="l10n_cl_fe.dte_external_layout">
-    <t t-set="o" t-value="o.with_context({'lang': 'es_CL'})" />
+    <t t-set="o" t-value="o.with_context({'lang': 'es_CL', 'exportacion': o.document_class_id.es_exportacion()})" />
     <style>
       .table{
       margin-bottom:0px !important;
