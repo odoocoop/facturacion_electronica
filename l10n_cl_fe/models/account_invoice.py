@@ -112,6 +112,11 @@ class AccountInvoice(models.Model):
                     r.document_class_ids += dc.sii_document_class_id
             r.journal_document_class_id = r._default_journal_document_class_id()
 
+    def _default_use_documents(self):
+        if self._default_journal_document_class_id():
+            return True
+        return False
+
     vat_discriminated = fields.Boolean(
         "Discriminate VAT?",
         compute="get_vat_discriminated",
@@ -156,7 +161,7 @@ class AccountInvoice(models.Model):
         readonly=True,
         states={"draft": [("readonly", False)]},
     )  # @TODO select 1 automático si es emisor 2Categoría
-    use_documents = fields.Boolean(string="Use Documents?", default=lambda self: len(self.journal_id.journal_document_class_ids) > 0,
+    use_documents = fields.Boolean(string="Use Documents?", default=lambda self: self._default_use_documents(),
                                    readonly=True,
                                    states={"draft": [("readonly", False)]},)
     referencias = fields.One2many(
