@@ -111,8 +111,6 @@ class AccountMove(models.Model):
                 )
                 for dc in jdc_ids:
                     r.document_class_ids += dc.sii_document_class_id
-            r.journal_document_class_id = r._default_journal_document_class_id()
-            r.use_documents = r.move_type in ["out_refund", "out_invoice"] and len(r.journal_id.journal_document_class_ids) > 0
 
     def _default_use_documents(self):
         if self._default_journal_document_class_id():
@@ -623,7 +621,7 @@ class AccountMove(models.Model):
         else:
             to_post = self
         for inv in to_post:
-            if not inv.is_invoice() or not inv.journal_document_class_id  or not obj_inv.use_documents:
+            if not inv.is_invoice() or not inv.journal_document_class_id  or not inv.use_documents:
                 continue
             sii_document_number = inv.journal_document_class_id.sequence_id.next_by_id()
             inv.sii_document_number = int(sii_document_number)
@@ -701,7 +699,7 @@ class AccountMove(models.Model):
                 imps["exento"] += i["credit"] or i["debit"]
             else:
                 imps["otros_imps"] += i["credit"] or i["debit"]
-        imps["neto"] = self.amount - imps["otros_imps"] - imps["exento"] - imps["iva"]
+        imps["neto"] = self.amount_total - imps["otros_imps"] - imps["exento"] - imps["iva"]
         return imps
 
     @api.onchange("invoice_line_ids")
@@ -830,9 +828,12 @@ class AccountMove(models.Model):
 
 
     def unlink(self):
+        to_unlink = self.env['account.move']
         for r in self:
             if r.sii_xml_request and r.sii_result in ["Aceptado", "Reparo", "Rechazado"]:
                 raise UserError(_("You can not delete a valid document on SII"))
+            to_unlink += r
+        return super(AccountMove, to_unlink).unlink()
 
     @api.constrains("reference", "partner_id", "company_id", "move_type", "journal_document_class_id")
     def _check_reference_in_invoice(self):
