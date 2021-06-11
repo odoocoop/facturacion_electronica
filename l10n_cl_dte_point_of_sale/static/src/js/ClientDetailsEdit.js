@@ -11,11 +11,29 @@ const Registries = require('point_of_sale.Registries');
 
 const FEClientDetailsEdit = (ClientDetailsEdit) =>
 		class extends ClientDetailsEdit {
-			//what happens when we save the changes on the client edit form -> we fetch
-			//the fields, sanitize them,
-			//send them to the backend for update, and call saved_client_details() when
-			//the server tells us the
-			//save was successfull.
+			constructor(){
+				super(...arguments);
+			}
+			captureChange(event) {
+				super.captureChange(event);
+				if (['document_number', 'name'].includes(event.target.name)){
+					var document_number = event.target.value || '';
+					document_number = document_number.replace(/[^1234567890Kk]/g, "").toUpperCase();
+					document_number = _.str.lpad(document_number, 9, '0');
+					document_number = _.str.sprintf('%s.%s.%s-%s',
+							document_number.slice(0, 2),
+							document_number.slice(2, 5),
+							document_number.slice(5, 8),
+							document_number.slice(-1)
+					)
+					if (this.validar_rut(document_number, event.target.name === 'document_number')){
+						this.props.partner.document_number = document_number;
+						this.changes.document_number = document_number;
+						this.get_remote_data(document_number);
+					}
+				}
+			}
+
 			saveChanges() {
 				var self = this;
 				let processedChanges = {};
@@ -129,30 +147,31 @@ const FEClientDetailsEdit = (ClientDetailsEdit) =>
 					});
 				}
 			this.trigger('save-changes', { processedChanges });
-			}
+		}
 
-			display_client_details(visibility, partner, clickpos){
-				var self = this;
-				function get_remote_data(vat){
-				  rpc.query({
-						model: 'res.partner',
-						method: 'get_remote_user_data',
-						args: [false, vat, false]
-					}).
-		      then(function(resp){
-		          if (resp){
-		              self.$(".client-name").val(resp.razon_social);
-									if (resp.es_mipyme){
-										self.$(".client-es_mipyme").attr('checked','checked');
-									}else{
-										self.$(".client-dte_email").val(resp.dte_email);
-										self.$(".client-es_mipyme").attr('checked', None);
-									}
-
-		          }
-		      });
+		async get_remote_data(vat){
+			var resp = await rpc.query({
+				model: 'res.partner',
+				method: 'get_remote_user_data',
+				args: [false, vat, false]
+			})
+			if (resp){
+				this.changes.name = resp.razon_social;
+				this.props.partner.name = resp.razon_social;
+				if (resp.es_mipyme){
+					this.changes.es_mipyme = true;
+					this.props.partner.es_mipyme = true;
+				}else{
+					this.changes.es_mipyme = false;
+					this.props.partner.es_mipyme = false;
+					this.changes.dte_email = resp.dte_email;
+					this.props.partner.dte_email = resp.dte_email;
 				}
-				this._super(visibility, partner, clickpos);
+			}
+			this.render();
+		}
+
+		display_client_details(visibility, partner, clickpos){
 				if (visibility === "edit"){
 					var state_options = self.$("select[name='state_id']:visible option:not(:first)");
 					var comuna_options = self.$("select[name='city_id']:visible option:not(:first)");
@@ -175,21 +194,6 @@ const FEClientDetailsEdit = (ClientDetailsEdit) =>
 		        			select_state.val(city.state_id ? city.state_id[0] : 0);
 		        		}
 		        	});
-					self.$(".client-document_number").on('change', function(){
-						var document_number = self.$(this).val() || '';
-						document_number = document_number.replace(/[^1234567890Kk]/g, "").toUpperCase();
-						document_number = _.str.lpad(document_number, 9, '0');
-						document_number = _.str.sprintf('%s.%s.%s-%s',
-								document_number.slice(0, 2),
-		    				document_number.slice(2, 5),
-		    				document_number.slice(5, 8),
-		    				document_number.slice(-1))
-		    		        if (self.validar_rut(document_number, false)){
-		    		              get_remote_data(document_number)
-		    		        }
-		    			self.$(this).val(document_number);
-					});
-					self.$("select[name='country_id']").change();
 				}
 			}
 
@@ -204,16 +208,16 @@ const FEClientDetailsEdit = (ClientDetailsEdit) =>
 				texto = tmpstr;
 				var largo = texto.length;
 				if ( largo < 2 ){
-				          if (alert){
-				          	return this.showPopup('ErrorPopup',_t('Debe ingresar el rut completo'));
-				          }
+	          if (alert){
+	          	return this.showPopup('ErrorPopup',_t('Debe ingresar el rut completo'));
+	          }
 					return false;
 				}
 				for (i=0; i < largo ; i++ ){
 					if ( texto.charAt(i) !="0" && texto.charAt(i) != "1" && texto.charAt(i) !="2" && texto.charAt(i) != "3" && texto.charAt(i) != "4" && texto.charAt(i) !="5" && texto.charAt(i) != "6" && texto.charAt(i) != "7" && texto.charAt(i) !="8" && texto.charAt(i) != "9" && texto.charAt(i) !="k" && texto.charAt(i) != "K" ){
-					         if (alert){
-						    return this.showPopup('ErrorPopup',_t('El valor ingresado no corresponde a un R.U.T valido'));
-						    }
+					  if (alert){
+					    return this.showPopup('ErrorPopup',_t('El valor ingresado no corresponde a un R.U.T valido'));
+				    }
 						return false;
 					}
 				}

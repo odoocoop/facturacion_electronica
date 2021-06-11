@@ -359,6 +359,7 @@ class Libro(models.Model):
             move_imps = move._get_move_imps()
             for key, i in move_imps.items():
                 if key not in imp:
+                    del i['code']
                     imp[key] = i
                 else:
                     imp[key]["credit"] += i["credit"]
@@ -374,7 +375,7 @@ class Libro(models.Model):
                 book.total_exento += totales["exento"]
                 book.total_iva += totales["iva"]
                 book.total_otros_imps += totales["otros_imps"]
-                book.total += mov.amount
+                book.total += mov.amount_total
 
     @api.onchange("move_ids")
     def compute_taxes(self):
