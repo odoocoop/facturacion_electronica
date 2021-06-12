@@ -18,15 +18,15 @@ const FEClientDetailsEdit = (ClientDetailsEdit) =>
 				super.captureChange(event);
 				if (['document_number', 'name'].includes(event.target.name)){
 					var document_number = event.target.value || '';
-					document_number = document_number.replace(/[^1234567890Kk]/g, "").toUpperCase();
-					document_number = _.str.lpad(document_number, 9, '0');
-					document_number = _.str.sprintf('%s.%s.%s-%s',
-							document_number.slice(0, 2),
-							document_number.slice(2, 5),
-							document_number.slice(5, 8),
-							document_number.slice(-1)
-					)
 					if (this.validar_rut(document_number, event.target.name === 'document_number')){
+						document_number = document_number.replace(/[^1234567890Kk]/g, "").toUpperCase();
+						document_number = _.str.lpad(document_number, 9, '0');
+						document_number = _.str.sprintf('%s.%s.%s-%s',
+								document_number.slice(0, 2),
+								document_number.slice(2, 5),
+								document_number.slice(5, 8),
+								document_number.slice(-1)
+						)
 						this.props.partner.document_number = document_number;
 						this.changes.document_number = document_number;
 						this.get_remote_data(document_number);
@@ -53,7 +53,9 @@ const FEClientDetailsEdit = (ClientDetailsEdit) =>
 				processedChanges.id = this.props.partner.id || false;
 
 				if (!this.props.partner.document_number && processedChanges.document_number && !this.props.partner.document_type && !processedChanges.document_type_id) {
-					return this.showPopup('ErrorPopup',_t('Seleccione el tipo de documento'));
+					return this.showPopup('ErrorPopup', {
+						title: _('Seleccione el tipo de documento')
+					});
 				}
 				if (processedChanges.document_number ) {
 					processedChanges.document_number = processedChanges.document_number.toUpperCase();
@@ -62,90 +64,42 @@ const FEClientDetailsEdit = (ClientDetailsEdit) =>
 					}
 				}
 				if (!this.props.partner.country_id && !processedChanges.country_id) {
-					return this.showPopup('ErrorPopup',_t('Seleccione el Pais'));
+					return this.showPopup('ErrorPopup', {
+						title: _('Seleccione el Pais')}
+					);
 				}
 				if (!this.props.partner.state_id && !processedChanges.state_id) {
-					return this.showPopup('ErrorPopup',_t('Seleccione la Provincia'));
+					return this.showPopup('ErrorPopup', {
+						title: _('Seleccione la Provincia')
+					});
 				}
 				if (!this.props.partner.city_id && !processedChanges.city_id) {
-					return this.showPopup('ErrorPopup',_t('Seleccione la comuna'));
+					return this.showPopup('ErrorPopup', {
+						title: _('Seleccione la comuna')
+					});
 				}
 				if(!this.props.partner.street && !processedChanges.street) {
-					return this.showPopup('ErrorPopup',_t('Ingrese la direccion(calle)'));
+					return this.showPopup('ErrorPopup', {
+						title: _('Ingrese la direccion(calle)')
+					});
 				}
 				if (!this.props.partner.es_mipyme && !processedChanges.es_mipyme && (!this.props.partner.dte_email && !processedChanges.dte_email)) {
-					return this.showPopup('ErrorPopup',_t('Para empresa que no es MiPyme, debe ingrear el correo dte para intercambio'));
+					return this.showPopup('ErrorPopup', {
+						title: _('Para empresa que no es MiPyme, debe ingrear el correo dte para intercambio')
+					});
 				}
 				var country = _.filter(this.env.pos.countries, function(country){ return country.id == processedChanges.country_id; });
-				processedChanges.id           = partner.id || false;
+				processedChanges.id           = this.props.partner.id || false;
 				processedChanges.country_id   = processedChanges.country_id || false;
 				processedChanges.barcode      = processedChanges.barcode || '';
 				if (country.length > 0){
-					processedChanges.vat = country[0].code + processedChanges.document_number.replace('-','').replace('.','').replace('.','');
+					processedChanges.vat = country[0].code + (this.props.partner.document_number || processedChanges.document_number).replace('-','').replace('.','').replace('.','');
 				}
 				if (processedChanges.property_product_pricelist) {
 					processedChanges.property_product_pricelist = parseInt(processedChanges.property_product_pricelist, 10);
-		        } else {
-		        	processedChanges.property_product_pricelist = false;
-		        }
-				if (processedChanges.activity_description && !parseInt(processedChanges.activity_description)){
-					rpc.query({
-						model:'sii.activity.description',
-						method:'create_from_ui',
-						args: [fields]
-		            }).then(function(description){
-		            	processedChanges.activity_description = description;
-		                rpc.query({
-		                	model:'res.partner',
-		                	method: 'create_from_ui',
-		                	args: [fields]
-		                }).then(function(partner_id){
-		                  	self.saved_client_details(partner_id);
-										}, function(err, ev){
-											var error_body = _t('Your Internet connection is probably down.');
-			                if (err.data) {
-			                    var except = err.data;
-			                    error_body = except.arguments && except.arguments[0] || except.message || error_body;
-			                }
-		              		self.gui.show_popup('error',{
-		              			'title': _t('Error: Could not Save Changes partner'),
-		              			'body': err_body
-		              		});
-		                });
-		            }, function(err_type, err){
-		            	if (err.data.message) {
-		            		self.gui.show_popup('error',{
-		            			'title': _t('Error: Could not Save Changes'),
-		            			'body': err.data.message,
-		            		});
-		            	}else{
-		            		self.gui.show_popup('error',{
-		            			'title': _t('Error: Could not Save Changes'),
-		            			'body': _t('Your Internet connection is probably down.'),
-		            		});
-		            	}
-		            });
-				}else{
-					rpc.query({
-						model: 'res.partner',
-						method: 'create_from_ui',
-						args: [fields]
-					}).then(function(partner_id){
-						self.saved_client_details(partner_id);
-					}, function(err, err_type){
-						if (err.data.message) {
-							self.gui.show_popup('error',{
-								'title': _t('Error: Could not Save Changes'),
-								'body': err.data.message,
-							});
-						}else{
-							self.gui.show_popup('error',{
-								'title': _t('Error: Could not Save Changes'),
-								'body': _t('Your Internet connection is probably down.'),
-							});
-						}
-					});
-				}
+        } else {
+        	processedChanges.property_product_pricelist = false;
+        }
 			this.trigger('save-changes', { processedChanges });
 		}
 
@@ -209,14 +163,18 @@ const FEClientDetailsEdit = (ClientDetailsEdit) =>
 				var largo = texto.length;
 				if ( largo < 2 ){
 	          if (alert){
-	          	return this.showPopup('ErrorPopup',_t('Debe ingresar el rut completo'));
+	          	return this.showPopup('ErrorPopup', {
+								title: _('Debe ingresar el rut completo')
+							});
 	          }
 					return false;
 				}
 				for (i=0; i < largo ; i++ ){
 					if ( texto.charAt(i) !="0" && texto.charAt(i) != "1" && texto.charAt(i) !="2" && texto.charAt(i) != "3" && texto.charAt(i) != "4" && texto.charAt(i) !="5" && texto.charAt(i) != "6" && texto.charAt(i) != "7" && texto.charAt(i) !="8" && texto.charAt(i) != "9" && texto.charAt(i) !="k" && texto.charAt(i) != "K" ){
 					  if (alert){
-					    return this.showPopup('ErrorPopup',_t('El valor ingresado no corresponde a un R.U.T valido'));
+					    return this.showPopup('ErrorPopup', {
+								title: _('El valor ingresado no corresponde a un R.U.T valido')
+							});
 				    }
 						return false;
 					}
@@ -255,11 +213,13 @@ const FEClientDetailsEdit = (ClientDetailsEdit) =>
 			}
 
 			revisarDigito( dvr, alert){
-				var dv = dvr + ""
+				var dv = dvr + "";
 				if ( dv != '0' && dv != '1' && dv != '2' && dv != '3' && dv != '4' && dv != '5' && dv != '6' && dv != '7' && dv != '8' && dv != '9' && dv != 'k'  && dv != 'K'){
-				        if (alert){
-					     return this.showPopup('ErrorPopup',_t('Debe ingresar un digito verificador valido'));
-					 }
+ 					if (alert){
+						return this.showPopup('ErrorPopup', {
+							title: _('Debe ingresar un digito verificador valido')
+						});
+					}
 					return false;
 				}
 				return true;
@@ -268,8 +228,9 @@ const FEClientDetailsEdit = (ClientDetailsEdit) =>
 			revisarDigito2( crut ){
 				var largo = crut.length;
 				if ( largo < 2 ){
-					return this.showPopup('ErrorPopup',_t('Debe ingresar el rut completo'));
-					return false;
+					return this.showPopup('ErrorPopup', {
+						title: _('Debe ingresar el rut completo')
+					});
 				}
 				if ( largo > 2 ){
 					var rut = crut.substring(0, largo - 1);
@@ -305,8 +266,9 @@ const FEClientDetailsEdit = (ClientDetailsEdit) =>
 					dvr = dvi + "";
 				}
 				if ( dvr != dv.toLowerCase()){
-					return this.showPopup('ErrorPopup',_t('EL rut es incorrecto'));
-					return false;
+					return this.showPopup('ErrorPopup', {
+						title: _('EL rut es incorrecto')
+					});
 				}
 				return true;
 			}

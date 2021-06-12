@@ -24,7 +24,7 @@ odoo.define('l10n_cl_dte_point_of_sale.models', function (require) {
 			);
 		}
 		if(model.model === 'res.partner'){
-			model.fields.push('document_number','activity_description','document_type_id', 'state_id', 'city_id', 'dte_email', 'sync', 'es_mipyme');
+			model.fields.push('document_number','activity_description','document_type_id', 'city_id', 'dte_email', 'sync', 'es_mipyme');
 		}
 		if(model.model === 'pos.session'){
 			model.fields.push('caf_files', 'caf_files_exentas', 'start_number', 'start_number_exentas', 'numero_ordenes', 'numero_ordenes_exentas');
@@ -139,14 +139,6 @@ odoo.define('l10n_cl_dte_point_of_sale.models', function (require) {
 		fields: ['id', 'name'],
 			loaded: function(self, ad){
 				self.sii_activities = ad;
-			},
-	});
-
-	models.load_models({
-		model: 'res.country.state',
-		fields: ['id', 'name', 'country_id'],
-			loaded: function(self, st){
-				self.states = st;
 			},
 	});
 

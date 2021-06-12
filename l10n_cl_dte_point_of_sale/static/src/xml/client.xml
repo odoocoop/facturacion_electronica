@@ -40,7 +40,7 @@
 				<div class='client-detail' t-if="!props.partner.activity_description">
 					<span class='label'>Giro</span>
 					<input class='detail client-address-activity_description'
-						name='activity_description' placeholder="Crear nueva Descripción del giro"
+						name='activity_description_text' placeholder="Crear nueva Descripción del giro"
 						t-on-change="captureChange"></input>
 				</div>
 				<div class='client-detail'>
@@ -102,10 +102,10 @@
 					<select class='detail client-address-state_id' name='state_id'
 						t-on-change="captureChange">
 						<option value=''>None</option>
-						<t t-foreach='env.pos.states' t-as='state'>
-							<option t-att-value='state.id' t-att-data-country_id="state.country_id[0]"
-								t-att-selected="props.partner.state_id ? ((state.id === props.partner.state_id[0]) ? true : undefined) : undefined">
-								<t t-esc='state.name' />
+						<t t-foreach='env.pos.cities' t-as='city'>
+							<option t-att-value='city.id'
+								t-att-selected="props.partner.city_id ? ((city.id === props.partner.city_id[0]) ? true : undefined) : undefined">
+								<t t-esc='city.name' />
 							</option>
 						</t>
 					</select>
