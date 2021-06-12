@@ -18,8 +18,12 @@ const FEClientDetailsEdit = (ClientDetailsEdit) =>
 				super.captureChange(event);
 				if (['document_number', 'name'].includes(event.target.name)){
 					var document_number = event.target.value || '';
+					this.changes.vat = document_number;
+					this.props.partner.vat = document_number;
 					if (this.validar_rut(document_number, event.target.name === 'document_number')){
 						document_number = document_number.replace(/[^1234567890Kk]/g, "").toUpperCase();
+						this.changes.vat = 'CL' + document_number;
+						this.props.partner.vat = 'CL' + document_number;
 						document_number = _.str.lpad(document_number, 9, '0');
 						document_number = _.str.sprintf('%s.%s.%s-%s',
 								document_number.slice(0, 2),
@@ -89,17 +93,7 @@ const FEClientDetailsEdit = (ClientDetailsEdit) =>
 					});
 				}
 				var country = _.filter(this.env.pos.countries, function(country){ return country.id == processedChanges.country_id; });
-				processedChanges.id           = this.props.partner.id || false;
-				processedChanges.country_id   = processedChanges.country_id || false;
-				processedChanges.barcode      = processedChanges.barcode || '';
-				if (country.length > 0){
-					processedChanges.vat = country[0].code + (this.props.partner.document_number || processedChanges.document_number).replace('-','').replace('.','').replace('.','');
-				}
-				if (processedChanges.property_product_pricelist) {
-					processedChanges.property_product_pricelist = parseInt(processedChanges.property_product_pricelist, 10);
-        } else {
-        	processedChanges.property_product_pricelist = false;
-        }
+				processedChanges.id = this.props.partner.id || false;
 			this.trigger('save-changes', { processedChanges });
 		}
 
@@ -216,7 +210,7 @@ const FEClientDetailsEdit = (ClientDetailsEdit) =>
 				var dv = dvr + "";
 				if ( dv != '0' && dv != '1' && dv != '2' && dv != '3' && dv != '4' && dv != '5' && dv != '6' && dv != '7' && dv != '8' && dv != '9' && dv != 'k'  && dv != 'K'){
  					if (alert){
-						return this.showPopup('ErrorPopup', {
+						this.showPopup('ErrorPopup', {
 							title: _('Debe ingresar un digito verificador valido')
 						});
 					}
@@ -228,9 +222,10 @@ const FEClientDetailsEdit = (ClientDetailsEdit) =>
 			revisarDigito2( crut ){
 				var largo = crut.length;
 				if ( largo < 2 ){
-					return this.showPopup('ErrorPopup', {
+					this.showPopup('ErrorPopup', {
 						title: _('Debe ingresar el rut completo')
 					});
+					return false;
 				}
 				if ( largo > 2 ){
 					var rut = crut.substring(0, largo - 1);
@@ -266,9 +261,10 @@ const FEClientDetailsEdit = (ClientDetailsEdit) =>
 					dvr = dvi + "";
 				}
 				if ( dvr != dv.toLowerCase()){
-					return this.showPopup('ErrorPopup', {
+					this.showPopup('ErrorPopup', {
 						title: _('EL rut es incorrecto')
 					});
+					return false;
 				}
 				return true;
 			}
