@@ -157,7 +157,7 @@ const FEClientDetailsEdit = (ClientDetailsEdit) =>
 				var largo = texto.length;
 				if ( largo < 2 ){
 	          if (alert){
-	          	return this.showPopup('ErrorPopup', {
+	          	this.showPopup('ErrorPopup', {
 								title: _('Debe ingresar el rut completo')
 							});
 	          }
@@ -166,7 +166,7 @@ const FEClientDetailsEdit = (ClientDetailsEdit) =>
 				for (i=0; i < largo ; i++ ){
 					if ( texto.charAt(i) !="0" && texto.charAt(i) != "1" && texto.charAt(i) !="2" && texto.charAt(i) != "3" && texto.charAt(i) != "4" && texto.charAt(i) !="5" && texto.charAt(i) != "6" && texto.charAt(i) != "7" && texto.charAt(i) !="8" && texto.charAt(i) != "9" && texto.charAt(i) !="k" && texto.charAt(i) != "K" ){
 					  if (alert){
-					    return this.showPopup('ErrorPopup', {
+					    this.showPopup('ErrorPopup', {
 								title: _('El valor ingresado no corresponde a un R.U.T valido')
 							});
 				    }

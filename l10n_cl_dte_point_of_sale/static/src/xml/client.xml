@@ -19,7 +19,7 @@
 				<div class='client-detail'>
 					<span class='label'>RUT</span>
 					<input class='detail client-document_number' name='document_number'
-						t-att-value='props.partner.document_number'
+						t-att-value='props.partner.document_number || ""'
 						t-on-change="captureChange"
 						placeholder='RUT'></input>
 				</div>
@@ -72,14 +72,14 @@
 				<div class='client-detail'>
 					<span class='label'>City</span>
 					<input class='detail client-address-city' name='city'
-						t-att-value='props.partner.city'
+						t-att-value='props.partner.city || ""'
 						t-on-change="captureChange"
 						placeholder='City'></input>
 				</div>
 				<div class='client-detail'>
 					<span class='label'>Street</span>
 					<input class='detail client-address-street' name='street'
-						t-att-value='props.partner.street'
+						t-att-value='props.partner.street || ""'
 						t-on-change="captureChange"
 						placeholder='Street'></input>
 				</div>
