@@ -61,9 +61,9 @@ const FEClientDetailsEdit = (ClientDetailsEdit) =>
 						title: _('Seleccione el tipo de documento')
 					});
 				}
-				if (processedChanges.document_number ) {
+				if (processedChanges.document_number && processedChanges.document_number !== '' ) {
 					processedChanges.document_number = processedChanges.document_number.toUpperCase();
-					if (!this.validar_rut(processedChanges.document_number)){
+					if (!this.validar_rut(processedChanges.document_number, true)){
 						return;
 					}
 				}
@@ -92,8 +92,6 @@ const FEClientDetailsEdit = (ClientDetailsEdit) =>
 						title: _('Para empresa que no es MiPyme, debe ingrear el correo dte para intercambio')
 					});
 				}
-				var country = _.filter(this.env.pos.countries, function(country){ return country.id == processedChanges.country_id; });
-				processedChanges.id = this.props.partner.id || false;
 			this.trigger('save-changes', { processedChanges });
 		}
 
