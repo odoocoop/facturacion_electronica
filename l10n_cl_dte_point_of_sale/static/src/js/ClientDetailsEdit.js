@@ -13,9 +13,23 @@ const FEClientDetailsEdit = (ClientDetailsEdit) =>
 		class extends ClientDetailsEdit {
 			constructor(){
 				super(...arguments);
+				this.intFields.push('city_id');
+				this.intFields.push('activity_description');
 			}
 			captureChange(event) {
 				super.captureChange(event);
+				if ('city_id' === event.target.name && event.target.value && event.target.value !== ''){
+					var city = this.env.pos.cities_by_id[event.target.value];
+					this.changes.state_id = city.state_id[0];
+					this.props.partner.state_id = city.state_id[0];
+					this.changes.country_id = city.country_id[0];
+					this.props.partner.country_id = city.country_id[0];
+					if (!this.props.partner.city || this.props.partner.city === ''){
+						this.changes.city = city.name;
+						this.props.partner.city = city.name;
+					}
+					this.render();
+				}
 				if (['document_number', 'name'].includes(event.target.name)){
 					var document_number = event.target.value || '';
 					this.changes.vat = document_number;
@@ -71,11 +85,6 @@ const FEClientDetailsEdit = (ClientDetailsEdit) =>
 					return this.showPopup('ErrorPopup', {
 						title: _('Seleccione el Pais')}
 					);
-				}
-				if (!this.props.partner.state_id && !processedChanges.state_id) {
-					return this.showPopup('ErrorPopup', {
-						title: _('Seleccione la Provincia')
-					});
 				}
 				if (!this.props.partner.city_id && !processedChanges.city_id) {
 					return this.showPopup('ErrorPopup', {

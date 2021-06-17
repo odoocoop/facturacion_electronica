@@ -51,7 +51,7 @@ class ResPartner(models.Model):
 
 
     type = fields.Selection(selection_add=[("dte", "Contacto DTE"),])
-    state_id = fields.Many2one("res.country.state", "Ubication",)
+    state_id = fields.Many2one("res.country.state", "Región",)
     responsability_id = fields.Many2one(
         "sii.responsability", string="Responsability", default=lambda self: self._get_default_tp_type(),
     )

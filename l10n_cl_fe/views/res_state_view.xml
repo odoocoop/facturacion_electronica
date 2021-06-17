@@ -7,13 +7,13 @@
         <field name='inherit_id' ref='base.view_country_state_form' />
         <field name="arch" type="xml">
             <field name="code" position="after">
-                <field name="region_id" />
+                <field name="child_ids" />
             </field>
         </field>
     </record>
     <record id="view_region_state_tree" model="ir.ui.view">
-        <field name="name">res.country.state.city.tree</field>
-        <field name="model">res.country.state.region</field>
+        <field name="name">res.country.state.provincia.tree</field>
+        <field name="model">res.country.state.provincia</field>
         <field name="arch" type="xml">
             <tree string="City">
                 <field name="code" />
