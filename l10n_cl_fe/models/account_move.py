@@ -880,6 +880,8 @@ class AccountMove(models.Model):
                     )
 
     def _validaciones_uso_dte(self):
+        if not self.document_class_id:
+            raise UserError("NO tiene seleccionado tipo de documento")
         ncs = [60, 61, 112, 802]
         nds = [55, 56, 111]
         if self.document_class_id.sii_code in ncs + nds and not self.referencias:
