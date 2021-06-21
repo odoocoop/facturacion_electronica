@@ -42,6 +42,7 @@ Include unusual taxes documents, as transfer invoice, and reissue
             'Others available?',
             default='_get_other_avail',
         )
+    factura_compra = fields.Boolean(string="Emitir Factura de Compra Electrónica", default=False)
     purchase = fields.Boolean(
             'Compra',
             default=lambda self: self._es_compra(),
@@ -126,12 +127,13 @@ Include unusual taxes documents, as transfer invoice, and reissue
             domain.append(('dte', '=', True))
         document_class_obj = self.env['sii.document_class']
         document_class_ids = document_class_obj.search(domain)
-        if journal.type == 'purchase':
-            journal.document_class_ids = document_class_ids.ids
+        if journal.type == "purchase" and not self.factura_compra:
             return
         journal_document_obj = self.env['account.journal.sii_document_class']
         sequence = 10
         for document_class in document_class_ids:
+            if not document_class.dte or (journal.type == "purchase" and not document_class.es_factura_compra()):
+                continue
             sequence_id = self.env['ir.sequence']
             seq_vals = self.create_sequence(
                                     document_class.name,

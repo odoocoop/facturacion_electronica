@@ -34,6 +34,8 @@ class AccountInvoiceLine(models.Model):
             for t in line.invoice_line_tax_ids:
                 if t.uom_id and t.uom_id.category_id != line.uom_id.category_id:
                     raise UserError("Con este tipo de impuesto, solamente deben ir unidades de medida de la categoría %s" %t.uom_id.category_id.name)
+                if t.sii_code == '15' and not line.invoice_id.es_factura_compras():
+                    raise UserError("Este impuesto puede ir solamente en facturas de compra")
                 if t.mepco:
                     t.verify_mepco(line.invoice_id.date_invoice, line.invoice_id.currency_id)
                 if taxes and (t.price_include != included):

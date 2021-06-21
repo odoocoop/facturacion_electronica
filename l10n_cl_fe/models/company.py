@@ -118,6 +118,38 @@ stamp to be legally valid.''',
         string="Medios de pago Electrónico",
         domain=[('type', 'not in', ['sale', 'purchase'])],
     )
+    limit_dte_lines = fields.Boolean(
+        string="Limitar Cantidad de líneas por documento",
+        default=False,
+    )
+    url_remote_partners = fields.Char(
+        string="Url Remote Partners",
+        default="https://sre.cl/api/company_info"
+    )
+    token_remote_partners = fields.Char(
+        string="Token Remote Partners",
+        default="token_publico",
+    )
+    cf_autosend = fields.Boolean(
+        string="AutoEnviar Consumo de Folios",
+        default=False,
+    )
+    token_remote_partners = fields.Char(
+        string="Token Remote Partners",
+        default="token_publico",
+    )
+    sync_remote_partners = fields.Boolean(
+        string="Sync Remote Partners",
+        default=True,
+    )
+    url_apicaf = fields.Char(
+        string="URL APICAF",
+        default='https://apicaf.cl/api/caf',
+    )
+    token_apicaf = fields.Char(
+        string="Token APICAF",
+        default='token_publico',
+    )
 
     @api.onchange('document_number', 'document_type_id')
     def onchange_document(self):

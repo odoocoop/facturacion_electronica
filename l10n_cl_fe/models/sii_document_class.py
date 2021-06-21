@@ -44,12 +44,12 @@ class sii_document_class(models.Model):
         )
 
     def es_boleta(self):
-        if self.sii_code in [35, 38, 39, 41, 70, 71]:
+        if self.sii_code in [35, 38, 39, 41]:
             return True
         return False
 
     def es_nc_boleta(self):
-        if self.sii_code in [35, 38, 39, 41, 70, 71]:
+        if self.sii_code in [35, 38, 39, 41]:
             return True
         return False
 
@@ -58,3 +58,6 @@ class sii_document_class(models.Model):
 
     def es_exportacion(self):
         return self.sii_code in [110] or self.es_nc_exportacion()
+
+    def es_factura_compra(self):
+        return self.sii_code in [45, 46]

@@ -158,7 +158,7 @@ class POS(models.Model):
                     ('Reenviar', 'Reenviar'),
                     ('Anulado', 'Anulado')
             ],
-            string='Resultado',
+            string='Estado en el SII',
             readonly=True,
             states={'draft': [('readonly', False)]},
             copy=False,
@@ -205,6 +205,14 @@ class POS(models.Model):
         readonly=True,
         copy=False,
     )
+
+    def action_pos_order_invoice(self):
+        recs = self.env['pos.order']
+        for r in self:
+            if r.document_class_id:
+                continue
+            recs += r
+        return super(POS, recs).action_pos_order_invoice()
 
     @api.model
     def _amount_line_tax(self, line, fiscal_position_id):
@@ -344,6 +352,7 @@ class POS(models.Model):
             'document_class_id': self.document_class_id.id,
             'journal_document_class_id': journal_document_class_id.id,
             'responsable_envio': self.env.uid,
+            'use_documents': True,
         })
         return result
 
