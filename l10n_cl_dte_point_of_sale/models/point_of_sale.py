@@ -209,7 +209,7 @@ class POS(models.Model):
     def action_pos_order_invoice(self):
         recs = self.env['pos.order']
         for r in self:
-            if r.document_class_id:
+            if r.document_class_id.sii_code not in [33, 34]:
                 continue
             recs += r
         return super(POS, recs).action_pos_order_invoice()
