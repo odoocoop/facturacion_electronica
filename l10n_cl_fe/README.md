@@ -12,27 +12,29 @@ Se crea este repositorio, para dar un enfoque de firma electrónica directa con 
  - - Factura Electrónica (FAC 33, FNA 34): Ok envío, Ok muestra impresa, Ok Certificación
  - - Nota de Crédito Electrónica: Ok envío, Ok muestra impresa, Ok Certificación
  - - Nota de Débito Electrónica: Ok envío, Ok muestra impresa, Ok Certificación
- - - Recepción XML Intercambio: Ok recepción, Ok respuesta mercaderías, Ok respuesta Validación Comercial, Ok Envío Recepción al SII, Ok Certificación
+ - - Recepción XML Intercambio (Documentos proveedor): Ok recepción, Ok respuesta mercaderías, Ok respuesta Validación Comercial, Ok Envío Recepción al SII, Ok Certificación
  - - Libro de Compra Venta: Ok envío al SII, Ok Certificación (Básico y Exentos)
  - - Consumo de Folios: Validación OK, Envío OK, Certificación OK
- - - Boleta Electrónica por BO ( 39, 41 ): Validación Ok, Muestra impresa No probado aún, Información Pública no adaptada aún
+ - - Boleta Electrónica por BO ( 39, 41 ): Ok envío, Ok muestra impresa, Ok Certificación
  - - Libro Boletas Electrónica: Validación Ok, Creación XML OK
- - - Boleta Electrónica por POS ( 39, 41): Validación Ok, Muestras Impresas Ticket OK, Generación XML Ok, Visaulización Pública Ok, Certificación OK vía https://gitlab.com/dansanti/l10n_cl_dte_point_of_sale
+ - - Boleta Electrónica por POS ( 39, 41): Validación Ok, Muestras Impresas Ticket OK, Generación XML Ok, Visualización Pública Ok, Certificación OK vía https://gitlab.com/dansanti/l10n_cl_dte_point_of_sale
  - - Nota de Crédito Electrónica para Boletas ( Solo por BO POS): Validación Ok, Generación XML Ok, Muestras Impresas Ticket OK, Certificación OK vía https://gitlab.com/dansanti/l10n_cl_dte_point_of_sale
  - - Guía de Despacho Electrónica: Ok envío, Ok muestra impresa, Ok Certificación, vía https://gitlab.com/dansanti/l10n_cl_stock_picking
  - - Libro Guía Despacho: Ok envío, Ok Muestras impresas, Ok Certificación, vía https://gitlab.com/dansanti/l10n_cl_stock_picking
  - - Factoring (Cesión de Créditos): Ok Envío, Ok Certificación, vía https://gitlab.com/dansanti/l10n_cl_dte_factoring
- - - Factura de Exportación Electrónica ( 110 con sus NC 111 y ND 112): Ok Envío, Ok Certificación, vía https://gitlab.com/dansanti/l10n_cl_dte_exportacion
- - - Liquidación de Facturas: En Proceso
- - - Factura de Compra Electrónica ( 46 ): No desarrollada (NO confundir con el concepto de ingresar facturas de proveedor, que la mayoría le dice de compras, este es un documento de retención de impuestos, la recepción de documentos proveedor, está soportada, con los4 tipos de respuesta que se deben generar según normativa del SII)
+ - - Factura de Exportación Electrónica ( 110 con sus NC 111 y ND 112): Ok Envío, Ok Muestras, Ok Certificación, Usable pero faltan más Pruebas vía https://gitlab.com/dansanti/l10n_cl_dte_exportacion
+ - - Liquidación de Facturas: No desarrollada
+ - - Factura de Compra Electrónica ( 46 ): Ok envío, Ok Muestras impresas, Ok Certificación (NO confundir con el concepto de ingresar facturas de proveedor, que la mayoría le dice de compras, este es un documento de retención de impuestos, la recepción de documentos proveedor, está soportada, con los4 tipos de respuesta que se deben generar según normativa del sii)
+
 
  - Impuestos Soportados Para Ventas(Probados en emisión):
  - - IVA
+  - - Retención de IVA
  - - Exentos
  - - Específico Retención Carnes
  - - Específico ILA cervezas
  - - Específico Combustibles (diesel, gasolina 93, gasolina 97)
- 
+
  Si tiene dudas sobre el funcionamiento y consecuencias, recordar visitar <a href="https://globalresponse.cl/forum/how-to">la documentación pública</a> o en <a href="www.sii.cl">www.sii.cl</a> o <a href="https://globalresponse.cl/helpdesk/">realizar una consulta a soporte(de pago)</a> o <a href="https://globalresponse.cl/forum/1">postear en foro(gratuito)</a>
 
  Agradecimientos y colaboradores:
