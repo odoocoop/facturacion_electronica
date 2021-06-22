@@ -37,7 +37,9 @@ meses = {
     11: "Noviembre",
     12: "Diciembre",
 }
-
+_cache_page = {}
+_cache_list_page = {}
+_cache_page_2 = {}
 
 class SiiTax(models.Model):
     _inherit = "account.tax"
@@ -227,20 +229,29 @@ class SiiTax(models.Model):
         t = date - relativedelta.relativedelta(days=1)
         t_date = "date={}-{}-{}".format(t.strftime("%d"), t.strftime("%m"), t.strftime("%Y"))
         url = "https://www.diariooficial.interior.gob.cl/edicionelectronica/"
-        resp = pool.request("GET", "{}select_edition.php?{}".format(url, t_date))
+        data = _cache_list_page.get(t_date)
+        if not data:
+            resp = pool.request("GET", "{}select_edition.php?{}".format(url, t_date))
+            data = _cache_list_page[t_date] = resp.data.decode("utf-8")
         target = 'a href="index.php[?]%s&edition=([0-9]*)&v=1"' % t_date
-        url2 = re.findall(target, resp.data.decode("utf-8"))
-        resp2 = pool.request("GET", "{}index.php?{}&edition={}".format(url, t_date, url2[0]))
+        url2 = re.findall(target, data)
+        data2 = _cache_page_2.get(url2[0])
+        if not data2:
+            resp2 = pool.request("GET", "{}index.php?{}&edition={}".format(url, t_date, url2[0]))
+            data2 = _cache_page_2[url2[0]] = resp2.data.decode("utf-8")
         # target = 'Determina el componente variable para el cálculo del impuesto específico establecido en la ley N° 18.502 [a-zA-Z \r\n</>="_0-9]* href="([a-zA-Z 0-9/.:]*)"'
         target = '18.502[\\W]* [a-zA-Z \r\n<\\/>="_0-9]* href="([a-zA-Z 0-9\\/.:]*)"'
-        url3 = re.findall(target, resp2.data.decode("utf-8"))
+        url3 = re.findall(target, data2)
         if not url3:
             return {}
         return {date: url3[0].replace("http", "https")}
 
     def _get_from_diario(self, url):
-        resp = pool.request("GET", url)
-        doc = fitz.open(stream=resp.data, filetype="pdf")
+        data = _cache_page.get(url)
+        if not data:
+            resp = pool.request("GET", url)
+            data = _cache_page[url] = resp.data
+        doc = fitz.open(stream=data, filetype="pdf")
         target = "Gasolina Automotriz de[\n ]93 octanos[\n ]\\(*en UTM\\/m[\\w]\\)"
         if self.mepco == "gasolina_97":
             target = "Gasolina Automotriz de[\n ]97 octanos[\n ]\\(en UTM\\/m[\\w]\\)"
@@ -286,7 +297,10 @@ class SiiTax(models.Model):
         year = date.strftime("%Y")
         month = date.strftime("%m")
         day = date.strftime("%d")
-        rangos = self._list_from_diario(day, year, month)
+        try:
+            rangos = self._list_from_diario(day, year, month)
+        except:
+            return {'found': self._target_mepco((date - relativedelta.relativedelta(days=1)), currency_id)}
         ant = datetime.now(tz)
         target = (ant, 0)
         for k, v in rangos.items():
@@ -295,7 +309,7 @@ class SiiTax(models.Model):
                 break
             ant = k
         if not rangos or target[0] > date:
-            return self.prepare_mepco((date - relativedelta.relativedelta(days=1)), currency_id)
+            return {'found': self._target_mepco((date - relativedelta.relativedelta(days=1)), currency_id)}
         val = self._get_from_diario(target[1])
         utm = self.env["res.currency"].sudo().search([("name", "=", "UTM")])
         amount = utm._convert(float(val), currency_id, self.company_id, date)
@@ -339,6 +353,8 @@ class SiiTax(models.Model):
                 mepco = False
         if not mepco:
             mepco_data = self.prepare_mepco(date, currency_id)
+            if mepco_data.get('found'):
+                return mepco_data['found']
             query = [
                 ("date", "=", mepco_data["date"]),
                 ("company_id", "=", mepco_data["company_id"]),
@@ -349,6 +365,8 @@ class SiiTax(models.Model):
                 mepco = self.env["account.tax.mepco"].sudo().create(mepco_data)
         elif force:
             mepco_data = self.prepare_mepco(date, currency_id)
+            if mepco_data.get('found'):
+                return mepco_data['found']
             mepco.sudo().write(mepco_data)
         return mepco
 

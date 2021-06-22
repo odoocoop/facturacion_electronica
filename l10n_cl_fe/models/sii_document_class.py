@@ -33,12 +33,12 @@ class SIIDocumentClass(models.Model):
     use_prefix = fields.Boolean(string="Usar Prefix en las referencias DTE", default=False,)
 
     def es_boleta(self):
-        if self.sii_code in [35, 38, 39, 41, 70, 71]:
+        if self.sii_code in [35, 38, 39, 41]:
             return True
         return False
 
     def es_nc_boleta(self):
-        if self.sii_code in [35, 38, 39, 41, 70, 71]:
+        if self.sii_code in [35, 38, 39, 41]:
             return True
         return False
 

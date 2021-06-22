@@ -153,7 +153,6 @@ class ProcessMails(models.Model):
         data = {
             "mail_id": self.id,
             "name": att.name,
-            "attachment_id": att.id,
         }
         if el.tag == "EnvioDTE":
             val = self.env["mail.message.dte"].sudo().create(data)

@@ -121,6 +121,7 @@ class AccountInvoiceRefund(models.TransientModel):
                             "invoice_line_ids": invoice_lines,
                             "tax_line_ids": False,
                             "refund_invoice_id": inv.id,
+                            'use_documents': True,
                         }
                     )
 

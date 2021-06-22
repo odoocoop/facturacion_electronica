@@ -110,12 +110,17 @@ class AccountInvoice(models.Model):
                 )
                 for dc in jdc_ids:
                     r.document_class_ids += dc.sii_document_class_id
-            r.journal_document_class_id = r._default_journal_document_class_id()
 
     def _default_use_documents(self):
         if self._default_journal_document_class_id():
             return True
         return False
+
+    def _default_document_class_id(self):
+        if not self.env["ir.model"].search([("model", "=", "sii.document_class")]):
+            return False
+        jdc = self._default_journal_document_class_id()
+        return jdc.sii_document_class_id.id
 
     vat_discriminated = fields.Boolean(
         "Discriminate VAT?",
@@ -126,6 +131,7 @@ class AccountInvoice(models.Model):
     )
     document_class_ids = fields.Many2many(
         "sii.document_class", compute="get_dc_ids", string="Available Document Classes",
+        default=lambda self: self._default_document_class_id(),
     )
     journal_document_class_id = fields.Many2one(
         "account.journal.sii_document_class",
@@ -161,9 +167,12 @@ class AccountInvoice(models.Model):
         readonly=True,
         states={"draft": [("readonly", False)]},
     )  # @TODO select 1 automático si es emisor 2Categoría
-    use_documents = fields.Boolean(string="Use Documents?", default=lambda self: self._default_use_documents(),
-                                   readonly=True,
-                                   states={"draft": [("readonly", False)]},)
+    use_documents = fields.Boolean(
+            string="Use Documents?",
+            default=lambda self: self._default_use_documents(),
+            readonly=True,
+            states={"draft": [("readonly", False)]},
+        )
     referencias = fields.One2many(
         "account.invoice.referencias", "invoice_id", readonly=True, states={"draft": [("readonly", False)]},
     )
@@ -203,7 +212,7 @@ class AccountInvoice(models.Model):
             ("Proceso", "Procesado"),
             ("Anulado", "Anulado"),
         ],
-        string="Resultado",
+        string="Estado en el SII",
         help="SII request result",
         copy=False,
     )
@@ -686,6 +695,7 @@ class AccountInvoice(models.Model):
                 "document_class_id": dc.id,
                 "type": type,
                 "journal_document_class_id": jdc.id,
+                "use_documents": True,
                 "referencias": [
                     [
                         0,
@@ -885,7 +895,7 @@ a VAT."""))
                 ("type", "=", self.type),
                 ("sii_document_number", "=", self.sii_document_number),
                 ("partner_id", "=", self.partner_id.id),
-                ("journal_document_class_id.sii_document_class_id", "=", self.document_class_id.id),
+                ("document_class_id", "=", self.document_class_id.id),
                 ("company_id", "=", self.company_id.id),
                 ("id", "!=", self.id),
                 ("state", "!=", "cancel"),
@@ -942,7 +952,7 @@ a VAT."""))
                 if self.search(
                     [
                         ("sii_document_number", "=", invoice.sii_document_number),
-                        ("journal_document_class_id", "=", invoice.journal_document_class_id.id),
+                        ("document_class_id", "=", invoice.document_class_id.id),
                         ("partner_id", "=", invoice.partner_id.id),
                         ("type", "=", invoice.type),
                         ("id", "!=", invoice.id),
@@ -954,6 +964,8 @@ a VAT."""))
                     )
 
     def _validaciones_uso_dte(self):
+        if not self.document_class_id:
+            raise UserError("No tiene seleccionado tipo de documento")
         ncs = [60, 61, 112, 802]
         nds = [55, 56, 111]
         if self.document_class_id.sii_code in ncs + nds and not self.referencias:
@@ -1365,9 +1377,7 @@ a VAT."""))
         return Totales
 
     def _es_exento(self):
-        return self.document_class_id.sii_code in [32, 34, 41, 110, 111, 112] or (
-            self.referencias and self.referencias[0].sii_referencia_TpoDocRef.sii_code in [32, 34, 41]
-        )
+        return self.document_class_id.sii_code in [32, 34, 41, 110, 111, 112]
 
     def _totales(self, MntExe=0, no_product=False, taxInclude=False):
         MntNeto = 0
@@ -1390,7 +1400,7 @@ a VAT."""))
                     MntNeto += t.base
                 if t.tax_id.sii_code in [17]:
                     MntBase += IVA.base  # @TODO Buscar forma de calcular la base para faenamiento
-        if self.amount_tax == 0 and MntExe > 0 and not self._es_exento():
+        if self.amount_tax == 0 and MntExe > 0 and not self._es_exento() and self.document_class_id.sii_code not in [60, 61, 55, 56]:
             raise UserError("Debe ir almenos un producto afecto")
         if MntExe > 0:
             MntExe = MntExe

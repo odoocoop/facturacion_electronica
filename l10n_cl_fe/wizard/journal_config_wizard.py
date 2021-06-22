@@ -38,8 +38,11 @@ Include unusual taxes documents, as transfer invoice, and reissue
 """,
     )
     other_available = fields.Boolean("Others available?", default="_get_other_avail",)
-    purchase = fields.Boolean("Compra", default=lambda self: self._es_compra(),)
     factura_compra = fields.Boolean(string="Emitir Factura de Compra Electrónica", default=False)
+    purchase = fields.Boolean(
+            'Compra',
+            default=lambda self: self._es_compra(),
+        )
 
     @api.model
     def _get_other_avail(self):
@@ -101,7 +104,7 @@ Include unusual taxes documents, as transfer invoice, and reissue
             "sii_document_class_id": document_class.id,
             "company_id": journal.company_id.id,
             "forced_by_caf": True,
-            "autoreponer_caf": True,
+            "autoreponer_caf": journal.company_id.dte_service_provider == 'SII',
             "autoreponer_cantidad": 1 if document_class.sii_code in [56, 61, 111, 112] else 10,
             "nivel_minimo": 1 if document_class.sii_code in [56, 61, 111, 112] else 5,
         }
@@ -123,7 +126,7 @@ Include unusual taxes documents, as transfer invoice, and reissue
             domain.append(("dte", "=", True))
         document_class_obj = self.env["sii.document_class"]
         document_class_ids = document_class_obj.search(domain)
-        journal.document_class_ids = document_class_ids.ids
+        journal.document_class_ids += document_class_ids
         if journal.type == "purchase" and not self.factura_compra:
             return
         journal_document_obj = self.env["account.journal.sii_document_class"]
