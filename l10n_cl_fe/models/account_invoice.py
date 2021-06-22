@@ -131,7 +131,6 @@ class AccountInvoice(models.Model):
     )
     document_class_ids = fields.Many2many(
         "sii.document_class", compute="get_dc_ids", string="Available Document Classes",
-        default=lambda self: self._default_document_class_id(),
     )
     journal_document_class_id = fields.Many2one(
         "account.journal.sii_document_class",
@@ -142,6 +141,7 @@ class AccountInvoice(models.Model):
     )
     document_class_id = fields.Many2one(
         "sii.document_class", string="Document Type", readonly=True, states={"draft": [("readonly", False)]},
+        default=lambda self: self._default_document_class_id(),
     )
     sii_code = fields.Integer(
         related="document_class_id.sii_code", string="Document Code", copy=False, readonly=True, store=True,
