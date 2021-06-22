@@ -80,6 +80,9 @@
             <field name="document_class_id" />
             <field name="sii_document_number" />
           </field>
+          <field name="state" position="after">
+            <field name="sii_result" />
+          </field>
         </field>
       </record>
 

@@ -58,7 +58,7 @@ class SIIResumenBoletaVoucher(models.Model):
         ]
         nc_orders = self.env['pos.order']
         for nc in ncs:
-            o = self.env['pos.order.referencias'].search([
+            o = self.env['pos.order'].search([
                 ('sii_document_number', '=', nc.origen),
                 ('document_class_id', '=', nc.sii_referencia_TpoDocRef.id),
             ])

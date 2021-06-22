@@ -147,11 +147,11 @@ class POS(models.Model):
                     ('Aceptado', 'Aceptado'),
                     ('Rechazado', 'Rechazado'),
                     ('Reparo', 'Reparo'),
-                    ('Proceso', 'Proceso'),
+                    ('Proceso', 'Procesado'),
                     ('Reenviar', 'Reenviar'),
                     ('Anulado', 'Anulado')
             ],
-            string='Resultado',
+            string='Estado en el SII',
             readonly=True,
             states={'draft': [('readonly', False)]},
             copy=False,
