@@ -161,7 +161,7 @@ class Exportacion(models.Model):
         TasaIVA = False
         MntIVA = 0
         MntBase = 0
-        MntNeto = round(gdr) + sum(round(line.price_total) for line in self.invoice_line_ids)
+        MntNeto = round(gdr, 0) + sum(round(line.price_total, 0) for line in self.invoice_line_ids)
         MntExe = MntTotal = MntNeto
         return MntExe, MntNeto, MntIVA, TasaIVA, MntTotal, MntBase
 

@@ -13,6 +13,8 @@ _logger = logging.getLogger(__name__)
 class Libro(models.Model):
     _inherit = "account.move.book"
 
+    order_ids = fields.Many2many("pos.order", readonly=True, states={"draft": [("readonly", False)]})
+
     def _get_date(self, rec):
         if 'date_order' not in rec:
             return super(Libro, self)._get_date(rec)
@@ -45,7 +47,7 @@ class Libro(models.Model):
         recs = super(Libro, self)._get_moves()
         if self.tipo_operacion != 'BOLETA':
             return recs
-        for rec in self.with_context(lang='es_CL').move_ids:
+        for rec in self.with_context(lang='es_CL').order_ids:
             if rec.documet_class_id and not rec.sii_document_number:
                 orders = sorted(self.env['pos.order'].search(
                         [('account_move', '=', rec.id),
@@ -56,3 +58,29 @@ class Libro(models.Model):
                 for r in orders:
                     recs.append(r)
         return recs
+
+    @api.onchange("move_ids", 'order_ids')
+    def set_resumen(self):
+        for book in self:
+            for o in book.order_ids:
+                book.total_afecto += o.amount_total - o.amount_tax- o.exento()
+                book.total_exento += o.exento()
+                book.total_iva += o.amount_tax
+                book.total += o.amount_total
+        return super(Libro, self).set_resumen()
+
+    @api.onchange("move_ids", "order_ids")
+    def compute_taxes(self):
+        return super(Libro, self).compute_taxes()
+
+    def _get_imps(self):
+        imp = {}
+        for move in self.order_ids:
+            move_imps = move._get_move_imps()
+            for key, i in move_imps.items():
+                if key not in imp:
+                    imp[key] = i
+                else:
+                    imp[key]["credit"] += i["credit"]
+                    imp[key]["debit"] += i["debit"]
+        return imp
