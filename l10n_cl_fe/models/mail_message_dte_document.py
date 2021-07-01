@@ -51,6 +51,8 @@ class ProcessMailsDocument(models.Model):
             ("RFP", "Reclamo por Falta Parcial de Mercaderías"),
             ("RFT", "Reclamo por Falta Total de Mercaderías"),
             ("PAG", "DTE Pagado al Contado"),
+            ("ENC", "Recepción de NC, distinta de anulación, que referencia al documento."),
+            ("NCA", "Recepción de NC de anulación que referencia al documento."),
         ],
         string="Reclamo",
         copy=False,

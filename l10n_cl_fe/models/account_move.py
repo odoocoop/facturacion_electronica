@@ -117,6 +117,12 @@ class AccountMove(models.Model):
             return True
         return False
 
+    def _default_document_class_id(self):
+        if not self.env["ir.model"].search([("model", "=", "sii.document_class")]):
+            return False
+        jdc = self._default_journal_document_class_id()
+        return jdc.sii_document_class_id.id
+
     document_class_ids = fields.Many2many(
         "sii.document_class", compute="get_dc_ids", string="Available Document Classes",
     )
@@ -129,6 +135,7 @@ class AccountMove(models.Model):
     )
     document_class_id = fields.Many2one(
         "sii.document_class", string="Document Type", readonly=True, states={"draft": [("readonly", False)]},
+        default=lambda self: self._default_document_class_id(),
     )
     sii_code = fields.Integer(
         related="document_class_id.sii_code", string="Document Code", copy=False, readonly=True, store=True,
@@ -218,6 +225,8 @@ class AccountMove(models.Model):
             ("RFP", "Reclamo por Falta Parcial de Mercaderías"),
             ("RFT", "Reclamo por Falta Total de Mercaderías"),
             ("PAG", "DTE Pagado al Contado"),
+            ("ENC", "Recepción de NC, distinta de anulación, que referencia al documento."),
+            ("NCA", "Recepción de NC de anulación que referencia al documento."),
         ],
         string="Reclamo",
         copy=False,
@@ -1836,7 +1845,7 @@ class AccountMove(models.Model):
             }
         ]
         try:
-            respuesta = fe.ingresar_reclamo_documento(datos)
+            respuesta = fe.ingreso_reclamo_documento(datos)
             key = "RUT%sT%sF%s" %(rut_emisor,
                                   tipo_dte, str(self.sii_document_number))
             self.claim_description = respuesta[key]

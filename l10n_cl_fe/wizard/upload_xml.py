@@ -229,8 +229,10 @@ class UploadXMLWizard(models.TransientModel):
             "city": ciudad.text if ciudad is not None else city_id.name,
             "company_type": "company",
             "city_id": city_id.id,
+            "country_id": self.env.ref('base.cl').id,
+            "es_mipyme": False,
         }
-        if data.find("CorreoEmisor") is not None or data.find("CorreRecep") is not None:
+        if data.find("CorreoEmisor") is not None or data.find("CorreoRecep") is not None:
             partner.update(
                 {
                     "email": data.find("CorreoEmisor").text
@@ -241,6 +243,9 @@ class UploadXMLWizard(models.TransientModel):
                     else data.find("CorreoRecep").text,
                 }
             )
+            if '@sii.cl' in partner['dte_email'].lowe():
+                del partner['dte_email']
+                partner['es_mipyme'] = True
         return partner
 
     def _create_partner(self, data):
@@ -431,7 +436,7 @@ class UploadXMLWizard(models.TransientModel):
         if line.find("DescuentoPct") is not None:
             discount = float(line.find("DescuentoPct").text)
         price = float(line.find("PrcItem").text) if line.find("PrcItem") is not None else price_subtotal
-        DescItem = line.find("DescItem")
+        DscItem = line.find("DscItem")
         data.update(
             {
                 "sequence": line.find("NroLinDet").text,
@@ -443,11 +448,11 @@ class UploadXMLWizard(models.TransientModel):
         )
         if not document:
             data.update({
-                "name": DescItem.text if DescItem is not None else line.find("NmbItem").text,
+                "name": DscItem.text if DscItem is not None else line.find("NmbItem").text,
             })
         if document:
             data.update(
-                {"new_product": product_id, "product_description": DescItem.text if DescItem is not None else "",}
+                {"new_product": product_id, "product_description": DscItem.text if DscItem is not None else "",}
             )
         else:
             #product_id = self.env["product.product"].browse(product_id)
@@ -602,7 +607,7 @@ class UploadXMLWizard(models.TransientModel):
         )
         if not document:
             invoice.update({
-                "sii_xml_dte": "<DTE>%s</DTE>" % etree.tostring(documento),
+                "sii_xml_dte": "<DTE>%s</DTE>" % etree.tostring(documento).decode('ISO-8859-1'),
                 "invoice_origin": "XML Envío: " + name.decode(),
                 "sii_barcode": ted_string.decode(),
                 "invoice_date": FchEmis,
@@ -924,9 +929,9 @@ class UploadXMLWizard(models.TransientModel):
         if line.find("DescuentoPct") is not None:
             discount = float(line.find("DescuentoPct").text)
         price = float(line.find("PrcItem").text) if line.find("PrcItem") is not None else price_subtotal
-        DescItem = line.find("DescItem")
+        DscItem = line.find("DscItem")
         values = {
-            "name": DescItem.text if DescItem is not None else line.find("NmbItem").text,
+            "name": DscItem.text if DscItem is not None else line.find("NmbItem").text,
             "product_id": product.id,
             "product_uom": product.uom_id.id,
             "taxes_id": [(6, 0, product.supplier_taxes_id.ids)],
