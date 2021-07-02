@@ -60,6 +60,9 @@ class ProcessMailsDocument(models.Model):
     )
     claim_description = fields.Char(string="Detalle Reclamo",)
     claim_ids = fields.One2many("sii.dte.claim", "document_id", strign="Historial de Reclamos")
+    sii_message = fields.Text(
+        string="Respuesta SII"
+    )
 
     _order = "create_date DESC"
 

@@ -160,6 +160,7 @@
                                     <field name="user_id" />
                                 </tree>
                             </field>
+                            <field name="sii_message" />
                         </page>
                     </notebook>
                 </sheet>
