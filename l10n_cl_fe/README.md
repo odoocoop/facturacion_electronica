@@ -12,7 +12,7 @@ Se crea este repositorio, para dar un enfoque de firma electrónica directa con 
  - - Factura Electrónica (FAC 33, FNA 34): Ok envío, Ok muestra impresa, Ok Certificación
  - - Nota de Crédito Electrónica: Ok envío, Ok muestra impresa, Ok Certificación
  - - Nota de Débito Electrónica: Ok envío, Ok muestra impresa, Ok Certificación
- - - Recepción XML Intercambio: Ok recepción, Ok respuesta mercaderías, Ok respuesta Validación Comercial, Ok Envío Recepción al SII, Ok Certificación
+ - - Recepción XML Intercambio (Documentos proveedor): Ok recepción, Ok respuesta mercaderías, Ok respuesta Validación Comercial, Ok Envío Recepción al SII, Ok Certificación
  - - Libro de Compra Venta: Ok envío al SII, Ok Certificación (Básico y Exentos)
  - - Consumo de Folios: Validación OK, Envío OK, Certificación OK
  - - Boleta Electrónica por BO ( 39, 41 ): Ok envío, Ok muestra impresa, Ok Certificación
@@ -22,7 +22,7 @@ Se crea este repositorio, para dar un enfoque de firma electrónica directa con 
  - - Guía de Despacho Electrónica: Ok envío, Ok muestra impresa, Ok Certificación, vía https://gitlab.com/dansanti/l10n_cl_stock_picking
  - - Libro Guía Despacho: Ok envío, Ok Muestras impresas, Ok Certificación, vía https://gitlab.com/dansanti/l10n_cl_stock_picking
  - - Factoring (Cesión de Créditos): Ok Envío, Ok Certificación, vía https://gitlab.com/dansanti/l10n_cl_dte_factoring
- - - Factura de Exportación Electrónica ( 110 con sus NC 111 y ND 112): No Portado, faltan más Preubas vía https://gitlab.com/dansanti/l10n_cl_dte_exportacion
+ - - Factura de Exportación Electrónica ( 110 con sus NC 111 y ND 112): Ok Envío, Ok Muestras, Ok Certificación, Usable pero faltan más Pruebas vía https://gitlab.com/dansanti/l10n_cl_dte_exportacion
  - - Liquidación de Facturas: No desarrollada
  - - Factura de Compra Electrónica ( 46 ): Ok envío, Ok Muestras impresas, Ok Certificación (NO confundir con el concepto de ingresar facturas de proveedor, que la mayoría le dice de compras, este es un documento de retención de impuestos, la recepción de documentos proveedor, está soportada, con los4 tipos de respuesta que se deben generar según normativa del sii)
 

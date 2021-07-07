@@ -30,7 +30,7 @@
                 <field name="type" position="after">
                     <field name="sucursal_id" />
                     <field name="sii_code" />
-                    <field name="use_documents" />
+                    <field name="use_documents" attrs="{'invisible': [('type', 'not in', ['purchase', 'sale'])]}"/>
                     <field name="restore_mode" attrs="{'invisible': [('use_documents', '=', False)]}" />
                 </field>
                 <notebook position="inside">

@@ -225,10 +225,10 @@ class ResPartner(models.Model):
 
     @api.constrains("vat", "commercial_partner_id")
     def _rut_unique(self):
-        for r in self:
+        for r in self.sudo():
             if not r.vat or r.parent_id:
                 continue
-            partner = self.env["res.partner"].search(
+            partner = self.env["res.partner"].sudo().search(
                 [("vat", "=", r.vat), ("id", "!=", r.id), ("commercial_partner_id", "!=", r.commercial_partner_id.id),]
             )
             if r.vat != "CL555555555" and partner:
