@@ -289,9 +289,10 @@ class ResPartner(models.Model):
         self.last_sync_update = data["actualizado"]
 
     def put_remote_user_data(self):
-        url = self.company_id.url_remote_partners
-        token = self.company_id.token_remote_partners
-        sync = self.company_id.sync_remote_partners
+        company = self.company_id or self.env.company
+        url = company.url_remote_partners
+        token = company.token_remote_partners
+        sync = company.sync_remote_partners
         if not url or not token or not sync:
             return
         if self.document_number in [False, 0, "0"]:
@@ -342,8 +343,9 @@ class ResPartner(models.Model):
             _logger.error(tools.ustr(ex))
 
     def get_remote_user_data(self, to_check, process_data=True):
-        url = self.company_id.url_remote_partners
-        token = self.company_id.token_remote_partners
+        company = self.company_id or self.env.company
+        url = company.url_remote_partners
+        token = company.token_remote_partners
         if not url or not token:
             return
         if to_check in [False, 0, "0"]:
@@ -394,8 +396,9 @@ class ResPartner(models.Model):
 
     @api.model
     def _check_need_update(self):
-        url = self.company_id.url_remote_partners
-        token = self.company_id.token_remote_partners
+        company = self.company_id or self.env.company
+        url = company.url_remote_partners
+        token = company.token_remote_partners
         if not url or not token:
             return
         for r in self.search([("document_number", "not in", [False, 0]), ("parent_id", "=", False)]):

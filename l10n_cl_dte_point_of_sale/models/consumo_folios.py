@@ -21,7 +21,7 @@ class ConsumoFolios(models.Model):
     )
 
     def _get_moves(self):
-        recs = []
+        recs = super(ConsumoFolios, self)._get_moves()
         for order in self.order_ids.filtered(lambda a: a.sii_document_number and a.document_class_id.es_boleta()):
             recs.append(order)
         return recs
@@ -42,7 +42,7 @@ class ConsumoFolios(models.Model):
             days=1)).astimezone(pytz.utc)
         self.order_ids = self.env['pos.order'].search(
             [
-             ('is_invoiced', '=', False),
+             #('is_invoiced', '=', False),
              ('sii_document_number', 'not in', [False, '0']),
              ('document_class_id.sii_code', 'in', [39, 41, 61]),
              ('date_order','>=', current),

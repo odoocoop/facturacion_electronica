@@ -218,16 +218,11 @@ class ConsumoFolios(models.Model):
     @api.onchange("move_ids", "anulaciones")
     def _resumenes(self):
         resumenes = self._get_resumenes()
-        if self.impuestos and isinstance(self.id, int):
-            self._cr.execute("DELETE FROM account_move_consumo_folios_impuestos WHERE cf_id=%s", (self.id,))
-            self.invalidate_cache()
-        if self.detalles and isinstance(self.id, int):
-            self._cr.execute("DELETE FROM account_move_consumo_folios_detalles WHERE cf_id=%s", (self.id,))
-            self.invalidate_cache()
-        detalles = [
-            [5,],
-        ]
-
+        self.write({
+            'detalles' : [(5, 0, 0)],
+            'impuestos' : [(5, 0, 0)],
+        })
+        detalles = []
         def pushItem(key_item, item, tpo_doc):
             rango = {
                 "tipo_operacion": "utilizados" if key_item == "RangoUtilizados" else "anulados",
@@ -247,7 +242,6 @@ class ConsumoFolios(models.Model):
                 if "itemAnulados" in Rangos:
                     for rango in Rangos["itemAnulados"]:
                         pushItem("RangoAnulados", rango, r)
-        self.detalles = detalles
         docs = {}
         for r, value in resumenes.items():
             if value.get("FoliosUtilizados", False):
@@ -259,13 +253,14 @@ class ConsumoFolios(models.Model):
                     "monto_exento": value["MntExento"],
                     "monto_total": value["MntTotal"],
                 }
-        lines = [
-            [5,],
-        ]
+        impuestos = []
         for _key, i in docs.items():
             i["currency_id"] = self.env.user.company_id.currency_id.id
-            lines.append([0, 0, i])
-        self.impuestos = lines
+            impuestos.append([0, 0, i])
+        self.write({
+            'detalles' : detalles,
+            'impuestos' : impuestos,
+        })
 
     @api.onchange("fecha_inicio", "company_id", "fecha_final")
     def set_data(self):
