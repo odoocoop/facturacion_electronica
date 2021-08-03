@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from odoo import api, fields, models
 
 
@@ -60,6 +61,8 @@ class SOL(models.Model):
         """
         Compute the amounts of the SO line.
         """
+        return super(SOL, self)._compute_amount()
+        ''' Esto quedará aquí hasta comprobar de que la nueva forma de cálculo de odoo esté bien'''
         for line in self:
             taxes = line.tax_id.compute_all(
                 line.price_unit,
