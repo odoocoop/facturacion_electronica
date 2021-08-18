@@ -22,7 +22,7 @@ class ProcessMailsDocument(models.Model):
 
     dte_id = fields.Many2one("mail.message.dte", string="DTE", readonly=True, ondelete="cascade",)
     new_partner = fields.Char(string="Proveedor Nuevo", readonly=True,)
-    partner_id = fields.Many2one("res.partner", string="Proveedor", domain=[("supplier", "=", True)],)
+    partner_id = fields.Many2one("res.partner", string="Proveedor",)
     date = fields.Date(string="Fecha Emsisión", readonly=True,)
     number = fields.Char(string="Folio", readonly=True,)
     document_class_id = fields.Many2one(

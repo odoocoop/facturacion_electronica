@@ -71,9 +71,8 @@
                                 <field
                                     string="Vendor"
                                     name="partner_id"
-                                    context="{'default_customer': 0, 'search_default_supplier': 1, 'default_supplier': 1}"
-                                    domain="[('supplier', '=', True),
-                                        ('responsability_id.tp_sii_code','=','2')]"
+                                    context="{'default_customer': 0, 'search_default_supplier': 1}"
+                                    domain="[('responsability_id.tp_sii_code','=','2')]"
                                 />
                                 <field name="reference" string="Vendor Reference" />
                             </group>
