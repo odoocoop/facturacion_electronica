@@ -243,7 +243,7 @@ class UploadXMLWizard(models.TransientModel):
                     else data.find("CorreoRecep").text,
                 }
             )
-            if '@sii.cl' in partner['dte_email'].lowe():
+            if '@sii.cl' in partner['dte_email'].lower():
                 del partner['dte_email']
                 partner['es_mipyme'] = True
         return partner
