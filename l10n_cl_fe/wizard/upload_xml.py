@@ -57,8 +57,8 @@ class UploadXMLWizard(models.TransientModel):
             target_model = "account.move"
         elif self.pre_process or self.option == "upload":
             created = self.do_create_pre()
-            xml_id = "l10n_cl_fe.action_dte_process"
-            target_model = "mail.message.dte"
+            xml_id = "l10n_cl_fe.dte_document_view_tree"
+            target_model = "mail.message.dte.document"
         elif self.option == "reject":
             self.do_reject()
             return
