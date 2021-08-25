@@ -33,6 +33,7 @@ class ProcessMailsDocument(models.Model):
         "res.currency", string="Moneda", readonly=True, default=lambda self: self.env.user.company_id.currency_id,
     )
     invoice_line_ids = fields.One2many("mail.message.dte.document.line", "document_id", string="Líneas del Documento",)
+    global_descuentos_recargos = fields.One2many("mail.message.dte.document.gdr", "document_id", string="Líneas GDR",)
     company_id = fields.Many2one("res.company", string="Compañía", readonly=True,)
     state = fields.Selection(
         [("draft", "Recibido"), ("accepted", "Aceptado"), ("rejected", "Rechazado"),], default="draft",
@@ -63,6 +64,7 @@ class ProcessMailsDocument(models.Model):
     sii_message = fields.Text(
         string="Respuesta SII"
     )
+    journal_id = fields.Many2one('account.journal', string="Journal Destino")
 
     _order = "create_date DESC"
 
@@ -312,4 +314,46 @@ class ProcessMailsDocumentLines(models.Model):
     product_uom_id = fields.Many2one('uom.uom', string='Unit of Measure', readonly=True)
     currency_id = fields.Many2one(
         "res.currency", string="Moneda", readonly=True, default=lambda self: self.env.user.company_id.currency_id,
+    )
+
+
+class MMDTEDGlobalDescuentoRecargo(models.Model):
+    _name = "mail.message.dte.document.gdr"
+    _description = "Linea de descuento global dte document"
+
+    def _get_name(self):
+        for g in self:
+            type = "Descuento"
+            if g.type == "R":
+                type = "Recargo"
+            calculo = "Porcentaje"
+            if g.gdr_type == "amount":
+                calculo = "Monto"
+            g.name = type + "-" + calculo + ": " + (g.gdr_detail or "")
+
+    name = fields.Char(compute="_get_name", string="Name")
+    type = fields.Selection(
+        [("D", "Descuento"), ("R", "Recargo"),],
+        string="Seleccione Descuento/Recargo Global",
+        default="D",
+        required=True,
+    )
+    valor = fields.Float(
+        string="Descuento/Recargo Global", default=0.00, required=True, digits="Global DR"
+    )
+    gdr_type = fields.Selection(
+        [("amount", "Monto"), ("percent", "Porcentaje"),], string="Tipo de descuento", default="percent", required=True,
+    )
+    gdr_detail = fields.Char(string="Razón del descuento")
+    amount_untaxed_global_dr = fields.Float(string="Descuento/Recargo Global", default=0.00)
+    aplicacion = fields.Selection([("flete", "Flete"), ("seguro", "Seguro"),], string="Aplicación del Desc/Rec",)
+    impuesto = fields.Selection(
+        [("afectos", "Solo Afectos"), ("exentos", "Solo Exentos"), ("no_facturables", "Solo No Facturables")],
+        default="afectos",
+    )
+    document_id = fields.Many2one("mail.message.dte.document", string="DTE", copy=False,)
+    account_id = fields.Many2one('account.account', string='Account',
+        company_dependent=True,
+        domain="[('deprecated', '=', False), ('company_id', '=', current_company_id)]",
+        #default=lambda self: self.move_id.journal_id.default_gd_account_id if self.type == 'D' else self.move_id.journal_id.default_gr_account_id
     )

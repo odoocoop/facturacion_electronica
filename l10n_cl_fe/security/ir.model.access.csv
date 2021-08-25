@@ -51,6 +51,8 @@ access_dte_caf_manager,access_dte_caf_manager,model_dte_caf,account.group_accoun
 access_dte_caf,access_dte_caf,model_dte_caf,,1,0,0,0
 edit_account_move_gdr,edit_account_move_gdr,model_account_move_gdr,account.group_account_invoice,1,1,1,1
 access_account_move_gdr,access_account_move_gdr,model_account_move_gdr,,1,0,0,0
+edit_mail_message_dte_document_gdr,edit_mail_message_dte_document_gdr,model_mail_message_dte_document_gdr,account.group_account_invoice,1,1,1,1
+access_mail_message_dte_document_gdr,access_mail_message_dte_document_gdr,model_mail_message_dte_document_gdr,,1,0,0,0
 edit_sii_xml_envio,edit_sii_xml_envio,model_sii_xml_envio,account.group_account_invoice,1,1,1,1
 access_sii_xml_envio,access_sii_xml_envio,model_sii_xml_envio,,1,0,0,0
 access_sale_order_referencias_manager,sale_order_referencias_manager,model_sale_order_referencias,account.group_account_manager,1,1,1,1

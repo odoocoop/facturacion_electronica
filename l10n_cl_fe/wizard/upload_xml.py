@@ -551,7 +551,7 @@ class UploadXMLWizard(models.TransientModel):
             },
         ]
 
-    def process_dr(self, dr):
+    def process_dr(self, dr, journal_id=False):
         data = {
             "type": dr.find("TpoMov").text,
         }
@@ -560,7 +560,9 @@ class UploadXMLWizard(models.TransientModel):
             disc_type = "amount"
         data["gdr_type"] = disc_type
         data["valor"] = dr.find("ValorDR").text
-        data["gdr_detail"] = dr.find("GlosaDR").text if dr.find("GlosaDR") is not None else "Descuento globla"
+        data["gdr_detail"] = dr.find("GlosaDR").text if dr.find("GlosaDR") is not None else "Descuento global"
+        if journal_id:
+            data['account_id'] = journal_id.default_gd_account_id.id if data['type'] == 'D' else journal_id.default_gr_account_id.id
         return data
 
     def _prepare_invoice(self, documento, company_id, journal_id, document=False):
@@ -612,13 +614,13 @@ class UploadXMLWizard(models.TransientModel):
                 "sii_barcode": ted_string.decode(),
                 "invoice_date": FchEmis,
             })
-        if journal_id and not document:
+        if journal_id:
             invoice["journal_id"] = journal_id.id
         DscRcgGlobal = documento.findall("DscRcgGlobal")
-        if DscRcgGlobal and not document:
+        if DscRcgGlobal is not None:
             drs = [(5,)]
             for dr in DscRcgGlobal:
-                drs.append((0, 0, self.process_dr(dr)))
+                drs.append((0, 0, self.process_dr(dr, journal_id)))
             invoice.update(
                 {"global_descuentos_recargos": drs,}
             )
@@ -672,7 +674,7 @@ class UploadXMLWizard(models.TransientModel):
         Encabezado = documento.find("Encabezado")
         IdDoc = Encabezado.find("IdDoc")
         price_included = Encabezado.find("MntBruto")
-        journal_id = self._get_journal(IdDoc.find("TipoDTE").text, company_id, ignore_journal)
+        journal_id = self.document_id.journal_id or self._get_journal(IdDoc.find("TipoDTE").text, company_id, ignore_journal)
         data = self._prepare_invoice(documento, company_id, journal_id, document)
         lines = [(5,)]
         document_id = self._dte_exist(documento)

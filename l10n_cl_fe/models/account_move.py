@@ -7,7 +7,6 @@ from six import string_types
 from odoo import api, fields, models, tools
 from odoo.exceptions import UserError
 from odoo.tools.translate import _
-from odoo.addons import decimal_precision as dp
 
 from .bigint import BigInt
 
@@ -972,6 +971,8 @@ class AccountMove(models.Model):
             return total * (gdr.valor /100.0), total_currency * (gdr.valor /100.0)
 
         def _apply_global_gdr(self, amount, amount_currency, global_gdr_line, gdr, taxes):
+            if self.move_type in ['in_invoice', 'in_refund']:
+                amount *= (-1)
             if gdr.type == 'D':
                 amount *= (-1)
                 amount_currency *= (-1)

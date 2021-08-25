@@ -3,7 +3,6 @@ import logging
 from odoo import api, fields, models
 from odoo.exceptions import UserError
 
-from odoo.addons import decimal_precision as dp
 
 _logger = logging.getLogger(__name__)
 
@@ -30,7 +29,7 @@ class GlobalDescuentoRecargo(models.Model):
         required=True,
     )
     valor = fields.Float(
-        string="Descuento/Recargo Global", default=0.00, required=True, digits=dp.get_precision("Global DR")
+        string="Descuento/Recargo Global", default=0.00, required=True, digits="Global DR"
     )
     gdr_type = fields.Selection(
         [("amount", "Monto"), ("percent", "Porcentaje"),], string="Tipo de descuento", default="percent", required=True,

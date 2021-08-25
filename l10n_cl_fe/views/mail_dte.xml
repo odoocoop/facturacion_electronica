@@ -89,6 +89,7 @@
             </form>
         </field>
     </record>
+
     <record id="dte_document_view_form" model="ir.ui.view">
         <field name="name">dte.document.form</field>
         <field name="model">mail.message.dte.document</field>
@@ -118,6 +119,7 @@
                             <field name="partner_id" />
                             <field name="number" />
                             <field name="document_class_id" />
+                            <field name="journal_id" />
                         </group>
                         <group>
                             <field name="amount" />
@@ -139,6 +141,24 @@
                                     <field name="price_unit" />
                                     <field name="price_subtotal" />
                                     <field name="currency_id" invisible="True" />
+                                </tree>
+                            </field>
+                            <field
+                                name="global_descuentos_recargos"
+                                widget="one2many_list"
+                                mode="tree"
+                                context="{'default_move_id': active_id}"
+                            >
+                                <tree string="Descuetos / Recargos Globales" editable="bottom">
+                                    <field name="type" />
+                                    <field name="gdr_type" />
+                                    <field name="valor" />
+                                    <field name="gdr_detail" />
+                                    <field name="aplicacion" />
+                                    <field name="impuesto" />
+                                    <field name="account_id"/>
+                                    <field name="amount_untaxed_global_dr" invisible="1" />
+                                    <field name="document_id" invisible="1" />
                                 </tree>
                             </field>
                         </page>
