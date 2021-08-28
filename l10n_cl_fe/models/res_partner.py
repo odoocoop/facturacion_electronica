@@ -314,7 +314,7 @@ class ResPartner(models.Model):
                         "telefono": self.phone,
                         "actectos": [ac.code for ac in self.acteco_ids],
                         "url": self.website,
-                        "origen": ICPSudo.get_param("web.base.url"),
+                        "origen": self.env['ir.config_parameter'].sudo().get_param('web.base.url'),
                         "logo": self.image.decode() if self.image else False,
                     }
                 ).encode("utf-8"),
@@ -396,13 +396,13 @@ class ResPartner(models.Model):
 
     @api.model
     def _check_need_update(self):
-        company = self.company_id or self.env.company
         url = company.url_remote_partners
         token = company.token_remote_partners
         if not url or not token:
             return
         for r in self.search([("document_number", "not in", [False, 0]), ("parent_id", "=", False)]):
-            if ICPSudo.get_param("partner.sync_remote_partners"):
+            company = r.company_id or self.env.company
+            if company.sync_remote_partners:
                 r.put_remote_user_data()
             try:
                 resp = pool.request(
