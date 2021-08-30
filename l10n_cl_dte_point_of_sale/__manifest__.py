@@ -3,7 +3,7 @@
     "name": """Boleta / Factura Electrónica Chilena para punto de ventas \
     """,
     'version': '0.27.3',
-    'category': 'Point of Sale/Localization/Chile',
+    'category': "Localization/Chile",'Point of Sale/Localization/Chile',
     'sequence': 12,
     'author':  'Daniel Santibáñez Polanco, Cooperativa OdooCoop',
     'website': 'https://globalresponse.cl',
